@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import type { SiteSettings } from "@/types";
 
 export async function GET() {
@@ -19,12 +21,18 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const { error: authError } = await requireAdminApi();
+  if (authError) return authError;
+
   try {
     const body = (await request.json()) as SiteSettings;
     if (!isSupabaseConfigured()) {
-      return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Supabase not configured" },
+        { status: 503 }
+      );
     }
-    const supabase = createAdminClient();
+    const supabase = await createPrivilegedClient();
     const { error } = await supabase.from("settings").upsert({
       key: "site",
       value: body,

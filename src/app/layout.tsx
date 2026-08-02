@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: `${SITE_NAME} | بوتيك فساتين الزفاف الفاخرة`,
     description:
-      "اكتشفي مجموعة فساتين الزفاف الفاخرة المصممة لتجعل yومك أكثر أناقة وتميزًا.",
+      "اكتشفي مجموعة فساتين الزفاف الفاخرة المصممة لتجعل يومك أكثر أناقة وتميزًا.",
   },
   robots: { index: true, follow: true },
 };

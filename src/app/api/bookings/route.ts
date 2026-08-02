@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireAdminApi } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
 const bookingSchema = z.object({
   name: z.string().min(2),
@@ -40,11 +42,14 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+  const { error: authError } = await requireAdminApi();
+  if (authError) return authError;
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(pendingBookings);
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createPrivilegedClient();
   const { data, error } = await supabase
     .from("bookings")
     .select("*")
@@ -57,12 +62,15 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const { error: authError } = await requireAdminApi();
+  if (authError) return authError;
+
   try {
     const { id, status } = await request.json();
     if (!isSupabaseConfigured()) {
       return NextResponse.json({ success: true });
     }
-    const supabase = createAdminClient();
+    const supabase = await createPrivilegedClient();
     const { error } = await supabase
       .from("bookings")
       .update({ status })
@@ -76,6 +84,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const { error: authError } = await requireAdminApi();
+  if (authError) return authError;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
@@ -84,7 +95,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true });
   }
 
-  const supabase = createAdminClient();
+  const supabase = await createPrivilegedClient();
   const { error } = await supabase.from("bookings").delete().eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

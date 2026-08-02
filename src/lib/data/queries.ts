@@ -1,7 +1,8 @@
 import type { Dress, DressFilters, GalleryItem, SiteSettings } from "@/types";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import { SEED_DRESSES, SEED_GALLERY } from "@/lib/data/seed";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createClient } from "@/lib/supabase/server";
 
 export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
   let dresses: Dress[];

@@ -106,7 +106,15 @@ export default async function DressDetailPage({ params }: Props) {
                   احجزي موعدًا
                 </Button>
               </Link>
-              <Link href={`/${dress.category === "wedding" ? "wedding-dresses" : dress.category === "rental" ? "rental-dresses" : dress.category}`}>
+              <Link
+                href={`/${
+                  dress.category === "wedding"
+                    ? "wedding-dresses"
+                    : dress.category === "rental"
+                      ? "rental-dresses"
+                      : dress.category
+                }`}
+              >
                 <Button variant="outline" size="lg">
                   العودة للمجموعة
                 </Button>

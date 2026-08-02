@@ -1,19 +1,27 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/auth";
+import { isCloudinaryConfigured } from "@/lib/supabase/env";
 
 export async function POST(request: Request) {
+  const { error: authError } = await requireAdminApi();
+  if (authError) return authError;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      return NextResponse.json({ error: "لم يتم اختيار ملف" }, { status: 400 });
     }
 
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-    if (!cloudName || !uploadPreset) {
+    if (!isCloudinaryConfigured() || !cloudName || !uploadPreset) {
       return NextResponse.json(
-        { error: "Cloudinary not configured" },
+        {
+          error:
+            "Cloudinary غير مُعد. أضيفي NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME و NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET",
+        },
         { status: 503 }
       );
     }
@@ -30,13 +38,16 @@ export async function POST(request: Request) {
 
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.error?.message ?? "Upload failed");
+      throw new Error(err.error?.message ?? "فشل الرفع");
     }
 
     const data = await res.json();
-    return NextResponse.json({ url: data.secure_url, publicId: data.public_id });
+    return NextResponse.json({
+      url: data.secure_url as string,
+      publicId: data.public_id as string,
+    });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Upload error";
+    const message = e instanceof Error ? e.message : "خطأ في الرفع";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
