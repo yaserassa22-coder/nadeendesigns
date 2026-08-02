@@ -1,19 +1,36 @@
-import type { Dress, GalleryItem } from "@/types";
+﻿import type { Dress, GalleryItem } from "@/types";
 
 const now = new Date().toISOString();
 
 export const SEED_DRESSES: Dress[] = [
   {
-    id: "1",
-    name_ar: "فستان الأميرة الذهبي",
+    id: "royal-lace",
+    name_ar: "״³״×״§† ״²״§ …„ƒ ״¨״§„״¯״§†״×„ ״§„״§״®״±",
     description_ar:
-      "فستان زفاف فاخر بتصميم أميرة مع تطريز ذهبي يدوي وتنورة واسعة من التulle الفاخر. مثالي للعروس التي تحلم بإطلالة ملكية.",
+      "״¬…״¹ ‡״°״§ ״§„״³״×״§† ״¨† ״§„״®״§…״© ״§„ƒ„״§״³ƒ״© ˆ״§„״±‚ ״§„״¹״µ״± ״¨״×״µ…… …„ƒ ״§״®״± …†״­ ״§„״¹״±ˆ״³ ״¥״·„״§„״© ״§״³״×״«†״§״¦״©.",
+    category: "wedding",
+    price: 22000,
+    rental_price: null,
+    size: "M",
+    color: "״£ˆ ˆ״§״×",
+    style: "״¯״§†״×„ ״§״®״±",
+    is_featured: true,
+    is_available: true,
+    images: ["/hero.webp", "/hero.jpg"],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "1",
+    name_ar: "״³״×״§† ״§„״£…״±״© ״§„״°‡״¨",
+    description_ar:
+      "״³״×״§† ״²״§ ״§״®״± ״¨״×״µ…… ״£…״±״© …״¹ ״×״·״±״² ״°‡״¨ ״¯ˆ ˆ״×†ˆ״±״© ˆ״§״³״¹״© …† ״§„״×ulle ״§„״§״®״±. …״«״§„ „„״¹״±ˆ״³ ״§„״× ״×״­„… ״¨״¥״·„״§„״© …„ƒ״©.",
     category: "wedding",
     price: 18500,
     rental_price: null,
     size: "M",
-    color: "عاجي",
-    style: "أميرة",
+    color: "״¹״§״¬",
+    style: "״£…״±",
     is_featured: true,
     is_available: true,
     images: [
@@ -25,15 +42,15 @@ export const SEED_DRESSES: Dress[] = [
   },
   {
     id: "2",
-    name_ar: "فستان مermaid الأناقة",
+    name_ar: "״³״×״§† …ermaid ״§„״£†״§‚״©",
     description_ar:
-      "تصميم mermaid أنيق يلتف حول الجسم بانسيابية مع ذيل درامي. قماش سatin فاخر مع تفاصيل دانتيل رقيقة.",
+      "״×״µ…… mermaid ״£†‚ „״× ״­ˆ„ ״§„״¬״³… ״¨״§†״³״§״¨״© …״¹ ״°„ ״¯״±״§…. ‚…״§״´ ״³atin ״§״®״± …״¹ ״×״§״µ„ ״¯״§†״×„ ״±‚‚״©.",
     category: "wedding",
     price: 15200,
     rental_price: null,
     size: "S",
-    color: "أبيض",
-    style: "مermaid",
+    color: "״£״¨״¶",
+    style: "״­ˆ״±״© ״§„״¨״­״±",
     is_featured: true,
     is_available: true,
     images: [
@@ -44,15 +61,15 @@ export const SEED_DRESSES: Dress[] = [
   },
   {
     id: "3",
-    name_ar: "فستان بوهو الرomantic",
+    name_ar: "״³״×״§† ״¨ˆ‡ˆ ״§„״±omantic",
     description_ar:
-      "فستان بوهو رومانسي بأكمام طويلة شفافة وتطريزات floral delicate. مثالي للأعراس في الهواء الطلق.",
+      "״³״×״§† ״¨ˆ‡ˆ ״±ˆ…״§†״³ ״¨״£ƒ…״§… ״·ˆ„״© ״´״§״© ˆ״×״·״±״²״§״× floral delicate. …״«״§„ „„״£״¹״±״§״³  ״§„‡ˆ״§״¡ ״§„״·„‚.",
     category: "wedding",
     price: 12800,
     rental_price: null,
     size: "M",
-    color: "عاجي",
-    style: "بوهو",
+    color: "״¹״§״¬",
+    style: "״¨ˆ‡…",
     is_featured: true,
     is_available: true,
     images: [
@@ -63,15 +80,15 @@ export const SEED_DRESSES: Dress[] = [
   },
   {
     id: "4",
-    name_ar: "فستان كلاسيكي A-Line",
+    name_ar: "״³״×״§† ƒ„״§״³ƒ A-Line",
     description_ar:
-      "تصميم كلاسيكي A-Line خالد مع خط عنق بسيط وظهر مفتوح. أناقة خالدة تناسب جميع أنواع الجسم.",
+      "״×״µ…… ƒ„״§״³ƒ A-Line ״®״§„״¯ …״¹ ״®״· ״¹†‚ ״¨״³״· ˆ״¸‡״± …״×ˆ״­. ״£†״§‚״© ״®״§„״¯״© ״×†״§״³״¨ ״¬…״¹ ״£†ˆ״§״¹ ״§„״¬״³….",
     category: "wedding",
     price: 11500,
     rental_price: null,
     size: "L",
-    color: "أبيض",
-    style: "كلاسيكي",
+    color: "״£״¨״¶",
+    style: "‚״µ״© A (‚״µ״© ״­״± A)",
     is_featured: false,
     is_available: true,
     images: [
@@ -82,15 +99,15 @@ export const SEED_DRESSES: Dress[] = [
   },
   {
     id: "5",
-    name_ar: "فستان إيجار — Crystal Dream",
+    name_ar: "״³״×״§† ״¥״¬״§״± ג€” Crystal Dream",
     description_ar:
-      "فستان زفاف للإيجار مزين بكristals لامعة. متوفر للإيجار لفترة محدودة مع خدمة تنظيف مجانية.",
+      "״³״×״§† ״²״§ „„״¥״¬״§״± …״²† ״¨ƒristals „״§…״¹״©. …״×ˆ״± „„״¥״¬״§״± „״×״±״© …״­״¯ˆ״¯״© …״¹ ״®״¯…״© ״×†״¸ …״¬״§†״©.",
     category: "rental",
     price: null,
     rental_price: 3500,
     size: "M",
-    color: "أبيض",
-    style: "حديث",
+    color: "״£״¨״¶",
+    style: "״§״®״±",
     is_featured: true,
     is_available: true,
     images: [
@@ -101,15 +118,15 @@ export const SEED_DRESSES: Dress[] = [
   },
   {
     id: "6",
-    name_ar: "فستان إيجار — Vintage Lace",
+    name_ar: "״³״×״§† ״¥״¬״§״± ג€” Vintage Lace",
     description_ar:
-      "فستان vintage للإيجار بتصميم دانتيل كلاسيكي مع أكمام طويلة. قطعة نادرة من مجموعتنا الحصرية.",
+      "״³״×״§† vintage „„״¥״¬״§״± ״¨״×״µ…… ״¯״§†״×„ ƒ„״§״³ƒ …״¹ ״£ƒ…״§… ״·ˆ„״©. ‚״·״¹״© †״§״¯״±״© …† …״¬…ˆ״¹״×†״§ ״§„״­״µ״±״©.",
     category: "rental",
     price: null,
     rental_price: 2800,
     size: "S",
-    color: "عاجي",
-    style: "فintage",
+    color: "״¹״§״¬",
+    style: "״¯״§†״×„ ״§״®״±",
     is_featured: false,
     is_available: true,
     images: [
@@ -119,77 +136,58 @@ export const SEED_DRESSES: Dress[] = [
     updated_at: now,
   },
   {
-    id: "7",
-    name_ar: "طرحة كathedral فاخرة",
+    id: "nouf-1",
+    name_ar: "״³״×״§† †ˆ ג€” ״¥״·„״§„״© ״°‡״¨״©",
     description_ar:
-      "طرحة cathedral طويلة من تulle فاخر مع حافة مطرزة باللؤلؤ. تكمل أي فستان زفاف بأناقة.",
-    category: "veils",
-    price: 2200,
-    rental_price: 800,
-    size: null,
-    color: "أبيض",
-    style: "كلاسيكي",
-    is_featured: true,
-    is_available: true,
-    images: [
-      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-    ],
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "8",
-    name_ar: "طرحة birdcage أنيقة",
-    description_ar:
-      "طرحة birdcage قصيرة مع تطريز دانتيل وشبكة vintage. مثالية للأعراس الصغيرة والحميمة.",
-    category: "veils",
-    price: 950,
-    rental_price: 350,
-    size: null,
-    color: "عاجي",
-    style: "فintage",
-    is_featured: false,
-    is_available: true,
-    images: [
-      "https://images.unsplash.com/photo-1465495976277-5537e3f4b7b4?w=800&q=80",
-    ],
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "9",
-    name_ar: "روب عروس سatin فاخر",
-    description_ar:
-      "روب عروس من سatin فاخر مع تطريز initials مخصص. مثالي لجلسات التحضير والتصوير.",
-    category: "robes",
-    price: 1800,
+      "״³״×״§† †ˆ ״§״®״± ״¨״×״§״µ„ ״¯‚‚״© ˆ„…״³״© ״£†‚״©״ …״µ…… „…†״­ ״§„״¹״±ˆ״³ ״­״¶ˆ״±‹״§ ״§״³״×״«†״§״¦‹״§  ˆ…‡״§ ״§„……״².",
+    category: "nouf_dresses",
+    price: 16500,
     rental_price: null,
     size: "M",
-    color: "شampagne",
-    style: "حديث",
+    color: "״¹״§״¬",
+    style: "״§״®״±",
     is_featured: true,
     is_available: true,
     images: [
-      "https://images.unsplash.com/photo-1515934751635-c81c6bc9a5d8?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
     ],
     created_at: now,
     updated_at: now,
   },
   {
-    id: "10",
-    name_ar: "روب lace رومانسي",
+    id: "11",
+    name_ar: "״×״µ…… ״®״§״µ ג€” ״¥״·„״§„״© …„ƒ״©",
     description_ar:
-      "روب عروس من دانتiel lace مع أربطة حريرية. تصميم رومانسي أنيق للصباح الكبير.",
-    category: "robes",
-    price: 1450,
+      "״®״¯…״© ״×״µ…… ״³״×״§† ״®״§״µ ״¨״§„ƒ״§…„ ״­״³״¨ ״°ˆ‚ƒ ˆ…‚״§״³״§״×ƒ. ״×״´…„ ״§״³״×״´״§״±״©״ ״±״³… ״£ˆ„״ ˆ״×״µ„ ״¯ˆ ״§״®״±.",
+    category: "custom_design",
+    price: 25000,
     rental_price: null,
-    size: "S",
-    color: "Blush",
-    style: "بوهو",
+    size: "…״®״µ״µ",
+    color: "״¹״§״¬",
+    style: "…„ƒ",
+    is_featured: true,
+    is_available: true,
+    images: [
+      "https://images.unsplash.com/photo-1594552072234-2f0a8a4b8c8e?w=800&q=80",
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "12",
+    name_ar: "״×״µ…… ״®״§״µ ג€” „…״³״© ״¹״µ״±״©",
+    description_ar:
+      "״³״×״§† …״®״µ״µ ״¨״®״·ˆ״· ״­״¯״«״© ˆ״×״§״µ„ ״¯‚‚״©. †״¹…„ …״¹ƒ ״®״·ˆ״© ״¨״®״·ˆ״© „״µ†״§״¹״© ‚״·״¹״© ״±״¯״©.",
+    category: "custom_design",
+    price: 22000,
+    rental_price: null,
+    size: "…״®״µ״µ",
+    color: "״£״¨״¶",
+    style: "״×״µ…… …״®״µ״µ",
     is_featured: false,
     is_available: true,
     images: [
-      "https://images.unsplash.com/photo-1525253086316-d0c936c814f8?w=800&q=80",
+      "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&q=80",
     ],
     created_at: now,
     updated_at: now,
@@ -199,7 +197,7 @@ export const SEED_DRESSES: Dress[] = [
 export const SEED_GALLERY: GalleryItem[] = [
   {
     id: "g1",
-    title_ar: "جلسة تصوير — الأميرة الذهبية",
+    title_ar: "״¬„״³״© ״×״µˆ״± ג€” ״§„״£…״±״© ״§„״°‡״¨״©",
     image_url:
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=600&q=80",
     category: "wedding",
@@ -208,7 +206,7 @@ export const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: "g2",
-    title_ar: "تفاصيل التطريز",
+    title_ar: "״×״§״µ„ ״§„״×״·״±״²",
     image_url:
       "https://images.unsplash.com/photo-1594552072234-2f0a8a4b8c8e?w=600&q=80",
     category: "details",
@@ -217,7 +215,7 @@ export const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: "g3",
-    title_ar: "إطلالة mermaid",
+    title_ar: "״¥״·„״§„״© mermaid",
     image_url:
       "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&q=80",
     category: "wedding",
@@ -226,7 +224,7 @@ export const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: "g4",
-    title_ar: "بوتيكنا الفاخر",
+    title_ar: "״¨ˆ״×ƒ†״§ ״§„״§״®״±",
     image_url:
       "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=600&q=80",
     category: "boutique",
@@ -235,7 +233,7 @@ export const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: "g5",
-    title_ar: "بوquet العروس",
+    title_ar: "״¨ˆquet ״§„״¹״±ˆ״³",
     image_url:
       "https://images.unsplash.com/photo-1525253086316-d0c936c814f8?w=600&q=80",
     category: "details",
@@ -244,7 +242,7 @@ export const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: "g6",
-    title_ar: "عرض الأزياء",
+    title_ar: "״¹״±״¶ ״§„״£״²״§״¡",
     image_url:
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&q=80",
     category: "events",
@@ -253,7 +251,7 @@ export const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: "g7",
-    title_ar: "تجربة فستان",
+    title_ar: "״×״¬״±״¨״© ״³״×״§†",
     image_url:
       "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=600&q=80",
     category: "boutique",
@@ -262,20 +260,11 @@ export const SEED_GALLERY: GalleryItem[] = [
   },
   {
     id: "g8",
-    title_ar: "إطلالة بوهو",
+    title_ar: "״¥״·„״§„״© ״¨ˆ‡ˆ",
     image_url:
       "https://images.unsplash.com/photo-1522653216850-4f4c69d89f2d?w=600&q=80",
     category: "wedding",
     sort_order: 8,
     created_at: now,
   },
-];
-
-export const INSTAGRAM_IMAGES = [
-  "https://images.unsplash.com/photo-1519741497674-611481863552?w=400&q=80",
-  "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&q=80",
-  "https://images.unsplash.com/photo-1522653216850-4f4c69d89f2d?w=400&q=80",
-  "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=400&q=80",
-  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=400&q=80",
-  "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=400&q=80",
 ];

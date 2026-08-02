@@ -6,18 +6,22 @@ export const metadata: Metadata = {
   title: "إدارة الحجوزات",
 };
 
+/** Always fetch fresh bookings — never serve a cached empty list */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminBookingsPage() {
-  const bookings = await getAdminBookings();
+  const { bookings, error, count } = await getAdminBookings();
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-charcoal">إدارة الحجوزات</h1>
         <p className="mt-2 text-muted">
-          متابعة طلبات المواعيد وتحديث حالاتها
+          متابعة جميع المواعيد من جدول bookings ({count} حجز)
         </p>
       </div>
-      <BookingsManager initialBookings={bookings} />
+      <BookingsManager initialBookings={bookings} initialError={error} />
     </div>
   );
 }

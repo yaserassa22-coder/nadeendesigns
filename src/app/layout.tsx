@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Noto_Sans_Arabic } from "next/font/google";
-import { SITE_NAME } from "@/lib/constants";
+import { OFFICIAL_INSTAGRAM_URL, SITE_NAME } from "@/lib/constants";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -26,14 +26,18 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Nadeen Designs — بوتيك فاخر لفساتين الزفاف والإيجار والطرحات والأرواب. احجزي موعدك اليوم واكتشفي مجموعتنا الحصرية.",
+    "Nadeen Designs — بوتيك فاخر لفساتين الزفاف والإيجار والطرحات وبرنص العروس وتصميم الفساتين الخاصة. احجزي موعدك اليوم واكتشفي مجموعتنا الحصرية.",
   keywords: [
     "فساتين زفاف",
     "فساتين للإيجار",
     "بوتيك عروس",
     "Nadeen Designs",
+    "nadeendesign_",
+    "إنستغرام Nadeen Designs",
     "طرحات زفاف",
-    "أرواب عروس",
+    "برنص عروس",
+    "تصميم فستان خاص",
+    "فساتين نوف",
   ],
   openGraph: {
     type: "website",
@@ -43,19 +47,39 @@ export const metadata: Metadata = {
     description:
       "اكتشفي مجموعة فساتين الزفاف الفاخرة المصممة لتجعل يومك أكثر أناقة وتميزًا.",
   },
+  alternates: {
+    canonical: "/",
+  },
+  other: {
+    "instagram:profile": OFFICIAL_INSTAGRAM_URL,
+  },
   robots: { index: true, follow: true },
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BridalShop",
+    name: SITE_NAME,
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://nadeendesigns.com",
+    sameAs: [OFFICIAL_INSTAGRAM_URL],
+  };
+
   return (
     <html
       lang="ar"
       dir="rtl"
       className={`${cormorant.variable} ${notoArabic.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-ivory text-charcoal">{children}</body>
+      <body className="min-h-full bg-ivory text-charcoal">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

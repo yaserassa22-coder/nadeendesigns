@@ -1,25 +1,22 @@
 import { Hero } from "@/components/home/Hero";
 import { FeaturedDresses } from "@/components/home/FeaturedDresses";
+import { CustomDesignSection } from "@/components/home/CustomDesignSection";
 import { ServicesSection } from "@/components/home/ServicesSection";
 import { InstagramSection } from "@/components/home/InstagramSection";
 import { CTASection } from "@/components/home/CTASection";
-import { getFeaturedDresses, getSettings } from "@/lib/data/queries";
+import { getFeaturedDresses } from "@/lib/data/queries";
 
 export default async function HomePage() {
-  const [settings, featuredDresses] = await Promise.all([
-    getSettings(),
-    getFeaturedDresses(3),
-  ]);
+  const featuredDresses = await getFeaturedDresses(3);
 
   return (
     <>
-      <Hero settings={settings} />
+      <Hero />
       <FeaturedDresses dresses={featuredDresses} />
+      <CustomDesignSection />
+      {/* Category cards: src/components/home/ServicesSection.tsx */}
       <ServicesSection />
-      <InstagramSection
-        instagramUrl={settings.instagram_url}
-        handle={settings.instagram_handle}
-      />
+      <InstagramSection />
       <CTASection />
     </>
   );

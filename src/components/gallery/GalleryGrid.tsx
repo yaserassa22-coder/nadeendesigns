@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const CATEGORIES = [
   { value: "all", label: "الكل" },
   { value: "wedding", label: "زفاف" },
+  { value: "nouf_dresses", label: "فساتين نوف" },
   { value: "details", label: "تفاصيل" },
   { value: "boutique", label: "البوتيك" },
   { value: "events", label: "فعاليات" },

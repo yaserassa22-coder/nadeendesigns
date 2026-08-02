@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import type { SiteSettings } from "@/types";
+import {
+  OFFICIAL_INSTAGRAM_HANDLE,
+  OFFICIAL_INSTAGRAM_URL,
+} from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 
@@ -27,7 +31,11 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          ...settings,
+          instagram_url: OFFICIAL_INSTAGRAM_URL,
+          instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
@@ -67,16 +75,18 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           onChange={(e) => update("working_hours_ar", e.target.value)}
         />
         <Input
-          label="رابط إنستغرام"
-          value={settings.instagram_url}
-          onChange={(e) => update("instagram_url", e.target.value)}
+          label="رابط إنستغرام (الرسمي)"
+          value={OFFICIAL_INSTAGRAM_URL}
+          onChange={() => update("instagram_url", OFFICIAL_INSTAGRAM_URL)}
           dir="ltr"
+          readOnly
         />
         <Input
-          label="حساب إنستغرام"
-          value={settings.instagram_handle}
-          onChange={(e) => update("instagram_handle", e.target.value)}
+          label="حساب إنستغرام (الرسمي)"
+          value={OFFICIAL_INSTAGRAM_HANDLE}
+          onChange={() => update("instagram_handle", OFFICIAL_INSTAGRAM_HANDLE)}
           dir="ltr"
+          readOnly
         />
         <div className="md:col-span-2">
           <Input

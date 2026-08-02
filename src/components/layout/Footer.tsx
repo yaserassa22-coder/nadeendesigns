@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { Camera, Mail, MapPin, Phone } from "lucide-react";
 import type { SiteSettings } from "@/types";
-import { NAV_LINKS, SITE_NAME } from "@/lib/constants";
+import {
+  NAV_LINKS,
+  OFFICIAL_INSTAGRAM_HANDLE,
+  OFFICIAL_INSTAGRAM_URL,
+  SITE_NAME,
+} from "@/lib/constants";
 
 interface FooterProps {
   settings: SiteSettings;
@@ -69,13 +74,13 @@ export function Footer({ settings }: FooterProps) {
             </h3>
             <p className="text-sm text-ivory/70">{settings.working_hours_ar}</p>
             <a
-              href={settings.instagram_url}
+              href={OFFICIAL_INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-6 inline-flex items-center gap-2 text-sm text-gold transition-colors hover:text-gold-light"
             >
               <Camera className="h-5 w-5" />
-              {settings.instagram_handle}
+              <span dir="ltr">{OFFICIAL_INSTAGRAM_HANDLE}</span>
             </a>
           </div>
         </div>

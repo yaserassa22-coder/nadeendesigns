@@ -1,29 +1,25 @@
 import type { Metadata } from "next";
-import { DressCatalog, PageHero } from "@/components/dresses/DressCatalog";
-import { getDresses } from "@/lib/data/queries";
+import { PageHero } from "@/components/dresses/DressCatalog";
+import { ShopCatalog } from "@/components/shop/ShopCatalog";
+import { getBridalRobes } from "@/lib/data/shop-queries";
 
 export const metadata: Metadata = {
-  title: "الأرواب",
-  description: "أرواب عروس فاخرة من سatin وlace — مثالية لجلسات التحضير والتصوير.",
+  title: "برنص عروس",
+  description: "برنص عروس فاخر من Nadeen Designs مع تخصيص الكتابة والشراء.",
 };
 
 export default async function RobesPage() {
-  const dresses = await getDresses({ category: "robes" });
+  const robes = await getBridalRobes();
 
   return (
     <>
       <PageHero
-        title="الأرواب"
-        description="أرواب عروس فاخرة لجلسات التحضير — أناقة من أول لحظة"
+        title="برنص عروس"
+        description="برنص فاخر لجلسات التحضير والتصوير — خصّصي الكتابة واطلبي تغليف هدية."
       />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
-          <DressCatalog
-            dresses={dresses}
-            category="robes"
-            title="الأرواب"
-            description=""
-          />
+          <ShopCatalog items={robes} basePath="/robes" />
         </div>
       </section>
     </>

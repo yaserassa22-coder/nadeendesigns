@@ -1,6 +1,15 @@
 import type { Dress, DressFilters, GalleryItem, SiteSettings } from "@/types";
-import { DEFAULT_SETTINGS } from "@/lib/constants";
+import {
+  DEFAULT_SETTINGS,
+  OFFICIAL_INSTAGRAM_HANDLE,
+  OFFICIAL_INSTAGRAM_URL,
+} from "@/lib/constants";
 import { SEED_DRESSES, SEED_GALLERY } from "@/lib/data/seed";
+import {
+  categoryQueryValues,
+  normalizeDressList,
+  withNormalizedDressCategory,
+} from "@/lib/dresses/category";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -9,20 +18,32 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    let query = supabase.from("dresses").select("*").order("created_at", { ascending: false });
+    let query = supabase
+      .from("dresses")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    if (filters?.category) query = query.eq("category", filters.category);
+    if (filters?.category) {
+      const values = categoryQueryValues(filters.category);
+      query =
+        values.length > 1
+          ? query.in("category", values)
+          : query.eq("category", values[0]);
+    }
     if (filters?.featured) query = query.eq("is_featured", true);
     if (filters?.style) query = query.eq("style", filters.style);
     if (filters?.color) query = query.eq("color", filters.color);
     if (filters?.size) query = query.eq("size", filters.size);
 
     const { data, error } = await query;
-    dresses = error ? SEED_DRESSES : (data as Dress[]);
+    dresses = error
+      ? normalizeDressList(SEED_DRESSES)
+      : normalizeDressList(data as Dress[]);
   } else {
-    dresses = SEED_DRESSES;
+    dresses = normalizeDressList(SEED_DRESSES);
   }
 
+  // Strict client-side filter on canonical category (never mix wedding / nouf)
   if (filters?.category) {
     dresses = dresses.filter((d) => d.category === filters.category);
   }
@@ -69,9 +90,10 @@ export async function getDressById(id: string): Promise<Dress | null> {
       .select("*")
       .eq("id", id)
       .single();
-    if (!error && data) return data as Dress;
+    if (!error && data) return withNormalizedDressCategory(data as Dress);
   }
-  return SEED_DRESSES.find((d) => d.id === id) ?? null;
+  const seed = SEED_DRESSES.find((d) => d.id === id);
+  return seed ? withNormalizedDressCategory(seed) : null;
 }
 
 export async function getGalleryItems(): Promise<GalleryItem[]> {
@@ -86,6 +108,14 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
   return SEED_GALLERY;
 }
 
+function withOfficialInstagram(settings: SiteSettings): SiteSettings {
+  return {
+    ...settings,
+    instagram_url: OFFICIAL_INSTAGRAM_URL,
+    instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
+  };
+}
+
 export async function getSettings(): Promise<SiteSettings> {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -94,12 +124,19 @@ export async function getSettings(): Promise<SiteSettings> {
       .select("value")
       .eq("key", "site")
       .single();
-    if (!error && data?.value) return data.value as SiteSettings;
+    if (!error && data?.value) {
+      return withOfficialInstagram(data.value as SiteSettings);
+    }
   }
-  return DEFAULT_SETTINGS;
+  return withOfficialInstagram(DEFAULT_SETTINGS);
 }
 
 export async function getFeaturedDresses(limit = 3): Promise<Dress[]> {
   const dresses = await getDresses({ featured: true });
-  return dresses.slice(0, limit);
+  const prioritized = [...dresses].sort((a, b) => {
+    if (a.id === "royal-lace") return -1;
+    if (b.id === "royal-lace") return 1;
+    return 0;
+  });
+  return prioritized.slice(0, limit);
 }

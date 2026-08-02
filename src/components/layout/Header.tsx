@@ -2,14 +2,45 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, ShoppingBag, X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { NAV_LINKS, SITE_NAME } from "@/lib/constants";
+import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/components/shop/CartProvider";
+
+/** صف التصنيفات الأول */
+const PRIMARY_CATEGORY_LINKS = [
+  { href: "/wedding-dresses", label: "فساتين الزفاف" },
+  { href: "/nouf-dresses", label: "فساتين نوف" },
+  { href: "/rental-dresses", label: "فساتين للإيجار" },
+  { href: "/custom-design", label: "تصميم فستان خاص" },
+] as const;
+
+/** صف التصنيفات الثاني: الطرحات يمين · برنص عروس يسارها */
+const SECONDARY_CATEGORY_LINKS = [
+  { href: "/veils", label: "الطرحات" },
+  { href: "/robes", label: "برنص عروس" },
+] as const;
+
+const UTILITY_LINKS = [
+  { href: "/cart", label: "السلة" },
+  { href: "/gallery", label: "معرض الصور" },
+  { href: "/booking", label: "احجزي موعدًا" },
+  { href: "/about", label: "من نحن" },
+  { href: "/contact", label: "اتصل بنا" },
+] as const;
+
+const ALL_MOBILE_LINKS = [
+  { href: "/", label: "الرئيسية" },
+  ...PRIMARY_CATEGORY_LINKS,
+  ...SECONDARY_CATEGORY_LINKS,
+  ...UTILITY_LINKS,
+] as const;
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { count } = useCart();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -33,7 +64,7 @@ export function Header() {
           : "bg-transparent py-5"
       )}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 md:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 md:px-8">
         <button
           type="button"
           className="lg:hidden"
@@ -43,27 +74,29 @@ export function Header() {
           <Menu className="h-6 w-6 text-charcoal" />
         </button>
 
-        <nav className="hidden flex-1 gap-6 lg:flex">
-          {NAV_LINKS.slice(0, 5).map((link) => (
+        {/* يمين الشعار (RTL): صف التصنيفات الأول */}
+        <nav className="hidden min-w-0 flex-1 items-center justify-start gap-x-2 lg:flex xl:gap-x-3">
+          {PRIMARY_CATEGORY_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+              className="shrink-0 text-[13px] font-medium text-charcoal/80 transition-colors hover:text-gold xl:text-sm"
             >
               {link.label}
             </Link>
           ))}
         </nav>
 
-        <Link href="/" className="group flex flex-col items-center">
+        <Link href="/" className="group flex shrink-0 flex-col items-center px-2">
           <span className="font-[family-name:var(--font-cormorant)] text-2xl font-semibold tracking-widest text-charcoal transition-colors group-hover:text-gold md:text-3xl">
             {SITE_NAME}
           </span>
           <span className="mt-0.5 h-px w-0 bg-gold transition-all duration-500 group-hover:w-full" />
         </Link>
 
-        <nav className="hidden flex-1 justify-end gap-6 lg:flex">
-          {NAV_LINKS.slice(5).map((link) => (
+        {/* يسار الشعار: الطرحات ثم برنص عروس، ثم الروابط الأخرى */}
+        <nav className="hidden flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2 lg:flex xl:gap-4">
+          {SECONDARY_CATEGORY_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -72,51 +105,69 @@ export function Header() {
               {link.label}
             </Link>
           ))}
+          {UTILITY_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="relative text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+            >
+              {link.label}
+              {link.href === "/cart" && count > 0 && (
+                <span className="absolute -top-2 -left-3 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+                  {count}
+                </span>
+              )}
+            </Link>
+          ))}
         </nav>
 
-        <div className="w-6 lg:hidden" />
+        <Link
+          href="/cart"
+          className="relative rounded-full p-2 text-charcoal hover:text-gold lg:hidden"
+          aria-label="السلة"
+        >
+          <ShoppingBag className="h-5 w-5" />
+          {count > 0 && (
+            <span className="absolute -top-0.5 -left-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+              {count}
+            </span>
+          )}
+        </Link>
       </div>
 
-      {/* Mobile menu */}
-      <motion.div
-        initial={false}
-        animate={mobileOpen ? { opacity: 1, pointerEvents: "auto" as const } : { opacity: 0, pointerEvents: "none" as const }}
-        className="fixed inset-0 z-50 bg-charcoal/40 backdrop-blur-sm lg:hidden"
-        onClick={() => setMobileOpen(false)}
-      />
-      <motion.nav
-        initial={false}
-        animate={mobileOpen ? { x: 0 } : { x: "100%" }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="fixed top-0 right-0 z-50 flex h-full w-[min(320px,85vw)] flex-col bg-ivory shadow-2xl lg:hidden"
-      >
-        <div className="flex items-center justify-between border-b border-beige-dark p-6">
-          <span className="font-[family-name:var(--font-cormorant)] text-xl font-semibold tracking-widest">
-            {SITE_NAME}
-          </span>
-          <button type="button" onClick={() => setMobileOpen(false)} aria-label="إغلاق">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-6">
-          {NAV_LINKS.map((link, i) => (
-            <motion.div
-              key={link.href}
-              initial={{ opacity: 0, x: 20 }}
-              animate={mobileOpen ? { opacity: 1, x: 0 } : {}}
-              transition={{ delay: i * 0.05 }}
+      {mobileOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 bg-ivory lg:hidden"
+        >
+          <div className="flex items-center justify-between px-4 py-5">
+            <span className="font-[family-name:var(--font-cormorant)] text-2xl tracking-widest text-gold">
+              {SITE_NAME}
+            </span>
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              aria-label="إغلاق"
             >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <nav className="flex flex-col gap-2 px-6 py-4">
+            {ALL_MOBILE_LINKS.map((link) => (
               <Link
+                key={link.href}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="block rounded-xl px-4 py-3 text-lg font-medium transition-colors hover:bg-beige hover:text-gold"
+                className="rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
               >
                 {link.label}
+                {link.href === "/cart" && count > 0 ? ` (${count})` : ""}
               </Link>
-            </motion.div>
-          ))}
-        </div>
-      </motion.nav>
+            ))}
+          </nav>
+        </motion.div>
+      )}
     </header>
   );
 }

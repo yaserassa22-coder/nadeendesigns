@@ -1,37 +1,62 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  CalendarDays,
-  Image as ImageIcon,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Settings,
-  Shirt,
-  X,
-} from "lucide-react";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { LogOut, Menu, X } from "lucide-react";
+import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const LINKS: {
-  href: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  exact?: boolean;
-}[] = [
-  { href: "/admin", label: "لوحة التحكم", icon: LayoutDashboard, exact: true },
-  { href: "/admin/dresses", label: "الفساتين", icon: Shirt },
-  { href: "/admin/gallery", label: "المعرض", icon: ImageIcon },
-  { href: "/admin/bookings", label: "الحجوزات", icon: CalendarDays },
-  { href: "/admin/settings", label: "الإعدادات", icon: Settings },
-];
+const LINKS = [
+  { href: "/admin", label: "لوحة التحكم", exact: true },
+  { href: "/admin/dresses", label: "👰 الفساتين" },
+  { href: "/admin/nouf-dresses", label: "👗 فساتين نوف" },
+  { href: "/admin/veils", label: "🕊️ الطرحات" },
+  { href: "/admin/bridal-robes", label: "🥻 برنص عروس" },
+  { href: "/admin/gallery", label: "🖼️ المعرض" },
+  { href: "/admin/bookings", label: "📅 الحجوزات" },
+  { href: "/admin/orders", label: "🛒 الطلبات" },
+  { href: "/admin/notifications", label: "🔔 الإشعارات" },
+  { href: "/admin/messages", label: "💬 الرسائل" },
+  { href: "/admin/settings", label: "⚙️ الإعدادات" },
+] as const;
 
-export function AdminSidebar() {
+function isLinkActive(
+  href: string,
+  pathname: string,
+  category: string | null,
+  exact?: boolean
+) {
+  if (exact) return pathname === href;
+
+  if (href.includes("?")) {
+    const [path, query] = href.split("?");
+    const params = new URLSearchParams(query);
+    return (
+      pathname === path && category === params.get("category")
+    );
+  }
+
+  if (href === "/admin/dresses") {
+    return pathname === "/admin/dresses" && !category;
+  }
+
+  if (href === "/admin/nouf-dresses") {
+    return pathname === "/admin/nouf-dresses";
+  }
+
+  // Avoid /admin/dresses matching /admin/nouf-dresses via startsWith
+  if (pathname.startsWith(href + "/") || pathname === href) {
+    return true;
+  }
+  return false;
+}
+
+function AdminSidebarInner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const category = searchParams.get("category");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -59,12 +84,14 @@ export function AdminSidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {LINKS.map((link) => {
-          const active = link.exact
-            ? pathname === link.href
-            : pathname.startsWith(link.href);
-          const Icon = link.icon;
+          const active = isLinkActive(
+            link.href,
+            pathname,
+            category,
+            "exact" in link ? link.exact : false
+          );
           return (
             <Link
               key={link.href}
@@ -77,7 +104,6 @@ export function AdminSidebar() {
                   : "text-charcoal hover:bg-beige"
               )}
             >
-              <Icon className="h-4 w-4" />
               {link.label}
             </Link>
           );
@@ -148,5 +174,13 @@ export function AdminSidebar() {
         </div>
       )}
     </>
+  );
+}
+
+export function AdminSidebar() {
+  return (
+    <Suspense fallback={<aside className="fixed inset-y-0 right-0 z-40 hidden w-64 border-l border-beige-dark bg-white lg:block" />}>
+      <AdminSidebarInner />
+    </Suspense>
   );
 }

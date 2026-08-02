@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Dress } from "@/types";
+import { getDressStyleLabel } from "@/lib/styles";
 import { formatPrice } from "@/lib/utils";
 
 interface DressCardProps {
@@ -50,13 +51,20 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
             {dress.name_ar}
           </h3>
           {dress.style && (
-            <p className="mt-1 text-sm text-muted">{dress.style}</p>
+            <p className="mt-1 text-sm text-muted">
+              {getDressStyleLabel(dress.style)}
+            </p>
           )}
           {price && (
-            <p className="mt-3 font-[family-name:var(--font-cormorant)] text-xl text-gold">
+            <p
+              className="mt-3 font-[family-name:var(--font-cormorant)] text-xl text-gold"
+              dir="ltr"
+            >
               {formatPrice(price)}
               {isRental && (
-                <span className="mr-1 text-sm text-muted">/ إيجار</span>
+                <span className="ml-1 text-sm text-muted" dir="rtl">
+                  / إيجار
+                </span>
               )}
             </p>
           )}

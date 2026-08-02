@@ -1,3 +1,5 @@
+import { normalizeDressColor } from "@/lib/colors";
+import { normalizeDressStyle } from "@/lib/styles";
 import type { Dress, DressFilters } from "@/types";
 
 export function filterDressesClient(
@@ -13,10 +15,14 @@ export function filterDressesClient(
     result = result.filter((d) => d.is_featured);
   }
   if (filters.style) {
-    result = result.filter((d) => d.style === filters.style);
+    result = result.filter(
+      (d) => normalizeDressStyle(d.style) === filters.style
+    );
   }
   if (filters.color) {
-    result = result.filter((d) => d.color === filters.color);
+    result = result.filter(
+      (d) => normalizeDressColor(d.color) === filters.color
+    );
   }
   if (filters.size) {
     result = result.filter((d) => d.size === filters.size);

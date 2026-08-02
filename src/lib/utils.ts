@@ -2,12 +2,11 @@ export function cn(...classes: (string | undefined | false | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function formatPrice(price: number, currency = "SAR") {
-  return new Intl.NumberFormat("ar-SA", {
-    style: "currency",
-    currency,
+export function formatPrice(price: number) {
+  const formatted = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
   }).format(price);
+  return `₪ ${formatted}`;
 }
 
 export function formatDate(date: string | Date) {

@@ -21,6 +21,7 @@ export function ImageUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [pasteUrl, setPasteUrl] = useState("");
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -34,14 +35,36 @@ export function ImageUpload({
       for (const file of list) {
         const form = new FormData();
         form.append("file", file);
+        console.info("[ImageUpload] uploading", {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
         const res = await fetch("/api/upload", { method: "POST", body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "فشل الرفع");
-        urls.push(data.url as string);
+        let data: { error?: string; url?: string } = {};
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error("تعذّر قراءة رد خادم الرفع.");
+        }
+        if (!res.ok) {
+          console.error("[ImageUpload] upload failed", {
+            status: res.status,
+            data,
+          });
+          throw new Error(data.error ?? `فشل الرفع (رمز ${res.status})`);
+        }
+        if (!data.url) {
+          console.error("[ImageUpload] missing url", data);
+          throw new Error("تم الرفع لكن لم يُرجع رابط الصورة.");
+        }
+        console.info("[ImageUpload] success", data.url);
+        urls.push(data.url);
       }
 
       onChange(multiple ? [...value, ...urls] : urls);
     } catch (e) {
+      console.error("[ImageUpload] error", e);
       setError(e instanceof Error ? e.message : "فشل رفع الصورة");
     } finally {
       setUploading(false);
@@ -103,8 +126,40 @@ export function ImageUpload({
         </p>
       )}
 
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="url"
+          dir="ltr"
+          value={pasteUrl}
+          onChange={(e) => setPasteUrl(e.target.value)}
+          placeholder="https://res.cloudinary.com/..."
+          className="min-w-0 flex-1 rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm"
+        />
+        <button
+          type="button"
+          className="rounded-xl border border-gold/40 px-3 py-2 text-sm text-gold hover:bg-gold/10"
+          onClick={() => {
+            const url = pasteUrl.trim();
+            if (!url) {
+              setError("الصقي رابط صورة صالح أولًا.");
+              return;
+            }
+            if (!/^https?:\/\//i.test(url)) {
+              setError("رابط الصورة يجب أن يبدأ بـ http أو https.");
+              return;
+            }
+            setError("");
+            onChange(multiple ? [...value, url] : [url]);
+            setPasteUrl("");
+            console.info("[ImageUpload] pasted url", url);
+          }}
+        >
+          إضافة رابط
+        </button>
+      </div>
+
       <p className="text-xs text-muted">
-        يتم الرفع عبر Cloudinary. يمكنك أيضًا لصق رابط صورة مباشرة في الحقل أدناه إن لزم.
+        الرفع عبر Cloudinary (Unsigned Preset). تأكدي من تسجيل الدخول للإدارة قبل الرفع.
       </p>
     </div>
   );

@@ -3,9 +3,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDressById } from "@/lib/data/queries";
+import { getDressColorLabel } from "@/lib/colors";
+import { getDressStyleLabel } from "@/lib/styles";
 import { formatPrice } from "@/lib/utils";
-import { DRESS_CATEGORY_LABELS } from "@/types";
+import {
+  categoryToServiceType,
+  supportsPersonalization,
+} from "@/lib/personalization";
+import { DRESS_CATEGORY_HREFS, DRESS_CATEGORY_LABELS } from "@/types";
 import { Button } from "@/components/ui/Button";
+import { PersonalizationForm } from "@/components/dresses/PersonalizationForm";
 import { Calendar, Ruler, Palette } from "lucide-react";
 
 interface Props {
@@ -29,7 +36,11 @@ export default async function DressDetailPage({ params }: Props) {
   if (!dress) notFound();
 
   const price = dress.price ?? dress.rental_price;
-  const isRental = dress.category === "rental" || (!dress.price && dress.rental_price);
+  const isRental =
+    dress.category === "rental" || (!dress.price && dress.rental_price);
+  const personalizationType = supportsPersonalization(dress.category)
+    ? dress.category
+    : null;
 
   return (
     <section className="pt-28 pb-16 md:pt-36 md:pb-24">
@@ -67,10 +78,15 @@ export default async function DressDetailPage({ params }: Props) {
               {dress.name_ar}
             </h1>
             {price && (
-              <p className="mt-4 font-[family-name:var(--font-cormorant)] text-3xl text-gold">
+              <p
+                className="mt-4 font-[family-name:var(--font-cormorant)] text-3xl text-gold"
+                dir="ltr"
+              >
                 {formatPrice(price)}
                 {isRental && (
-                  <span className="mr-2 text-base text-muted">/ إيجار</span>
+                  <span className="ml-2 text-base text-muted" dir="rtl">
+                    / إيجار
+                  </span>
                 )}
               </p>
             )}
@@ -83,7 +99,7 @@ export default async function DressDetailPage({ params }: Props) {
               {dress.style && (
                 <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
                   <Palette className="h-4 w-4 text-gold" />
-                  {dress.style}
+                  {getDressStyleLabel(dress.style)}
                 </span>
               )}
               {dress.size && (
@@ -94,32 +110,36 @@ export default async function DressDetailPage({ params }: Props) {
               )}
               {dress.color && (
                 <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                  {dress.color}
+                  {getDressColorLabel(dress.color)}
                 </span>
               )}
             </div>
 
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link href={`/booking?dress=${dress.id}`}>
-                <Button size="lg">
-                  <Calendar className="h-4 w-4" />
-                  احجزي موعدًا
-                </Button>
-              </Link>
-              <Link
-                href={`/${
-                  dress.category === "wedding"
-                    ? "wedding-dresses"
-                    : dress.category === "rental"
-                      ? "rental-dresses"
-                      : dress.category
-                }`}
-              >
-                <Button variant="outline" size="lg">
-                  العودة للمجموعة
-                </Button>
-              </Link>
-            </div>
+            {!personalizationType && (
+              <div className="mt-10 flex flex-wrap gap-4">
+                <Link href={`/booking?dress=${dress.id}`}>
+                  <Button size="lg">
+                    <Calendar className="h-4 w-4" />
+                    احجزي موعدًا
+                  </Button>
+                </Link>
+                <Link href={DRESS_CATEGORY_HREFS[dress.category]}>
+                  <Button variant="outline" size="lg">
+                    العودة للمجموعة
+                  </Button>
+                </Link>
+              </div>
+            )}
+
+            {personalizationType && (
+              <div className="mt-10">
+                <Link href={DRESS_CATEGORY_HREFS[dress.category]}>
+                  <Button variant="outline" size="lg">
+                    العودة للمجموعة
+                  </Button>
+                </Link>
+              </div>
+            )}
 
             {!dress.is_available && (
               <p className="mt-6 rounded-xl bg-red-50 p-4 text-sm text-red-600">
@@ -128,6 +148,24 @@ export default async function DressDetailPage({ params }: Props) {
             )}
           </div>
         </div>
+
+        {personalizationType && (
+          <div className="mx-auto mt-4 max-w-3xl lg:mt-8">
+            <PersonalizationForm
+              dress={dress}
+              productType={personalizationType}
+            />
+            <p className="mt-4 text-center text-xs text-muted">
+              أو{" "}
+              <Link
+                href={`/booking?dress=${dress.id}&service=${categoryToServiceType(personalizationType)}`}
+                className="text-gold underline-offset-2 hover:underline"
+              >
+                انتقلي للحجز مباشرة
+              </Link>
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );

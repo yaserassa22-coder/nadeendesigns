@@ -74,6 +74,7 @@ export function DressCatalog({
           <select
             value={style}
             onChange={(e) => setStyle(e.target.value)}
+            dir="rtl"
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
             <option value="">كل الأنماط</option>
@@ -86,6 +87,7 @@ export function DressCatalog({
           <select
             value={color}
             onChange={(e) => setColor(e.target.value)}
+            dir="rtl"
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
             <option value="">كل الألوان</option>
@@ -157,7 +159,7 @@ export function PageHero({ title, description }: { title: string; description: s
           {title}
         </h1>
         <div className="decorative-line mx-auto mt-6 w-24" />
-        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted">
+        <p className="mx-auto mt-6 max-w-2xl whitespace-pre-line text-lg leading-relaxed text-muted">
           {description}
         </p>
       </div>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { DressCatalog, PageHero } from "@/components/dresses/DressCatalog";
 import { getDresses } from "@/lib/data/queries";
 

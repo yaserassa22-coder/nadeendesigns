@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { BookingForm } from "@/components/forms/BookingForm";
-import { getDresses, getSettings } from "@/lib/data/queries";
+import { getSettings } from "@/lib/data/queries";
 import { Calendar, Clock, MapPin } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "احجزي موعدًا",
-  description: "احجزي موعدكِ في Nadeen Designs — تجربة فستان، استشارة، إيجار، أو شراء.",
+  description:
+    "احجزي موعدكِ في Nadeen Designs — فساتين زفاف، إيجار، تصميم خاص، طرحات، أو برنص عروس.",
 };
 
 export default async function BookingPage() {
-  const [dresses, settings] = await Promise.all([
-    getDresses(),
-    getSettings(),
-  ]);
+  const settings = await getSettings();
 
   return (
     <>
@@ -61,7 +60,15 @@ export default async function BookingPage() {
             </div>
             <div className="lg:col-span-3">
               <div className="rounded-2xl border border-beige-dark bg-white p-8 shadow-sm">
-                <BookingForm dresses={dresses} />
+                <Suspense
+                  fallback={
+                    <p className="py-8 text-center text-muted">
+                      جاري تحميل نموذج الحجز...
+                    </p>
+                  }
+                >
+                  <BookingForm />
+                </Suspense>
               </div>
             </div>
           </div>

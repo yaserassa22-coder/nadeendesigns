@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { ContactForm } from "@/components/forms/ContactForm";
 import { getSettings } from "@/lib/data/queries";
+import {
+  OFFICIAL_INSTAGRAM_HANDLE,
+  OFFICIAL_INSTAGRAM_URL,
+} from "@/lib/constants";
 import { Camera, Mail, MapPin, Phone } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -57,12 +61,13 @@ export default async function ContactPage() {
                     <div>
                       <p className="font-medium text-charcoal">إنستغرام</p>
                       <a
-                        href={settings.instagram_url}
+                        href={OFFICIAL_INSTAGRAM_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted hover:text-gold"
+                        dir="ltr"
                       >
-                        {settings.instagram_handle}
+                        {OFFICIAL_INSTAGRAM_HANDLE}
                       </a>
                     </div>
                   </li>

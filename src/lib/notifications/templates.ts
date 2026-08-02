@@ -1,0 +1,397 @@
+import {
+  OFFICIAL_INSTAGRAM_HANDLE,
+  OFFICIAL_INSTAGRAM_URL,
+  SITE_NAME,
+} from "@/lib/constants";
+import { formatPrice } from "@/lib/utils";
+import { getSiteUrl } from "@/lib/notifications/config";
+import {
+  DEFAULT_WHATSAPP_BY_STATUS,
+  SHOP_ORDER_STATUS_LABELS,
+  type NotificationSettings,
+  type ShopOrder,
+  type ShopOrderStatus,
+} from "@/types/shop";
+
+export function orderNumber(orderId: string) {
+  return `ND-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
+export function statusLabel(status: ShopOrderStatus | string) {
+  return (
+    SHOP_ORDER_STATUS_LABELS[status as ShopOrderStatus] ?? String(status)
+  );
+}
+
+function itemsSummaryHtml(order: ShopOrder) {
+  const rows = (order.items ?? [])
+    .map(
+      (item) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #efe8dc;text-align:right;">
+          ${escapeHtml(item.name_ar)}
+          <div style="color:#8a7f72;font-size:12px;margin-top:4px;">
+            الكمية: ${item.quantity} × ${formatPrice(Number(item.unit_price))}
+          </div>
+        </td>
+      </tr>`
+    )
+    .join("");
+  return rows || `<tr><td style="padding:10px 0;text-align:right;">—</td></tr>`;
+}
+
+function itemsSummaryText(order: ShopOrder) {
+  return (order.items ?? [])
+    .map(
+      (item) =>
+        `• ${item.name_ar} × ${item.quantity} — ${formatPrice(Number(item.unit_price))}`
+    )
+    .join("\n");
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function whatsappLink(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const intl =
+    digits.startsWith("0") && digits.length === 10
+      ? `972${digits.slice(1)}`
+      : digits;
+  return `https://wa.me/${intl}`;
+}
+
+function emailShell(
+  title: string,
+  body: string,
+  settings: NotificationSettings
+) {
+  const phone = settings.business_phone;
+  const email = settings.reply_email;
+  const logoUrl = `${getSiteUrl()}/logo.svg`;
+  const waUrl = whatsappLink(phone);
+
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f3eee6;font-family:Tahoma,Arial,sans-serif;color:#2c2419;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(180deg,#f7f3ec 0%,#efe6d8 100%);padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#fffdf9;border:1px solid #e4d8c4;border-radius:20px;overflow:hidden;box-shadow:0 8px 28px rgba(184,149,108,0.12);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#faf6ef,#f0e6d6);padding:26px 24px;text-align:center;border-bottom:1px solid #e4d8c4;">
+              <img src="${logoUrl}" alt="${escapeHtml(settings.sender_name || SITE_NAME)}" width="220" style="max-width:220px;height:auto;display:block;margin:0 auto 8px;" />
+              <div style="font-size:12px;color:#8a7f72;letter-spacing:0.12em;">بوتيك فساتين الزفاف الفاخرة</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px;">
+              ${body}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 24px;background:#faf6ef;border-top:1px solid #e4d8c4;text-align:center;">
+              <a href="${waUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#25D366;color:#fff;text-decoration:none;font-weight:700;margin-bottom:14px;">
+                تواصلي عبر واتساب
+              </a>
+              <div style="color:#8a7f72;font-size:12px;line-height:1.9;">
+                <div>الهاتف: <span dir="ltr">${escapeHtml(phone)}</span></div>
+                <div>البريد: ${escapeHtml(email)}</div>
+                <div>
+                  انستغرام:
+                  <a href="${OFFICIAL_INSTAGRAM_URL}" style="color:#b8956c;text-decoration:none;">
+                    ${OFFICIAL_INSTAGRAM_HANDLE}
+                  </a>
+                </div>
+                <div style="margin-top:8px;">© ${new Date().getFullYear()} ${escapeHtml(settings.sender_name || SITE_NAME)}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function statusHeadline(status: ShopOrderStatus): string {
+  const map: Partial<Record<ShopOrderStatus, string>> = {
+    pending: "تم استلام طلبكِ بنجاح",
+    confirmed: "تم تأكيد طلبكِ",
+    payment_received: "تم استلام الدفعة",
+    in_production: "بدأ تنفيذ طلبكِ",
+    ready_for_pickup: "طلبكِ جاهز للاستلام",
+    shipped: "تم شحن طلبكِ",
+    delivered: "تم تسليم طلبكِ",
+    cancelled: "تم إلغاء الطلب",
+  };
+  return map[status] || "تحديث على طلبكِ";
+}
+
+export function customerStatusEmail(
+  order: ShopOrder,
+  status: ShopOrderStatus,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  const label = statusLabel(status);
+  const subject =
+    settings.email_subjects[status] ||
+    `${settings.sender_name || SITE_NAME} — ${statusHeadline(status)} (${number})`;
+
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 10px;font-size:22px;color:#2c2419;">مرحباً ${escapeHtml(order.name)}</h1>
+    <p style="margin:0 0 20px;line-height:1.85;color:#5c5348;">
+      ${escapeHtml(statusHeadline(status))} لدى ${escapeHtml(settings.sender_name || SITE_NAME)}.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;margin-bottom:20px;">
+      <tr>
+        <td style="padding:16px 18px;text-align:right;">
+          <div style="font-size:12px;color:#8a7f72;">اسم العميلة</div>
+          <div style="font-size:16px;margin-top:4px;">${escapeHtml(order.name)}</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 18px 14px;text-align:right;">
+          <div style="font-size:12px;color:#8a7f72;">رقم الطلب</div>
+          <div style="font-size:18px;color:#b8956c;font-weight:700;margin-top:4px;" dir="ltr">${number}</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 18px 16px;text-align:right;">
+          <div style="font-size:12px;color:#8a7f72;">حالة الطلب</div>
+          <div style="display:inline-block;margin-top:8px;padding:8px 14px;border-radius:999px;background:#b8956c;color:#fff;font-size:14px;">
+            ${escapeHtml(label)}
+          </div>
+        </td>
+      </tr>
+    </table>
+    <h2 style="margin:0 0 10px;font-size:16px;color:#2c2419;">ملخص الطلب</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${itemsSummaryHtml(order)}
+    </table>
+    <p style="margin:18px 0 0;text-align:right;font-size:15px;color:#2c2419;">
+      <strong>المجموع:</strong> <span dir="ltr">${formatPrice(Number(order.total))}</span>
+    </p>
+    `,
+    settings
+  );
+  return { subject, html };
+}
+
+export function paymentRequestEmail(
+  order: ShopOrder,
+  amount: number,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  const subject = `${settings.sender_name || SITE_NAME} — طلب دفعة للطلب ${number}`;
+  const linkBlock = settings.payment_link
+    ? `<p style="margin:18px 0 0;text-align:center;">
+        <a href="${escapeHtml(settings.payment_link)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#b8956c;color:#fff;text-decoration:none;font-weight:700;">
+          رابط الدفع
+        </a>
+      </p>`
+    : `<p style="margin:14px 0 0;color:#8a7f72;font-size:13px;text-align:right;">رابط الدفع سيكون متاحاً قريباً.</p>`;
+
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 10px;font-size:22px;color:#2c2419;">مرحباً ${escapeHtml(order.name)}</h1>
+    <p style="margin:0 0 18px;line-height:1.85;color:#5c5348;">
+      نرجو إتمام الدفعة لإكمال طلبكِ رقم <strong dir="ltr">${number}</strong>.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;margin-bottom:18px;">
+      <tr>
+        <td style="padding:16px 18px;text-align:right;">
+          <div style="font-size:12px;color:#8a7f72;">المبلغ المطلوب</div>
+          <div style="font-size:22px;color:#b8956c;font-weight:700;margin-top:6px;" dir="ltr">${formatPrice(amount)}</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 18px 16px;text-align:right;color:#5c5348;line-height:1.85;">
+          <div style="font-size:12px;color:#8a7f72;margin-bottom:6px;">تعليمات الدفع</div>
+          ${escapeHtml(settings.payment_instructions).replace(/\n/g, "<br/>")}
+        </td>
+      </tr>
+    </table>
+    <h2 style="margin:0 0 10px;font-size:16px;color:#2c2419;">ملخص الطلب</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${itemsSummaryHtml(order)}
+    </table>
+    ${linkBlock}
+    `,
+    settings
+  );
+  return { subject, html };
+}
+
+export function customMessageEmail(
+  order: ShopOrder,
+  message: string,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  const subject = `رسالة من ${settings.sender_name || SITE_NAME} — طلب ${number}`;
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 10px;font-size:22px;color:#2c2419;">مرحباً ${escapeHtml(order.name)}</h1>
+    <p style="margin:0 0 8px;font-size:12px;color:#8a7f72;">رقم الطلب: <span dir="ltr">${number}</span></p>
+    <div style="margin-top:16px;padding:18px;background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;line-height:1.9;color:#2c2419;text-align:right;">
+      ${escapeHtml(message).replace(/\n/g, "<br/>")}
+    </div>
+    `,
+    settings
+  );
+  return { subject, html };
+}
+
+export function adminNewOrderEmail(
+  order: ShopOrder,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  const adminUrl = `${getSiteUrl()}/admin/orders?focus=${order.id}`;
+  const subject = `طلب جديد ${number} — ${order.name}`;
+  const budgetNote = order.notes || "—";
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 12px;font-size:22px;color:#2c2419;">طلب جديد من المتجر</h1>
+    <p style="margin:0 0 18px;line-height:1.8;color:#5c5348;">
+      تم استلام طلب جديد ويحتاج لمتابعتكِ في لوحة التحكم.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;margin-bottom:18px;">
+      <tr><td style="padding:14px 18px;text-align:right;"><strong>رقم الطلب:</strong> <span dir="ltr">${number}</span></td></tr>
+      <tr><td style="padding:0 18px 10px;text-align:right;"><strong>الاسم:</strong> ${escapeHtml(order.name)}</td></tr>
+      <tr><td style="padding:0 18px 10px;text-align:right;"><strong>الهاتف:</strong> <span dir="ltr">${escapeHtml(order.phone)}</span></td></tr>
+      <tr><td style="padding:0 18px 10px;text-align:right;"><strong>البريد:</strong> ${escapeHtml(order.email || "—")}</td></tr>
+      <tr><td style="padding:0 18px 14px;text-align:right;"><strong>المجموع / الميزانية:</strong> <span dir="ltr">${formatPrice(Number(order.total))}</span></td></tr>
+    </table>
+    <h2 style="margin:0 0 10px;font-size:16px;color:#2c2419;">تفاصيل الطلب</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${itemsSummaryHtml(order)}
+    </table>
+    <p style="margin:16px 0 0;text-align:right;color:#5c5348;line-height:1.8;">
+      <strong>ملاحظات / عنوان التوصيل:</strong><br/>
+      ${escapeHtml(budgetNote).replace(/\n/g, "<br/>")}
+    </p>
+    <p style="margin:24px 0 0;text-align:center;">
+      <a href="${adminUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#b8956c;color:#fff;text-decoration:none;font-weight:700;">
+        فتح الطلب في لوحة التحكم
+      </a>
+    </p>
+    `,
+    settings
+  );
+  return { subject, html };
+}
+
+export function customerWhatsAppMessage(
+  order: ShopOrder,
+  status: ShopOrderStatus,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  const label = statusLabel(status);
+  const headline =
+    settings.whatsapp_templates[status] ||
+    DEFAULT_WHATSAPP_BY_STATUS[status] ||
+    `تحديث طلبكِ: ${label}`;
+
+  return [
+    `✨ ${settings.sender_name || SITE_NAME}`,
+    ``,
+    `مرحباً ${order.name}،`,
+    headline,
+    ``,
+    `رقم الطلب: ${number}`,
+    `الحالة: ${label}`,
+    ``,
+    `ملخص الطلب:`,
+    itemsSummaryText(order),
+    ``,
+    `المجموع: ${formatPrice(Number(order.total))}`,
+    ``,
+    `للاستفسار: ${settings.business_phone}`,
+    `انستغرام: ${OFFICIAL_INSTAGRAM_HANDLE}`,
+  ].join("\n");
+}
+
+export function paymentRequestWhatsApp(
+  order: ShopOrder,
+  amount: number,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  const lines = [
+    `💳 ${settings.sender_name || SITE_NAME}`,
+    ``,
+    `مرحباً ${order.name}،`,
+    `بانتظار الدفعة لإكمال طلبكِ`,
+    ``,
+    `رقم الطلب: ${number}`,
+    `المبلغ: ${formatPrice(amount)}`,
+    ``,
+    `تعليمات الدفع:`,
+    settings.payment_instructions,
+  ];
+  if (settings.payment_link) {
+    lines.push(``, `رابط الدفع: ${settings.payment_link}`);
+  } else {
+    lines.push(``, `رابط الدفع سيكون متاحاً قريباً.`);
+  }
+  lines.push(``, `للاستفسار: ${settings.business_phone}`);
+  return lines.join("\n");
+}
+
+export function customWhatsAppMessage(
+  order: ShopOrder,
+  message: string,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  return [
+    `💌 ${settings.sender_name || SITE_NAME}`,
+    ``,
+    `مرحباً ${order.name}،`,
+    `بخصوص طلبكِ ${number}:`,
+    ``,
+    message,
+    ``,
+    `للاستفسار: ${settings.business_phone}`,
+  ].join("\n");
+}
+
+export function adminWhatsAppMessage(
+  order: ShopOrder,
+  settings: NotificationSettings
+) {
+  const number = orderNumber(order.id);
+  return [
+    `🛒 طلب جديد — ${settings.sender_name || SITE_NAME}`,
+    `الرقم: ${number}`,
+    `العميلة: ${order.name}`,
+    `الهاتف: ${order.phone}`,
+    `البريد: ${order.email || "—"}`,
+    `المجموع: ${formatPrice(Number(order.total))}`,
+    ``,
+    itemsSummaryText(order),
+    ``,
+    `لوحة التحكم: ${getSiteUrl()}/admin/orders?focus=${order.id}`,
+  ].join("\n");
+}

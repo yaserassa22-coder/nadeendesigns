@@ -10,6 +10,7 @@ import { ImageUpload } from "@/components/admin/ImageUpload";
 
 const CATEGORIES = [
   { value: "wedding", label: "زفاف" },
+  { value: "nouf_dresses", label: "فساتين نوف" },
   { value: "details", label: "تفاصيل" },
   { value: "boutique", label: "البوتيك" },
   { value: "events", label: "فعاليات" },

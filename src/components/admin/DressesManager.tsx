@@ -4,8 +4,14 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import type { Dress, DressCategory } from "@/types";
-import { DRESS_CATEGORY_LABELS } from "@/types";
+import {
+  DRESS_CATEGORIES,
+  DRESS_CATEGORY_LABELS,
+  normalizeDressCategory,
+} from "@/types";
 import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
+import { getDressColorLabel } from "@/lib/colors";
+import { getDressStyleLabel } from "@/lib/styles";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
@@ -26,10 +32,10 @@ type DressFormState = {
   imageUrlInput: string;
 };
 
-const emptyForm = (): DressFormState => ({
+const emptyForm = (category: DressCategory = "wedding"): DressFormState => ({
   name_ar: "",
   description_ar: "",
-  category: "wedding",
+  category,
   price: "",
   rental_price: "",
   size: "",
@@ -45,12 +51,12 @@ function toForm(dress: Dress): DressFormState {
   return {
     name_ar: dress.name_ar,
     description_ar: dress.description_ar,
-    category: dress.category,
+    category: normalizeDressCategory(dress.category) ?? "wedding",
     price: dress.price?.toString() ?? "",
     rental_price: dress.rental_price?.toString() ?? "",
     size: dress.size ?? "",
-    color: dress.color ?? "",
-    style: dress.style ?? "",
+    color: getDressColorLabel(dress.color) || "",
+    style: getDressStyleLabel(dress.style) || "",
     is_featured: dress.is_featured,
     is_available: dress.is_available,
     images: dress.images ?? [],
@@ -60,31 +66,68 @@ function toForm(dress: Dress): DressFormState {
 
 interface DressesManagerProps {
   initialDresses: Dress[];
+  initialCategoryFilter?: DressCategory | "all";
+  /** When set, all products are managed under this category only (e.g. nouf_dresses). */
+  lockedCategory?: DressCategory;
 }
 
-export function DressesManager({ initialDresses }: DressesManagerProps) {
+export function DressesManager({
+  initialDresses,
+  initialCategoryFilter = "all",
+  lockedCategory,
+}: DressesManagerProps) {
   const [dresses, setDresses] = useState(initialDresses);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<DressCategory | "all">(
+    lockedCategory ?? initialCategoryFilter
+  );
+  const [availabilityFilter, setAvailabilityFilter] = useState<
+    "all" | "yes" | "no"
+  >("all");
+  const [featuredFilter, setFeaturedFilter] = useState<"all" | "yes" | "no">(
+    "all"
+  );
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Dress | null>(null);
-  const [form, setForm] = useState<DressFormState>(emptyForm());
+  const [form, setForm] = useState<DressFormState>(
+    emptyForm(lockedCategory ?? "wedding")
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return dresses;
-    return dresses.filter(
-      (d) =>
+    return dresses.filter((d) => {
+      const effectiveCategory = lockedCategory ?? categoryFilter;
+      if (effectiveCategory !== "all" && d.category !== effectiveCategory) {
+        return false;
+      }
+      if (availabilityFilter === "yes" && !d.is_available) return false;
+      if (availabilityFilter === "no" && d.is_available) return false;
+      if (featuredFilter === "yes" && !d.is_featured) return false;
+      if (featuredFilter === "no" && d.is_featured) return false;
+      if (!q) return true;
+      return (
         d.name_ar.toLowerCase().includes(q) ||
-        DRESS_CATEGORY_LABELS[d.category].includes(search) ||
+        DRESS_CATEGORY_LABELS[d.category]?.includes(search) ||
         (d.style?.toLowerCase().includes(q) ?? false)
-    );
-  }, [dresses, search]);
+      );
+    });
+  }, [
+    dresses,
+    search,
+    categoryFilter,
+    lockedCategory,
+    availabilityFilter,
+    featuredFilter,
+  ]);
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm());
+    const defaultCategory =
+      lockedCategory ??
+      (categoryFilter !== "all" ? categoryFilter : "wedding");
+    setForm(emptyForm(defaultCategory));
     setError("");
     setOpen(true);
   };
@@ -105,7 +148,11 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
   const payload = () => ({
     name_ar: form.name_ar.trim(),
     description_ar: form.description_ar.trim(),
-    category: form.category,
+    // Locked section always saves its own category (never wedding for نوف)
+    category:
+      lockedCategory ??
+      normalizeDressCategory(form.category) ??
+      form.category,
     price: form.price ? Number(form.price) : null,
     rental_price: form.rental_price ? Number(form.rental_price) : null,
     size: form.size || null,
@@ -130,7 +177,13 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
         body: JSON.stringify(editing ? { id: editing.id, ...payload() } : payload()),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) {
+        console.error("[DressesManager] save failed", {
+          status: res.status,
+          data,
+        });
+        throw new Error(data.error ?? "فشل الحفظ");
+      }
 
       if (editing) {
         setDresses((prev) => prev.map((d) => (d.id === editing.id ? data : d)));
@@ -139,7 +192,11 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
       }
       close();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "فشل حفظ الفستان. راجعي اتصال Supabase ورفع الصور."
+      );
     } finally {
       setSaving(false);
     }
@@ -168,16 +225,57 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          placeholder="بحث عن فستان..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="sm:max-w-sm"
-        />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Input
+            placeholder="بحث عن فستان..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {!lockedCategory && (
+            <Select
+              label="تصفية حسب التصنيف"
+              value={categoryFilter}
+              onChange={(e) =>
+                setCategoryFilter(e.target.value as DressCategory | "all")
+              }
+              options={[
+                { value: "all", label: "كل التصنيفات" },
+                ...DRESS_CATEGORIES.map((value) => ({
+                  value,
+                  label: DRESS_CATEGORY_LABELS[value],
+                })),
+              ]}
+            />
+          )}
+          <Select
+            label="التوفر"
+            value={availabilityFilter}
+            onChange={(e) =>
+              setAvailabilityFilter(e.target.value as "all" | "yes" | "no")
+            }
+            options={[
+              { value: "all", label: "الكل" },
+              { value: "yes", label: "متوفر" },
+              { value: "no", label: "غير متوفر" },
+            ]}
+          />
+          <Select
+            label="مميز"
+            value={featuredFilter}
+            onChange={(e) =>
+              setFeaturedFilter(e.target.value as "all" | "yes" | "no")
+            }
+            options={[
+              { value: "all", label: "الكل" },
+              { value: "yes", label: "مميز" },
+              { value: "no", label: "غير مميز" },
+            ]}
+          />
+        </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
-          إضافة فستان
+          {lockedCategory === "nouf_dresses" ? "إضافة فستان نوف" : "إضافة منتج"}
         </Button>
       </div>
 
@@ -219,7 +317,9 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
                         <div>
                           <p className="font-medium text-charcoal">{dress.name_ar}</p>
                           {dress.style && (
-                            <p className="text-xs text-muted">{dress.style}</p>
+                            <p className="text-xs text-muted">
+                              {getDressStyleLabel(dress.style)}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -227,7 +327,7 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
                     <td className="px-4 py-3">
                       {DRESS_CATEGORY_LABELS[dress.category]}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" dir="ltr">
                       {dress.price
                         ? formatPrice(dress.price)
                         : dress.rental_price
@@ -291,36 +391,51 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
                 value={form.name_ar}
                 onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
               />
-              <Select
-                label="التصنيف"
-                value={form.category}
-                onChange={(e) =>
-                  setForm({ ...form, category: e.target.value as DressCategory })
-                }
-                options={Object.entries(DRESS_CATEGORY_LABELS).map(
-                  ([value, label]) => ({ value, label })
-                )}
-              />
+              {lockedCategory ? (
+                <Input
+                  label="التصنيف"
+                  value={DRESS_CATEGORY_LABELS[lockedCategory]}
+                  disabled
+                />
+              ) : (
+                <Select
+                  label="التصنيف"
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      category: e.target.value as DressCategory,
+                    })
+                  }
+                  options={DRESS_CATEGORIES.map((value) => ({
+                    value,
+                    label: DRESS_CATEGORY_LABELS[value],
+                  }))}
+                />
+              )}
               <Input
-                label="السعر"
+                label="السعر (₪)"
                 type="number"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
+                dir="ltr"
               />
               <Input
-                label="سعر الإيجار"
+                label="سعر الإيجار (₪)"
                 type="number"
                 value={form.rental_price}
                 onChange={(e) =>
                   setForm({ ...form, rental_price: e.target.value })
                 }
+                dir="ltr"
               />
               <Select
                 label="النمط"
                 value={form.style}
                 onChange={(e) => setForm({ ...form, style: e.target.value })}
+                dir="rtl"
                 options={[
-                  { value: "", label: "—" },
+                  { value: "", label: "— اختاري النمط —" },
                   ...DRESS_STYLES.map((s) => ({ value: s, label: s })),
                 ]}
               />
@@ -328,8 +443,9 @@ export function DressesManager({ initialDresses }: DressesManagerProps) {
                 label="اللون"
                 value={form.color}
                 onChange={(e) => setForm({ ...form, color: e.target.value })}
+                dir="rtl"
                 options={[
-                  { value: "", label: "—" },
+                  { value: "", label: "— اختاري اللون —" },
                   ...DRESS_COLORS.map((c) => ({ value: c, label: c })),
                 ]}
               />

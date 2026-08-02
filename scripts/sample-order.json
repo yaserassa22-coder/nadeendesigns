@@ -1,0 +1,19 @@
+{
+  "name": "سارة اختبار",
+  "phone": "0599123456",
+  "email": null,
+  "notes": "debug",
+  "gift_options": null,
+  "total": 2200,
+  "items": [
+    {
+      "product_type": "veil",
+      "product_id": "veil-1",
+      "name_ar": "طرحة",
+      "unit_price": 2200,
+      "quantity": 1,
+      "image": null,
+      "personalization": null
+    }
+  ]
+}

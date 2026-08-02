@@ -3,66 +3,169 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Calendar, CheckCircle } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { SERVICE_TYPE_LABELS } from "@/types";
-import type { Dress } from "@/types";
+import { CUSTOM_DESIGN_BRIEF_KEY } from "@/lib/constants";
+import { BOOKING_SERVICE_OPTIONS } from "@/types";
 
 const bookingSchema = z.object({
-  name: z.string().min(2, "الاسم مطلوب"),
-  phone: z.string().min(9, "رقم الهاتف غير صالح"),
-  email: z.string().email("البريد الإلكتروني غير صالح").optional().or(z.literal("")),
-  date: z.string().min(1, "التاريخ مطلوب"),
-  time: z.string().min(1, "الوقت مطلوب"),
-  service_type: z.enum(["fitting", "consultation", "rental", "purchase"]),
-  dress_id: z.string().optional(),
+  name: z.string().trim().min(2, "الاسم الكامل مطلوب"),
+  phone: z
+    .string()
+    .trim()
+    .min(9, "رقم الهاتف غير صالح")
+    .regex(/^[\d+\s()-]+$/, "رقم الهاتف غير صالح"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "البريد الإلكتروني مطلوب")
+    .email("البريد الإلكتروني غير صالح"),
+  date: z.string().min(1, "تاريخ الحجز مطلوب"),
+  time: z.string().min(1, "وقت الحجز مطلوب"),
+  service_type: z.enum(
+    [
+      "wedding_dress",
+      "rental_dress",
+      "custom_design",
+      "nouf_dresses",
+      "veil",
+      "bridal_cape",
+    ],
+    { message: "نوع الخدمة مطلوب" }
+  ),
   notes: z.string().optional(),
 });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
 
-interface BookingFormProps {
-  dresses?: Dress[];
-  preselectedDressId?: string;
-}
+type ApiFieldError = { field: string; message: string };
 
-export function BookingForm({ dresses = [], preselectedDressId }: BookingFormProps) {
+const API_FIELD_TO_FORM: Record<string, keyof BookingFormData | "form"> = {
+  name: "name",
+  phone: "phone",
+  email: "email",
+  date: "date",
+  time: "time",
+  service_type: "service_type",
+  notes: "notes",
+  form: "form",
+};
+
+export function BookingForm() {
+  const searchParams = useSearchParams();
+  const serviceParam = searchParams.get("service");
+  const defaultService =
+    serviceParam &&
+    BOOKING_SERVICE_OPTIONS.some((o) => o.value === serviceParam)
+      ? (serviceParam as BookingFormData["service_type"])
+      : "wedding_dress";
+
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
   const {
     register,
     handleSubmit,
+    setValue,
+    setError: setFormError,
+    clearErrors,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
-      service_type: "fitting",
-      dress_id: preselectedDressId ?? "",
+      service_type: defaultService,
+      email: "",
+      notes: "",
     },
   });
 
+  useEffect(() => {
+    try {
+      const brief = sessionStorage.getItem(CUSTOM_DESIGN_BRIEF_KEY);
+      if (brief) {
+        setValue("notes", brief);
+        setValue("service_type", "custom_design");
+        sessionStorage.removeItem(CUSTOM_DESIGN_BRIEF_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (serviceParam) setValue("service_type", defaultService);
+  }, [setValue, serviceParam, defaultService]);
+
+  const applyApiFieldErrors = (fields?: ApiFieldError[], fallback?: string) => {
+    clearErrors();
+    if (!fields?.length) {
+      setError(fallback || "حدث خطأ أثناء إرسال الحجز");
+      return;
+    }
+
+    const formKeys = new Set<string>([
+      "name",
+      "phone",
+      "email",
+      "date",
+      "time",
+      "service_type",
+      "notes",
+    ]);
+
+    let formLevel = "";
+    for (const item of fields) {
+      const formKey = String(API_FIELD_TO_FORM[item.field] ?? item.field);
+      if (formKey === "form" || !formKeys.has(formKey)) {
+        formLevel = formLevel || item.message;
+        continue;
+      }
+      setFormError(formKey as keyof BookingFormData, {
+        type: "server",
+        message: item.message,
+      });
+    }
+    setError(formLevel || fields[0]?.message || fallback || "");
+  };
+
   const onSubmit = async (data: BookingFormData) => {
     setError("");
+    clearErrors();
     try {
+      const payload = {
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        date: data.date,
+        time: data.time,
+        service_type: data.service_type,
+        notes: data.notes?.trim() ? data.notes.trim() : null,
+      };
+
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          email: data.email || null,
-          dress_id: data.dress_id || null,
-        }),
+        body: JSON.stringify(payload),
       });
+
+      const errBody = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "حدث خطأ");
+        applyApiFieldErrors(
+          errBody.fields as ApiFieldError[] | undefined,
+          errBody.message || errBody.error || "حدث خطأ"
+        );
+        return;
       }
+
       setSuccess(true);
-      reset();
+      reset({
+        service_type: defaultService,
+        email: "",
+        notes: "",
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
     }
@@ -75,9 +178,7 @@ export function BookingForm({ dresses = [], preselectedDressId }: BookingFormPro
         <h3 className="mt-4 text-xl font-semibold text-charcoal">
           تم إرسال طلب الحجز بنجاح!
         </h3>
-        <p className="mt-2 text-muted">
-          سنتواصل معكِ قريبًا لتأكيد الموعد
-        </p>
+        <p className="mt-2 text-muted">سنتواصل معكِ قريبًا لتأكيد الموعد</p>
         <Button className="mt-6" onClick={() => setSuccess(false)}>
           حجز موعد آخر
         </Button>
@@ -86,7 +187,7 @@ export function BookingForm({ dresses = [], preselectedDressId }: BookingFormPro
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       <div className="grid gap-6 sm:grid-cols-2">
         <Input
           label="الاسم الكامل *"
@@ -104,12 +205,22 @@ export function BookingForm({ dresses = [], preselectedDressId }: BookingFormPro
       </div>
 
       <Input
-        label="البريد الإلكتروني"
+        label="البريد الإلكتروني *"
         type="email"
         {...register("email")}
         error={errors.email?.message}
         placeholder="email@example.com"
         dir="ltr"
+      />
+
+      <Select
+        label="الخدمة المطلوبة *"
+        {...register("service_type")}
+        error={errors.service_type?.message}
+        options={BOOKING_SERVICE_OPTIONS.map(({ value, label }) => ({
+          value,
+          label,
+        }))}
       />
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -127,30 +238,10 @@ export function BookingForm({ dresses = [], preselectedDressId }: BookingFormPro
         />
       </div>
 
-      <Select
-        label="نوع الخدمة *"
-        {...register("service_type")}
-        error={errors.service_type?.message}
-        options={Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => ({
-          value,
-          label,
-        }))}
-      />
-
-      {dresses.length > 0 && (
-        <Select
-          label="الفستان (اختياري)"
-          {...register("dress_id")}
-          options={[
-            { value: "", label: "— بدون تحديد —" },
-            ...dresses.map((d) => ({ value: d.id, label: d.name_ar })),
-          ]}
-        />
-      )}
-
       <Textarea
         label="ملاحظات إضافية"
         {...register("notes")}
+        error={errors.notes?.message}
         rows={4}
         placeholder="أخبرينا عن أي تفاصيل أو طلبات خاصة..."
       />
@@ -159,7 +250,12 @@ export function BookingForm({ dresses = [], preselectedDressId }: BookingFormPro
         <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
       )}
 
-      <Button type="submit" size="lg" loading={isSubmitting} className="w-full sm:w-auto">
+      <Button
+        type="submit"
+        size="lg"
+        loading={isSubmitting}
+        className="w-full sm:w-auto"
+      >
         <Calendar className="h-4 w-4" />
         تأكيد الحجز
       </Button>

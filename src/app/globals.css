@@ -94,6 +94,32 @@ body {
   animation: fade-up 0.8s ease-out forwards;
 }
 
+/* Veil / robe personalization preview fonts */
+.font-personalize-classic-ar {
+  font-family: var(--font-pers-classic-ar), "Amiri", serif;
+}
+.font-personalize-diwani {
+  font-family: var(--font-pers-diwani), "Aref Ruqaa", serif;
+}
+.font-personalize-naskh {
+  font-family: var(--font-pers-naskh), "Noto Naskh Arabic", serif;
+}
+.font-personalize-signature-ar {
+  font-family: var(--font-pers-signature-ar), "Lemonada", cursive;
+}
+.font-personalize-elegant {
+  font-family: var(--font-pers-elegant), "Great Vibes", cursive;
+}
+.font-personalize-modern {
+  font-family: var(--font-pers-modern), "Allura", cursive;
+}
+.font-personalize-luxury {
+  font-family: var(--font-cormorant), "Cormorant Garamond", serif;
+}
+.font-personalize-classic-en {
+  font-family: var(--font-pers-classic-en), "Playfair Display", serif;
+}
+
 input:focus,
 textarea:focus,
 select:focus {

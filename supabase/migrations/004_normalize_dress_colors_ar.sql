@@ -1,0 +1,23 @@
+-- Normalize legacy color values to Arabic options
+UPDATE dresses SET color = 'أوف وايت' WHERE color IN ('Off White', 'off white', 'off-white', 'OffWhite');
+UPDATE dresses SET color = 'أبيض' WHERE color IN ('white', 'White');
+UPDATE dresses SET color = 'عاجي' WHERE color IN ('ivory', 'Ivory');
+UPDATE dresses SET color = 'كريمي' WHERE color IN ('cream', 'Cream');
+UPDATE dresses SET color = 'بيج' WHERE color IN ('beige', 'Beige');
+UPDATE dresses SET color = 'شامبين' WHERE color IN ('champagne', 'Champagne', 'شampagne');
+UPDATE dresses SET color = 'ذهبي' WHERE color IN ('gold', 'Gold', 'golden');
+UPDATE dresses SET color = 'فضي' WHERE color IN ('silver', 'Silver');
+UPDATE dresses SET color = 'وردي فاتح' WHERE color IN ('blush', 'Blush');
+UPDATE dresses SET color = 'وردي' WHERE color IN ('pink', 'Pink');
+UPDATE dresses SET color = 'موف' WHERE color IN ('mauve', 'Mauve');
+UPDATE dresses SET color = 'بنفسجي' WHERE color IN ('purple', 'Purple');
+UPDATE dresses SET color = 'أزرق سماوي' WHERE color IN ('sky blue', 'Sky Blue');
+UPDATE dresses SET color = 'أزرق ملكي' WHERE color IN ('royal blue', 'Royal Blue');
+UPDATE dresses SET color = 'كحلي' WHERE color IN ('navy', 'Navy');
+UPDATE dresses SET color = 'أخضر زمردي' WHERE color IN ('emerald', 'Emerald');
+UPDATE dresses SET color = 'أخضر زيتوني' WHERE color IN ('olive', 'Olive');
+UPDATE dresses SET color = 'أحمر' WHERE color IN ('red', 'Red');
+UPDATE dresses SET color = 'خمري' WHERE color IN ('burgundy', 'Burgundy');
+UPDATE dresses SET color = 'بني' WHERE color IN ('brown', 'Brown');
+UPDATE dresses SET color = 'أسود' WHERE color IN ('black', 'Black');
+UPDATE dresses SET color = 'رمادي' WHERE color IN ('gray', 'grey', 'Gray', 'Grey');

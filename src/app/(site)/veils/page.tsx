@@ -1,28 +1,30 @@
 import type { Metadata } from "next";
-import { DressCatalog, PageHero } from "@/components/dresses/DressCatalog";
-import { getDresses } from "@/lib/data/queries";
+import { PageHero } from "@/components/dresses/DressCatalog";
+import { ShopCatalog } from "@/components/shop/ShopCatalog";
+import { getVeils } from "@/lib/data/shop-queries";
+import { VEIL_CATEGORY_OPTIONS } from "@/types/shop";
 
 export const metadata: Metadata = {
   title: "الطرحات",
-  description: "طرحات زفاف فاخرة — cathedral، birdcage، وتصاميم مخصصة.",
+  description: "طرحات زفاف فاخرة من Nadeen Designs مع إمكانية التخصيص والشراء.",
 };
 
 export default async function VeilsPage() {
-  const dresses = await getDresses({ category: "veils" });
+  const veils = await getVeils();
 
   return (
     <>
       <PageHero
         title="الطرحات"
-        description="طرحات زفاف أنيقة تكمل إطلالتكِ بلمسة من السحر والأناقة"
+        description="طرحات فاخرة تكمل إطلالتكِ — خصّصي الكتابة واطلبي تغليف هدية أنيق."
       />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
-          <DressCatalog
-            dresses={dresses}
-            category="veils"
-            title="الطرحات"
-            description=""
+          <ShopCatalog
+            items={veils}
+            basePath="/veils"
+            showCategoryFilter
+            categoryOptions={[...VEIL_CATEGORY_OPTIONS]}
           />
         </div>
       </section>
