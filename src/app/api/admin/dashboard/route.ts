@@ -28,6 +28,7 @@ function serializeDashboard(
     bookingAnalytics: data.bookingAnalytics,
     customers: data.customers,
     alerts: data.alerts,
+    trash: data.trash,
     errors,
   };
 }

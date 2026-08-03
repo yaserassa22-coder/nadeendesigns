@@ -1,6 +1,10 @@
 import { SEED_DRESSES, SEED_GALLERY } from "@/lib/data/seed";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import { normalizeDressList } from "@/lib/dresses/category";
+import {
+  filterLifecycleRows,
+  isLifecycleSchemaError,
+} from "@/lib/admin/query-lifecycle";
 import { normalizeSiteSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -11,23 +15,43 @@ import { DRESS_CATEGORIES, DRESS_CATEGORY_LABELS } from "@/types";
 export async function getAdminDresses(): Promise<Dress[]> {
   if (!isSupabaseConfigured()) return normalizeDressList(SEED_DRESSES);
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("dresses")
     .select("*")
     .order("created_at", { ascending: false });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (error && isLifecycleSchemaError(error)) {
+    const retry = await supabase
+      .from("dresses")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (retry.error || !retry.data) return normalizeDressList(SEED_DRESSES);
+    return normalizeDressList(retry.data as Dress[]);
+  }
   if (error || !data) return normalizeDressList(SEED_DRESSES);
-  return normalizeDressList(data as Dress[]);
+  return normalizeDressList(filterLifecycleRows(data as Dress[], "all"));
 }
 
 export async function getAdminGallery(): Promise<GalleryItem[]> {
   if (!isSupabaseConfigured()) return SEED_GALLERY;
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("gallery_items")
     .select("*")
     .order("sort_order", { ascending: true });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (error && isLifecycleSchemaError(error)) {
+    const retry = await supabase
+      .from("gallery_items")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (retry.error || !retry.data) return SEED_GALLERY;
+    return retry.data as GalleryItem[];
+  }
   if (error || !data) return SEED_GALLERY;
-  return data as GalleryItem[];
+  return filterLifecycleRows(data as GalleryItem[], "all");
 }
 
 function mapBookingRow(b: Booking): Booking {
@@ -62,10 +86,22 @@ export async function getAdminBookings(): Promise<AdminBookingsResult> {
 
   try {
     const supabase = await createPrivilegedClient();
-    const { data, error, count } = await supabase
+    let query = supabase
       .from("bookings")
       .select("*", { count: "exact" })
       .order("created_at", { ascending: false });
+    query = query.eq("is_deleted", false) as typeof query;
+    let { data, error, count } = await query;
+
+    if (error && isLifecycleSchemaError(error)) {
+      const retry = await supabase
+        .from("bookings")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false });
+      data = retry.data;
+      error = retry.error;
+      count = retry.count;
+    }
 
     if (error) {
       console.error("[getAdminBookings] supabase error", error);
@@ -76,7 +112,10 @@ export async function getAdminBookings(): Promise<AdminBookingsResult> {
       };
     }
 
-    const bookings = ((data ?? []) as Booking[]).map(mapBookingRow);
+    const bookings = filterLifecycleRows(
+      ((data ?? []) as Booking[]).map(mapBookingRow),
+      "all"
+    );
     return {
       bookings,
       error: null,

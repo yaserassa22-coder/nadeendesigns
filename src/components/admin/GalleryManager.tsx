@@ -97,7 +97,7 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
   };
 
   const remove = async (id: string) => {
-    if (!confirm("حذف هذه الصورة من المعرض؟")) return;
+    if (!confirm("نقل هذه الصورة إلى سلة المحذوفات؟")) return;
     const res = await fetch(`/api/gallery?id=${id}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {

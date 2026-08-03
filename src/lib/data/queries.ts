@@ -22,6 +22,9 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
+    // Storefront: hide soft-deleted + archived (graceful if columns missing)
+    query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+
     if (filters?.category) {
       const values = categoryQueryValues(filters.category);
       query =
@@ -34,7 +37,27 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
     if (filters?.color) query = query.eq("color", filters.color);
     if (filters?.size) query = query.eq("size", filters.size);
 
-    const { data, error } = await query;
+    let { data, error } = await query;
+    if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+      let retry = supabase
+        .from("dresses")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (filters?.category) {
+        const values = categoryQueryValues(filters.category);
+        retry =
+          values.length > 1
+            ? retry.in("category", values)
+            : retry.eq("category", values[0]);
+      }
+      if (filters?.featured) retry = retry.eq("is_featured", true);
+      if (filters?.style) retry = retry.eq("style", filters.style);
+      if (filters?.color) retry = retry.eq("color", filters.color);
+      if (filters?.size) retry = retry.eq("size", filters.size);
+      const second = await retry;
+      data = second.data;
+      error = second.error;
+    }
     dresses = error
       ? normalizeDressList(SEED_DRESSES)
       : normalizeDressList(data as Dress[]);
@@ -84,12 +107,26 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
 export async function getDressById(id: string): Promise<Dress | null> {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("dresses")
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (!error && data) return withNormalizedDressCategory(data as Dress);
+    let query = supabase.from("dresses").select("*").eq("id", id);
+    query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+    let { data, error } = await query.maybeSingle();
+    if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+      const retry = await supabase
+        .from("dresses")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      data = retry.data;
+      error = retry.error;
+    }
+    if (!error && data) {
+      const row = data as Dress & {
+        is_deleted?: boolean;
+        archived_at?: string | null;
+      };
+      if (row.is_deleted || row.archived_at) return null;
+      return withNormalizedDressCategory(row);
+    }
   }
   const seed = SEED_DRESSES.find((d) => d.id === id);
   return seed ? withNormalizedDressCategory(seed) : null;
@@ -98,10 +135,20 @@ export async function getDressById(id: string): Promise<Dress | null> {
 export async function getGalleryItems(): Promise<GalleryItem[]> {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("gallery_items")
       .select("*")
       .order("sort_order", { ascending: true });
+    query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+    let { data, error } = await query;
+    if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+      const retry = await supabase
+        .from("gallery_items")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      data = retry.data;
+      error = retry.error;
+    }
     if (!error && data) return data as GalleryItem[];
   }
   return SEED_GALLERY;

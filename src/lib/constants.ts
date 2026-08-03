@@ -241,6 +241,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   shipping_free_threshold: 0,
   boutique_pickup_enabled: true,
   delivery_enabled: true,
+
+  trash_cleanup_days: 30,
 };
 
 export const WHATSAPP_MESSAGE =

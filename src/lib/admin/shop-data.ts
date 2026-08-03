@@ -1,4 +1,8 @@
 import { SEED_BRIDAL_ROBES, SEED_VEILS } from "@/lib/data/shop-seed";
+import {
+  filterLifecycleRows,
+  isLifecycleSchemaError,
+} from "@/lib/admin/query-lifecycle";
 import { selectShopOrdersList } from "@/lib/shop/order-query";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -9,23 +13,43 @@ import type { ContactMessage } from "@/types";
 export async function getAdminVeils(): Promise<Veil[]> {
   if (!isSupabaseConfigured()) return SEED_VEILS;
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("veils")
     .select("*")
     .order("created_at", { ascending: false });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (error && isLifecycleSchemaError(error)) {
+    const retry = await supabase
+      .from("veils")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (retry.error || !retry.data) return SEED_VEILS;
+    return retry.data as Veil[];
+  }
   if (error || !data) return SEED_VEILS;
-  return data as Veil[];
+  return filterLifecycleRows(data as Veil[], "all");
 }
 
 export async function getAdminBridalRobes(): Promise<BridalRobe[]> {
   if (!isSupabaseConfigured()) return SEED_BRIDAL_ROBES;
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("bridal_robes")
     .select("*")
     .order("created_at", { ascending: false });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (error && isLifecycleSchemaError(error)) {
+    const retry = await supabase
+      .from("bridal_robes")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (retry.error || !retry.data) return SEED_BRIDAL_ROBES;
+    return retry.data as BridalRobe[];
+  }
   if (error || !data) return SEED_BRIDAL_ROBES;
-  return data as BridalRobe[];
+  return filterLifecycleRows(data as BridalRobe[], "all");
 }
 
 export type AdminOrdersResult = {
@@ -58,7 +82,12 @@ export async function getAdminOrders(): Promise<AdminOrdersResult> {
       };
     }
 
-    const orders = data ?? [];
+    const orders = filterLifecycleRows(
+      (data ?? []) as Array<
+        ShopOrder & { is_deleted?: boolean | null; archived_at?: string | null }
+      >,
+      "all"
+    ) as ShopOrder[];
     return {
       orders,
       error: null,
@@ -75,10 +104,20 @@ export async function getAdminOrders(): Promise<AdminOrdersResult> {
 export async function getAdminMessages(): Promise<ContactMessage[]> {
   if (!isSupabaseConfigured()) return [];
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("contact_messages")
     .select("*")
     .order("created_at", { ascending: false });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (error && isLifecycleSchemaError(error)) {
+    const retry = await supabase
+      .from("contact_messages")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (retry.error || !retry.data) return [];
+    return retry.data as ContactMessage[];
+  }
   if (error || !data) return [];
-  return data as ContactMessage[];
+  return filterLifecycleRows(data as ContactMessage[], "all");
 }

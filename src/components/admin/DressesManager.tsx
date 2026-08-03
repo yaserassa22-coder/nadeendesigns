@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 import type { Dress, DressCategory } from "@/types";
 import {
   DRESS_CATEGORIES,
@@ -12,11 +12,15 @@ import {
 import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
+import type { ListVisibility } from "@/lib/admin/lifecycle-types";
+import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 
 type DressFormState = {
   name_ar: string;
@@ -95,10 +99,17 @@ export function DressesManager({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [visibility, setVisibility] = useState<ListVisibility>("active");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return dresses.filter((d) => {
+    const visible = filterLifecycleRows(
+      dresses as Array<
+        Dress & { is_deleted?: boolean | null; archived_at?: string | null }
+      >,
+      visibility
+    );
+    return visible.filter((d) => {
       const effectiveCategory = lockedCategory ?? categoryFilter;
       if (effectiveCategory !== "all" && d.category !== effectiveCategory) {
         return false;
@@ -116,6 +127,7 @@ export function DressesManager({
     });
   }, [
     dresses,
+    visibility,
     search,
     categoryFilter,
     lockedCategory,
@@ -203,17 +215,6 @@ export function DressesManager({
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("هل تريدين حذف هذا الفستان؟")) return;
-    const res = await fetch(`/api/dresses?id=${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error ?? "فشل الحذف");
-      return;
-    }
-    setDresses((prev) => prev.filter((d) => d.id !== id));
-  };
-
   const addImageUrl = () => {
     const url = form.imageUrlInput.trim();
     if (!url) return;
@@ -274,6 +275,10 @@ export function DressesManager({
               { value: "no", label: "غير مميز" },
             ]}
           />
+          <div>
+            <p className="mb-1.5 text-sm text-muted">العرض</p>
+            <VisibilityFilter value={visibility} onChange={setVisibility} />
+          </div>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
@@ -357,14 +362,36 @@ export function DressesManager({
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(dress.id)}
-                          className="rounded-lg p-2 text-red-500 hover:bg-red-50"
-                          aria-label="حذف"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <RowLifecycleActions
+                          module="dresses"
+                          id={dress.id}
+                          archived={Boolean(
+                            (dress as Dress & { archived_at?: string | null })
+                              .archived_at
+                          )}
+                          onChanged={(kind) => {
+                            if (kind === "soft_delete") {
+                              setDresses((prev) =>
+                                prev.filter((d) => d.id !== dress.id)
+                              );
+                              return;
+                            }
+                            setDresses((prev) =>
+                              prev.map((d) =>
+                                d.id === dress.id
+                                  ? ({
+                                      ...d,
+                                      archived_at:
+                                        kind === "archive"
+                                          ? new Date().toISOString()
+                                          : null,
+                                    } as Dress)
+                                  : d
+                              )
+                            );
+                          }}
+                          onError={(msg) => alert(msg)}
+                        />
                       </div>
                     </td>
                   </tr>

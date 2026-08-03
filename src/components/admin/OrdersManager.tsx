@@ -21,6 +21,8 @@ import {
   SHOP_ORDER_STATUS_LABELS,
   workflowActionsForDeliveryMethod,
 } from "@/types/shop";
+import type { ListVisibility } from "@/lib/admin/lifecycle-types";
+import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import {
@@ -31,6 +33,8 @@ import { Select, Textarea, Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
+import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 import Image from "next/image";
 
 interface OrdersManagerProps {
@@ -68,6 +72,7 @@ export function OrdersManager({
   const [orders, setOrders] = useState(initialOrders);
   const [loadError, setLoadError] = useState(initialError);
   const [filter, setFilter] = useState<ShopOrderStatus | "all">("all");
+  const [visibility, setVisibility] = useState<ListVisibility>("active");
   const [methodFilter, setMethodFilter] = useState<
     DeliveryMethod | "all"
   >("all");
@@ -113,7 +118,13 @@ export function OrdersManager({
 
   const filtered = useMemo(() => {
     // Default "all" must include pickup, delivery, unknown region, and pending fee.
-    return orders.filter((o) => {
+    const visible = filterLifecycleRows(
+      orders as Array<
+        ShopOrder & { is_deleted?: boolean | null; archived_at?: string | null }
+      >,
+      visibility
+    );
+    return visible.filter((o) => {
       if (filter !== "all" && normalizeStatus(o.status) !== filter) return false;
       if (methodFilter !== "all") {
         const m = o.delivery_method;
@@ -143,7 +154,7 @@ export function OrdersManager({
       }
       return true;
     });
-  }, [orders, filter, methodFilter, regionFilter]);
+  }, [orders, filter, methodFilter, regionFilter, visibility]);
 
   const patchStatus = async (
     id: string,
@@ -318,9 +329,17 @@ export function OrdersManager({
             طلب)
           </p>
         </div>
-        <Button variant="outline" loading={retrying} onClick={retryNotifications}>
-          إعادة إرسال الإشعارات الفاشلة
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/api/admin/export?module=orders"
+            className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
+          >
+            تصدير CSV
+          </a>
+          <Button variant="outline" loading={retrying} onClick={retryNotifications}>
+            إعادة إرسال الإشعارات الفاشلة
+          </Button>
+        </div>
       </div>
 
       {loadError && (
@@ -352,7 +371,7 @@ export function OrdersManager({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Select
           label="تصفية الحالة"
           value={filter}
@@ -365,6 +384,10 @@ export function OrdersManager({
             })),
           ]}
         />
+        <div>
+          <p className="mb-1.5 text-sm text-muted">العرض</p>
+          <VisibilityFilter value={visibility} onChange={setVisibility} />
+        </div>
         <Select
           label="طريقة الاستلام"
           value={methodFilter}
@@ -466,20 +489,55 @@ export function OrdersManager({
                           </select>
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpanded(isOpen ? null : order.id)
-                            }
-                            className="inline-flex items-center gap-1 text-gold"
-                          >
-                            تفاصيل
-                            {isOpen ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpanded(isOpen ? null : order.id)
+                              }
+                              className="inline-flex items-center gap-1 text-gold"
+                            >
+                              تفاصيل
+                              {isOpen ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </button>
+                            <RowLifecycleActions
+                              module="orders"
+                              id={order.id}
+                              archived={Boolean(
+                                (
+                                  order as ShopOrder & {
+                                    archived_at?: string | null;
+                                  }
+                                ).archived_at
+                              )}
+                              onChanged={(kind) => {
+                                if (kind === "soft_delete") {
+                                  setOrders((prev) =>
+                                    prev.filter((o) => o.id !== order.id)
+                                  );
+                                  return;
+                                }
+                                setOrders((prev) =>
+                                  prev.map((o) =>
+                                    o.id === order.id
+                                      ? ({
+                                          ...o,
+                                          archived_at:
+                                            kind === "archive"
+                                              ? new Date().toISOString()
+                                              : null,
+                                        } as ShopOrder)
+                                      : o
+                                  )
+                                );
+                              }}
+                              onError={(msg) => alert(msg)}
+                            />
+                          </div>
                         </td>
                       </tr>
                       {isOpen && (

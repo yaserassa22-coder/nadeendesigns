@@ -125,6 +125,13 @@ export type DashboardCharts = {
   mostRequestedRegions: NamedCount[];
 };
 
+export type TrashStats = {
+  totalInTrash: number;
+  ordersInTrash: number;
+  bookingsInTrash: number;
+  productsInTrash: number;
+};
+
 export type DashboardPayload = {
   range: ResolvedDateRange;
   kpis: DashboardKpis;
@@ -142,6 +149,7 @@ export type DashboardPayload = {
   bookingAnalytics: BookingAnalytics;
   customers: CustomerAnalytics;
   alerts: DashboardAlert[];
+  trash: TrashStats;
 };
 
 export type ProductCatalogEntry = {

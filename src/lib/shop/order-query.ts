@@ -157,15 +157,28 @@ export async function selectShopOrdersList(
   for (let i = 0; i < attempts.length; i++) {
     const cols = attempts[i];
     // Dynamic column lists are intentional (schema fallback); bypass generated parser types.
-    const { data, error, count } = await supabase
+    let query = supabase
       .from("shop_orders")
       .select(cols as "*", { count: "exact" })
       .order("created_at", { ascending: false });
+    // Prefer excluding trash; if column missing, retry without filter below.
+    query = query.eq("is_deleted", false) as typeof query;
+    let { data, error, count } = await query;
+
+    if (error && /is_deleted|PGRST204|42703/i.test(error.message ?? "")) {
+      const retry = await supabase
+        .from("shop_orders")
+        .select(cols as "*", { count: "exact" })
+        .order("created_at", { ascending: false });
+      data = retry.data;
+      error = retry.error;
+      count = retry.count;
+    }
 
     if (!error) {
-      const orders = ((data ?? []) as unknown as Record<string, unknown>[]).map(
-        normalizeShopOrderRow
-      );
+      const orders = ((data ?? []) as unknown as Record<string, unknown>[])
+        .filter((row) => row.is_deleted !== true)
+        .map(normalizeShopOrderRow);
       return {
         data: orders,
         error: null,

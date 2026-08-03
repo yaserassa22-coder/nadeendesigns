@@ -64,6 +64,30 @@ async function countTable(
   }
 }
 
+async function countDeleted(table: string): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+  try {
+    const supabase = createAdminClient();
+    const { count, error } = await supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .eq("is_deleted", true);
+    if (error) {
+      if (
+        isMissingTableError(error, table) ||
+        isMissingColumnError(error) ||
+        /is_deleted/i.test(error.message ?? "")
+      ) {
+        return 0;
+      }
+      return 0;
+    }
+    return typeof count === "number" ? count : 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function fetchOrders(): Promise<{
   orders: ShopOrder[];
   error: string | null;
@@ -445,6 +469,15 @@ export async function getDashboardAnalytics(input: {
     notifications,
     statusUpdates,
     failedNotifications,
+    trashOrders,
+    trashBookings,
+    trashDresses,
+    trashVeils,
+    trashRobes,
+    trashMessages,
+    trashGallery,
+    trashCategories,
+    trashShipping,
   ] = await Promise.all([
     fetchOrders(),
     fetchBookings(),
@@ -457,6 +490,15 @@ export async function getDashboardAnalytics(input: {
     fetchRecentNotifications(8),
     fetchStatusUpdates(8),
     countFailedNotifications(),
+    countDeleted("shop_orders"),
+    countDeleted("bookings"),
+    countDeleted("dresses"),
+    countDeleted("veils"),
+    countDeleted("bridal_robes"),
+    countDeleted("contact_messages"),
+    countDeleted("gallery_items"),
+    countDeleted("categories"),
+    countDeleted("shipping_regions"),
   ]);
 
   const allOrders = ordersResult.orders;
@@ -505,6 +547,21 @@ export async function getDashboardAnalytics(input: {
       failedNotifications,
       outOfStockProducts: countOutOfStock(catalog),
     }),
+    trash: {
+      ordersInTrash: trashOrders,
+      bookingsInTrash: trashBookings,
+      productsInTrash: trashDresses + trashVeils + trashRobes,
+      totalInTrash:
+        trashOrders +
+        trashBookings +
+        trashDresses +
+        trashVeils +
+        trashRobes +
+        trashMessages +
+        trashGallery +
+        trashCategories +
+        trashShipping,
+    },
   };
 
   // Serialize dates for JSON

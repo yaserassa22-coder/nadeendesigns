@@ -155,7 +155,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi();
   if (authError) return authError;
 
   const { searchParams } = new URL(request.url);
@@ -171,25 +171,51 @@ export async function DELETE(request: Request) {
   }
 
   const supabase = await createPrivilegedClient();
-  const { count, error: childError } = await supabase
-    .from("categories")
-    .select("id", { count: "exact", head: true })
-    .eq("parent_id", id);
-  if (childError) {
-    const mapped = mapCategoryError(childError);
-    return NextResponse.json({ error: mapped.message }, { status: mapped.status });
-  }
-  if ((count ?? 0) > 0) {
-    return NextResponse.json(
-      { error: "احذفي التصنيفات الفرعية أولاً قبل حذف هذا التصنيف" },
-      { status: 400 }
-    );
+  const permanent =
+    searchParams.get("permanent") === "1" ||
+    searchParams.get("permanent") === "true";
+
+  if (!permanent) {
+    const { count, error: childError } = await supabase
+      .from("categories")
+      .select("id", { count: "exact", head: true })
+      .eq("parent_id", id)
+      .eq("is_deleted", false);
+    if (
+      childError &&
+      !/is_deleted/i.test(childError.message) &&
+      childError.code !== "PGRST204" &&
+      childError.code !== "42703"
+    ) {
+      const mapped = mapCategoryError(childError);
+      return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+    }
+    // Retry without is_deleted filter if column missing
+    let childCount = count ?? 0;
+    if (childError && /is_deleted|PGRST204|42703/i.test(`${childError.message}${childError.code}`)) {
+      const retry = await supabase
+        .from("categories")
+        .select("id", { count: "exact", head: true })
+        .eq("parent_id", id);
+      if (retry.error) {
+        const mapped = mapCategoryError(retry.error);
+        return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+      }
+      childCount = retry.count ?? 0;
+    }
+    if (childCount > 0) {
+      return NextResponse.json(
+        { error: "احذفي التصنيفات الفرعية أولاً قبل حذف هذا التصنيف" },
+        { status: 400 }
+      );
+    }
   }
 
-  const { error } = await supabase.from("categories").delete().eq("id", id);
-  if (error) {
-    const mapped = mapCategoryError(error);
-    return NextResponse.json({ error: mapped.message }, { status: mapped.status });
-  }
-  return NextResponse.json({ success: true });
+  const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");
+  return handleModuleDelete({
+    request,
+    module: "categories",
+    actor: { id: user!.id, email: user!.email },
+    missingIdMessage: "معرّف التصنيف مطلوب",
+  });
 }

@@ -2,15 +2,19 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 import type { BridalRobe, Veil } from "@/types/shop";
 import { VEIL_CATEGORY_OPTIONS } from "@/types/shop";
 import { DRESS_COLORS, DRESS_SIZES } from "@/lib/constants";
+import type { ListVisibility } from "@/lib/admin/lifecycle-types";
+import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 
 type Kind = "veils" | "bridal-robes";
 
@@ -65,10 +69,21 @@ export function ShopProductsManager({
   const [form, setForm] = useState<FormState>(emptyForm(kind));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [visibility, setVisibility] = useState<ListVisibility>("active");
+  const lifecycleModule = kind === "veils" ? "veils" : "bridal_robes";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter((item) => {
+    const visible = filterLifecycleRows(
+      items as Array<
+        (Veil | BridalRobe) & {
+          is_deleted?: boolean | null;
+          archived_at?: string | null;
+        }
+      >,
+      visibility
+    );
+    return visible.filter((item) => {
       if (availability === "yes" && !item.is_available) return false;
       if (availability === "no" && item.is_available) return false;
       if (!q) return true;
@@ -80,7 +95,7 @@ export function ShopProductsManager({
           String(item.category).toLowerCase().includes(q))
       );
     });
-  }, [items, search, availability]);
+  }, [items, search, availability, visibility]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -169,24 +184,13 @@ export function ShopProductsManager({
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("حذف هذا المنتج؟")) return;
-    const res = await fetch(`${apiPath}?id=${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error ?? "فشل الحذف");
-      return;
-    }
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-charcoal">{title}</h1>
           <p className="mt-1 text-sm text-muted">
-            إدارة كاملة — إضافة، تعديل، حذف، بحث وتصفية
+            إدارة كاملة — إضافة، تعديل، أرشفة، نقل للسلة، بحث وتصفية
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -195,7 +199,7 @@ export function ShopProductsManager({
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Input
           label="بحث"
           value={search}
@@ -205,6 +209,16 @@ export function ShopProductsManager({
           }}
           placeholder="الاسم، اللون، الخامة..."
         />
+        <div>
+          <p className="mb-1.5 text-sm text-muted">العرض</p>
+          <VisibilityFilter
+            value={visibility}
+            onChange={(v) => {
+              setVisibility(v);
+              setPage(1);
+            }}
+          />
+        </div>
         <Select
           label="التوفر"
           value={availability}
@@ -305,14 +319,39 @@ export function ShopProductsManager({
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(item.id)}
-                          className="rounded-lg p-2 text-red-500 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50"
-                          aria-label={`حذف ${item.name_ar}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <RowLifecycleActions
+                          module={lifecycleModule}
+                          id={item.id}
+                          archived={Boolean(
+                            (
+                              item as (Veil | BridalRobe) & {
+                                archived_at?: string | null;
+                              }
+                            ).archived_at
+                          )}
+                          onChanged={(kind) => {
+                            if (kind === "soft_delete") {
+                              setItems((prev) =>
+                                prev.filter((i) => i.id !== item.id)
+                              );
+                              return;
+                            }
+                            setItems((prev) =>
+                              prev.map((i) =>
+                                i.id === item.id
+                                  ? ({
+                                      ...i,
+                                      archived_at:
+                                        kind === "archive"
+                                          ? new Date().toISOString()
+                                          : null,
+                                    } as unknown as Veil | BridalRobe)
+                                  : i
+                              )
+                            );
+                          }}
+                          onError={(msg) => alert(msg)}
+                        />
                       </div>
                     </td>
                   </tr>

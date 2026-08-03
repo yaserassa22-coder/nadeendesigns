@@ -1,18 +1,24 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, RefreshCw, Sparkles } from "lucide-react";
 import type { Booking, BookingStatus, DeliveryStatus } from "@/types";
 import {
   BOOKING_STATUS_LABELS,
   DELIVERY_STATUS_LABELS,
   getServiceTypeLabel,
 } from "@/types";
+import type { ListVisibility } from "@/lib/admin/lifecycle-types";
+import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { formatDate } from "@/lib/utils";
 import { Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
+import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
+import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
+import { postLifecycle } from "@/lib/admin/lifecycle-client";
 
 interface BookingsManagerProps {
   initialBookings: Booking[];
@@ -45,8 +51,11 @@ export function BookingsManager({
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<BookingStatus | "all">("all");
+  const [visibility, setVisibility] = useState<ListVisibility>("active");
   const [updating, setUpdating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [snack, setSnack] = useState<string | null>(null);
+  const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
 
   const loadBookings = useCallback(async () => {
     setLoading(true);
@@ -79,9 +88,15 @@ export function BookingsManager({
   }, [loadBookings]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return bookings;
-    return bookings.filter((b) => b.status === filter);
-  }, [bookings, filter]);
+    const byVis = filterLifecycleRows(
+      bookings as Array<
+        Booking & { is_deleted?: boolean | null; archived_at?: string | null }
+      >,
+      visibility
+    );
+    if (filter === "all") return byVis;
+    return byVis.filter((b) => b.status === filter);
+  }, [bookings, filter, visibility]);
 
   const patchBooking = async (
     id: string,
@@ -106,34 +121,37 @@ export function BookingsManager({
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("حذف هذا الحجز؟")) return;
-    const res = await fetch(`/api/bookings?id=${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error ?? "فشل الحذف");
-      return;
-    }
-    setBookings((prev) => prev.filter((b) => b.id !== id));
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <Select
-          label="تصفية حسب الحالة"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as BookingStatus | "all")}
-          options={[{ value: "all", label: "الكل" }, ...STATUS_OPTIONS]}
-        />
-        <Button
-          variant="outline"
-          loading={loading}
-          onClick={() => void loadBookings()}
-        >
-          <RefreshCw className="h-4 w-4" />
-          تحديث القائمة
-        </Button>
+        <div className="flex flex-wrap items-end gap-4">
+          <Select
+            label="تصفية حسب الحالة"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as BookingStatus | "all")}
+            options={[{ value: "all", label: "الكل" }, ...STATUS_OPTIONS]}
+          />
+          <div>
+            <p className="mb-1.5 text-sm text-muted">العرض</p>
+            <VisibilityFilter value={visibility} onChange={setVisibility} />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/api/admin/export?module=bookings"
+            className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
+          >
+            تصدير CSV
+          </a>
+          <Button
+            variant="outline"
+            loading={loading}
+            onClick={() => void loadBookings()}
+          >
+            <RefreshCw className="h-4 w-4" />
+            تحديث القائمة
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -258,14 +276,43 @@ export function BookingsManager({
                                 )}
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => void remove(booking.id)}
-                              className="text-red-500 hover:text-red-600"
-                              aria-label="حذف"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <RowLifecycleActions
+                              module="bookings"
+                              id={booking.id}
+                              archived={Boolean(
+                                (booking as Booking & { archived_at?: string | null })
+                                  .archived_at
+                              )}
+                              onChanged={(kind) => {
+                                if (kind === "soft_delete") {
+                                  setLastDeletedId(booking.id);
+                                  setBookings((prev) =>
+                                    prev.filter((b) => b.id !== booking.id)
+                                  );
+                                  setSnack("تم نقل الحجز إلى سلة المحذوفات");
+                                  return;
+                                }
+                                setBookings((prev) =>
+                                  prev.map((b) =>
+                                    b.id === booking.id
+                                      ? {
+                                          ...b,
+                                          archived_at:
+                                            kind === "archive"
+                                              ? new Date().toISOString()
+                                              : null,
+                                        }
+                                      : b
+                                  )
+                                );
+                                setSnack(
+                                  kind === "archive"
+                                    ? "تمت الأرشفة"
+                                    : "تم إلغاء الأرشفة"
+                                );
+                              }}
+                              onError={(msg) => alert(msg)}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -374,6 +421,29 @@ export function BookingsManager({
           </table>
         </div>
       </div>
+
+      <UndoSnackbar
+        message={snack}
+        onDismiss={() => {
+          setSnack(null);
+          setLastDeletedId(null);
+        }}
+        onUndo={
+          lastDeletedId
+            ? async () => {
+                const id = lastDeletedId;
+                setLastDeletedId(null);
+                await postLifecycle({
+                  action: "restore",
+                  module: "bookings",
+                  id,
+                });
+                setSnack(null);
+                await loadBookings();
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

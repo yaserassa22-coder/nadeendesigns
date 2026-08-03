@@ -315,30 +315,14 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi();
   if (authError) return authError;
 
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-  if (!id) {
-    return NextResponse.json(
-      {
-        error: "معرّف الحجز مطلوب",
-        field: "id",
-        message: "معرّف الحجز مطلوب",
-      },
-      { status: 400 }
-    );
-  }
-
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json({ success: true });
-  }
-
-  const supabase = await createPrivilegedClient();
-  const { error } = await supabase.from("bookings").delete().eq("id", id);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  return NextResponse.json({ success: true });
+  const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");
+  return handleModuleDelete({
+    request,
+    module: "bookings",
+    actor: { id: user!.id, email: user!.email },
+    missingIdMessage: "معرّف الحجز مطلوب",
+  });
 }

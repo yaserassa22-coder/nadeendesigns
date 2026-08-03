@@ -15,19 +15,34 @@ export type UnknownShippingRegionHint = {
 export async function getAdminShippingRegions(): Promise<ShippingRegion[]> {
   if (!isSupabaseConfigured()) return SEED_REGIONS;
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("shipping_regions")
     .select("*")
     .order("sort_order", { ascending: true });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
   if (error) {
     if (isMissingTableError(error, "shipping_regions")) {
       console.warn("[getAdminShippingRegions] table missing — seed fallback");
       return SEED_REGIONS;
     }
+    if (/is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+      const retry = await supabase
+        .from("shipping_regions")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (retry.error) {
+        console.error("[getAdminShippingRegions]", retry.error);
+        return SEED_REGIONS;
+      }
+      return (retry.data as ShippingRegion[]) ?? SEED_REGIONS;
+    }
     console.error("[getAdminShippingRegions]", error);
     return SEED_REGIONS;
   }
-  return (data as ShippingRegion[]) ?? SEED_REGIONS;
+  return ((data as ShippingRegion[]) ?? SEED_REGIONS).filter(
+    (r) => (r as ShippingRegion & { is_deleted?: boolean }).is_deleted !== true
+  );
 }
 
 /** Distinct custom / unknown regions from orders awaiting fee review. */

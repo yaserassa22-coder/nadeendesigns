@@ -463,6 +463,20 @@ export async function POST(request: Request) {
   }
 }
 
+/** Soft-delete / permanent (trash only). No hard delete from active list. */
+export async function DELETE(request: Request) {
+  const { user, error: authError } = await requireAdminApi();
+  if (authError) return authError;
+
+  const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");
+  return handleModuleDelete({
+    request,
+    module: "orders",
+    actor: { id: user!.id, email: user!.email },
+    missingIdMessage: "معرّف الطلب مطلوب",
+  });
+}
+
 export async function PATCH(request: Request) {
   const { error: authError } = await requireAdminApi();
   if (authError) return authError;

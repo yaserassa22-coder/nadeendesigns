@@ -229,7 +229,7 @@ export function ShippingRegionsManager({
   };
 
   const remove = async (item: ShippingRegion) => {
-    if (!confirm(`حذف المنطقة «${item.name_ar}»؟`)) return;
+    if (!confirm(`نقل المنطقة «${item.name_ar}» إلى سلة المحذوفات؟`)) return;
     const res = await fetch(`/api/shipping-regions?id=${item.id}`, {
       method: "DELETE",
     });

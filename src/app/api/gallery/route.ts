@@ -71,20 +71,14 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi();
   if (authError) return authError;
 
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase not configured" },
-      { status: 503 }
-    );
-  }
-  const supabase = await createPrivilegedClient();
-  const { error } = await supabase.from("gallery_items").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");
+  return handleModuleDelete({
+    request,
+    module: "gallery",
+    actor: { id: user!.id, email: user!.email },
+    missingIdMessage: "ID required",
+  });
 }

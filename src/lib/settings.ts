@@ -185,6 +185,12 @@ export function normalizeSiteSettings(
       typeof source.delivery_enabled === "boolean"
         ? source.delivery_enabled
         : DEFAULT_SETTINGS.delivery_enabled,
+    trash_cleanup_days:
+      typeof source.trash_cleanup_days === "number" &&
+      Number.isFinite(source.trash_cleanup_days) &&
+      source.trash_cleanup_days >= 1
+        ? Math.floor(source.trash_cleanup_days)
+        : DEFAULT_SETTINGS.trash_cleanup_days,
     instagram_url: OFFICIAL_INSTAGRAM_URL,
     instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
   };

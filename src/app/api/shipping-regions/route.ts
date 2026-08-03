@@ -210,26 +210,14 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi();
   if (authError) return authError;
 
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-  if (!id) {
-    return NextResponse.json({ error: "معرّف المنطقة مطلوب" }, { status: 400 });
-  }
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase غير مُعد. تحققي من متغيرات البيئة." },
-      { status: 503 }
-    );
-  }
-
-  const supabase = await createPrivilegedClient();
-  const { error } = await supabase.from("shipping_regions").delete().eq("id", id);
-  if (error) {
-    const mapped = mapRegionError(error);
-    return NextResponse.json({ error: mapped.message }, { status: mapped.status });
-  }
-  return NextResponse.json({ success: true });
+  const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");
+  return handleModuleDelete({
+    request,
+    module: "shipping_regions",
+    actor: { id: user!.id, email: user!.email },
+    missingIdMessage: "معرّف المنطقة مطلوب",
+  });
 }

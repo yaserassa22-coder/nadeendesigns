@@ -13,6 +13,7 @@ import {
   Truck,
   Users,
   Layers,
+  Trash2,
   XCircle,
   Clock3,
   Wallet,
@@ -31,6 +32,7 @@ import {
   type RecentOrderRow,
   type RecentBookingRow,
   type RecentActivityRow,
+  type TrashStats,
 } from "@/lib/admin/dashboard-analytics";
 import { DashboardCharts } from "@/components/admin/dashboard/DashboardCharts";
 import { Button } from "@/components/ui/Button";
@@ -64,6 +66,7 @@ export type DashboardApiResponse = {
   bookingAnalytics: BookingAnalytics;
   customers: CustomerAnalytics;
   alerts: DashboardAlert[];
+  trash?: TrashStats;
   errors?: { orders: string | null; bookings: string | null };
   error?: string;
 };
@@ -199,7 +202,7 @@ export function ExecutiveDashboard({ initialData }: Props) {
   };
 
   const busy = loading || isPending;
-  const { kpis, revenueBreakdown, charts, recent, topProducts, shipping, bookingAnalytics, customers, alerts } =
+  const { kpis, revenueBreakdown, charts, recent, topProducts, shipping, bookingAnalytics, customers, alerts, trash } =
     data;
 
   return (
@@ -341,6 +344,18 @@ export function ExecutiveDashboard({ initialData }: Props) {
             <KpiCard title="العميلات" value={kpis.totalCustomers} icon={Users} />
             <KpiCard title="المنتجات" value={kpis.totalProducts} icon={Package} />
             <KpiCard title="التصنيفات" value={kpis.totalCategories} icon={Layers} />
+            <Link href="/admin/trash" className="block">
+              <KpiCard
+                title="سلة المحذوفات"
+                value={trash?.totalInTrash ?? 0}
+                hint={
+                  trash
+                    ? `طلبات ${trash.ordersInTrash} · حجوزات ${trash.bookingsInTrash} · منتجات ${trash.productsInTrash}`
+                    : undefined
+                }
+                icon={Trash2}
+              />
+            </Link>
           </>
         )}
       </div>

@@ -143,7 +143,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
   };
 
   const remove = async (item: Category) => {
-    if (!confirm(`حذف التصنيف «${item.name_ar}»؟`)) return;
+    if (!confirm(`نقل التصنيف «${item.name_ar}» إلى سلة المحذوفات؟`)) return;
     const res = await fetch(`/api/categories?id=${item.id}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {

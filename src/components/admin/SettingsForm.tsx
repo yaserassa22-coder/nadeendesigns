@@ -15,7 +15,7 @@ interface SettingsFormProps {
   initialSettings: SiteSettings;
 }
 
-/** Contact + shipping only — Hero/About CMS lives under /admin/content/* */
+/** Contact + shipping + trash cleanup — Hero/About CMS lives under /admin/content/* */
 type ContactShippingPatch = Pick<
   SiteSettings,
   | "phone"
@@ -30,6 +30,7 @@ type ContactShippingPatch = Pick<
   | "shipping_free_threshold"
   | "boutique_pickup_enabled"
   | "delivery_enabled"
+  | "trash_cleanup_days"
 >;
 
 export function SettingsForm({ initialSettings }: SettingsFormProps) {
@@ -46,8 +47,10 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
     shipping_free_threshold: initialSettings.shipping_free_threshold,
     boutique_pickup_enabled: initialSettings.boutique_pickup_enabled,
     delivery_enabled: initialSettings.delivery_enabled,
+    trash_cleanup_days: initialSettings.trash_cleanup_days ?? 30,
   });
   const [saving, setSaving] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -90,6 +93,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           shipping_free_threshold: s.shipping_free_threshold,
           boutique_pickup_enabled: s.boutique_pickup_enabled,
           delivery_enabled: s.delivery_enabled,
+          trash_cleanup_days: s.trash_cleanup_days ?? 30,
         });
       }
       setMessage("تم الحفظ بنجاح");
@@ -97,6 +101,35 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
       setError(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const runCleanup = async () => {
+    if (
+      !confirm(
+        `تشغيل تنظيف السلة للعناصر الأقدم من ${settings.trash_cleanup_days} يوماً؟\nلن تُمس الطلبات والحجوزات أبداً.`
+      )
+    ) {
+      return;
+    }
+    setCleaning(true);
+    setMessage("");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: settings.trash_cleanup_days }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "فشل التنظيف");
+      setMessage(
+        `تم التنظيف: حُذف ${data.deleted ?? 0} عنصر نهائياً (بدون الطلبات/الحجوزات).`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل التنظيف");
+    } finally {
+      setCleaning(false);
     }
   };
 
@@ -242,6 +275,49 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               أو أكثر.
             </p>
           )}
+      </div>
+
+      <div className="border-t border-beige-dark pt-6">
+        <h3 className="text-lg font-semibold text-charcoal">
+          تنظيف سلة المحذوفات
+        </h3>
+        <p className="mt-1 text-sm text-muted">
+          لا يعمل تلقائياً — فقط عند الضغط على «تشغيل التنظيف». الطلبات
+          والحجوزات مستثناة دائماً.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <Input
+            label="حذف العناصر من السلة بعد (أيام)"
+            type="number"
+            min={1}
+            step="1"
+            value={String(settings.trash_cleanup_days ?? 30)}
+            onChange={(e) =>
+              update(
+                "trash_cleanup_days",
+                Math.max(1, Math.floor(Number(e.target.value) || 30))
+              )
+            }
+            dir="ltr"
+          />
+          <div className="flex items-end">
+            <Button
+              variant="outline"
+              loading={cleaning}
+              onClick={() => void runCleanup()}
+              className="border-red-200 text-red-700 hover:bg-red-50"
+            >
+              تشغيل التنظيف
+            </Button>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          راجعي أيضاً{" "}
+          <Link href="/admin/trash" className="text-gold hover:underline">
+            سلة المحذوفات
+          </Link>
+          .
+        </p>
       </div>
 
       {message && (

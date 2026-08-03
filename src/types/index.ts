@@ -206,6 +206,12 @@ export interface SiteSettings {
   boutique_pickup_enabled: boolean;
   /** Allow courier delivery at checkout when cart needs shipping */
   delivery_enabled: boolean;
+
+  /**
+   * Days soft-deleted items stay in trash before an explicit "Run cleanup".
+   * Never auto-runs; never applies to orders/bookings.
+   */
+  trash_cleanup_days: number;
 }
 
 export interface DressFilters {
