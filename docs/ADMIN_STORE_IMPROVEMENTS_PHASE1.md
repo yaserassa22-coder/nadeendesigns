@@ -52,10 +52,11 @@
 - Parent: اكسسوارات العروس (children: طرحة العروس, برنص العروس)
 - Files: types, Header, ServicesSection, AdminSidebar, veils/robes pages, cart/checkout/booking copy, layout keywords
 
-### M2 — Dynamic categories CRUD
+### M2 — Dynamic categories CRUD ✅
 - DB: `categories` table + seed existing shop sections
 - Admin: full CRUD for name, slug, parent, sort_order, is_visible, icon_url, cover_image_url, description
 - API + validation + sidebar link
+- QA: create / edit / delete empty / reorder / parent-child / visibility / persistence after refresh
 - **Does not yet** fully replace all public nav (that is M3)
 
 ### M3 — Wire products / nav / search + featured image contract
