@@ -15,6 +15,7 @@ import {
   onOrderSubmitted,
 } from "@/lib/notifications/service";
 import { shopOrderCreateSchema } from "@/lib/validations/shop-product";
+import { cartNeedsShipping } from "@/lib/shop/shipping";
 import {
   ORDER_WORKFLOW_ACTIONS,
   SHOP_ORDER_STATUSES,
@@ -141,31 +142,50 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data;
+    const needsShipping =
+      body.shipping_required === true || cartNeedsShipping(body.items);
+    const shipping = needsShipping ? body.shipping : null;
+    const shippingCost =
+      needsShipping && typeof body.shipping_cost === "number"
+        ? body.shipping_cost
+        : 0;
+
     const id = crypto.randomUUID();
     const created_at = new Date().toISOString();
-    const row = {
+    const row: ShopOrder = {
       id,
       name: body.name.trim(),
       phone: body.phone.trim(),
       email: body.email?.trim() ? body.email.trim() : null,
       notes: body.notes?.trim() ? body.notes.trim() : null,
-      items: body.items,
+      items: body.items.map((i) => ({
+        ...i,
+        image: i.image ?? undefined,
+      })),
       gift_options: body.gift_options ?? null,
       total: body.total,
-      status: "pending" as const,
+      status: "pending",
       created_at,
+      shipping_required: needsShipping,
+      shipping_full_name: shipping?.full_name?.trim() || null,
+      shipping_phone: shipping?.phone?.trim() || null,
+      shipping_city: shipping?.city?.trim() || null,
+      shipping_region: shipping?.region?.trim() || null,
+      shipping_address: shipping?.address?.trim() || null,
+      shipping_postal_code: shipping?.postal_code?.trim() || null,
+      shipping_notes: shipping?.notes?.trim() || null,
+      shipping_cost: shippingCost,
     };
 
     if (!isSupabaseConfigured()) {
-      const order = row as ShopOrder;
-      memoryOrders.unshift(order);
-      console.info("[orders API] saved to memory (Supabase not configured)", order.id);
-      scheduleNotifications(() => onOrderSubmitted(order));
-      return NextResponse.json({ success: true, order });
+      memoryOrders.unshift(row);
+      console.info("[orders API] saved to memory (Supabase not configured)", row.id);
+      scheduleNotifications(() => onOrderSubmitted(row));
+      return NextResponse.json({ success: true, order: row });
     }
 
     const supabase = createAdminClient();
-    const { error } = await supabase.from("shop_orders").insert({
+    const insertFull = {
       id: row.id,
       name: row.name,
       phone: row.phone,
@@ -175,7 +195,40 @@ export async function POST(request: Request) {
       gift_options: row.gift_options,
       total: row.total,
       status: row.status,
-    });
+      shipping_required: row.shipping_required,
+      shipping_full_name: row.shipping_full_name,
+      shipping_phone: row.shipping_phone,
+      shipping_city: row.shipping_city,
+      shipping_region: row.shipping_region,
+      shipping_address: row.shipping_address,
+      shipping_postal_code: row.shipping_postal_code,
+      shipping_notes: row.shipping_notes,
+      shipping_cost: row.shipping_cost,
+    };
+
+    let { error } = await supabase.from("shop_orders").insert(insertFull);
+
+    // Migration not applied yet — fall back without shipping columns
+    if (
+      error &&
+      /shipping_|column .* does not exist/i.test(getErrorMessage(error))
+    ) {
+      console.warn(
+        "[orders API] shipping columns missing — inserting without them. Run APPLY_SHOP_SHIPPING.sql"
+      );
+      const retry = await supabase.from("shop_orders").insert({
+        id: row.id,
+        name: row.name,
+        phone: row.phone,
+        email: row.email,
+        notes: row.notes,
+        items: row.items,
+        gift_options: row.gift_options,
+        total: row.total,
+        status: row.status,
+      });
+      error = retry.error;
+    }
 
     if (error) {
       const mapped = mapOrderError(error);
@@ -183,9 +236,8 @@ export async function POST(request: Request) {
     }
 
     console.info("[orders API] order saved", row.id);
-    const order = row as ShopOrder;
-    scheduleNotifications(() => onOrderSubmitted(order));
-    return NextResponse.json({ success: true, order });
+    scheduleNotifications(() => onOrderSubmitted(row));
+    return NextResponse.json({ success: true, order: row });
   } catch (e) {
     if (e instanceof z.ZodError) {
       console.error("[orders API] zod error", e.issues);

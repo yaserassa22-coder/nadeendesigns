@@ -1,6 +1,7 @@
 import { SEED_DRESSES, SEED_GALLERY } from "@/lib/data/seed";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import { normalizeDressList } from "@/lib/dresses/category";
+import { normalizeSiteSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
@@ -90,15 +91,15 @@ export async function getAdminBookings(): Promise<AdminBookingsResult> {
 }
 
 export async function getAdminSettings(): Promise<SiteSettings> {
-  if (!isSupabaseConfigured()) return DEFAULT_SETTINGS;
+  if (!isSupabaseConfigured()) return normalizeSiteSettings(DEFAULT_SETTINGS);
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("settings")
     .select("value")
     .eq("key", "site")
     .single();
-  if (error || !data?.value) return DEFAULT_SETTINGS;
-  return data.value as SiteSettings;
+  if (error || !data?.value) return normalizeSiteSettings(DEFAULT_SETTINGS);
+  return normalizeSiteSettings(data.value as SiteSettings);
 }
 
 export async function getDashboardStats() {

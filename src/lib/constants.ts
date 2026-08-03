@@ -188,6 +188,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   hero_title_ar: "تفاصيل تصنع الفرق",
   hero_subtitle_ar:
     "فساتين زفاف فاخرة، تصاميم حصرية، وخدمة راقية لتكوني الأجمل في يومك المميز.",
+  shipping_enabled: true,
+  shipping_flat_fee: 0,
 };
 
 export const WHATSAPP_MESSAGE =

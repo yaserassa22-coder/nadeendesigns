@@ -39,7 +39,7 @@
 | Featured image | Convention: `images[0]` is featured. Reorder/set featured → updates cards, cart, checkout, orders, admin, related, search. |
 | Images | Keep JSONB arrays (unlimited). No fixed cap. |
 | Descriptions | Multiline textarea; render with whitespace preservation (`whitespace-pre-wrap`); AR/EN. |
-| Shipping | Never gated by category; show in checkout, admin order details, customer order summary. |
+| Shipping | Bridal accessories only (طرحة / برنص / future under اكسسوارات العروس). Flat fee in site settings. Dresses use booking, not shop shipping. |
 | Notifications | Email (existing) + in-app notification center; architecture ready for WhatsApp. |
 | Card carousel | Shared component: swipe (mobile), arrows (desktop), dots, hide chrome if single image, smooth + performant. |
 
@@ -70,9 +70,13 @@
 - Hero: “تفاصيل تصنع الفرق” typography polish
 - Mobile menu: fully opaque background
 
-### M5 — Shipping for all shop products
-- Shipping available for every product/category (including future ones)
-- UI in checkout, admin order details, customer order summary
+### M5 — Shipping for bridal accessories ✅
+- Shipping for **اكسسوارات العروس only** (طرحة العروس، برنص العروس، future accessory products)
+- Dresses do **not** use shop checkout shipping (booking flow unchanged)
+- Checkout shipping section when cart has accessories (incl. mixed cart)
+- DB-backed flat fee in site settings (`shipping_enabled`, `shipping_flat_fee`)
+- Save + display shipping on admin orders and customer confirmation
+- Existing orders without shipping remain safe (nullable columns)
 
 ### M6 — Order confirm + in-app notification center
 - Confirm/status notifications (create, confirm, status change, ready, delivered)

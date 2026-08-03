@@ -125,6 +125,12 @@ export interface SiteSettings {
   about_ar: string;
   hero_title_ar: string;
   hero_subtitle_ar: string;
+  /**
+   * Flat shipping fee for bridal accessories (DB-backed via settings JSON).
+   * Not used for dresses / booking flow.
+   */
+  shipping_enabled: boolean;
+  shipping_flat_fee: number;
 }
 
 export interface DressFilters {

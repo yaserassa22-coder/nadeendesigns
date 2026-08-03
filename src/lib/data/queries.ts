@@ -1,9 +1,8 @@
 import type { Dress, DressFilters, GalleryItem, SiteSettings } from "@/types";
 import {
   DEFAULT_SETTINGS,
-  OFFICIAL_INSTAGRAM_HANDLE,
-  OFFICIAL_INSTAGRAM_URL,
 } from "@/lib/constants";
+import { normalizeSiteSettings } from "@/lib/settings";
 import { SEED_DRESSES, SEED_GALLERY } from "@/lib/data/seed";
 import {
   categoryQueryValues,
@@ -108,14 +107,6 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
   return SEED_GALLERY;
 }
 
-function withOfficialInstagram(settings: SiteSettings): SiteSettings {
-  return {
-    ...settings,
-    instagram_url: OFFICIAL_INSTAGRAM_URL,
-    instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
-  };
-}
-
 export async function getSettings(): Promise<SiteSettings> {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -125,10 +116,10 @@ export async function getSettings(): Promise<SiteSettings> {
       .eq("key", "site")
       .single();
     if (!error && data?.value) {
-      return withOfficialInstagram(data.value as SiteSettings);
+      return normalizeSiteSettings(data.value as SiteSettings);
     }
   }
-  return withOfficialInstagram(DEFAULT_SETTINGS);
+  return normalizeSiteSettings(DEFAULT_SETTINGS);
 }
 
 export async function getFeaturedDresses(limit = 3): Promise<Dress[]> {

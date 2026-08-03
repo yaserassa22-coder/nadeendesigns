@@ -1,26 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth";
-import {
-  DEFAULT_SETTINGS,
-  OFFICIAL_INSTAGRAM_HANDLE,
-  OFFICIAL_INSTAGRAM_URL,
-} from "@/lib/constants";
+import { DEFAULT_SETTINGS } from "@/lib/constants";
+import { normalizeSiteSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import type { SiteSettings } from "@/types";
 
-function withOfficialInstagram(settings: SiteSettings): SiteSettings {
-  return {
-    ...settings,
-    instagram_url: OFFICIAL_INSTAGRAM_URL,
-    instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
-  };
-}
-
 export async function GET() {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(withOfficialInstagram(DEFAULT_SETTINGS));
+    return NextResponse.json(normalizeSiteSettings(DEFAULT_SETTINGS));
   }
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -29,9 +18,9 @@ export async function GET() {
     .eq("key", "site")
     .single();
   if (error || !data) {
-    return NextResponse.json(withOfficialInstagram(DEFAULT_SETTINGS));
+    return NextResponse.json(normalizeSiteSettings(DEFAULT_SETTINGS));
   }
-  return NextResponse.json(withOfficialInstagram(data.value as SiteSettings));
+  return NextResponse.json(normalizeSiteSettings(data.value as SiteSettings));
 }
 
 export async function PUT(request: Request) {
@@ -39,7 +28,7 @@ export async function PUT(request: Request) {
   if (authError) return authError;
 
   try {
-    const body = withOfficialInstagram((await request.json()) as SiteSettings);
+    const body = normalizeSiteSettings((await request.json()) as SiteSettings);
     if (!isSupabaseConfigured()) {
       return NextResponse.json(
         { error: "Supabase not configured" },

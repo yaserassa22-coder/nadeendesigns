@@ -151,6 +151,7 @@ export function ShopCustomizeAndBuy({
       image,
       personalization,
       gift_options: giftOptions,
+      requires_shipping: true,
     });
 
     setMessage("تمت الإضافة إلى السلة");

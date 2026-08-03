@@ -32,7 +32,7 @@ export interface BridalRobe {
   updated_at: string;
 }
 
-export type ShopProductType = "veil" | "bridal_robe";
+export type ShopProductType = "veil" | "bridal_robe" | "dress";
 
 export interface CartItem {
   line_id: string;
@@ -44,6 +44,11 @@ export interface CartItem {
   image?: string;
   personalization: ProductPersonalization | null;
   gift_options: GiftOptions | null;
+  /**
+   * Explicit shipping flag for future accessory products.
+   * Defaults via product_type when omitted (veil/bridal_robe → ship).
+   */
+  requires_shipping?: boolean;
 }
 
 /** Full boutique order workflow */
@@ -149,6 +154,7 @@ export interface ShopOrderItem {
   quantity: number;
   image?: string;
   personalization?: ProductPersonalization | null;
+  requires_shipping?: boolean;
 }
 
 export interface ShopOrder {
@@ -162,6 +168,16 @@ export interface ShopOrder {
   total: number;
   status: ShopOrderStatus;
   created_at: string;
+  /** Accessory delivery — null/false on legacy orders */
+  shipping_required?: boolean;
+  shipping_full_name?: string | null;
+  shipping_phone?: string | null;
+  shipping_city?: string | null;
+  shipping_region?: string | null;
+  shipping_address?: string | null;
+  shipping_postal_code?: string | null;
+  shipping_notes?: string | null;
+  shipping_cost?: number | null;
 }
 
 export const VEIL_CATEGORY_OPTIONS = [

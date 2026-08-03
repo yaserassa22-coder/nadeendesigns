@@ -10,6 +10,10 @@ import {
 } from "react";
 import type { GiftOptions, ProductPersonalization } from "@/types/customization";
 import type { CartItem, ShopProductType } from "@/types/shop";
+import {
+  cartNeedsShipping,
+  lineRequiresShipping,
+} from "@/lib/shop/shipping";
 
 const CART_KEY = "nadeen_shop_cart";
 
@@ -22,12 +26,15 @@ interface AddToCartInput {
   image?: string;
   personalization?: ProductPersonalization | null;
   gift_options?: GiftOptions | null;
+  /** Set true for future accessory products under اكسسوارات العروس */
+  requires_shipping?: boolean;
 }
 
 interface CartContextValue {
   items: CartItem[];
   count: number;
   subtotal: number;
+  needsShipping: boolean;
   addItem: (item: AddToCartInput) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   removeItem: (lineId: string) => void;
@@ -91,6 +98,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         image: input.image,
         personalization: input.personalization ?? null,
         gift_options: input.gift_options ?? null,
+        requires_shipping:
+          input.requires_shipping ??
+          lineRequiresShipping({
+            product_type: input.product_type,
+            requires_shipping: input.requires_shipping,
+          }),
       };
       return [next, ...prev];
     });
@@ -124,6 +137,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       items,
       count,
       subtotal,
+      needsShipping: cartNeedsShipping(items),
       addItem,
       updateQuantity,
       removeItem,

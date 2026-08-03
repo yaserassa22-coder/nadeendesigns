@@ -5,6 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 import type { OrderWorkflowAction, ShopOrder, ShopOrderStatus } from "@/types/shop";
 import {
+  orderToShippingDisplay,
+  ShippingDetailsBlock,
+} from "@/components/shop/ShippingDetailsBlock";
+import {
   ORDER_WORKFLOW_ACTIONS,
   SHOP_ORDER_STATUSES,
   SHOP_ORDER_STATUS_LABELS,
@@ -463,6 +467,10 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
                             })}
                             <GiftOptionsSummary
                               giftOptions={order.gift_options}
+                            />
+                            <ShippingDetailsBlock
+                              className="mt-3 rounded-xl border border-beige-dark bg-beige/30 p-3"
+                              shipping={orderToShippingDisplay(order)}
                             />
                             {order.notes && (
                               <p className="text-sm text-muted">

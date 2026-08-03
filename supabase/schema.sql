@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS shop_orders (
       'pending',
       'confirmed',
       'under_review',
+      'awaiting_payment',
+      'payment_received',
       'in_production',
       'ready_for_pickup',
       'shipped',
@@ -93,6 +95,15 @@ CREATE TABLE IF NOT EXISTS shop_orders (
       'cancelled',
       'completed'
     )),
+  shipping_required BOOLEAN NOT NULL DEFAULT false,
+  shipping_full_name TEXT,
+  shipping_phone TEXT,
+  shipping_city TEXT,
+  shipping_region TEXT,
+  shipping_address TEXT,
+  shipping_postal_code TEXT,
+  shipping_notes TEXT,
+  shipping_cost NUMERIC NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

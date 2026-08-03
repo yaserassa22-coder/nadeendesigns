@@ -120,6 +120,41 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </div>
       </div>
 
+      <div className="border-t border-beige-dark pt-6">
+        <h3 className="text-lg font-semibold text-charcoal">
+          شحن اكسسوارات العروس
+        </h3>
+        <p className="mt-1 text-sm text-muted">
+          ينطبق على طرحة العروس وبرنص العروس وأي منتجات مستقبلية تحت اكسسوارات
+          العروس فقط — وليس على الفساتين.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={settings.shipping_enabled}
+              onChange={(e) => update("shipping_enabled", e.target.checked)}
+              className="h-4 w-4 accent-gold"
+            />
+            تفعيل رسوم الشحن الثابتة
+          </label>
+          <Input
+            label="رسوم الشحن (ريال)"
+            type="number"
+            min={0}
+            step="1"
+            value={String(settings.shipping_flat_fee ?? 0)}
+            onChange={(e) =>
+              update(
+                "shipping_flat_fee",
+                Math.max(0, Number(e.target.value) || 0)
+              )
+            }
+            dir="ltr"
+          />
+        </div>
+      </div>
+
       {message && (
         <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           {message}
