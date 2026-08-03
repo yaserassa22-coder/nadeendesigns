@@ -203,47 +203,67 @@ ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Public read for dresses & gallery
+DROP POLICY IF EXISTS "Public read dresses" ON dresses;
 CREATE POLICY "Public read dresses" ON dresses FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read veils" ON veils;
 CREATE POLICY "Public read veils" ON veils FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read bridal_robes" ON bridal_robes;
 CREATE POLICY "Public read bridal_robes" ON bridal_robes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read categories" ON categories;
 CREATE POLICY "Public read categories" ON categories FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read gallery" ON gallery_items;
 CREATE POLICY "Public read gallery" ON gallery_items FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read settings" ON settings;
 CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 
 -- Public insert for bookings & contact
+DROP POLICY IF EXISTS "Public insert bookings" ON bookings;
 CREATE POLICY "Public insert bookings" ON bookings FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Public insert contact" ON contact_messages;
 CREATE POLICY "Public insert contact" ON contact_messages FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Public insert shop_orders" ON shop_orders;
 CREATE POLICY "Public insert shop_orders" ON shop_orders FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Public read shop_orders by id" ON shop_orders;
 CREATE POLICY "Public read shop_orders by id" ON shop_orders FOR SELECT USING (true);
 
 -- Admin full access (authenticated users with admin profile)
+DROP POLICY IF EXISTS "Admin all dresses" ON dresses;
 CREATE POLICY "Admin all dresses" ON dresses FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all veils" ON veils;
 CREATE POLICY "Admin all veils" ON veils FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all bridal_robes" ON bridal_robes;
 CREATE POLICY "Admin all bridal_robes" ON bridal_robes FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all categories" ON categories;
 CREATE POLICY "Admin all categories" ON categories FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all shop_orders" ON shop_orders;
 CREATE POLICY "Admin all shop_orders" ON shop_orders FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all gallery" ON gallery_items;
 CREATE POLICY "Admin all gallery" ON gallery_items FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all bookings" ON bookings;
 CREATE POLICY "Admin all bookings" ON bookings FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all contact" ON contact_messages;
 CREATE POLICY "Admin all contact" ON contact_messages FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all settings" ON settings;
 CREATE POLICY "Admin all settings" ON settings FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin read profiles" ON profiles;
 CREATE POLICY "Admin read profiles" ON profiles FOR SELECT USING (auth.uid() = id);
 
 -- Indexes

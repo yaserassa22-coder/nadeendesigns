@@ -112,16 +112,22 @@ ALTER TABLE veils ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bridal_robes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shop_orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read veils" ON veils;
 CREATE POLICY "Public read veils" ON veils FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read bridal_robes" ON bridal_robes;
 CREATE POLICY "Public read bridal_robes" ON bridal_robes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public insert shop_orders" ON shop_orders;
 CREATE POLICY "Public insert shop_orders" ON shop_orders FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admin all veils" ON veils;
 CREATE POLICY "Admin all veils" ON veils FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all bridal_robes" ON bridal_robes;
 CREATE POLICY "Admin all bridal_robes" ON bridal_robes FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
+DROP POLICY IF EXISTS "Admin all shop_orders" ON shop_orders;
 CREATE POLICY "Admin all shop_orders" ON shop_orders FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
