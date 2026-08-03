@@ -21,9 +21,39 @@ import {
 } from "@/types/shop";
 
 const ORDER_CACHE_KEY = "nadeen_last_order";
+const JUST_PLACED_KEY = "nadeen_order_just_placed";
 
 function normalizeStatus(status: ShopOrderStatus): ShopOrderStatus {
   return status === "completed" ? "delivered" : status;
+}
+
+function readCachedOrder(id: string): ShopOrder | null {
+  try {
+    const raw = sessionStorage.getItem(ORDER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ShopOrder;
+    return parsed.id === id ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function readJustPlacedFlag(id: string): boolean {
+  try {
+    return sessionStorage.getItem(JUST_PLACED_KEY) === id;
+  } catch {
+    return false;
+  }
+}
+
+function clearJustPlacedFlag(id: string) {
+  try {
+    if (sessionStorage.getItem(JUST_PLACED_KEY) === id) {
+      sessionStorage.removeItem(JUST_PLACED_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 export default function CustomerOrderPage() {
@@ -40,70 +70,64 @@ export default function CustomerOrderPage() {
 
     let cancelled = false;
 
-    const timer = window.setTimeout(() => {
-      if (cancelled) return;
+    const placedNow = readJustPlacedFlag(id);
+    if (placedNow) setJustPlaced(true);
 
+    const cached = readCachedOrder(id);
+    // Show checkout payload immediately after place-order, but keep loading
+    // until the server responds when there is no local copy yet.
+    if (cached) {
+      setOrder(cached);
+      if (placedNow) setLoading(false);
+    }
+
+    const loadFromServer = async () => {
       try {
-        const flag = sessionStorage.getItem("nadeen_order_just_placed");
-        if (flag === id) {
-          setJustPlaced(true);
-          sessionStorage.removeItem("nadeen_order_just_placed");
-        }
-      } catch {
-        /* ignore */
-      }
-
-      const fromCache = () => {
+        const res = await fetch(`/api/orders/${id}`);
+        let data: ShopOrder & { error?: string } = { error: "الطلب غير موجود" } as ShopOrder & {
+          error?: string;
+        };
         try {
-          const raw = sessionStorage.getItem(ORDER_CACHE_KEY);
-          if (!raw) return null;
-          const parsed = JSON.parse(raw) as ShopOrder;
-          return parsed.id === id ? parsed : null;
+          data = await res.json();
         } catch {
-          return null;
+          throw new Error("تعذّر قراءة رد الخادم");
         }
-      };
-
-      const cached = fromCache();
-      if (cached) {
-        setOrder(cached);
-        setLoading(false);
+        if (!res.ok) {
+          throw new Error(data.error || "الطلب غير موجود");
+        }
+        if (cancelled) return;
+        setOrder(data);
+        setError("");
+        setRefreshWarning("");
+        try {
+          sessionStorage.setItem(ORDER_CACHE_KEY, JSON.stringify(data));
+        } catch {
+          /* ignore */
+        }
+        // Clear only after a successful server load so React Strict Mode
+        // remounts still see the just-placed flag.
+        if (placedNow) clearJustPlacedFlag(id);
+      } catch (e) {
+        if (cancelled) return;
+        if (!cached) {
+          setError(e instanceof Error ? e.message : "تعذّر تحميل الطلب");
+        } else if (!placedNow) {
+          // Stale cache from a prior visit — warn only when refresh truly fails.
+          setRefreshWarning(
+            "تعذّر تحديث حالة الطلب من الخادم. تُعرض آخر نسخة محفوظة."
+          );
+        }
+        // After successful checkout we already have the create response in
+        // cache — do not scare the customer with a refresh warning.
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    };
 
-      fetch(`/api/orders/${id}`)
-        .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "الطلب غير موجود");
-          return data as ShopOrder;
-        })
-        .then((data) => {
-          if (cancelled) return;
-          setOrder(data);
-          setRefreshWarning("");
-          try {
-            sessionStorage.setItem(ORDER_CACHE_KEY, JSON.stringify(data));
-          } catch {
-            /* ignore */
-          }
-        })
-        .catch((e) => {
-          if (cancelled) return;
-          if (!cached) {
-            setError(e instanceof Error ? e.message : "تعذّر تحميل الطلب");
-          } else {
-            setRefreshWarning(
-              "تعذّر تحديث حالة الطلب من الخادم. تُعرض آخر نسخة محفوظة."
-            );
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-    }, 0);
+    void loadFromServer();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
     };
   }, [id]);
 

@@ -318,6 +318,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
 
+    // Same-process read-through so confirmation GET works even if anon RLS
+    // blocks shop_orders SELECT (no service role / public read policy yet).
+    const mem = memoryOrdersStore();
+    mem.unshift(row);
+    if (mem.length > 100) mem.length = 100;
+
     console.info("[orders API] order saved", row.id);
     scheduleNotifications(() => onOrderSubmitted(row));
     return NextResponse.json({ success: true, order: row });
