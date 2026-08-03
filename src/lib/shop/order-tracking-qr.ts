@@ -3,6 +3,8 @@
  *
  * Encodes the public customer tracking URL when NEXT_PUBLIC_SITE_URL is set.
  * Never hardcodes localhost for logistics QR codes.
+ * When the site URL is missing, encodes a structured public order summary instead.
+ * Config warnings are development-only in the UI; production logs to the server console.
  *
  * Future carrier integrations can use {@link buildCarrierReadyPayload} — this
  * module does not call any carrier APIs today.
@@ -56,11 +58,28 @@ const QR_API = "https://api.qrserver.com/v1/create-qr-code/";
 /** Print-ready QR edge length (px) for shipping slips. */
 const DEFAULT_QR_SIZE = 320;
 
+const SITE_URL_MISSING_LOG =
+  "NEXT_PUBLIC_SITE_URL is not configured — shipping QR falls back to structured order summary text instead of a tracking URL.";
+
+let loggedMissingSiteUrl = false;
+
 /** Public site origin from NEXT_PUBLIC_SITE_URL only — no localhost fallback. */
 export function getPublicSiteUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (!raw) return null;
   return raw.replace(/\/$/, "");
+}
+
+/**
+ * Log missing NEXT_PUBLIC_SITE_URL once to the server/process console.
+ * Never surfaces technical config details in the production UI.
+ */
+export function logMissingPublicSiteUrl(context?: string): void {
+  if (loggedMissingSiteUrl || getPublicSiteUrl()) return;
+  loggedMissingSiteUrl = true;
+  console.warn(
+    `[shipping-qr]${context ? ` ${context}:` : ""} ${SITE_URL_MISSING_LOG}`
+  );
 }
 
 export function formatPublicOrderNumber(orderId: string): string {
@@ -125,7 +144,8 @@ export function buildOrderSummaryQrText(order: OrderTrackingQrSource): string {
 
 /**
  * Prefer the public tracking URL. If NEXT_PUBLIC_SITE_URL is missing, fall back
- * to structured order text and surface a warning — never encode an empty string.
+ * to structured order text — never encode an empty string.
+ * UI warning is development-only; production logs to console instead.
  */
 export function resolveShippingQrPayload(
   order: OrderTrackingQrSource
@@ -143,14 +163,18 @@ export function resolveShippingQrPayload(
     };
   }
 
+  logMissingPublicSiteUrl("resolveShippingQrPayload");
+
   const summary = buildOrderSummaryQrText(order);
+  const isDev = process.env.NODE_ENV === "development";
   return {
     kind: "order_summary",
     data: summary,
     trackingUrl: null,
     siteUrlMissing: true,
-    warning:
-      "NEXT_PUBLIC_SITE_URL غير مضبوط — لن يُنشأ رمز QR فارغ. يُستخدم ملخص الطلب كنص بديل بدل رابط التتبع.",
+    warning: isDev
+      ? "NEXT_PUBLIC_SITE_URL غير مضبوط — لن يُنشأ رمز QR فارغ. يُستخدم ملخص الطلب كنص بديل بدل رابط التتبع."
+      : null,
   };
 }
 

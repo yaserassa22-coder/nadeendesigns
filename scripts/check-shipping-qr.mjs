@@ -71,12 +71,14 @@ function resolveShippingQrPayload(order, env = process.env) {
     };
   }
   const summary = buildOrderSummaryQrText(order);
+  const isDev = (env.NODE_ENV ?? process.env.NODE_ENV) === "development";
   return {
     kind: "order_summary",
     data: summary,
     trackingUrl: null,
     siteUrlMissing: true,
-    warning: "missing NEXT_PUBLIC_SITE_URL",
+    // UI warning is development-only; production must not expose config details.
+    warning: isDev ? "missing NEXT_PUBLIC_SITE_URL" : null,
   };
 }
 
@@ -134,16 +136,18 @@ const sampleOrder = {
   assert(img.includes(encodeURIComponent(url)), "QR must encode tracking URL");
 }
 
-// Missing env → warning + structured text, never empty QR
+// Missing env → structured text fallback, never empty QR
+// UI warning only in development; production warning must be null
 {
-  const env = {};
+  const env = { NODE_ENV: "production" };
   assert(getPublicSiteUrl(env) === null, "missing env → null site url");
   assert(
     buildOrderTrackingUrl(SAMPLE_ID, null) === null,
     "no URL without site"
   );
   const payload = resolveShippingQrPayload(sampleOrder, env);
-  assert(payload.siteUrlMissing, "should warn when env missing");
+  assert(payload.siteUrlMissing, "should flag when env missing");
+  assert(payload.warning === null, "no UI warning in production");
   assert(payload.kind === "order_summary", "fallback to summary text");
   assert(payload.data.trim().length > 0, "fallback data must not be empty");
   assert(payload.data.includes("سارة"), "summary includes name");
@@ -156,6 +160,14 @@ const sampleOrder = {
     buildShippingQrImageUrl(payload.data) != null,
     "summary QR image ok"
   );
+}
+
+{
+  const env = { NODE_ENV: "development" };
+  const payload = resolveShippingQrPayload(sampleOrder, env);
+  assert(payload.siteUrlMissing, "should flag when env missing");
+  assert(payload.warning, "should warn in development when env missing");
+  assert(payload.kind === "order_summary", "fallback to summary text");
 }
 
 // Never invent localhost when env is unset

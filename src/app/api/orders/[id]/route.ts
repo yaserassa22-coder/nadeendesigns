@@ -20,6 +20,7 @@ import {
   publicEstimatedDeliveryFromRegion,
   toPublicShopOrder,
 } from "@/lib/shop/to-public-order";
+import { logMissingPublicSiteUrl } from "@/lib/shop/order-tracking-qr";
 import type { ShopOrder } from "@/types/shop";
 
 /** In-memory fallback shared with main orders route via process (dev only). */
@@ -94,6 +95,8 @@ async function enrichEstimatedDelivery(
 async function asTrackingResponse(order: ShopOrder, isAdmin: boolean) {
   const estimated = await enrichEstimatedDelivery(order);
   if (isAdmin) {
+    // Server console only — never expose config details in the admin UI in production.
+    logMissingPublicSiteUrl("admin order fetch");
     return {
       ...order,
       estimated_delivery: estimated ?? order.estimated_delivery ?? null,

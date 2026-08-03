@@ -120,7 +120,7 @@ export default function ShippingSlipPrintPage() {
         </button>
       </div>
 
-      {qrPayload?.warning && (
+      {process.env.NODE_ENV === "development" && qrPayload?.warning && (
         <div
           className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden"
           role="status"
