@@ -18,6 +18,7 @@ const LINKS = [
   { href: "/admin/gallery", label: "🖼️ المعرض" },
   { href: "/admin/bookings", label: "📅 الحجوزات" },
   { href: "/admin/orders", label: "🛒 الطلبات" },
+  { href: "/admin/shipping", label: "🚚 إعدادات الشحن" },
   { href: "/admin/notifications", label: "🔔 الإشعارات" },
   { href: "/admin/messages", label: "💬 الرسائل" },
   { href: "/admin/settings", label: "⚙️ الإعدادات" },

@@ -23,15 +23,19 @@ function memoryOrders(): ShopOrder[] {
 const ORDER_SELECT_CORE =
   "id, name, phone, email, notes, items, gift_options, total, status, created_at";
 
-/** Shipping columns from APPLY_SHOP_SHIPPING.sql */
+/** Shipping columns from APPLY_SHOP_SHIPPING.sql + M9 delivery fields */
 const ORDER_SELECT_SHIPPING =
-  "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost";
+  "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost, delivery_method, shipping_region_id, shipping_region_name_ar, shipping_building_number, shipping_neighborhood";
 
 /** Notification prefs from APPLY_NOTIFICATION_PREFERENCES.sql */
 const ORDER_SELECT_NOTIFY = "notify_whatsapp, notify_email";
 
 const ORDER_SELECT_FULL = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING}, ${ORDER_SELECT_NOTIFY}`;
 const ORDER_SELECT_WITH_SHIPPING = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING}`;
+const ORDER_SELECT_SHIPPING_LEGACY =
+  "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost";
+const ORDER_SELECT_WITH_SHIPPING_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}`;
+const ORDER_SELECT_FULL_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}, ${ORDER_SELECT_NOTIFY}`;
 
 async function fetchOrderById(id: string) {
   const supabase = createAdminClient();
@@ -46,31 +50,45 @@ async function fetchOrderById(id: string) {
   if (
     result.error &&
     (isMissingColumnError(result.error) ||
-      /notify_|shipping_|column .* does not exist|Could not find the .*column/i.test(
+      /notify_|shipping_|delivery_method|column .* does not exist|Could not find the .*column/i.test(
         getErrorMessage(result.error)
       ))
   ) {
     console.warn(
-      "[orders/:id] optional columns missing on select — retrying without notify/shipping. Run APPLY_SHOP_SHIPPING.sql and APPLY_NOTIFICATION_PREFERENCES.sql"
+      "[orders/:id] optional columns missing on select — retrying. Run APPLY_SHIPPING_REGIONS.sql"
     );
     result = await supabase
       .from("shop_orders")
-      .select(ORDER_SELECT_WITH_SHIPPING)
+      .select(ORDER_SELECT_FULL_LEGACY)
       .eq("id", id)
       .maybeSingle();
 
     if (
       result.error &&
       (isMissingColumnError(result.error) ||
-        /shipping_|column .* does not exist|Could not find the .*column/i.test(
+        /notify_|shipping_|column .* does not exist|Could not find the .*column/i.test(
           getErrorMessage(result.error)
         ))
     ) {
       result = await supabase
         .from("shop_orders")
-        .select(ORDER_SELECT_CORE)
+        .select(ORDER_SELECT_WITH_SHIPPING_LEGACY)
         .eq("id", id)
         .maybeSingle();
+
+      if (
+        result.error &&
+        (isMissingColumnError(result.error) ||
+          /shipping_|column .* does not exist|Could not find the .*column/i.test(
+            getErrorMessage(result.error)
+          ))
+      ) {
+        result = await supabase
+          .from("shop_orders")
+          .select(ORDER_SELECT_CORE)
+          .eq("id", id)
+          .maybeSingle();
+      }
     }
   }
 

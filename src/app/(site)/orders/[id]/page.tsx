@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/Button";
 import { featuredImage } from "@/lib/products/featured-image";
 import { formatDate, formatPrice } from "@/lib/utils";
 import {
-  SHOP_ORDER_STATUS_LABELS,
+  DELIVERY_METHOD_LABELS,
+  getOrderStatusLabel,
   type ShopOrder,
   type ShopOrderStatus,
 } from "@/types/shop";
@@ -200,8 +201,27 @@ export default function CustomerOrderPage() {
           <div className="rounded-2xl border border-beige-dark bg-white p-6">
             <h2 className="text-lg font-semibold text-charcoal">حالة الشحن / الطلب</h2>
             <p className="mt-2 inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-sm">
-              {SHOP_ORDER_STATUS_LABELS[status]}
+              {getOrderStatusLabel(status, order.delivery_method)}
             </p>
+            {order.delivery_method && (
+              <p className="mt-2 text-sm text-muted">
+                طريقة الاستلام:{" "}
+                {DELIVERY_METHOD_LABELS[order.delivery_method]}
+              </p>
+            )}
+            {order.delivery_method === "pickup" &&
+              status === "ready_for_pickup" && (
+                <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  طلبك جاهز للاستلام من البوتيك.
+                </p>
+              )}
+            {order.delivery_method === "pickup" &&
+              status !== "ready_for_pickup" &&
+              status !== "delivered" && (
+                <p className="mt-3 text-sm text-muted">
+                  يمكنك استلام طلبك من البوتيك بعد إشعارك بجاهزية الطلب.
+                </p>
+              )}
             <p className="mt-2 text-xs text-muted">
               تاريخ الطلب: {formatDate(order.created_at)}
             </p>
@@ -255,10 +275,16 @@ export default function CustomerOrderPage() {
             <GiftOptionsSummary giftOptions={order.gift_options} />
           </div>
 
-          {(order.shipping_required || ship.address) && (
+          {(order.shipping_required ||
+            order.delivery_method ||
+            ship.address) && (
             <div className="rounded-2xl border border-beige-dark bg-white p-6">
               <ShippingDetailsBlock
-                title="عنوان الشحن"
+                title={
+                  order.delivery_method === "pickup"
+                    ? "الاستلام من البوتيك"
+                    : "عنوان الشحن"
+                }
                 shipping={ship}
                 showZeroCost
               />

@@ -15,6 +15,8 @@ export type ShippingSettings = {
   shipping_flat_fee?: number;
   /** Subtotal at/above this amount → free shipping (0 = disabled) */
   shipping_free_threshold?: number;
+  boutique_pickup_enabled?: boolean;
+  delivery_enabled?: boolean;
 };
 
 export type ShippingAddressInput = {
@@ -25,6 +27,9 @@ export type ShippingAddressInput = {
   address: string;
   postal_code?: string | null;
   notes?: string | null;
+  building_number?: string | null;
+  neighborhood?: string | null;
+  shipping_region_id?: string | null;
 };
 
 export type CartLineForShipping = {
@@ -32,6 +37,8 @@ export type CartLineForShipping = {
   /** Explicit flag — set true for any future accessory product without code changes to the type set */
   requires_shipping?: boolean | null;
 };
+
+export type DeliveryMethod = "pickup" | "delivery";
 
 export function isAccessoryShopProductType(productType: string): boolean {
   return ACCESSORY_SHOP_PRODUCT_TYPES.has(productType);
@@ -63,17 +70,35 @@ export function normalizeFreeThreshold(value: unknown): number {
 }
 
 /**
- * Flat fee when shipping is needed and enabled.
- * Free when disabled, fee is 0, or subtotal meets free-shipping threshold.
+ * Resolve fee base: regional fee when provided, else flat fee from settings.
+ */
+export function resolveFeeBase(
+  settings: ShippingSettings,
+  regionFee?: number | null
+): number {
+  if (typeof regionFee === "number" && Number.isFinite(regionFee)) {
+    return normalizeShippingFee(regionFee);
+  }
+  return normalizeShippingFee(settings.shipping_flat_fee);
+}
+
+/**
+ * Flat or regional fee when shipping is needed and enabled.
+ * Pickup always returns 0. Free when disabled, fee is 0, or subtotal meets free-shipping threshold.
  */
 export function resolveShippingCost(
   needsShipping: boolean,
   subtotal: number,
-  settings: ShippingSettings
+  settings: ShippingSettings,
+  options?: {
+    deliveryMethod?: DeliveryMethod | null;
+    regionFee?: number | null;
+  }
 ): number {
   if (!needsShipping) return 0;
+  if (options?.deliveryMethod === "pickup") return 0;
   if (settings.shipping_enabled === false) return 0;
-  const fee = normalizeShippingFee(settings.shipping_flat_fee);
+  const fee = resolveFeeBase(settings, options?.regionFee);
   if (fee <= 0) return 0;
   const threshold = normalizeFreeThreshold(settings.shipping_free_threshold);
   if (threshold > 0 && subtotal >= threshold) return 0;
@@ -83,12 +108,29 @@ export function resolveShippingCost(
 export function isFreeShippingEligible(
   needsShipping: boolean,
   subtotal: number,
-  settings: ShippingSettings
+  settings: ShippingSettings,
+  options?: {
+    deliveryMethod?: DeliveryMethod | null;
+    regionFee?: number | null;
+  }
 ): boolean {
   if (!needsShipping) return false;
+  if (options?.deliveryMethod === "pickup") return false;
   if (settings.shipping_enabled === false) return false;
-  const fee = normalizeShippingFee(settings.shipping_flat_fee);
+  const fee = resolveFeeBase(settings, options?.regionFee);
   if (fee <= 0) return false;
   const threshold = normalizeFreeThreshold(settings.shipping_free_threshold);
   return threshold > 0 && subtotal >= threshold;
+}
+
+/** Default delivery method from enabled settings flags. */
+export function defaultDeliveryMethod(
+  settings: ShippingSettings
+): DeliveryMethod | null {
+  const pickup = settings.boutique_pickup_enabled !== false;
+  const delivery = settings.delivery_enabled !== false;
+  if (pickup && !delivery) return "pickup";
+  if (delivery && !pickup) return "delivery";
+  if (pickup || delivery) return delivery ? "delivery" : "pickup";
+  return null;
 }

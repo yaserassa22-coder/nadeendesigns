@@ -135,3 +135,15 @@ select:focus {
   ring: 2px;
   ring-color: var(--gold);
 }
+
+@media print {
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+  .shipping-slip {
+    box-shadow: none !important;
+    max-width: none !important;
+    padding: 12mm !important;
+  }
+}

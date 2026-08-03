@@ -54,6 +54,9 @@ export const shippingAddressSchema = z.object({
   address: z.string().min(5, "العنوان التفصيلي مطلوب"),
   postal_code: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  building_number: z.string().nullable().optional(),
+  neighborhood: z.string().nullable().optional(),
+  shipping_region_id: z.string().uuid().nullable().optional(),
 });
 
 export const shopOrderCreateSchema = z
@@ -74,6 +77,7 @@ export const shopOrderCreateSchema = z
     gift_options: z.any().nullable().optional(),
     total: z.number().min(0, "المجموع غير صالح"),
     shipping_required: z.boolean().optional(),
+    delivery_method: z.enum(["pickup", "delivery"]).nullable().optional(),
     shipping: shippingAddressSchema.nullable().optional(),
     shipping_cost: z.number().min(0).optional(),
     notify_whatsapp: z.boolean().optional(),
@@ -83,24 +87,41 @@ export const shopOrderCreateSchema = z
     const needs =
       data.shipping_required === true || cartNeedsShipping(data.items);
     if (needs) {
-      if (!data.shipping) {
+      const method = data.delivery_method;
+      if (method !== "pickup" && method !== "delivery") {
         ctx.addIssue({
           code: "custom",
-          path: ["shipping"],
-          message: "بيانات التوصيل مطلوبة لطلب اكسسوارات العروس",
+          path: ["delivery_method"],
+          message: "يرجى اختيار طريقة الاستلام (من البوتيك أو التوصيل)",
         });
-      } else {
-        const parsed = shippingAddressSchema.safeParse(data.shipping);
-        if (!parsed.success) {
-          for (const issue of parsed.error.issues) {
+      } else if (method === "delivery") {
+        if (!data.shipping) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["shipping"],
+            message: "بيانات التوصيل مطلوبة لطلب اكسسوارات العروس",
+          });
+        } else {
+          const parsed = shippingAddressSchema.safeParse(data.shipping);
+          if (!parsed.success) {
+            for (const issue of parsed.error.issues) {
+              ctx.addIssue({
+                code: "custom",
+                path: ["shipping", ...issue.path],
+                message: issue.message,
+              });
+            }
+          }
+          if (!data.shipping.shipping_region_id) {
             ctx.addIssue({
               code: "custom",
-              path: ["shipping", ...issue.path],
-              message: issue.message,
+              path: ["shipping", "shipping_region_id"],
+              message: "المنطقة مطلوبة للتوصيل",
             });
           }
         }
       }
+      // pickup: address not required
     }
 
     const wantWa = data.notify_whatsapp ?? true;

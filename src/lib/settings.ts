@@ -26,6 +26,14 @@ export function normalizeSiteSettings(
       Number.isFinite(raw.shipping_free_threshold)
         ? Math.max(0, raw.shipping_free_threshold)
         : DEFAULT_SETTINGS.shipping_free_threshold,
+    boutique_pickup_enabled:
+      typeof raw?.boutique_pickup_enabled === "boolean"
+        ? raw.boutique_pickup_enabled
+        : DEFAULT_SETTINGS.boutique_pickup_enabled,
+    delivery_enabled:
+      typeof raw?.delivery_enabled === "boolean"
+        ? raw.delivery_enabled
+        : DEFAULT_SETTINGS.delivery_enabled,
     instagram_url: OFFICIAL_INSTAGRAM_URL,
     instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
   };

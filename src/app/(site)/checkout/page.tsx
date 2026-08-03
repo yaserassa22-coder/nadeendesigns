@@ -9,7 +9,7 @@ import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { useCart } from "@/components/shop/CartProvider";
 import { Button } from "@/components/ui/Button";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input, Select, Textarea } from "@/components/ui/Input";
 import {
   NotificationPreferences,
   validateNotificationPreferences,
@@ -18,12 +18,14 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import {
+  defaultDeliveryMethod,
   isFreeShippingEligible,
   resolveShippingCost,
+  type DeliveryMethod,
 } from "@/lib/shop/shipping";
 import { normalizeSiteSettings } from "@/lib/settings";
 import type { SiteSettings } from "@/types";
-import type { ShopOrder } from "@/types/shop";
+import type { ShippingRegion, ShopOrder } from "@/types/shop";
 
 type ShippingForm = {
   full_name: string;
@@ -31,8 +33,11 @@ type ShippingForm = {
   city: string;
   region: string;
   address: string;
+  building_number: string;
+  neighborhood: string;
   postal_code: string;
   notes: string;
+  shipping_region_id: string;
 };
 
 const emptyShipping = (): ShippingForm => ({
@@ -41,8 +46,11 @@ const emptyShipping = (): ShippingForm => ({
   city: "",
   region: "",
   address: "",
+  building_number: "",
+  neighborhood: "",
   postal_code: "",
   notes: "",
+  shipping_region_id: "",
 });
 
 export default function CheckoutPage() {
@@ -53,6 +61,10 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [shipping, setShipping] = useState<ShippingForm>(emptyShipping);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(
+    null
+  );
+  const [regions, setRegions] = useState<ShippingRegion[]>([]);
   const [notifyPrefs, setNotifyPrefs] = useState<NotificationPreferenceValue>({
     notify_whatsapp: true,
     notify_email: true,
@@ -64,13 +76,24 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setSettings(normalizeSiteSettings(data));
+    Promise.all([
+      fetch("/api/settings").then((r) => r.json()),
+      fetch("/api/shipping-regions").then((r) => r.json()),
+    ])
+      .then(([settingsData, regionsData]) => {
+        if (cancelled) return;
+        const normalized = normalizeSiteSettings(settingsData);
+        setSettings(normalized);
+        const list = Array.isArray(regionsData) ? regionsData : [];
+        setRegions(list);
+        setDeliveryMethod(defaultDeliveryMethod(normalized));
       })
       .catch(() => {
-        if (!cancelled) setSettings(normalizeSiteSettings(null));
+        if (!cancelled) {
+          const normalized = normalizeSiteSettings(null);
+          setSettings(normalized);
+          setDeliveryMethod(defaultDeliveryMethod(normalized));
+        }
       })
       .finally(() => {
         if (!cancelled) setSettingsLoaded(true);
@@ -80,11 +103,24 @@ export default function CheckoutPage() {
     };
   }, []);
 
+  // Prefill happens when switching to delivery (see onChange below)
+
+  const pickupEnabled = settings?.boutique_pickup_enabled !== false;
+  const deliveryEnabled = settings?.delivery_enabled !== false;
+
+  const selectedRegion = useMemo(
+    () =>
+      regions.find((r) => r.id === shipping.shipping_region_id) ?? null,
+    [regions, shipping.shipping_region_id]
+  );
+
   const shippingSettings = useMemo(
     () => ({
       shipping_enabled: settings?.shipping_enabled,
       shipping_flat_fee: settings?.shipping_flat_fee,
       shipping_free_threshold: settings?.shipping_free_threshold,
+      boutique_pickup_enabled: settings?.boutique_pickup_enabled,
+      delivery_enabled: settings?.delivery_enabled,
     }),
     [settings]
   );
@@ -92,16 +128,40 @@ export default function CheckoutPage() {
   const shippingCost = useMemo(
     () =>
       settingsLoaded
-        ? resolveShippingCost(needsShipping, subtotal, shippingSettings)
+        ? resolveShippingCost(needsShipping, subtotal, shippingSettings, {
+            deliveryMethod,
+            regionFee: selectedRegion
+              ? Number(selectedRegion.shipping_fee)
+              : null,
+          })
         : 0,
-    [needsShipping, subtotal, shippingSettings, settingsLoaded]
+    [
+      needsShipping,
+      subtotal,
+      shippingSettings,
+      settingsLoaded,
+      deliveryMethod,
+      selectedRegion,
+    ]
   );
 
   const freeShipping = useMemo(
     () =>
       settingsLoaded &&
-      isFreeShippingEligible(needsShipping, subtotal, shippingSettings),
-    [needsShipping, subtotal, shippingSettings, settingsLoaded]
+      isFreeShippingEligible(needsShipping, subtotal, shippingSettings, {
+        deliveryMethod,
+        regionFee: selectedRegion
+          ? Number(selectedRegion.shipping_fee)
+          : null,
+      }),
+    [
+      needsShipping,
+      subtotal,
+      shippingSettings,
+      settingsLoaded,
+      deliveryMethod,
+      selectedRegion,
+    ]
   );
 
   const orderTotal = subtotal + shippingCost;
@@ -112,6 +172,15 @@ export default function CheckoutPage() {
     key: K,
     value: ShippingForm[K]
   ) => setShipping((s) => ({ ...s, [key]: value }));
+
+  const onRegionChange = (regionId: string) => {
+    const region = regions.find((r) => r.id === regionId);
+    setShipping((s) => ({
+      ...s,
+      shipping_region_id: regionId,
+      region: region?.name_ar ?? "",
+    }));
+  };
 
   const submit = async () => {
     setError("");
@@ -136,25 +205,39 @@ export default function CheckoutPage() {
       return;
     }
     if (needsShipping) {
-      if (shipping.full_name.trim().length < 2) {
-        setError("اسم المستلم مطلوب للتوصيل");
+      if (!deliveryMethod) {
+        setError("يرجى اختيار طريقة استلام الطلب");
         return;
       }
-      if (shipping.phone.trim().length < 9) {
-        setError("هاتف التوصيل مطلوب");
+      if (deliveryMethod === "pickup" && !pickupEnabled) {
+        setError("الاستلام من البوتيك غير متاح حالياً");
         return;
       }
-      if (shipping.city.trim().length < 2) {
-        setError("المدينة مطلوبة للتوصيل");
+      if (deliveryMethod === "delivery" && !deliveryEnabled) {
+        setError("التوصيل غير متاح حالياً");
         return;
       }
-      if (shipping.region.trim().length < 2) {
-        setError("المنطقة مطلوبة للتوصيل");
-        return;
-      }
-      if (shipping.address.trim().length < 5) {
-        setError("العنوان التفصيلي مطلوب للتوصيل");
-        return;
+      if (deliveryMethod === "delivery") {
+        if (shipping.full_name.trim().length < 2) {
+          setError("اسم المستلم مطلوب للتوصيل");
+          return;
+        }
+        if (shipping.phone.trim().length < 9) {
+          setError("هاتف التوصيل مطلوب");
+          return;
+        }
+        if (!shipping.shipping_region_id) {
+          setError("المنطقة مطلوبة للتوصيل");
+          return;
+        }
+        if (shipping.city.trim().length < 2) {
+          setError("المدينة مطلوبة للتوصيل");
+          return;
+        }
+        if (shipping.address.trim().length < 5) {
+          setError("العنوان التفصيلي مطلوب للتوصيل");
+          return;
+        }
       }
     }
 
@@ -169,18 +252,26 @@ export default function CheckoutPage() {
       notify_whatsapp: notifyPrefs.notify_whatsapp,
       notify_email: notifyPrefs.notify_email,
       shipping_required: needsShipping,
+      delivery_method: needsShipping ? deliveryMethod : null,
       shipping_cost: shippingCost,
-      shipping: needsShipping
-        ? {
-            full_name: shipping.full_name.trim(),
-            phone: shipping.phone.trim(),
-            city: shipping.city.trim(),
-            region: shipping.region.trim(),
-            address: shipping.address.trim(),
-            postal_code: shipping.postal_code.trim() || null,
-            notes: shipping.notes.trim() || null,
-          }
-        : null,
+      shipping:
+        needsShipping && deliveryMethod === "delivery"
+          ? {
+              full_name: shipping.full_name.trim(),
+              phone: shipping.phone.trim(),
+              city: shipping.city.trim(),
+              region:
+                selectedRegion?.name_ar?.trim() ||
+                shipping.region.trim() ||
+                "—",
+              address: shipping.address.trim(),
+              building_number: shipping.building_number.trim() || null,
+              neighborhood: shipping.neighborhood.trim() || null,
+              postal_code: shipping.postal_code.trim() || null,
+              notes: shipping.notes.trim() || null,
+              shipping_region_id: shipping.shipping_region_id || null,
+            }
+          : null,
       items: items.map((i) => ({
         product_type: i.product_type,
         product_id: i.product_id,
@@ -244,11 +335,13 @@ export default function CheckoutPage() {
     ? "…"
     : !needsShipping
       ? "—"
-      : freeShipping || shippingCost === 0
-        ? settings?.shipping_enabled === false
-          ? "معطّل"
-          : "مجاني"
-        : formatPrice(shippingCost);
+      : deliveryMethod === "pickup"
+        ? "مجاني"
+        : freeShipping || shippingCost === 0
+          ? settings?.shipping_enabled === false
+            ? "معطّل"
+            : "مجاني"
+          : formatPrice(shippingCost);
 
   return (
     <>
@@ -331,6 +424,7 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                   {needsShipping &&
+                    deliveryMethod === "delivery" &&
                     freeShipping &&
                     (settings?.shipping_free_threshold ?? 0) > 0 && (
                       <p className="text-xs text-muted">
@@ -407,65 +501,148 @@ export default function CheckoutPage() {
               <div className="space-y-4 border-t border-beige-dark pt-6">
                 <div>
                   <h2 className="text-lg font-semibold text-charcoal">
-                    عنوان التوصيل
+                    طريقة استلام الطلب
                   </h2>
                   <p className="mt-1 text-sm text-muted">
                     مطلوب لطلب اكسسوارات العروس (طرحة العروس، برنص العروس، وأي
                     اكسسوارات مستقبلية).
                   </p>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Input
-                    label="اسم المستلم *"
-                    value={shipping.full_name}
-                    onChange={(e) => updateShipping("full_name", e.target.value)}
-                    autoComplete="shipping name"
-                  />
-                  <Input
-                    label="هاتف التوصيل *"
-                    value={shipping.phone}
-                    onChange={(e) => updateShipping("phone", e.target.value)}
-                    dir="ltr"
-                    autoComplete="shipping tel"
-                  />
-                  <Input
-                    label="المدينة *"
-                    value={shipping.city}
-                    onChange={(e) => updateShipping("city", e.target.value)}
-                    autoComplete="shipping address-level2"
-                  />
-                  <Input
-                    label="المنطقة *"
-                    value={shipping.region}
-                    onChange={(e) => updateShipping("region", e.target.value)}
-                    autoComplete="shipping address-level1"
-                  />
-                  <div className="sm:col-span-2">
-                    <Textarea
-                      label="العنوان التفصيلي *"
-                      rows={3}
-                      value={shipping.address}
-                      onChange={(e) => updateShipping("address", e.target.value)}
-                    />
+
+                {!pickupEnabled && !deliveryEnabled ? (
+                  <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    الاستلام والتوصيل غير متاحين حالياً. تواصلي مع البوتيك.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {pickupEnabled && (
+                      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm has-[:checked]:border-gold has-[:checked]:bg-gold/5">
+                        <input
+                          type="radio"
+                          name="delivery_method"
+                          checked={deliveryMethod === "pickup"}
+                          onChange={() => setDeliveryMethod("pickup")}
+                          className="mt-0.5 accent-gold"
+                        />
+                        <span>
+                          <span className="font-medium text-charcoal">
+                            الاستلام من البوتيك (مجاناً)
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                    {deliveryEnabled && (
+                      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm has-[:checked]:border-gold has-[:checked]:bg-gold/5">
+                        <input
+                          type="radio"
+                          name="delivery_method"
+                          checked={deliveryMethod === "delivery"}
+                          onChange={() => {
+                            setDeliveryMethod("delivery");
+                            setShipping((s) => ({
+                              ...s,
+                              full_name: s.full_name || name,
+                              phone: s.phone || phone,
+                            }));
+                          }}
+                          className="mt-0.5 accent-gold"
+                        />
+                        <span className="font-medium text-charcoal">التوصيل</span>
+                      </label>
+                    )}
                   </div>
-                  <Input
-                    label="الرمز البريدي (اختياري)"
-                    value={shipping.postal_code}
-                    onChange={(e) =>
-                      updateShipping("postal_code", e.target.value)
-                    }
-                    dir="ltr"
-                    autoComplete="shipping postal-code"
-                  />
-                  <div className="sm:col-span-2">
-                    <Textarea
-                      label="ملاحظات التوصيل (اختياري)"
-                      rows={2}
-                      value={shipping.notes}
-                      onChange={(e) => updateShipping("notes", e.target.value)}
+                )}
+
+                {deliveryMethod === "pickup" && pickupEnabled && (
+                  <p className="rounded-xl border border-beige-dark bg-beige/30 px-4 py-3 text-sm text-charcoal/80">
+                    سيتم إشعارك عند جاهزية طلبك للاستلام من البوتيك.
+                  </p>
+                )}
+
+                {deliveryMethod === "delivery" && deliveryEnabled && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <Select
+                        label="المنطقة *"
+                        value={shipping.shipping_region_id}
+                        onChange={(e) => onRegionChange(e.target.value)}
+                        options={[
+                          { value: "", label: "اختاري المنطقة…" },
+                          ...regions.map((r) => ({
+                            value: r.id,
+                            label: `${r.name_ar} — ${
+                              Number(r.shipping_fee) > 0
+                                ? formatPrice(Number(r.shipping_fee))
+                                : "مجاني"
+                            }`,
+                          })),
+                        ]}
+                      />
+                    </div>
+                    <Input
+                      label="اسم المستلم *"
+                      value={shipping.full_name}
+                      onChange={(e) =>
+                        updateShipping("full_name", e.target.value)
+                      }
+                      autoComplete="shipping name"
                     />
+                    <Input
+                      label="هاتف التوصيل *"
+                      value={shipping.phone}
+                      onChange={(e) => updateShipping("phone", e.target.value)}
+                      dir="ltr"
+                      autoComplete="shipping tel"
+                    />
+                    <Input
+                      label="المدينة *"
+                      value={shipping.city}
+                      onChange={(e) => updateShipping("city", e.target.value)}
+                      autoComplete="shipping address-level2"
+                    />
+                    <Input
+                      label="الحي"
+                      value={shipping.neighborhood}
+                      onChange={(e) =>
+                        updateShipping("neighborhood", e.target.value)
+                      }
+                    />
+                    <Input
+                      label="رقم المبنى"
+                      value={shipping.building_number}
+                      onChange={(e) =>
+                        updateShipping("building_number", e.target.value)
+                      }
+                    />
+                    <Input
+                      label="الرمز البريدي (اختياري)"
+                      value={shipping.postal_code}
+                      onChange={(e) =>
+                        updateShipping("postal_code", e.target.value)
+                      }
+                      dir="ltr"
+                      autoComplete="shipping postal-code"
+                    />
+                    <div className="sm:col-span-2">
+                      <Textarea
+                        label="العنوان التفصيلي *"
+                        rows={3}
+                        value={shipping.address}
+                        onChange={(e) =>
+                          updateShipping("address", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Textarea
+                        label="ملاحظات التوصيل (اختياري)"
+                        rows={2}
+                        value={shipping.notes}
+                        onChange={(e) => updateShipping("notes", e.target.value)}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -478,7 +655,11 @@ export default function CheckoutPage() {
               type="submit"
               size="lg"
               loading={saving}
-              disabled={items.length === 0 || !settingsLoaded}
+              disabled={
+                items.length === 0 ||
+                !settingsLoaded ||
+                (needsShipping && !pickupEnabled && !deliveryEnabled)
+              }
             >
               تأكيد الطلب
             </Button>

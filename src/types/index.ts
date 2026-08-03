@@ -131,12 +131,16 @@ export interface SiteSettings {
   hero_subtitle_ar: string;
   /**
    * Flat shipping fee for bridal accessories (DB-backed via settings JSON).
-   * Not used for dresses / booking flow.
+   * Not used for dresses / booking flow. Regional fees override when a zone is selected.
    */
   shipping_enabled: boolean;
   shipping_flat_fee: number;
   /** Order subtotal at/above this → free shipping (0 = no free-shipping rule) */
   shipping_free_threshold: number;
+  /** Allow boutique pickup at checkout when cart needs shipping */
+  boutique_pickup_enabled: boolean;
+  /** Allow courier delivery at checkout when cart needs shipping */
+  delivery_enabled: boolean;
 }
 
 export interface DressFilters {

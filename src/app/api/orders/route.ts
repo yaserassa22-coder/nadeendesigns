@@ -24,6 +24,7 @@ import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
   ORDER_WORKFLOW_ACTIONS,
   SHOP_ORDER_STATUSES,
+  type DeliveryMethod,
   type OrderWorkflowAction,
   type ShopOrder,
   type ShopOrderStatus,
@@ -175,37 +176,103 @@ export async function POST(request: Request) {
     const body = parsed.data;
     // Derive from line items only — never trust client shipping_required:false
     const needsShipping = cartNeedsShipping(body.items);
+    const siteSettings = await loadSiteSettingsForShipping();
+
+    let deliveryMethod: DeliveryMethod | null = null;
+    let regionFee: number | null = null;
+    let regionNameAr: string | null = null;
+    let regionId: string | null = null;
 
     if (needsShipping) {
-      const ship = body.shipping;
-      if (
-        !ship ||
-        ship.full_name.trim().length < 2 ||
-        ship.phone.trim().length < 9 ||
-        ship.city.trim().length < 2 ||
-        ship.region.trim().length < 2 ||
-        ship.address.trim().length < 5
-      ) {
+      const method = body.delivery_method;
+      const pickupOk = siteSettings.boutique_pickup_enabled !== false;
+      const deliveryOk = siteSettings.delivery_enabled !== false;
+
+      if (method !== "pickup" && method !== "delivery") {
         return NextResponse.json(
-          {
-            error:
-              "بيانات التوصيل مطلوبة لطلب اكسسوارات العروس (الاسم، الهاتف، المدينة، المنطقة، والعنوان).",
-          },
+          { error: "يرجى اختيار طريقة الاستلام (من البوتيك أو التوصيل)." },
           { status: 400 }
         );
       }
+      if (method === "pickup" && !pickupOk) {
+        return NextResponse.json(
+          { error: "الاستلام من البوتيك غير متاح حالياً." },
+          { status: 400 }
+        );
+      }
+      if (method === "delivery" && !deliveryOk) {
+        return NextResponse.json(
+          { error: "التوصيل غير متاح حالياً." },
+          { status: 400 }
+        );
+      }
+      deliveryMethod = method;
+
+      if (method === "delivery") {
+        const ship = body.shipping;
+        if (
+          !ship ||
+          ship.full_name.trim().length < 2 ||
+          ship.phone.trim().length < 9 ||
+          ship.city.trim().length < 2 ||
+          ship.address.trim().length < 5
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "بيانات التوصيل مطلوبة (الاسم، الهاتف، المدينة، والعنوان).",
+            },
+            { status: 400 }
+          );
+        }
+        regionId = ship.shipping_region_id?.trim() || null;
+        if (!regionId) {
+          return NextResponse.json(
+            { error: "المنطقة مطلوبة للتوصيل." },
+            { status: 400 }
+          );
+        }
+        // Resolve region fee from DB (or seed fallback)
+        if (isSupabaseConfigured()) {
+          try {
+            const supabase = createAdminClient();
+            const { data: region } = await supabase
+              .from("shipping_regions")
+              .select("id, name_ar, shipping_fee, is_active")
+              .eq("id", regionId)
+              .maybeSingle();
+            if (!region || region.is_active === false) {
+              return NextResponse.json(
+                { error: "المنطقة المحددة غير متاحة." },
+                { status: 400 }
+              );
+            }
+            regionNameAr = region.name_ar;
+            regionFee = Number(region.shipping_fee) || 0;
+          } catch {
+            regionNameAr = ship.region?.trim() || null;
+            regionFee = null;
+          }
+        } else {
+          regionNameAr = ship.region?.trim() || null;
+        }
+      }
     }
 
-    const shipping = needsShipping ? body.shipping : null;
+    const shipping =
+      needsShipping && deliveryMethod === "delivery" ? body.shipping : null;
     const itemsSubtotal = body.items.reduce(
       (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
       0
     );
-    const siteSettings = await loadSiteSettingsForShipping();
     const shippingCost = resolveShippingCost(
       needsShipping,
       itemsSubtotal,
-      siteSettings
+      siteSettings,
+      {
+        deliveryMethod,
+        regionFee,
+      }
     );
     const computedTotal = itemsSubtotal + shippingCost;
 
@@ -226,11 +293,17 @@ export async function POST(request: Request) {
       status: "pending",
       created_at,
       shipping_required: needsShipping,
+      delivery_method: needsShipping ? deliveryMethod : null,
       shipping_full_name: shipping?.full_name?.trim() || null,
       shipping_phone: shipping?.phone?.trim() || null,
       shipping_city: shipping?.city?.trim() || null,
-      shipping_region: shipping?.region?.trim() || null,
+      shipping_region:
+        shipping?.region?.trim() || regionNameAr || null,
+      shipping_region_id: regionId,
+      shipping_region_name_ar: regionNameAr,
       shipping_address: shipping?.address?.trim() || null,
+      shipping_building_number: shipping?.building_number?.trim() || null,
+      shipping_neighborhood: shipping?.neighborhood?.trim() || null,
       shipping_postal_code: shipping?.postal_code?.trim() || null,
       shipping_notes: shipping?.notes?.trim() || null,
       shipping_cost: shippingCost,
@@ -257,11 +330,16 @@ export async function POST(request: Request) {
       total: row.total,
       status: row.status,
       shipping_required: row.shipping_required,
+      delivery_method: row.delivery_method,
       shipping_full_name: row.shipping_full_name,
       shipping_phone: row.shipping_phone,
       shipping_city: row.shipping_city,
       shipping_region: row.shipping_region,
+      shipping_region_id: row.shipping_region_id,
+      shipping_region_name_ar: row.shipping_region_name_ar,
       shipping_address: row.shipping_address,
+      shipping_building_number: row.shipping_building_number,
+      shipping_neighborhood: row.shipping_neighborhood,
       shipping_postal_code: row.shipping_postal_code,
       shipping_notes: row.shipping_notes,
       shipping_cost: row.shipping_cost,
@@ -274,10 +352,12 @@ export async function POST(request: Request) {
     // Migration not applied yet — fall back without newer columns
     if (
       error &&
-      /shipping_|notify_|column .* does not exist/i.test(getErrorMessage(error))
+      /shipping_|delivery_method|notify_|column .* does not exist/i.test(
+        getErrorMessage(error)
+      )
     ) {
       console.warn(
-        "[orders API] optional columns missing — inserting core fields. Run APPLY_SHOP_SHIPPING.sql and APPLY_NOTIFICATION_PREFERENCES.sql"
+        "[orders API] optional columns missing — inserting core fields. Run APPLY_SHIPPING_REGIONS.sql / APPLY_SHOP_SHIPPING.sql"
       );
       const core = {
         id: row.id,
@@ -302,8 +382,19 @@ export async function POST(request: Request) {
         shipping_notes: row.shipping_notes,
         shipping_cost: row.shipping_cost,
       };
-      // Try with shipping but without notify columns first
-      let retry = await supabase.from("shop_orders").insert(withShipping);
+      let retry = await supabase.from("shop_orders").insert({
+        ...withShipping,
+        notify_whatsapp: row.notify_whatsapp ?? true,
+        notify_email: row.notify_email ?? true,
+      });
+      if (
+        retry.error &&
+        /notify_|delivery_method|shipping_region_id|building|neighborhood|column .* does not exist/i.test(
+          getErrorMessage(retry.error)
+        )
+      ) {
+        retry = await supabase.from("shop_orders").insert(withShipping);
+      }
       if (
         retry.error &&
         /shipping_|column .* does not exist/i.test(getErrorMessage(retry.error))

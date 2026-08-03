@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/utils";
 import { getSiteUrl } from "@/lib/notifications/config";
 import {
   DEFAULT_WHATSAPP_BY_STATUS,
+  getOrderStatusLabel,
   SHOP_ORDER_STATUS_LABELS,
   type NotificationSettings,
   type ShopOrder,
@@ -17,7 +18,13 @@ export function orderNumber(orderId: string) {
   return `ND-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 }
 
-export function statusLabel(status: ShopOrderStatus | string) {
+export function statusLabel(
+  status: ShopOrderStatus | string,
+  order?: ShopOrder
+) {
+  if (order) {
+    return getOrderStatusLabel(status as ShopOrderStatus, order.delivery_method);
+  }
   return (
     SHOP_ORDER_STATUS_LABELS[status as ShopOrderStatus] ?? String(status)
   );
@@ -58,11 +65,21 @@ function escapeHtml(value: string) {
 }
 
 function shippingAddressHtml(order: ShopOrder) {
-  if (!order.shipping_required) return "";
+  if (!order.shipping_required && !order.delivery_method) return "";
+  if (order.delivery_method === "pickup") {
+    return `
+    <p style="margin:16px 0 0;text-align:right;color:#5c5348;line-height:1.8;">
+      <strong>طريقة الاستلام:</strong> استلام من البوتيك<br/>
+      سيتم إشعارك عند جاهزية طلبك للاستلام من البوتيك.
+    </p>`;
+  }
   const lines = [
     order.shipping_full_name,
     order.shipping_phone,
-    [order.shipping_city, order.shipping_region].filter(Boolean).join(" — "),
+    order.shipping_region_name_ar || order.shipping_region,
+    order.shipping_city,
+    order.shipping_neighborhood,
+    order.shipping_building_number,
     order.shipping_address,
     order.shipping_postal_code,
     order.shipping_notes,
@@ -81,11 +98,17 @@ function shippingAddressHtml(order: ShopOrder) {
 }
 
 function shippingAddressText(order: ShopOrder) {
-  if (!order.shipping_required) return "";
+  if (!order.shipping_required && !order.delivery_method) return "";
+  if (order.delivery_method === "pickup") {
+    return `\nطريقة الاستلام: استلام من البوتيك\nسيتم إشعارك عند جاهزية طلبك للاستلام من البوتيك.`;
+  }
   const lines = [
     order.shipping_full_name,
     order.shipping_phone,
-    [order.shipping_city, order.shipping_region].filter(Boolean).join(" — "),
+    order.shipping_region_name_ar || order.shipping_region,
+    order.shipping_city,
+    order.shipping_neighborhood,
+    order.shipping_building_number,
     order.shipping_address,
     order.shipping_postal_code,
     order.shipping_notes,
@@ -181,12 +204,21 @@ function emailShell(
 </html>`;
 }
 
-function statusHeadline(status: ShopOrderStatus): string {
+function statusHeadline(status: ShopOrderStatus, order?: ShopOrder): string {
+  if (status === "ready_for_pickup") {
+    return "طلبك أصبح جاهزاً للاستلام من البوتيك";
+  }
+  if (status === "shipped") {
+    return "تم تسليم طلبك لشركة الشحن";
+  }
+  if (status === "delivered" && order?.delivery_method === "pickup") {
+    return "تم استلام طلبك من البوتيك";
+  }
   const map: Partial<Record<ShopOrderStatus, string>> = {
     pending: "تم استلام طلبكِ بنجاح",
     confirmed: "تم تأكيد طلبكِ",
     payment_received: "تم استلام الدفعة",
-    in_production: "بدأ تنفيذ طلبكِ",
+    in_production: "طلبكِ قيد التجهيز",
     ready_for_pickup: "طلبكِ جاهز للاستلام",
     shipped: "تم شحن طلبكِ",
     delivered: "تم تسليم طلبكِ",
@@ -201,17 +233,18 @@ export function customerStatusEmail(
   settings: NotificationSettings
 ) {
   const number = orderNumber(order.id);
-  const label = statusLabel(status);
+  const label = statusLabel(status, order);
+  const headline = statusHeadline(status, order);
   const subject =
     settings.email_subjects[status] ||
-    `${settings.sender_name || SITE_NAME} — ${statusHeadline(status)} (${number})`;
+    `${settings.sender_name || SITE_NAME} — ${headline} (${number})`;
 
   const html = emailShell(
     subject,
     `
     <h1 style="margin:0 0 10px;font-size:22px;color:#2c2419;">مرحباً ${escapeHtml(order.name)}</h1>
     <p style="margin:0 0 20px;line-height:1.85;color:#5c5348;">
-      ${escapeHtml(statusHeadline(status))} لدى ${escapeHtml(settings.sender_name || SITE_NAME)}.
+      ${escapeHtml(headline)} لدى ${escapeHtml(settings.sender_name || SITE_NAME)}.
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;margin-bottom:20px;">
       <tr>
@@ -239,6 +272,7 @@ export function customerStatusEmail(
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${itemsSummaryHtml(order)}
     </table>
+    ${shippingAddressHtml(order)}
     <p style="margin:18px 0 0;text-align:right;font-size:15px;color:#2c2419;">
       <strong>المجموع:</strong> <span dir="ltr">${formatPrice(Number(order.total))}</span>
     </p>
@@ -369,11 +403,21 @@ export function customerWhatsAppMessage(
   settings: NotificationSettings
 ) {
   const number = orderNumber(order.id);
-  const label = statusLabel(status);
-  const headline =
+  const label = statusLabel(status, order);
+  let headline =
     settings.whatsapp_templates[status] ||
     DEFAULT_WHATSAPP_BY_STATUS[status] ||
     `تحديث طلبكِ: ${label}`;
+
+  if (!settings.whatsapp_templates[status]) {
+    if (status === "ready_for_pickup") {
+      headline = "طلبك أصبح جاهزاً للاستلام من البوتيك.";
+    } else if (status === "shipped") {
+      headline = "تم تسليم طلبك لشركة الشحن.";
+    } else if (status === "delivered" && order.delivery_method === "pickup") {
+      headline = "تم استلام طلبك من البوتيك. شكراً لثقتكِ ❤️";
+    }
+  }
 
   return [
     `✨ ${settings.sender_name || SITE_NAME}`,
@@ -383,6 +427,7 @@ export function customerWhatsAppMessage(
     ``,
     `رقم الطلب: ${number}`,
     `الحالة: ${label}`,
+    shippingAddressText(order).trim(),
     ``,
     `ملخص الطلب:`,
     itemsSummaryText(order),
@@ -393,7 +438,9 @@ export function customerWhatsAppMessage(
     ``,
     `للاستفسار: ${settings.business_phone}`,
     `انستغرام: ${OFFICIAL_INSTAGRAM_HANDLE}`,
-  ].join("\n");
+  ]
+    .filter((line, idx, arr) => !(line === "" && arr[idx - 1] === ""))
+    .join("\n");
 }
 
 export function paymentRequestWhatsApp(

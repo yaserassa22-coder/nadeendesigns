@@ -127,8 +127,9 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </h3>
         <p className="mt-1 text-sm text-muted">
           ينطبق على طرحة العروس وبرنص العروس وأي منتجات مستقبلية تحت اكسسوارات
-          العروس فقط — وليس على الفساتين. عنوان التوصيل يبقى مطلوباً للطلبات
-          التي تحتاج توصيلاً حتى عند تعطيل الرسوم أو الشحن المجاني.
+          العروس فقط — وليس على الفساتين. يمكن تخصيص الرسوم حسب المنطقة من صفحة
+          إعدادات الشحن. عنوان التوصيل يبقى مطلوباً عند اختيار التوصيل حتى عند
+          تعطيل الرسوم أو الشحن المجاني.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm md:col-span-2">
@@ -139,6 +140,26 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               className="h-4 w-4 accent-gold"
             />
             تفعيل رسوم الشحن عالمياً
+          </label>
+          <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={settings.boutique_pickup_enabled}
+              onChange={(e) =>
+                update("boutique_pickup_enabled", e.target.checked)
+              }
+              className="h-4 w-4 accent-gold"
+            />
+            تفعيل الاستلام من البوتيك
+          </label>
+          <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={settings.delivery_enabled}
+              onChange={(e) => update("delivery_enabled", e.target.checked)}
+              className="h-4 w-4 accent-gold"
+            />
+            تفعيل التوصيل
           </label>
           <Input
             label="رسوم الشحن الثابتة (₪)"

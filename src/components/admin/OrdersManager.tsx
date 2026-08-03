@@ -2,16 +2,24 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
-import type { OrderWorkflowAction, ShopOrder, ShopOrderStatus } from "@/types/shop";
+import { ChevronDown, ChevronUp, MessageSquare, Printer } from "lucide-react";
+import type {
+  DeliveryMethod,
+  OrderWorkflowAction,
+  ShopOrder,
+  ShopOrderStatus,
+} from "@/types/shop";
 import {
   orderToShippingDisplay,
   ShippingDetailsBlock,
 } from "@/components/shop/ShippingDetailsBlock";
 import {
+  DELIVERY_METHOD_LABELS,
+  getOrderStatusLabel,
   ORDER_WORKFLOW_ACTIONS,
   SHOP_ORDER_STATUSES,
   SHOP_ORDER_STATUS_LABELS,
+  workflowActionsForDeliveryMethod,
 } from "@/types/shop";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
@@ -56,6 +64,10 @@ export function OrdersManager({
   const [orders, setOrders] = useState(initialOrders);
   const [loadError, setLoadError] = useState(initialError);
   const [filter, setFilter] = useState<ShopOrderStatus | "all">("all");
+  const [methodFilter, setMethodFilter] = useState<
+    DeliveryMethod | "all"
+  >("all");
+  const [regionFilter, setRegionFilter] = useState("all");
   const [expanded, setExpanded] = useState<string | null>(focusId);
   const [appliedFocus, setAppliedFocus] = useState(focusId);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -76,13 +88,33 @@ export function OrdersManager({
     setExpanded(focusId);
   }
 
-  const filtered = useMemo(
-    () =>
-      filter === "all"
-        ? orders
-        : orders.filter((o) => normalizeStatus(o.status) === filter),
-    [orders, filter]
-  );
+  const regionOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const o of orders) {
+      const n = o.shipping_region_name_ar || o.shipping_region;
+      if (n) names.add(n);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ar"));
+  }, [orders]);
+
+  const filtered = useMemo(() => {
+    return orders.filter((o) => {
+      if (filter !== "all" && normalizeStatus(o.status) !== filter) return false;
+      if (methodFilter !== "all") {
+        const m = o.delivery_method;
+        if (methodFilter === "pickup" && m !== "pickup") return false;
+        if (methodFilter === "delivery") {
+          if (m === "pickup") return false;
+          if (m !== "delivery" && !o.shipping_required) return false;
+        }
+      }
+      if (regionFilter !== "all") {
+        const n = o.shipping_region_name_ar || o.shipping_region || "";
+        if (n !== regionFilter) return false;
+      }
+      return true;
+    });
+  }, [orders, filter, methodFilter, regionFilter]);
 
   const patchStatus = async (
     id: string,
@@ -239,18 +271,41 @@ export function OrdersManager({
         </div>
       )}
 
-      <Select
-        label="تصفية الحالة"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value as ShopOrderStatus | "all")}
-        options={[
-          { value: "all", label: "الكل" },
-          ...SHOP_ORDER_STATUSES.map((value) => ({
-            value,
-            label: SHOP_ORDER_STATUS_LABELS[value],
-          })),
-        ]}
-      />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Select
+          label="تصفية الحالة"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as ShopOrderStatus | "all")}
+          options={[
+            { value: "all", label: "الكل" },
+            ...SHOP_ORDER_STATUSES.map((value) => ({
+              value,
+              label: SHOP_ORDER_STATUS_LABELS[value],
+            })),
+          ]}
+        />
+        <Select
+          label="طريقة الاستلام"
+          value={methodFilter}
+          onChange={(e) =>
+            setMethodFilter(e.target.value as DeliveryMethod | "all")
+          }
+          options={[
+            { value: "all", label: "الكل" },
+            { value: "delivery", label: "توصيل" },
+            { value: "pickup", label: "استلام من البوتيك" },
+          ]}
+        />
+        <Select
+          label="المنطقة"
+          value={regionFilter}
+          onChange={(e) => setRegionFilter(e.target.value)}
+          options={[
+            { value: "all", label: "الكل" },
+            ...regionOptions.map((name) => ({ value: name, label: name })),
+          ]}
+        />
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-beige-dark bg-ivory/80 shadow-sm">
         <div className="overflow-x-auto">
@@ -301,8 +356,13 @@ export function OrdersManager({
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs text-charcoal">
-                            {SHOP_ORDER_STATUS_LABELS[status]}
+                            {getOrderStatusLabel(status, order.delivery_method)}
                           </span>
+                          {order.delivery_method && (
+                            <p className="mt-1 text-[11px] text-muted">
+                              {DELIVERY_METHOD_LABELS[order.delivery_method]}
+                            </p>
+                          )}
                           <select
                             value={status}
                             disabled={updating === order.id}
@@ -316,7 +376,10 @@ export function OrdersManager({
                           >
                             {SHOP_ORDER_STATUSES.map((value) => (
                               <option key={value} value={value}>
-                                {SHOP_ORDER_STATUS_LABELS[value]}
+                                {getOrderStatusLabel(
+                                  value,
+                                  order.delivery_method
+                                )}
                               </option>
                             ))}
                           </select>
@@ -342,8 +405,18 @@ export function OrdersManager({
                         <tr className="border-t border-beige-dark/50 bg-gradient-to-l from-beige/40 to-ivory/60">
                           <td colSpan={5} className="space-y-5 px-4 py-5">
                             <div className="flex flex-wrap gap-2">
-                              {ORDER_WORKFLOW_ACTIONS.map((item) => {
+                              {workflowActionsForDeliveryMethod(
+                                order.delivery_method
+                              ).map((item) => {
                                 const active = status === item.status;
+                                const label =
+                                  item.action === "deliver" &&
+                                  order.delivery_method === "pickup"
+                                    ? "تم الاستلام"
+                                    : item.action === "deliver" &&
+                                        order.delivery_method === "delivery"
+                                      ? "تم التوصيل"
+                                      : item.label;
                                 return (
                                   <button
                                     key={item.action}
@@ -355,7 +428,7 @@ export function OrdersManager({
                                     className={`rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-40 ${actionClass(item.tone)}`}
                                   >
                                     {active ? "✓ " : ""}
-                                    {item.label}
+                                    {label}
                                   </button>
                                 );
                               })}
@@ -371,6 +444,17 @@ export function OrdersManager({
                                 <MessageSquare className="h-3.5 w-3.5" />
                                 إرسال رسالة
                               </button>
+                              {order.shipping_required ? (
+                                <a
+                                  href={`/admin/orders/${order.id}/shipping-slip`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-white px-3 py-1.5 text-xs font-medium text-charcoal hover:bg-gold/10"
+                                >
+                                  <Printer className="h-3.5 w-3.5" />
+                                  طباعة بيانات الشحن
+                                </a>
+                              ) : null}
                             </div>
 
                             {paymentOrderId === order.id && (
@@ -478,7 +562,11 @@ export function OrdersManager({
                                   {orderNumber(order.id)}
                                 </p>
                                 <p className="mt-1 text-sm">
-                                  الحالة: {SHOP_ORDER_STATUS_LABELS[status]}
+                                  الحالة:{" "}
+                                  {getOrderStatusLabel(
+                                    status,
+                                    order.delivery_method
+                                  )}
                                 </p>
                                 <p className="text-sm text-muted">
                                   التاريخ: {formatDate(order.created_at)}
@@ -614,7 +702,10 @@ export function OrdersManager({
                                   </div>
                                   <div className="pt-1 text-xs text-muted">
                                     حالة الدفع ضمن سير العمل:{" "}
-                                    {SHOP_ORDER_STATUS_LABELS[status]}
+                                    {getOrderStatusLabel(
+                                      status,
+                                      order.delivery_method
+                                    )}
                                   </div>
                                 </dl>
                               </section>

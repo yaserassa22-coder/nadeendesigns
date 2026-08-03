@@ -191,6 +191,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   shipping_enabled: true,
   shipping_flat_fee: 0,
   shipping_free_threshold: 0,
+  boutique_pickup_enabled: true,
+  delivery_enabled: true,
 };
 
 export const WHATSAPP_MESSAGE =

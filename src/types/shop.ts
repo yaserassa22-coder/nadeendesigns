@@ -85,13 +85,33 @@ export const SHOP_ORDER_STATUS_LABELS: Record<ShopOrderStatus, string> = {
   confirmed: "تم تأكيد الطلب",
   awaiting_payment: "بانتظار الدفعة",
   payment_received: "تم استلام الدفعة",
-  in_production: "قيد التنفيذ",
+  in_production: "قيد التجهيز",
   ready_for_pickup: "جاهز للاستلام",
-  shipped: "تم الشحن",
-  delivered: "تم التسليم",
+  shipped: "تم التسليم لشركة الشحن",
+  delivered: "تم التوصيل",
   cancelled: "تم الإلغاء",
   completed: "مكتمل",
 };
+
+/** Boutique pickup vs courier delivery for accessory orders */
+export type DeliveryMethod = "pickup" | "delivery";
+
+export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
+  pickup: "استلام من البوتيك",
+  delivery: "توصيل",
+};
+
+/** Status label adjusted for pickup vs delivery (backward-compatible defaults). */
+export function getOrderStatusLabel(
+  status: ShopOrderStatus,
+  deliveryMethod?: DeliveryMethod | null
+): string {
+  if (status === "delivered" && deliveryMethod === "pickup") {
+    return "تم الاستلام";
+  }
+  if (status === "in_production") return "قيد التجهيز";
+  return SHOP_ORDER_STATUS_LABELS[status] ?? String(status);
+}
 
 /** Statuses that trigger a dedicated customer email template */
 export const CUSTOMER_EMAIL_STATUSES: ShopOrderStatus[] = [
@@ -141,10 +161,43 @@ export const ORDER_WORKFLOW_ACTIONS: {
     status: "in_production",
   },
   { action: "ready", label: "جاهز للاستلام", status: "ready_for_pickup" },
-  { action: "ship", label: "شحن", status: "shipped" },
-  { action: "deliver", label: "تم التسليم", status: "delivered", tone: "gold" },
+  {
+    action: "ship",
+    label: "تم التسليم لشركة الشحن",
+    status: "shipped",
+  },
+  { action: "deliver", label: "تم التوصيل / الاستلام", status: "delivered", tone: "gold" },
   { action: "cancel", label: "إلغاء", status: "cancelled", tone: "danger" },
 ];
+
+/** Workflow actions relevant to an order's delivery method (legacy = all). */
+export function workflowActionsForDeliveryMethod(
+  method?: DeliveryMethod | null
+): typeof ORDER_WORKFLOW_ACTIONS {
+  if (method === "pickup") {
+    return ORDER_WORKFLOW_ACTIONS.filter((a) => a.action !== "ship");
+  }
+  if (method === "delivery") {
+    return ORDER_WORKFLOW_ACTIONS.filter((a) => a.action !== "ready");
+  }
+  return ORDER_WORKFLOW_ACTIONS;
+}
+
+export interface ShippingRegion {
+  id: string;
+  name_ar: string;
+  name_en: string;
+  shipping_fee: number;
+  is_active: boolean;
+  sort_order: number;
+  estimated_days?: number | null;
+  carrier_code?: string | null;
+  free_shipping_override?: number | null;
+  discount?: number | null;
+  meta?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface ShopOrderItem {
   product_type: ShopProductType;
@@ -170,11 +223,17 @@ export interface ShopOrder {
   created_at: string;
   /** Accessory delivery — null/false on legacy orders */
   shipping_required?: boolean;
+  /** pickup | delivery — null on legacy / non-shipping orders */
+  delivery_method?: DeliveryMethod | null;
   shipping_full_name?: string | null;
   shipping_phone?: string | null;
   shipping_city?: string | null;
   shipping_region?: string | null;
+  shipping_region_id?: string | null;
+  shipping_region_name_ar?: string | null;
   shipping_address?: string | null;
+  shipping_building_number?: string | null;
+  shipping_neighborhood?: string | null;
   shipping_postal_code?: string | null;
   shipping_notes?: string | null;
   shipping_cost?: number | null;
@@ -237,8 +296,8 @@ export const DEFAULT_WHATSAPP_BY_STATUS: Partial<
   awaiting_payment: "بانتظار استلام الدفعة لإكمال طلبكِ 💳",
   payment_received: "تم استلام الدفعة بنجاح، شكراً لثقتكِ 💛",
   in_production: "طلبكِ قيد التنفيذ في الأتيليه 👗",
-  ready_for_pickup: "طلبكِ جاهز للاستلام 🎁",
-  shipped: "تم شحن طلبك ويمكنك تتبع عملية التوصيل 🚚",
+  ready_for_pickup: "طلبك أصبح جاهزاً للاستلام من البوتيك.",
+  shipped: "تم تسليم طلبك لشركة الشحن.",
   delivered: "تم تسليم طلبك، نتمنى أن ينال إعجابك ❤️",
   cancelled: "تم إلغاء طلبكِ. إن كان لديكِ استفسار، نحن هنا لمساعدتكِ.",
 };
