@@ -1,0 +1,39 @@
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #2c241b !important;
+  }
+
+  aside,
+  .print\:hidden,
+  button,
+  nav {
+    display: none !important;
+  }
+
+  .reports-print-root {
+    padding: 0 !important;
+  }
+
+  .reports-print-root .rounded-2xl,
+  .reports-print-root .rounded-xl {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border-color: #d9cfc0 !important;
+  }
+
+  .lg\:block {
+    display: none !important;
+  }
+
+  main,
+  .reports-print-root {
+    width: 100% !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+}

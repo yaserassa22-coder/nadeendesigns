@@ -449,7 +449,9 @@ export async function getDashboardAnalytics(input: {
       "last_7_days",
       "last_30_days",
       "this_month",
+      "last_month",
       "this_year",
+      "last_year",
       "custom",
     ].includes(input.preset)
       ? (input.preset as DateRangePreset)

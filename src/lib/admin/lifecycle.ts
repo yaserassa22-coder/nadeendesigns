@@ -427,10 +427,13 @@ export async function listTrashItems(
 ): Promise<{ items: TrashItem[]; error?: string }> {
   const modules = module
     ? [module]
-    : (Object.keys(MODULE_TABLE) as LifecycleModule[]);
+    : (Object.keys(MODULE_TABLE) as LifecycleModule[]).filter(
+        (m) => m !== "reports"
+      );
   const items: TrashItem[] = [];
 
   for (const mod of modules) {
+    if (mod === "reports") continue;
     const table = MODULE_TABLE[mod];
     const col = idColumn(mod);
     const { data, error } = await supabase
@@ -562,5 +565,9 @@ export async function runTrashCleanup(
 }
 
 export function isLifecycleModule(value: unknown): value is LifecycleModule {
-  return typeof value === "string" && value in MODULE_TABLE;
+  return (
+    typeof value === "string" &&
+    value in MODULE_TABLE &&
+    value !== "reports"
+  );
 }

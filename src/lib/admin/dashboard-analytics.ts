@@ -12,7 +12,9 @@ export type DateRangePreset =
   | "last_7_days"
   | "last_30_days"
   | "this_month"
+  | "last_month"
   | "this_year"
+  | "last_year"
   | "custom";
 
 export type ResolvedDateRange = {
@@ -191,7 +193,9 @@ export const DATE_RANGE_PRESETS: {
   { value: "last_7_days", label: "آخر 7 أيام" },
   { value: "last_30_days", label: "آخر 30 يوماً" },
   { value: "this_month", label: "هذا الشهر" },
+  { value: "last_month", label: "الشهر الماضي" },
   { value: "this_year", label: "هذه السنة" },
+  { value: "last_year", label: "السنة الماضية" },
   { value: "custom", label: "نطاق مخصص" },
 ];
 
@@ -253,10 +257,31 @@ export function resolveDateRange(
       from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       to = endOfLocalDay(now);
       break;
+    case "last_month": {
+      const firstThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastMonthEnd = addDays(firstThisMonth, -1);
+      from = new Date(
+        lastMonthEnd.getFullYear(),
+        lastMonthEnd.getMonth(),
+        1,
+        0,
+        0,
+        0,
+        0
+      );
+      to = endOfLocalDay(lastMonthEnd);
+      break;
+    }
     case "this_year":
       from = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
       to = endOfLocalDay(now);
       break;
+    case "last_year": {
+      const y = now.getFullYear() - 1;
+      from = new Date(y, 0, 1, 0, 0, 0, 0);
+      to = endOfLocalDay(new Date(y, 11, 31));
+      break;
+    }
     case "custom": {
       const cf = customFrom ? parseYmd(customFrom) : null;
       const ct = customTo ? parseYmd(customTo) : null;

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/admin", label: "لوحة التحكم", exact: true },
+  { href: "/admin/reports", label: "📊 التقارير" },
   { href: "/admin/categories", label: "📂 التصنيفات" },
   { href: "/admin/dresses", label: "👰 الفساتين" },
   { href: "/admin/nouf-dresses", label: "👗 فساتين نوف" },

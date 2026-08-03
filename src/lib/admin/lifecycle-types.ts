@@ -10,7 +10,8 @@ export type LifecycleModule =
   | "customer_notifications"
   | "shipping_regions"
   | "gallery"
-  | "customers";
+  | "customers"
+  | "reports";
 
 export type LifecycleAction =
   | "create"
@@ -19,7 +20,11 @@ export type LifecycleAction =
   | "unarchive"
   | "soft_delete"
   | "restore"
-  | "permanent_delete";
+  | "permanent_delete"
+  | "report_generated"
+  | "report_exported"
+  | "report_printed"
+  | "report_emailed";
 
 export type ListVisibility = "active" | "archived" | "deleted" | "all";
 
@@ -36,6 +41,7 @@ export const MODULE_TABLE: Record<LifecycleModule, string> = {
   shipping_regions: "shipping_regions",
   gallery: "gallery_items",
   customers: "customer_admin_state",
+  reports: "report_schedules",
 };
 
 export const MODULE_LABEL_AR: Record<LifecycleModule, string> = {
@@ -51,6 +57,7 @@ export const MODULE_LABEL_AR: Record<LifecycleModule, string> = {
   shipping_regions: "مناطق الشحن",
   gallery: "المعرض",
   customers: "العملاء",
+  reports: "التقارير",
 };
 
 export const CUSTOMER_KEY_COLUMN = "customer_key";
