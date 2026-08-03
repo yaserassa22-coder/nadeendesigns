@@ -91,7 +91,38 @@ export const bookingCreateSchema = z.object({
     .transform((v) =>
       v == null || !String(v).trim() ? null : String(v).trim()
     ),
-});
+  notify_whatsapp: z.boolean().optional().default(true),
+  notify_email: z.boolean().optional().default(true),
+})
+  .superRefine((data, ctx) => {
+    if (!data.notify_whatsapp && !data.notify_email) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["notify_whatsapp"],
+        message:
+          "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
+      });
+    }
+    if (data.notify_whatsapp && data.phone.trim().length < 9) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["phone"],
+        message:
+          "رقم واتساب غير صالح — أدخلي رقم هاتف صحيح لاستلام التحديثات عبر WhatsApp",
+      });
+    }
+    if (data.notify_email) {
+      const email = data.email.trim();
+      if (!email || !z.string().email().safeParse(email).success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["email"],
+          message:
+            "البريد الإلكتروني مطلوب وصالح عند اختيار التحديثات عبر Email",
+        });
+      }
+    }
+  });
 
 export type BookingCreateInput = z.infer<typeof bookingCreateSchema>;
 
@@ -106,6 +137,8 @@ export function bookingFieldFromPath(path: PropertyKey[]): string {
     time: "time",
     service_type: "service_type",
     notes: "notes",
+    notify_whatsapp: "notify_whatsapp",
+    notify_email: "notify_email",
   };
   return map[key] ?? key;
 }

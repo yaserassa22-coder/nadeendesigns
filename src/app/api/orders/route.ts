@@ -234,6 +234,8 @@ export async function POST(request: Request) {
       shipping_postal_code: shipping?.postal_code?.trim() || null,
       shipping_notes: shipping?.notes?.trim() || null,
       shipping_cost: shippingCost,
+      notify_whatsapp: body.notify_whatsapp ?? true,
+      notify_email: body.notify_email ?? true,
     };
 
     if (!isSupabaseConfigured()) {
@@ -263,19 +265,21 @@ export async function POST(request: Request) {
       shipping_postal_code: row.shipping_postal_code,
       shipping_notes: row.shipping_notes,
       shipping_cost: row.shipping_cost,
+      notify_whatsapp: row.notify_whatsapp ?? true,
+      notify_email: row.notify_email ?? true,
     };
 
     let { error } = await supabase.from("shop_orders").insert(insertFull);
 
-    // Migration not applied yet — fall back without shipping columns
+    // Migration not applied yet — fall back without newer columns
     if (
       error &&
-      /shipping_|column .* does not exist/i.test(getErrorMessage(error))
+      /shipping_|notify_|column .* does not exist/i.test(getErrorMessage(error))
     ) {
       console.warn(
-        "[orders API] shipping columns missing — inserting without them. Run APPLY_SHOP_SHIPPING.sql"
+        "[orders API] optional columns missing — inserting core fields. Run APPLY_SHOP_SHIPPING.sql and APPLY_NOTIFICATION_PREFERENCES.sql"
       );
-      const retry = await supabase.from("shop_orders").insert({
+      const core = {
         id: row.id,
         name: row.name,
         phone: row.phone,
@@ -285,7 +289,27 @@ export async function POST(request: Request) {
         gift_options: row.gift_options,
         total: row.total,
         status: row.status,
-      });
+      };
+      const withShipping = {
+        ...core,
+        shipping_required: row.shipping_required,
+        shipping_full_name: row.shipping_full_name,
+        shipping_phone: row.shipping_phone,
+        shipping_city: row.shipping_city,
+        shipping_region: row.shipping_region,
+        shipping_address: row.shipping_address,
+        shipping_postal_code: row.shipping_postal_code,
+        shipping_notes: row.shipping_notes,
+        shipping_cost: row.shipping_cost,
+      };
+      // Try with shipping but without notify columns first
+      let retry = await supabase.from("shop_orders").insert(withShipping);
+      if (
+        retry.error &&
+        /shipping_|column .* does not exist/i.test(getErrorMessage(retry.error))
+      ) {
+        retry = await supabase.from("shop_orders").insert(core);
+      }
       error = retry.error;
     }
 

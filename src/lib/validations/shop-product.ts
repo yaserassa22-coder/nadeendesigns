@@ -76,26 +76,59 @@ export const shopOrderCreateSchema = z
     shipping_required: z.boolean().optional(),
     shipping: shippingAddressSchema.nullable().optional(),
     shipping_cost: z.number().min(0).optional(),
+    notify_whatsapp: z.boolean().optional(),
+    notify_email: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const needs =
       data.shipping_required === true || cartNeedsShipping(data.items);
-    if (!needs) return;
-    if (!data.shipping) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["shipping"],
-        message: "بيانات التوصيل مطلوبة لطلب اكسسوارات العروس",
-      });
-      return;
-    }
-    const parsed = shippingAddressSchema.safeParse(data.shipping);
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
+    if (needs) {
+      if (!data.shipping) {
         ctx.addIssue({
           code: "custom",
-          path: ["shipping", ...issue.path],
-          message: issue.message,
+          path: ["shipping"],
+          message: "بيانات التوصيل مطلوبة لطلب اكسسوارات العروس",
+        });
+      } else {
+        const parsed = shippingAddressSchema.safeParse(data.shipping);
+        if (!parsed.success) {
+          for (const issue of parsed.error.issues) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["shipping", ...issue.path],
+              message: issue.message,
+            });
+          }
+        }
+      }
+    }
+
+    const wantWa = data.notify_whatsapp ?? true;
+    const wantEmail = data.notify_email ?? true;
+    if (!wantWa && !wantEmail) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["notify_whatsapp"],
+        message:
+          "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
+      });
+    }
+    if (wantWa && data.phone.trim().length < 9) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["phone"],
+        message:
+          "رقم واتساب غير صالح — أدخلي رقم هاتف صحيح لاستلام التحديثات عبر WhatsApp",
+      });
+    }
+    if (wantEmail) {
+      const email = (data.email ?? "").trim();
+      if (!email || !z.string().email().safeParse(email).success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["email"],
+          message:
+            "البريد الإلكتروني مطلوب وصالح عند اختيار التحديثات عبر Email",
         });
       }
     }

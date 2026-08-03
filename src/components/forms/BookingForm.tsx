@@ -8,36 +8,65 @@ import { useSearchParams } from "next/navigation";
 import { Calendar, CheckCircle } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import {
+  NotificationPreferences,
+  validateNotificationPreferences,
+  type NotificationPreferenceValue,
+} from "@/components/forms/NotificationPreferences";
 import { CUSTOM_DESIGN_BRIEF_KEY } from "@/lib/constants";
 import { BOOKING_SERVICE_OPTIONS } from "@/types";
 
-const bookingSchema = z.object({
-  name: z.string().trim().min(2, "الاسم الكامل مطلوب"),
-  phone: z
-    .string()
-    .trim()
-    .min(9, "رقم الهاتف غير صالح")
-    .regex(/^[\d+\s()-]+$/, "رقم الهاتف غير صالح"),
-  email: z
-    .string()
-    .trim()
-    .min(1, "البريد الإلكتروني مطلوب")
-    .email("البريد الإلكتروني غير صالح"),
-  date: z.string().min(1, "تاريخ الحجز مطلوب"),
-  time: z.string().min(1, "وقت الحجز مطلوب"),
-  service_type: z.enum(
-    [
-      "wedding_dress",
-      "rental_dress",
-      "custom_design",
-      "nouf_dresses",
-      "veil",
-      "bridal_cape",
-    ],
-    { message: "نوع الخدمة مطلوب" }
-  ),
-  notes: z.string().optional(),
-});
+const bookingSchema = z
+  .object({
+    name: z.string().trim().min(2, "الاسم الكامل مطلوب"),
+    phone: z
+      .string()
+      .trim()
+      .min(9, "رقم الهاتف غير صالح")
+      .regex(/^[\d+\s()-]+$/, "رقم الهاتف غير صالح"),
+    email: z
+      .string()
+      .trim()
+      .min(1, "البريد الإلكتروني مطلوب")
+      .email("البريد الإلكتروني غير صالح"),
+    date: z.string().min(1, "تاريخ الحجز مطلوب"),
+    time: z.string().min(1, "وقت الحجز مطلوب"),
+    service_type: z.enum(
+      [
+        "wedding_dress",
+        "rental_dress",
+        "custom_design",
+        "nouf_dresses",
+        "veil",
+        "bridal_cape",
+      ],
+      { message: "نوع الخدمة مطلوب" }
+    ),
+    notes: z.string().optional(),
+    notify_whatsapp: z.boolean(),
+    notify_email: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.notify_whatsapp && !data.notify_email) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["notify_whatsapp"],
+        message:
+          "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
+      });
+    }
+    if (data.notify_email) {
+      const email = data.email.trim();
+      if (!email || !z.string().email().safeParse(email).success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["email"],
+          message:
+            "البريد الإلكتروني مطلوب وصالح عند اختيار التحديثات عبر Email",
+        });
+      }
+    }
+  });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
 
@@ -51,6 +80,8 @@ const API_FIELD_TO_FORM: Record<string, keyof BookingFormData | "form"> = {
   time: "time",
   service_type: "service_type",
   notes: "notes",
+  notify_whatsapp: "notify_whatsapp",
+  notify_email: "notify_email",
   form: "form",
 };
 
@@ -70,6 +101,7 @@ export function BookingForm() {
     register,
     handleSubmit,
     setValue,
+    watch,
     setError: setFormError,
     clearErrors,
     formState: { errors, isSubmitting },
@@ -80,8 +112,15 @@ export function BookingForm() {
       service_type: defaultService,
       email: "",
       notes: "",
+      notify_whatsapp: true,
+      notify_email: true,
     },
   });
+
+  const notifyPrefs: NotificationPreferenceValue = {
+    notify_whatsapp: watch("notify_whatsapp"),
+    notify_email: watch("notify_email"),
+  };
 
   useEffect(() => {
     try {
@@ -113,6 +152,8 @@ export function BookingForm() {
       "time",
       "service_type",
       "notes",
+      "notify_whatsapp",
+      "notify_email",
     ]);
 
     let formLevel = "";
@@ -133,6 +174,17 @@ export function BookingForm() {
   const onSubmit = async (data: BookingFormData) => {
     setError("");
     clearErrors();
+    const notifyError = validateNotificationPreferences(
+      {
+        notify_whatsapp: data.notify_whatsapp,
+        notify_email: data.notify_email,
+      },
+      { phone: data.phone, email: data.email }
+    );
+    if (notifyError) {
+      setError(notifyError);
+      return;
+    }
     try {
       const payload = {
         name: data.name,
@@ -142,6 +194,8 @@ export function BookingForm() {
         time: data.time,
         service_type: data.service_type,
         notes: data.notes?.trim() ? data.notes.trim() : null,
+        notify_whatsapp: data.notify_whatsapp,
+        notify_email: data.notify_email,
       };
 
       const res = await fetch("/api/bookings", {
@@ -165,6 +219,8 @@ export function BookingForm() {
         service_type: defaultService,
         email: "",
         notes: "",
+        notify_whatsapp: true,
+        notify_email: true,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
@@ -244,6 +300,22 @@ export function BookingForm() {
         error={errors.notes?.message}
         rows={4}
         placeholder="أخبرينا عن أي تفاصيل أو طلبات خاصة..."
+      />
+
+      <NotificationPreferences
+        idPrefix="booking-notify"
+        value={notifyPrefs}
+        onChange={(next) => {
+          setValue("notify_whatsapp", next.notify_whatsapp, {
+            shouldValidate: true,
+          });
+          setValue("notify_email", next.notify_email, {
+            shouldValidate: true,
+          });
+        }}
+        error={
+          errors.notify_whatsapp?.message || errors.notify_email?.message
+        }
       />
 
       {error && (

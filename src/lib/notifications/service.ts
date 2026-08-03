@@ -15,6 +15,8 @@ import { getNotificationSettings } from "@/lib/notifications/settings";
 import {
   adminNewOrderEmail,
   adminWhatsAppMessage,
+  bookingSubmittedEmail,
+  bookingSubmittedWhatsApp,
   customMessageEmail,
   customWhatsAppMessage,
   customerStatusEmail,
@@ -29,10 +31,26 @@ import {
   type ShopOrder,
   type ShopOrderStatus,
 } from "@/types/shop";
+import type { Booking } from "@/types";
 
 async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** Resolve customer channel prefs; legacy rows without columns → both enabled. */
+export function resolveNotifyPrefs(entity: {
+  notify_whatsapp?: boolean | null;
+  notify_email?: boolean | null;
+}) {
+  return {
+    whatsapp: entity.notify_whatsapp ?? true,
+    email: entity.notify_email ?? true,
+  };
+}
+
+type ChannelSendResult =
+  | { ok: true; attempts: number; skipped?: boolean }
+  | { ok: false; error: string; attempts: number };
 
 async function sendWithRetry(
   send: () => Promise<
@@ -48,7 +66,7 @@ async function sendWithRetry(
     recipient?: string;
     skipDedupe?: boolean;
   }
-) {
+): Promise<ChannelSendResult> {
   if (!meta.skipDedupe) {
     const dup = await wasRecentlySent({
       orderId: meta.orderId,
@@ -124,8 +142,125 @@ async function sendWithRetry(
   return { ok: false as const, error: lastError, attempts };
 }
 
-function customerKey(order: ShopOrder) {
+function customerKey(order: { email?: string | null; phone?: string | null }) {
   return order.email?.trim() || order.phone?.trim() || null;
+}
+
+type CustomerChannelJobs = {
+  orderId: string;
+  customerId: string | null;
+  notificationType: string;
+  orderStatus?: string;
+  skipDedupe?: boolean;
+  prefs: { whatsapp: boolean; email: boolean };
+  phone?: string | null;
+  email?: string | null;
+  sendWhatsAppBody?: () => string;
+  sendEmailPayload?: () => {
+    subject: string;
+    html: string;
+    replyTo?: string;
+    fromName?: string;
+  };
+  /** When true, email may send even outside normal email-status rules (WA fallback). */
+  emailAllowed: boolean;
+};
+
+/**
+ * Respects notify prefs:
+ * - WhatsApp only / Email only → that channel
+ * - Both → WhatsApp first; Email only if WhatsApp fails
+ */
+async function deliverCustomerPreferredChannels(jobs: CustomerChannelJobs) {
+  const wantWa = jobs.prefs.whatsapp && Boolean(jobs.phone?.trim());
+  const canEmail =
+    jobs.prefs.email &&
+    Boolean(jobs.email?.trim()) &&
+    Boolean(jobs.sendEmailPayload);
+
+  const runWhatsApp = async (): Promise<ChannelSendResult | null> => {
+    if (!wantWa || !jobs.sendWhatsAppBody) return null;
+    if (!isWhatsAppConfigured()) {
+      await logNotification({
+        orderId: jobs.orderId,
+        customerId: jobs.customerId,
+        notificationType: jobs.notificationType,
+        channel: "whatsapp",
+        orderStatus: jobs.orderStatus,
+        recipient: jobs.phone,
+        status: "failed",
+        errorMessage: "Twilio WhatsApp غير مُعد",
+      });
+      return { ok: false, error: "Twilio WhatsApp غير مُعد", attempts: 0 };
+    }
+    const body = jobs.sendWhatsAppBody();
+    return sendWithRetry(() => sendWhatsApp({ to: jobs.phone!, body }), {
+      orderId: jobs.orderId,
+      customerId: jobs.customerId,
+      notificationType: jobs.notificationType,
+      channel: "whatsapp",
+      orderStatus: jobs.orderStatus,
+      recipient: jobs.phone!,
+      skipDedupe: jobs.skipDedupe,
+    });
+  };
+
+  const runEmail = async (): Promise<ChannelSendResult | null> => {
+    if (!canEmail || !jobs.sendEmailPayload) return null;
+    if (!isResendConfigured()) {
+      await logNotification({
+        orderId: jobs.orderId,
+        customerId: jobs.customerId,
+        notificationType: jobs.notificationType,
+        channel: "email",
+        orderStatus: jobs.orderStatus,
+        recipient: jobs.email,
+        status: "failed",
+        errorMessage: "Resend غير مُعد",
+      });
+      return { ok: false, error: "Resend غير مُعد", attempts: 0 };
+    }
+    const payload = jobs.sendEmailPayload();
+    return sendWithRetry(
+      () =>
+        sendEmail({
+          to: jobs.email!,
+          subject: payload.subject,
+          html: payload.html,
+          replyTo: payload.replyTo,
+          fromName: payload.fromName,
+        }),
+      {
+        orderId: jobs.orderId,
+        customerId: jobs.customerId,
+        notificationType: jobs.notificationType,
+        channel: "email",
+        orderStatus: jobs.orderStatus,
+        recipient: jobs.email!,
+        skipDedupe: jobs.skipDedupe,
+      }
+    );
+  };
+
+  // Both selected → WhatsApp first, Email fallback on failure
+  if (jobs.prefs.whatsapp && jobs.prefs.email) {
+    const wa = await runWhatsApp();
+    if (wa?.ok) return;
+    // Email fallback even if status would not normally email
+    if (canEmail) {
+      await runEmail();
+    }
+    return;
+  }
+
+  if (jobs.prefs.whatsapp) {
+    await runWhatsApp();
+    return;
+  }
+
+  if (jobs.prefs.email && jobs.emailAllowed) {
+    await runEmail();
+  }
 }
 
 /** Customer email (selected statuses) + WhatsApp (every status). Never throws. */
@@ -140,79 +275,35 @@ export async function notifyCustomerOrderStatus(
   }
 
   const settings = await getNotificationSettings();
-  const tasks: Promise<unknown>[] = [];
+  const prefs = resolveNotifyPrefs(order);
   const sendEmailForStatus =
     options?.forceEmail || CUSTOMER_EMAIL_STATUSES.includes(status);
+  const notificationType =
+    status === "pending"
+      ? "customer_order_submitted"
+      : "customer_order_status";
 
-  if (sendEmailForStatus && order.email && isResendConfigured()) {
-    const { subject, html } = customerStatusEmail(order, status, settings);
-    tasks.push(
-      sendWithRetry(
-        () =>
-          sendEmail({
-            to: order.email!,
-            subject,
-            html,
-            replyTo: settings.reply_email,
-            fromName: settings.sender_name,
-          }),
-        {
-          orderId: order.id,
-          customerId: customerKey(order),
-          notificationType:
-            status === "pending"
-              ? "customer_order_submitted"
-              : "customer_order_status",
-          channel: "email",
-          orderStatus: status,
-          recipient: order.email,
-          skipDedupe: options?.skipDedupe,
-        }
-      )
-    );
-  } else if (sendEmailForStatus && order.email) {
-    await logNotification({
-      orderId: order.id,
-      customerId: customerKey(order),
-      notificationType: "customer_order_status",
-      channel: "email",
-      orderStatus: status,
-      recipient: order.email,
-      status: "failed",
-      errorMessage: "Resend غير مُعد",
-    });
-  }
-
-  if (order.phone && isWhatsAppConfigured()) {
-    const body = customerWhatsAppMessage(order, status, settings);
-    tasks.push(
-      sendWithRetry(() => sendWhatsApp({ to: order.phone, body }), {
-        orderId: order.id,
-        customerId: customerKey(order),
-        notificationType:
-          status === "pending"
-            ? "customer_order_submitted"
-            : "customer_order_status",
-        channel: "whatsapp",
-        orderStatus: status,
-        recipient: order.phone,
-        skipDedupe: options?.skipDedupe,
-      })
-    );
-  } else if (order.phone) {
-    await logNotification({
-      orderId: order.id,
-      customerId: customerKey(order),
-      notificationType: "customer_order_status",
-      channel: "whatsapp",
-      orderStatus: status,
-      recipient: order.phone,
-      status: "failed",
-      errorMessage: "Twilio WhatsApp غير مُعد",
-    });
-  }
-
-  await Promise.allSettled(tasks);
+  await deliverCustomerPreferredChannels({
+    orderId: order.id,
+    customerId: customerKey(order),
+    notificationType,
+    orderStatus: status,
+    skipDedupe: options?.skipDedupe,
+    prefs,
+    phone: order.phone,
+    email: order.email,
+    emailAllowed: sendEmailForStatus,
+    sendWhatsAppBody: () => customerWhatsAppMessage(order, status, settings),
+    sendEmailPayload: () => {
+      const { subject, html } = customerStatusEmail(order, status, settings);
+      return {
+        subject,
+        html,
+        replyTo: settings.reply_email,
+        fromName: settings.sender_name,
+      };
+    },
+  });
 }
 
 /** Payment request email + WhatsApp */
@@ -224,49 +315,29 @@ export async function notifyPaymentRequest(
   if (!isNotificationsEnabled()) return;
 
   const settings = await getNotificationSettings();
-  const tasks: Promise<unknown>[] = [];
+  const prefs = resolveNotifyPrefs(order);
 
-  if (order.email && isResendConfigured()) {
-    const { subject, html } = paymentRequestEmail(order, amount, settings);
-    tasks.push(
-      sendWithRetry(
-        () =>
-          sendEmail({
-            to: order.email!,
-            subject,
-            html,
-            replyTo: settings.reply_email,
-            fromName: settings.sender_name,
-          }),
-        {
-          orderId: order.id,
-          customerId: customerKey(order),
-          notificationType: "customer_payment_request",
-          channel: "email",
-          orderStatus: "awaiting_payment",
-          recipient: order.email,
-          skipDedupe: options?.skipDedupe,
-        }
-      )
-    );
-  }
-
-  if (order.phone && isWhatsAppConfigured()) {
-    const body = paymentRequestWhatsApp(order, amount, settings);
-    tasks.push(
-      sendWithRetry(() => sendWhatsApp({ to: order.phone, body }), {
-        orderId: order.id,
-        customerId: customerKey(order),
-        notificationType: "customer_payment_request",
-        channel: "whatsapp",
-        orderStatus: "awaiting_payment",
-        recipient: order.phone,
-        skipDedupe: options?.skipDedupe,
-      })
-    );
-  }
-
-  await Promise.allSettled(tasks);
+  await deliverCustomerPreferredChannels({
+    orderId: order.id,
+    customerId: customerKey(order),
+    notificationType: "customer_payment_request",
+    orderStatus: "awaiting_payment",
+    skipDedupe: options?.skipDedupe,
+    prefs,
+    phone: order.phone,
+    email: order.email,
+    emailAllowed: true,
+    sendWhatsAppBody: () => paymentRequestWhatsApp(order, amount, settings),
+    sendEmailPayload: () => {
+      const { subject, html } = paymentRequestEmail(order, amount, settings);
+      return {
+        subject,
+        html,
+        replyTo: settings.reply_email,
+        fromName: settings.sender_name,
+      };
+    },
+  });
 }
 
 /** Admin custom message to customer */
@@ -460,6 +531,50 @@ export async function onOrderStatusChanged(
     await notifyCustomerOrderStatus(nextOrder, nextStatus);
   } catch (e) {
     console.error("[notifications] onOrderStatusChanged failed", e);
+  }
+}
+
+/** Booking confirmation respecting channel preferences. */
+export async function notifyBookingSubmitted(booking: Booking) {
+  if (!isNotificationsEnabled()) {
+    console.info(
+      "[notifications] disabled — skip booking submitted",
+      booking.id
+    );
+    return;
+  }
+
+  const settings = await getNotificationSettings();
+  const prefs = resolveNotifyPrefs(booking);
+
+  await deliverCustomerPreferredChannels({
+    orderId: booking.id,
+    customerId: customerKey(booking),
+    notificationType: "customer_booking_submitted",
+    orderStatus: "pending",
+    prefs,
+    phone: booking.phone,
+    email: booking.email,
+    emailAllowed: true,
+    sendWhatsAppBody: () => bookingSubmittedWhatsApp(booking, settings),
+    sendEmailPayload: () => {
+      const { subject, html } = bookingSubmittedEmail(booking, settings);
+      return {
+        subject,
+        html,
+        replyTo: settings.reply_email,
+        fromName: settings.sender_name,
+      };
+    },
+  });
+}
+
+/** Fired when a new booking is created. */
+export async function onBookingSubmitted(booking: Booking) {
+  try {
+    await notifyBookingSubmitted(booking);
+  } catch (e) {
+    console.error("[notifications] onBookingSubmitted failed", e);
   }
 }
 

@@ -463,3 +463,56 @@ export function adminWhatsAppMessage(
     `لوحة التحكم: ${getSiteUrl()}/admin/orders?focus=${order.id}`,
   ].join("\n");
 }
+
+/** Booking confirmation email */
+export function bookingSubmittedEmail(
+  booking: {
+    id: string;
+    name: string;
+    date: string;
+    time: string;
+    service_type: string;
+  },
+  settings: NotificationSettings
+) {
+  const subject = `${settings.sender_name || SITE_NAME} — تم استلام طلب حجزكِ`;
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 10px;font-size:22px;color:#2c2419;">مرحباً ${escapeHtml(booking.name)}</h1>
+    <p style="margin:0 0 20px;line-height:1.85;color:#5c5348;">
+      استلمنا طلب حجزكِ بنجاح وسنتواصل معكِ قريبًا لتأكيد الموعد.
+    </p>
+    <p style="margin:0;line-height:1.85;color:#5c5348;">
+      <strong>التاريخ:</strong> ${escapeHtml(booking.date)}<br/>
+      <strong>الوقت:</strong> ${escapeHtml(booking.time.slice(0, 5))}<br/>
+      <strong>الخدمة:</strong> ${escapeHtml(booking.service_type)}
+    </p>
+    `,
+    settings
+  );
+  return { subject, html };
+}
+
+/** Booking confirmation WhatsApp */
+export function bookingSubmittedWhatsApp(
+  booking: {
+    name: string;
+    date: string;
+    time: string;
+    service_type: string;
+  },
+  settings: NotificationSettings
+) {
+  return [
+    `✨ ${settings.sender_name || SITE_NAME}`,
+    ``,
+    `مرحباً ${booking.name}،`,
+    `استلمنا طلب حجزكِ بنجاح.`,
+    `📅 ${booking.date} — ⏰ ${booking.time.slice(0, 5)}`,
+    `الخدمة: ${booking.service_type}`,
+    ``,
+    `سنتواصل معكِ قريبًا لتأكيد الموعد.`,
+  ].join("\n");
+}
+

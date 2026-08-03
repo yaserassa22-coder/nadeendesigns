@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,11 +16,28 @@ import {
   normalizeBookingRequestBody,
   type BookingCreateInput,
 } from "@/lib/validations/booking";
-import type { BookingStatus, DeliveryStatus } from "@/types";
+import { onBookingSubmitted } from "@/lib/notifications/service";
+import type { Booking, BookingStatus, DeliveryStatus } from "@/types";
 
-type BookingRow = ReturnType<typeof buildInsertPayload>;
+type BookingRow = ReturnType<typeof buildInsertPayload> & { id?: string };
 
 const pendingBookings: BookingRow[] = [];
+
+function scheduleBookingNotifications(task: () => Promise<void>) {
+  try {
+    after(async () => {
+      try {
+        await task();
+      } catch (e) {
+        console.error("[bookings API] notification task failed", e);
+      }
+    });
+  } catch {
+    void task().catch((e) =>
+      console.error("[bookings API] notification task failed", e)
+    );
+  }
+}
 
 /** Essential booking columns only — matches simplified form */
 function buildInsertPayload(data: BookingCreateInput) {
@@ -33,6 +50,8 @@ function buildInsertPayload(data: BookingCreateInput) {
     service_type: data.service_type,
     notes: data.notes ?? null,
     status: "pending" as const,
+    notify_whatsapp: data.notify_whatsapp ?? true,
+    notify_email: data.notify_email ?? true,
   };
 }
 
@@ -118,18 +137,53 @@ export async function POST(request: Request) {
   console.info("[bookings API] insert payload", JSON.stringify(row, null, 2));
 
   try {
+    const bookingId = crypto.randomUUID();
     if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
-      const { error } = await supabase.from("bookings").insert(row);
+      const insertFull = { id: bookingId, ...row };
+      let { error } = await supabase.from("bookings").insert(insertFull);
+
+      if (
+        error &&
+        /notify_|column .* does not exist/i.test(getErrorMessage(error))
+      ) {
+        console.warn(
+          "[bookings API] notify columns missing — inserting without them. Run APPLY_NOTIFICATION_PREFERENCES.sql"
+        );
+        const { notify_whatsapp: _w, notify_email: _e, ...core } = row;
+        const retry = await supabase
+          .from("bookings")
+          .insert({ id: bookingId, ...core });
+        error = retry.error;
+      }
 
       if (error) {
         console.error("[bookings API] supabase insert failed", error);
         return NextResponse.json(supabaseErrorPayload(error), { status: 400 });
       }
     } else {
-      pendingBookings.push(row);
+      pendingBookings.push({ ...row, id: bookingId });
       console.info("[bookings API] saved to memory (Supabase not configured)");
     }
+
+    const bookingForNotify: Booking = {
+      id: bookingId,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      date: row.date,
+      time: row.time,
+      service_type: row.service_type as Booking["service_type"],
+      dress_id: null,
+      notes: row.notes,
+      status: "pending",
+      delivery_required: false,
+      delivery_address: null,
+      created_at: new Date().toISOString(),
+      notify_whatsapp: row.notify_whatsapp,
+      notify_email: row.notify_email,
+    };
+    scheduleBookingNotifications(() => onBookingSubmitted(bookingForNotify));
 
     return NextResponse.json(
       {

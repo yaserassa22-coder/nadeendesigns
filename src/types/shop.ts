@@ -178,6 +178,10 @@ export interface ShopOrder {
   shipping_postal_code?: string | null;
   shipping_notes?: string | null;
   shipping_cost?: number | null;
+  /** Customer opted in to WhatsApp updates (default true for legacy rows) */
+  notify_whatsapp?: boolean;
+  /** Customer opted in to email updates (default true for legacy rows) */
+  notify_email?: boolean;
 }
 
 export const VEIL_CATEGORY_OPTIONS = [

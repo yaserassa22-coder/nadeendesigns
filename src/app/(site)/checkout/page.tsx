@@ -10,6 +10,11 @@ import { PersonalizationSummary } from "@/components/dresses/PersonalizationSumm
 import { useCart } from "@/components/shop/CartProvider";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
+import {
+  NotificationPreferences,
+  validateNotificationPreferences,
+  type NotificationPreferenceValue,
+} from "@/components/forms/NotificationPreferences";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import {
@@ -48,6 +53,10 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [shipping, setShipping] = useState<ShippingForm>(emptyShipping);
+  const [notifyPrefs, setNotifyPrefs] = useState<NotificationPreferenceValue>({
+    notify_whatsapp: true,
+    notify_email: true,
+  });
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -118,6 +127,14 @@ export default function CheckoutPage() {
       setError("الاسم ورقم الهاتف مطلوبان");
       return;
     }
+    const notifyError = validateNotificationPreferences(notifyPrefs, {
+      phone,
+      email,
+    });
+    if (notifyError) {
+      setError(notifyError);
+      return;
+    }
     if (needsShipping) {
       if (shipping.full_name.trim().length < 2) {
         setError("اسم المستلم مطلوب للتوصيل");
@@ -149,6 +166,8 @@ export default function CheckoutPage() {
       notes: notes.trim() || null,
       gift_options: giftOptions,
       total: orderTotal,
+      notify_whatsapp: notifyPrefs.notify_whatsapp,
+      notify_email: notifyPrefs.notify_email,
       shipping_required: needsShipping,
       shipping_cost: shippingCost,
       shipping: needsShipping
@@ -375,6 +394,14 @@ export default function CheckoutPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
+
+            <div className="border-t border-beige-dark pt-6">
+              <NotificationPreferences
+                idPrefix="checkout-notify"
+                value={notifyPrefs}
+                onChange={setNotifyPrefs}
+              />
+            </div>
 
             {needsShipping && (
               <div className="space-y-4 border-t border-beige-dark pt-6">
