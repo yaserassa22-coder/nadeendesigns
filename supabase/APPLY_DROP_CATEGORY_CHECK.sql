@@ -1,6 +1,9 @@
 -- =============================================================================
 -- APPLY_DROP_CATEGORY_CHECK.sql
--- Run in Supabase → SQL Editor if APPLY_ALL is not used.
+-- Run in Supabase → SQL Editor if APPLY_ALL is not used, OR immediately if
+-- APPLY_ALL fails with dresses_category_check "violated by some row" (that
+-- error means a STALE script tried to ADD CONSTRAINT — run this DROP-only
+-- file instead, then re-paste the latest APPLY_ALL from the repo).
 -- Same as migrations/025_drop_dresses_category_check.sql
 --
 -- Removes obsolete dresses_category_check (and sibling category CHECKs).

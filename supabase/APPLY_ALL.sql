@@ -3,6 +3,14 @@
 -- Run in Supabase → SQL Editor → New query → paste entire file → Run
 -- Safe to run multiple times (IF NOT EXISTS / ON CONFLICT / REPLACE where used).
 --
+-- ⚠ CRITICAL — dresses_category_check (and veils/bridal_robes category CHECKs):
+--   NEVER re-ADD a hardcoded CHECK (category IN (...)). Categories are dynamic
+--   (categories table + app validation). Re-adding fails with:
+--     check constraint "dresses_category_check" ... is violated by some row
+--   when existing products use free/dynamic slugs. This file only DROPs those
+--   constraints (early + end). If you still see that error, you are running a
+--   STALE paste — re-copy this file from the repo, or run APPLY_DROP_CATEGORY_CHECK.sql.
+--
 -- If checkout only fails with shipping schema mismatch (shipping_cost /
 -- address columns missing while shipping_regions already exists), prefer the
 -- smaller targeted file instead:
@@ -10,6 +18,7 @@
 -- (= M5 APPLY_SHOP_SHIPPING + M9 APPLY_SHIPPING_REGIONS + M10 APPLY_SMART_SHIPPING)
 --
 -- EXECUTION ORDER (documented):
+--   00. Early drop of obsolete category CHECKs (same as 025; before any legacy)
 --   01. migrations/001_add_custom_design_category.sql
 --   02. migrations/002_booking_delivery_and_service_types.sql
 --   03. migrations/003_normalize_dress_styles_ar.sql
@@ -38,7 +47,7 @@
 --   26. Reports schedules: APPLY_REPORTS.sql (= 023) — future-ready; no cron runner
 --   27. Smart appointments: APPLY_SMART_APPOINTMENTS.sql (= 024)
 --   28. Drop obsolete dresses_category_check: APPLY_DROP_CATEGORY_CHECK.sql (= 025)
---       (must run AFTER any legacy block that once re-added the CHECK)
+--       (repeated at end; this file never ADD CONSTRAINT ..._category_check)
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, shop_orders base) must
 -- already exist from the main schema / earlier project setup. This file applies
@@ -51,6 +60,49 @@
 
 
 -- #############################################################################
+-- 00 — Early drop obsolete category CHECKs (idempotent; preserves all rows)
+-- Same logic as migrations/025_drop_dresses_category_check.sql
+-- Run first so later UPDATEs never hit a leftover live-DB CHECK.
+-- #############################################################################
+
+DO $$
+DECLARE
+  r RECORD;
+  t TEXT;
+  tables TEXT[] := ARRAY['dresses', 'veils', 'bridal_robes'];
+BEGIN
+  FOREACH t IN ARRAY tables
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = t
+    ) THEN
+      CONTINUE;
+    END IF;
+
+    EXECUTE format(
+      'ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I',
+      t,
+      t || '_category_check'
+    );
+
+    FOR r IN
+      SELECT c.conname
+      FROM pg_constraint c
+      JOIN pg_class rel ON rel.oid = c.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+      WHERE nsp.nspname = 'public'
+        AND rel.relname = t
+        AND c.contype = 'c'
+        AND pg_get_constraintdef(c.oid) ILIKE '%category%'
+    LOOP
+      EXECUTE format('ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I', t, r.conname);
+    END LOOP;
+  END LOOP;
+END $$;
+
+
+-- #############################################################################
 -- Migration 001 — Custom design category
 -- Source: supabase/migrations/001_add_custom_design_category.sql
 -- #############################################################################
@@ -58,6 +110,7 @@
 -- Add custom_design and keep robes (برنص عروس)
 -- Prefer running 002_booking_delivery_and_service_types.sql for full update
 -- Hardcoded dresses_category_check removed: categories are dynamic (see 016 / 025).
+-- Do NOT ADD CONSTRAINT dresses_category_check here (or anywhere in this file).
 
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
