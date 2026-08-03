@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, Star, X } from "lucide-react";
+import { GripVertical, ImagePlus, Loader2, Star, X } from "lucide-react";
 import { setFeaturedImage } from "@/lib/products/featured-image";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,8 @@ export function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [pasteUrl, setPasteUrl] = useState("");
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -36,11 +38,6 @@ export function ImageUpload({
       for (const file of list) {
         const form = new FormData();
         form.append("file", file);
-        console.info("[ImageUpload] uploading", {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-        });
         const res = await fetch("/api/upload", { method: "POST", body: form });
         let data: { error?: string; url?: string } = {};
         try {
@@ -49,23 +46,16 @@ export function ImageUpload({
           throw new Error("تعذّر قراءة رد خادم الرفع.");
         }
         if (!res.ok) {
-          console.error("[ImageUpload] upload failed", {
-            status: res.status,
-            data,
-          });
           throw new Error(data.error ?? `فشل الرفع (رمز ${res.status})`);
         }
         if (!data.url) {
-          console.error("[ImageUpload] missing url", data);
           throw new Error("تم الرفع لكن لم يُرجع رابط الصورة.");
         }
-        console.info("[ImageUpload] success", data.url);
         urls.push(data.url);
       }
 
       onChange(multiple ? [...value, ...urls] : urls);
     } catch (e) {
-      console.error("[ImageUpload] error", e);
       setError(e instanceof Error ? e.message : "فشل رفع الصورة");
     } finally {
       setUploading(false);
@@ -81,18 +71,50 @@ export function ImageUpload({
     onChange(setFeaturedImage(value, url));
   };
 
+  const reorder = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= value.length || to >= value.length)
+      return;
+    const next = [...value];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next);
+  };
+
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-wrap gap-3">
         {value.map((url, index) => (
           <div
-            key={url}
+            key={`${url}-${index}`}
+            draggable
+            onDragStart={() => setDragFrom(index)}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(index);
+            }}
+            onDragLeave={() => setDragOver((v) => (v === index ? null : v))}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragFrom != null) reorder(dragFrom, index);
+              setDragFrom(null);
+              setDragOver(null);
+            }}
+            onDragEnd={() => {
+              setDragFrom(null);
+              setDragOver(null);
+            }}
             className={cn(
-              "relative h-24 w-24 overflow-hidden rounded-xl border",
-              index === 0 ? "border-gold ring-1 ring-gold/40" : "border-beige-dark"
+              "relative h-24 w-24 cursor-grab overflow-hidden rounded-xl border active:cursor-grabbing",
+              index === 0
+                ? "border-gold ring-1 ring-gold/40"
+                : "border-beige-dark",
+              dragOver === index && "ring-2 ring-gold"
             )}
           >
             <Image src={url} alt="" fill className="object-cover" sizes="96px" />
+            <span className="absolute top-1 start-1 rounded bg-charcoal/50 p-0.5 text-white">
+              <GripVertical className="h-3 w-3" />
+            </span>
             {index === 0 && (
               <span className="absolute bottom-1 start-1 rounded bg-gold px-1.5 py-0.5 text-[10px] font-medium text-white">
                 رئيسية
@@ -112,7 +134,7 @@ export function ImageUpload({
             <button
               type="button"
               onClick={() => remove(url)}
-              className="absolute top-1 left-1 rounded-full bg-charcoal/70 p-1 text-white"
+              className="absolute top-1 end-1 rounded-full bg-charcoal/70 p-1 text-white"
               aria-label="حذف الصورة"
             >
               <X className="h-3 w-3" />
@@ -175,7 +197,6 @@ export function ImageUpload({
             setError("");
             onChange(multiple ? [...value, url] : [url]);
             setPasteUrl("");
-            console.info("[ImageUpload] pasted url", url);
           }}
         >
           إضافة رابط
@@ -183,8 +204,8 @@ export function ImageUpload({
       </div>
 
       <p className="text-xs text-muted">
-        الصورة الأولى هي الصورة الرئيسية (البطاقات والسلة والطلبات). اضغطي النجمة لتعيين صورة أخرى كرئيسية.
-        الرفع عبر Cloudinary (Unsigned Preset).
+        اسحبي الصور لإعادة الترتيب. الصورة الأولى هي الرئيسية. اضغطي النجمة
+        لتعيين صورة أخرى كرئيسية. عدد الصور غير محدود.
       </p>
     </div>
   );

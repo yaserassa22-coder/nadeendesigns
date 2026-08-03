@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
+import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
+import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
 import { Button } from "@/components/ui/Button";
-import { getVeilById } from "@/lib/data/shop-queries";
+import { getVeilById, getVeils } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
-import { formatPrice } from "@/lib/utils";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -16,63 +16,65 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const veil = await getVeilById(id);
   if (!veil) return { title: "غير موجود" };
-  return { title: veil.name_ar, description: veil.description_ar };
+  const og = featuredImage(veil.images);
+  return {
+    title: veil.name_ar,
+    description: veil.description_ar,
+    openGraph: { images: og ? [og] : [] },
+  };
 }
 
 export default async function VeilDetailPage({ params }: Props) {
   const { id } = await params;
   const veil = await getVeilById(id);
   if (!veil) notFound();
-  const hero = featuredImage(veil.images);
+
+  const related = (await getVeils())
+    .filter((v) => v.id !== veil.id && v.is_available)
+    .slice(0, 3)
+    .map((v) => ({
+      id: v.id,
+      name_ar: v.name_ar,
+      price: v.price,
+      images: v.images,
+      href: `/veils/${v.id}`,
+      subtitle: v.category,
+    }));
+
+  const inStock = veil.is_available && veil.stock_quantity > 0;
 
   return (
-    <section className="pt-28 pb-16 md:pt-36 md:pb-24">
-      <div className="mx-auto max-w-7xl px-4 md:px-8">
-        <div className="grid gap-12 lg:grid-cols-2">
-          <div className="relative aspect-[3/4] overflow-hidden rounded-3xl">
-            {hero && (
-              <Image
-                src={hero}
-                alt={veil.name_ar}
-                fill
-                priority
-                className="object-cover"
-              />
-            )}
-          </div>
-          <div>
-            <p className="text-sm text-gold">طرحة العروس · {veil.category}</p>
-            <h1 className="mt-2 text-3xl font-bold text-charcoal md:text-4xl">
-              {veil.name_ar}
-            </h1>
-            <p className="mt-4 text-3xl text-gold" dir="ltr">
-              {formatPrice(veil.price)}
-            </p>
-            <p className="mt-6 leading-relaxed text-muted">
-              {veil.description_ar}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3 text-sm">
-              {veil.color && (
-                <span className="rounded-full bg-beige px-4 py-2">{veil.color}</span>
-              )}
-              {veil.material && (
-                <span className="rounded-full bg-beige px-4 py-2">
-                  {veil.material}
-                </span>
-              )}
-              <span className="rounded-full bg-beige px-4 py-2">
-                المخزون: {veil.stock_quantity}
-              </span>
-            </div>
-            <div className="mt-8">
-              <Link href="/veils">
-                <Button variant="outline">العودة للطرحات</Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {veil.is_available && veil.stock_quantity > 0 ? (
+    <ProductDetailLayout
+      images={veil.images}
+      name={veil.name_ar}
+      categoryLabel={`طرحة العروس · ${veil.category}`}
+      price={veil.price}
+      description={veil.description_ar}
+      available={inStock}
+      meta={
+        <>
+          {veil.color && (
+            <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              {veil.color}
+            </span>
+          )}
+          {veil.material && (
+            <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              {veil.material}
+            </span>
+          )}
+          <span className="rounded-full bg-beige px-4 py-2 text-sm">
+            المخزون: {veil.stock_quantity}
+          </span>
+        </>
+      }
+      actions={
+        <Link href="/veils">
+          <Button variant="outline">العودة للطرحات</Button>
+        </Link>
+      }
+      below={
+        inStock ? (
           <ShopCustomizeAndBuy
             productType="veil"
             productId={veil.id}
@@ -80,12 +82,9 @@ export default async function VeilDetailPage({ params }: Props) {
             price={veil.price}
             image={featuredImage(veil.images)}
           />
-        ) : (
-          <p className="mt-10 rounded-xl bg-red-50 p-4 text-sm text-red-600">
-            هذا المنتج غير متوفر حاليًا
-          </p>
-        )}
-      </div>
-    </section>
+        ) : null
+      }
+      related={<RelatedShopProducts items={related} />}
+    />
   );
 }

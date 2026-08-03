@@ -24,7 +24,7 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-30px" }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="group overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-xl"
+      className="group overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
     >
       <div className="relative">
         <ProductCardImageCarousel
@@ -32,6 +32,7 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
           alt={dress.name_ar}
           href={href}
           roundedClassName="rounded-none"
+          priority={index < 3}
         />
         {dress.is_featured && (
           <span className="pointer-events-none absolute top-4 right-4 z-20 rounded-full bg-gold px-3 py-1 text-xs font-medium text-white">

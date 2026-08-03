@@ -103,22 +103,26 @@ export function ShopCatalog({
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="group"
+                className="group overflow-hidden rounded-2xl bg-white p-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
               >
                 <ProductCardImageCarousel
                   images={item.images}
                   alt={item.name_ar}
                   href={href}
-                  roundedClassName="rounded-3xl"
+                  roundedClassName="rounded-none"
+                  priority={i < 3}
                 />
-                <Link href={href} className="mt-4 block">
-                  <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
+                <Link href={href} className="block p-5">
+                  <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
                     {item.name_ar}
                   </h3>
                   <p className="mt-1 text-sm text-muted">
                     {item.color || item.material || ""}
                   </p>
-                  <p className="mt-2 text-xl text-gold" dir="ltr">
+                  <p
+                    className="mt-3 font-[family-name:var(--font-cormorant)] text-xl text-gold"
+                    dir="ltr"
+                  >
                     {formatPrice(item.price)}
                   </p>
                 </Link>

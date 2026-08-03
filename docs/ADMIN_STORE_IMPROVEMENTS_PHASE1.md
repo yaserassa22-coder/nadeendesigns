@@ -86,11 +86,13 @@
 - Keep email; WhatsApp via Twilio when configured
 - SQL: `APPLY_CUSTOMER_NOTIFICATIONS.sql`
 
-### M7 — Unlimited images, descriptions, PDP gallery polish
-- Unlimited images (JSONB if sufficient)
-- Multiline descriptions with exact whitespace rendering
-- PDP gallery polish (card carousels delivered in M3)
-- Keep card carousel behavior performant across surfaces
+### M7 — Premium product experience ✅
+- Multiline descriptions with `whitespace-pre-wrap` (admin + storefront AR/EN)
+- Shared PDP: `ProductGallery` (swipe/arrows/thumbs), `ProductDescription`, `ProductDetailLayout`
+- Dress / veil / robe PDPs consolidated; accessories parity + related products
+- Admin ImageUpload: unlimited images, drag-reorder, featured = images[0]
+- Card polish + existing card carousels
+- No DB schema change (JSONB images + text columns already unlimited)
 
 ### M8 — Cards/admin polish + final QA
 - Visual polish; run full acceptance checklist

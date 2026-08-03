@@ -19,6 +19,8 @@ interface ProductCardImageCarouselProps {
   className?: string;
   sizes?: string;
   roundedClassName?: string;
+  /** Prefer for above-the-fold cards only (first visible row). */
+  priority?: boolean;
 }
 
 /**
@@ -32,6 +34,7 @@ export function ProductCardImageCarousel({
   className,
   sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw",
   roundedClassName = "rounded-2xl",
+  priority = false,
 }: ProductCardImageCarouselProps) {
   const slides = (images ?? []).filter(Boolean);
   const imageKey = slides.join("|");
@@ -129,9 +132,13 @@ export function ProductCardImageCarousel({
         draggable={false}
       >
         <Image
+          key={current}
           src={current}
           alt={alt}
           fill
+          quality={85}
+          priority={priority && safeIndex === 0}
+          loading={priority && safeIndex === 0 ? "eager" : "lazy"}
           className="object-cover transition-opacity duration-300"
           sizes={sizes}
           draggable={false}

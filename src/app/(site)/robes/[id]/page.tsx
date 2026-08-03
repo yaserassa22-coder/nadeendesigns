@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
+import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
+import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
 import { Button } from "@/components/ui/Button";
-import { getBridalRobeById } from "@/lib/data/shop-queries";
+import { getBridalRobeById, getBridalRobes } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
-import { formatPrice } from "@/lib/utils";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -16,66 +16,70 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const robe = await getBridalRobeById(id);
   if (!robe) return { title: "غير موجود" };
-  return { title: robe.name_ar, description: robe.description_ar };
+  const og = featuredImage(robe.images);
+  return {
+    title: robe.name_ar,
+    description: robe.description_ar,
+    openGraph: { images: og ? [og] : [] },
+  };
 }
 
 export default async function RobeDetailPage({ params }: Props) {
   const { id } = await params;
   const robe = await getBridalRobeById(id);
   if (!robe) notFound();
-  const hero = featuredImage(robe.images);
+
+  const related = (await getBridalRobes())
+    .filter((r) => r.id !== robe.id && r.is_available)
+    .slice(0, 3)
+    .map((r) => ({
+      id: r.id,
+      name_ar: r.name_ar,
+      price: r.price,
+      images: r.images,
+      href: `/robes/${r.id}`,
+      subtitle: r.size || r.color || undefined,
+    }));
+
+  const inStock = robe.is_available && robe.stock_quantity > 0;
 
   return (
-    <section className="pt-28 pb-16 md:pt-36 md:pb-24">
-      <div className="mx-auto max-w-7xl px-4 md:px-8">
-        <div className="grid gap-12 lg:grid-cols-2">
-          <div className="relative aspect-[3/4] overflow-hidden rounded-3xl">
-            {hero && (
-              <Image
-                src={hero}
-                alt={robe.name_ar}
-                fill
-                priority
-                className="object-cover"
-              />
-            )}
-          </div>
-          <div>
-            <p className="text-sm text-gold">برنص العروس</p>
-            <h1 className="mt-2 text-3xl font-bold text-charcoal md:text-4xl">
-              {robe.name_ar}
-            </h1>
-            <p className="mt-4 text-3xl text-gold" dir="ltr">
-              {formatPrice(robe.price)}
-            </p>
-            <p className="mt-6 leading-relaxed text-muted">
-              {robe.description_ar}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3 text-sm">
-              {robe.color && (
-                <span className="rounded-full bg-beige px-4 py-2">{robe.color}</span>
-              )}
-              {robe.size && (
-                <span className="rounded-full bg-beige px-4 py-2">{robe.size}</span>
-              )}
-              {robe.material && (
-                <span className="rounded-full bg-beige px-4 py-2">
-                  {robe.material}
-                </span>
-              )}
-              <span className="rounded-full bg-beige px-4 py-2">
-                المخزون: {robe.stock_quantity}
-              </span>
-            </div>
-            <div className="mt-8">
-              <Link href="/robes">
-                <Button variant="outline">العودة لبرنص العروس</Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {robe.is_available && robe.stock_quantity > 0 ? (
+    <ProductDetailLayout
+      images={robe.images}
+      name={robe.name_ar}
+      categoryLabel="برنص العروس"
+      price={robe.price}
+      description={robe.description_ar}
+      available={inStock}
+      meta={
+        <>
+          {robe.color && (
+            <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              {robe.color}
+            </span>
+          )}
+          {robe.size && (
+            <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              {robe.size}
+            </span>
+          )}
+          {robe.material && (
+            <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              {robe.material}
+            </span>
+          )}
+          <span className="rounded-full bg-beige px-4 py-2 text-sm">
+            المخزون: {robe.stock_quantity}
+          </span>
+        </>
+      }
+      actions={
+        <Link href="/robes">
+          <Button variant="outline">العودة لبرنص العروس</Button>
+        </Link>
+      }
+      below={
+        inStock ? (
           <ShopCustomizeAndBuy
             productType="bridal_robe"
             productId={robe.id}
@@ -83,12 +87,9 @@ export default async function RobeDetailPage({ params }: Props) {
             price={robe.price}
             image={featuredImage(robe.images)}
           />
-        ) : (
-          <p className="mt-10 rounded-xl bg-red-50 p-4 text-sm text-red-600">
-            هذا المنتج غير متوفر حاليًا
-          </p>
-        )}
-      </div>
-    </section>
+        ) : null
+      }
+      related={<RelatedShopProducts items={related} />}
+    />
   );
 }

@@ -361,12 +361,17 @@ export function ShopProductsManager({
               <div className="sm:col-span-2">
                 <Textarea
                   label="الوصف"
-                  rows={3}
+                  rows={8}
                   value={form.description_ar}
                   onChange={(e) =>
                     setForm({ ...form, description_ar: e.target.value })
                   }
+                  placeholder="وصف المنتج… Enter لسطر جديد (عربي / English)"
+                  className="whitespace-pre-wrap font-normal"
                 />
+                <p className="mt-1 text-xs text-muted">
+                  يُحفظ التنسيق (الأسطر الجديدة) ويظهر كما هو في صفحة المنتج.
+                </p>
               </div>
               <Input
                 label="السعر (₪) *"
