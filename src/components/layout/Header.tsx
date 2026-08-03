@@ -166,7 +166,8 @@ export function Header({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-[60] bg-ivory lg:hidden"
+          className="fixed inset-0 z-[60] bg-[#faf8f5] lg:hidden"
+          style={{ backgroundColor: "#faf8f5" }}
         >
           <div className="flex items-center justify-between px-4 py-5">
             <span className="font-[family-name:var(--font-cormorant)] text-2xl tracking-widest text-gold">

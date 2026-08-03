@@ -66,7 +66,7 @@
 - **Product card carousels** (pulled forward from M7): swipe on mobile, arrows on desktop, dots, hide chrome if single image — homepage, category/shop/search, related
 - Keep existing public routes (`/wedding-dresses`, `/veils`, `/robes`, `/dresses/[id]`, …) for SEO
 
-### M4 — Hero typography + opaque mobile menu
+### M4 — Hero typography + opaque mobile menu ✅
 - Hero: “تفاصيل تصنع الفرق” typography polish
 - Mobile menu: fully opaque background
 

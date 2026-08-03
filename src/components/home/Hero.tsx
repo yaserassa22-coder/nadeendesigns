@@ -45,7 +45,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
-            className="font-[family-name:var(--font-cormorant)] text-2xl font-semibold tracking-[0.18em] text-gold md:text-3xl"
+            className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold tracking-[0.22em] text-gold md:text-4xl lg:text-[2.75rem]"
           >
             {SITE_NAME}
           </motion.p>
@@ -54,23 +54,30 @@ export function Hero() {
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.8, delay: 0.55 }}
-            className="mt-4 h-px w-20 origin-right bg-gold"
+            className="mt-5 h-px w-24 origin-right bg-gold md:w-28"
           />
 
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, delay: 0.5 }}
-            className="mt-6 text-4xl font-bold leading-[1.2] text-charcoal md:text-5xl lg:text-6xl xl:text-7xl"
+            className="mt-7 max-w-xl text-[2rem] font-medium leading-[1.45] tracking-[0.04em] text-charcoal md:text-[2.75rem] md:leading-[1.4] lg:text-[3.25rem]"
           >
-            تفاصيل تصنع الفرق
+            <span className="relative inline-block">
+              تفاصيل
+              <span
+                aria-hidden
+                className="absolute -bottom-1 start-0 h-[2px] w-full bg-gold/70"
+              />
+            </span>{" "}
+            تصنع الفرق
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, delay: 0.65 }}
-            className="mt-6 max-w-xl text-base leading-relaxed text-charcoal/80 md:text-lg lg:text-xl"
+            className="mt-7 max-w-lg text-base leading-relaxed text-charcoal/75 md:text-lg"
           >
             فساتين زفاف فاخرة، تصاميم حصرية، وخدمة راقية لتكوني الأجمل في يومك
             المميز.
