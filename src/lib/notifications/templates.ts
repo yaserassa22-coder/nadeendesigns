@@ -3,7 +3,7 @@ import {
   OFFICIAL_INSTAGRAM_URL,
   SITE_NAME,
 } from "@/lib/constants";
-import { formatPrice } from "@/lib/utils";
+import { formatDateWestern, formatPrice } from "@/lib/utils";
 import { getSiteUrl } from "@/lib/notifications/config";
 import {
   DEFAULT_WHATSAPP_BY_STATUS,
@@ -539,7 +539,7 @@ export function bookingSubmittedEmail(
       استلمنا طلب حجزكِ بنجاح وسنتواصل معكِ قريبًا لتأكيد الموعد.
     </p>
     <p style="margin:0;line-height:1.85;color:#5c5348;">
-      <strong>التاريخ:</strong> ${escapeHtml(booking.date)}<br/>
+      <strong>التاريخ:</strong> ${escapeHtml(formatDateWestern(booking.date))}<br/>
       <strong>الوقت:</strong> ${escapeHtml(booking.time.slice(0, 5))}<br/>
       <strong>الخدمة:</strong> ${escapeHtml(booking.service_type)}
     </p>
@@ -564,7 +564,7 @@ export function bookingSubmittedWhatsApp(
     ``,
     `مرحباً ${booking.name}،`,
     `استلمنا طلب حجزكِ بنجاح.`,
-    `📅 ${booking.date} — ⏰ ${booking.time.slice(0, 5)}`,
+    `📅 ${formatDateWestern(booking.date)} — ⏰ ${booking.time.slice(0, 5)}`,
     `الخدمة: ${booking.service_type}`,
     ``,
     `سنتواصل معكِ قريبًا لتأكيد الموعد.`,

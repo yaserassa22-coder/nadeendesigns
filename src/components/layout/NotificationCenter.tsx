@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { CustomerNotification } from "@/lib/notifications/in-app";
 
 const LAST_ORDER_KEY = "nadeen_last_order";
@@ -156,6 +156,11 @@ export function NotificationCenter({ className }: { className?: string }) {
                     <p className="mt-1 text-xs leading-relaxed text-muted">
                       {n.body_ar}
                     </p>
+                    {n.created_at && (
+                      <p className="mt-1 text-[11px] text-muted/80">
+                        {formatDate(n.created_at)}
+                      </p>
+                    )}
                   </Link>
                 ))
               )}
