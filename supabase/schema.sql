@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS veils (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Bridal robes (برنص عروس)
+-- Bridal robes (برنس العروس)
 CREATE TABLE IF NOT EXISTS bridal_robes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name_ar TEXT NOT NULL,
@@ -51,6 +51,24 @@ CREATE TABLE IF NOT EXISTS bridal_robes (
   is_available BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Dynamic categories (shop sections + hierarchy)
+CREATE TABLE IF NOT EXISTS categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_ar TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  parent_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_visible BOOLEAN NOT NULL DEFAULT true,
+  icon_url TEXT,
+  cover_image_url TEXT,
+  description_ar TEXT NOT NULL DEFAULT '',
+  href TEXT,
+  legacy_key TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT categories_no_self_parent CHECK (parent_id IS NULL OR parent_id <> id)
 );
 
 -- Shop orders
@@ -177,6 +195,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE dresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE veils ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bridal_robes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shop_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gallery_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
@@ -188,6 +207,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read dresses" ON dresses FOR SELECT USING (true);
 CREATE POLICY "Public read veils" ON veils FOR SELECT USING (true);
 CREATE POLICY "Public read bridal_robes" ON bridal_robes FOR SELECT USING (true);
+CREATE POLICY "Public read categories" ON categories FOR SELECT USING (true);
 CREATE POLICY "Public read gallery" ON gallery_items FOR SELECT USING (true);
 CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 
@@ -204,6 +224,9 @@ CREATE POLICY "Admin all veils" ON veils FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
 CREATE POLICY "Admin all bridal_robes" ON bridal_robes FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Admin all categories" ON categories FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
 CREATE POLICY "Admin all shop_orders" ON shop_orders FOR ALL USING (
@@ -226,6 +249,8 @@ CREATE POLICY "Admin read profiles" ON profiles FOR SELECT USING (auth.uid() = i
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_dresses_category ON dresses(category);
 CREATE INDEX IF NOT EXISTS idx_dresses_featured ON dresses(is_featured);
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_categories_sort ON categories(sort_order);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_delivery ON bookings(delivery_required);
 CREATE INDEX IF NOT EXISTS idx_gallery_sort ON gallery_items(sort_order);

@@ -14,6 +14,13 @@ export type {
   ShopOrderStatus,
 } from "@/types/shop";
 
+export type { Category, CategoryTreeNode } from "@/types/category";
+export {
+  SEED_CATEGORIES,
+  buildCategoryTree,
+  slugifyCategory,
+} from "@/types/category";
+
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 
 /** Booking service types (product-focused) */
