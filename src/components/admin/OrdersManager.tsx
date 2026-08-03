@@ -23,6 +23,7 @@ import {
 } from "@/types/shop";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
+import { isDeliveryOrderForSlip } from "@/lib/shop/order-query";
 import { Select, Textarea, Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
@@ -108,14 +109,25 @@ export function OrdersManager({
   }, [orders]);
 
   const filtered = useMemo(() => {
+    // Default "all" must include pickup, delivery, unknown region, and pending fee.
     return orders.filter((o) => {
       if (filter !== "all" && normalizeStatus(o.status) !== filter) return false;
       if (methodFilter !== "all") {
         const m = o.delivery_method;
-        if (methodFilter === "pickup" && m !== "pickup") return false;
-        if (methodFilter === "delivery") {
+        if (methodFilter === "pickup") {
+          if (m !== "pickup") return false;
+        } else if (methodFilter === "delivery") {
+          // Include explicit delivery, legacy shipping_required, and unknown/pending fee.
           if (m === "pickup") return false;
-          if (m !== "delivery" && !o.shipping_required) return false;
+          if (
+            m !== "delivery" &&
+            !o.shipping_required &&
+            !o.shipping_fee_pending &&
+            !o.shipping_address &&
+            !o.shipping_region_custom
+          ) {
+            return false;
+          }
         }
       }
       if (regionFilter !== "all") {
@@ -510,7 +522,7 @@ export function OrdersManager({
                                 <MessageSquare className="h-3.5 w-3.5" />
                                 إرسال رسالة
                               </button>
-                              {order.shipping_required ? (
+                              {isDeliveryOrderForSlip(order) ? (
                                 <a
                                   href={`/admin/orders/${order.id}/shipping-slip`}
                                   target="_blank"
@@ -518,7 +530,7 @@ export function OrdersManager({
                                   className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-white px-3 py-1.5 text-xs font-medium text-charcoal hover:bg-gold/10"
                                 >
                                   <Printer className="h-3.5 w-3.5" />
-                                  طباعة بيانات الشحن
+                                  🖨 طباعة بيانات الشحن
                                 </a>
                               ) : null}
                             </div>

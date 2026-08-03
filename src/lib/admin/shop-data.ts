@@ -1,4 +1,5 @@
 import { SEED_BRIDAL_ROBES, SEED_VEILS } from "@/lib/data/shop-seed";
+import { selectShopOrdersList } from "@/lib/shop/order-query";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
@@ -37,6 +38,7 @@ export type AdminOrdersResult = {
  * Fetch all shop_orders (veils / robes / any accessory checkout).
  * Uses privileged client (service role OR authenticated admin session)
  * so RLS does not silently return [] — same pattern as getAdminBookings.
+ * Progressive column fallback: missing M9/M10 columns must never empty the list.
  */
 export async function getAdminOrders(): Promise<AdminOrdersResult> {
   if (!isSupabaseConfigured()) {
@@ -45,10 +47,7 @@ export async function getAdminOrders(): Promise<AdminOrdersResult> {
 
   try {
     const supabase = await createPrivilegedClient();
-    const { data, error, count } = await supabase
-      .from("shop_orders")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false });
+    const { data, error, count } = await selectShopOrdersList(supabase);
 
     if (error) {
       console.error("[getAdminOrders] supabase error", error);
@@ -59,7 +58,7 @@ export async function getAdminOrders(): Promise<AdminOrdersResult> {
       };
     }
 
-    const orders = (data ?? []) as ShopOrder[];
+    const orders = data ?? [];
     return {
       orders,
       error: null,

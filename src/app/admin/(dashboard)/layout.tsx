@@ -16,10 +16,12 @@ export default async function AdminDashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <AdminSidebar />
-      <div className="lg:pr-64">
-        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
+    <div className="min-h-screen bg-ivory print:bg-white">
+      <div className="print:hidden">
+        <AdminSidebar />
+      </div>
+      <div className="lg:pr-64 print:pr-0">
+        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10 print:max-w-none print:p-0">
           {children}
         </div>
       </div>

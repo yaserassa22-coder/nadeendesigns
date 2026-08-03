@@ -20,6 +20,10 @@ import {
   findRegionByName,
   resolveShippingCost,
 } from "@/lib/shop/shipping";
+import {
+  isOrderSchemaError,
+  selectShopOrdersList,
+} from "@/lib/shop/order-query";
 import { normalizeSiteSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
@@ -136,10 +140,7 @@ export async function GET() {
 
   try {
     const supabase = await createPrivilegedClient();
-    const { data, error } = await supabase
-      .from("shop_orders")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error } = await selectShopOrdersList(supabase);
     if (error) {
       const mapped = mapOrderError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
@@ -387,7 +388,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient();
-    const insertFull = {
+    const core = {
       id: row.id,
       name: row.name,
       phone: row.phone,
@@ -397,23 +398,32 @@ export async function POST(request: Request) {
       gift_options: row.gift_options,
       total: row.total,
       status: row.status,
+    };
+    const withShippingLegacy = {
+      ...core,
       shipping_required: row.shipping_required,
-      delivery_method: row.delivery_method,
       shipping_full_name: row.shipping_full_name,
       shipping_phone: row.shipping_phone,
       shipping_city: row.shipping_city,
       shipping_region: row.shipping_region,
-      shipping_region_id: row.shipping_region_id,
-      shipping_region_name_ar: row.shipping_region_name_ar,
-      shipping_region_custom: row.shipping_region_custom,
-      region_configured: row.region_configured,
-      shipping_fee_pending: row.shipping_fee_pending,
       shipping_address: row.shipping_address,
-      shipping_building_number: row.shipping_building_number,
-      shipping_neighborhood: row.shipping_neighborhood,
       shipping_postal_code: row.shipping_postal_code,
       shipping_notes: row.shipping_notes,
       shipping_cost: row.shipping_cost,
+    };
+    const withShippingM9 = {
+      ...withShippingLegacy,
+      delivery_method: row.delivery_method,
+      shipping_region_id: row.shipping_region_id,
+      shipping_region_name_ar: row.shipping_region_name_ar,
+      shipping_building_number: row.shipping_building_number,
+      shipping_neighborhood: row.shipping_neighborhood,
+    };
+    const insertFull = {
+      ...withShippingM9,
+      shipping_region_custom: row.shipping_region_custom,
+      region_configured: row.region_configured,
+      shipping_fee_pending: row.shipping_fee_pending,
       tracking_number: row.tracking_number,
       tracking_url: row.tracking_url,
       internal_shipping_notes: row.internal_shipping_notes,
@@ -422,61 +432,42 @@ export async function POST(request: Request) {
       notify_email: row.notify_email ?? true,
     };
 
-    let { error } = await supabase.from("shop_orders").insert(insertFull);
-
-    // Migration not applied yet — fall back without newer columns
-    if (
-      error &&
-      /shipping_|delivery_method|notify_|region_configured|tracking_|carrier_code|column .* does not exist/i.test(
-        getErrorMessage(error)
-      )
-    ) {
-      console.warn(
-        "[orders API] optional columns missing — inserting core fields. Run APPLY_SMART_SHIPPING.sql / APPLY_SHIPPING_REGIONS.sql"
-      );
-      const core = {
-        id: row.id,
-        name: row.name,
-        phone: row.phone,
-        email: row.email,
-        notes: row.notes,
-        items: row.items,
-        gift_options: row.gift_options,
-        total: row.total,
-        status: row.status,
-      };
-      const withShipping = {
-        ...core,
-        shipping_required: row.shipping_required,
-        shipping_full_name: row.shipping_full_name,
-        shipping_phone: row.shipping_phone,
-        shipping_city: row.shipping_city,
-        shipping_region: row.shipping_region,
-        shipping_address: row.shipping_address,
-        shipping_postal_code: row.shipping_postal_code,
-        shipping_notes: row.shipping_notes,
-        shipping_cost: row.shipping_cost,
-      };
-      let retry = await supabase.from("shop_orders").insert({
-        ...withShipping,
+    // Progressive insert: never lose an order when optional shipping columns are absent.
+    const insertAttempts = [
+      insertFull,
+      {
+        ...withShippingM9,
         notify_whatsapp: row.notify_whatsapp ?? true,
         notify_email: row.notify_email ?? true,
-      });
-      if (
-        retry.error &&
-        /notify_|delivery_method|shipping_region_id|building|neighborhood|column .* does not exist/i.test(
-          getErrorMessage(retry.error)
-        )
-      ) {
-        retry = await supabase.from("shop_orders").insert(withShipping);
-      }
-      if (
-        retry.error &&
-        /shipping_|column .* does not exist/i.test(getErrorMessage(retry.error))
-      ) {
-        retry = await supabase.from("shop_orders").insert(core);
-      }
-      error = retry.error;
+      },
+      withShippingM9,
+      {
+        ...withShippingLegacy,
+        notify_whatsapp: row.notify_whatsapp ?? true,
+        notify_email: row.notify_email ?? true,
+      },
+      withShippingLegacy,
+      {
+        ...core,
+        notify_whatsapp: row.notify_whatsapp ?? true,
+        notify_email: row.notify_email ?? true,
+      },
+      core,
+    ];
+
+    let error: { message?: string; code?: string } | null = null;
+    for (let i = 0; i < insertAttempts.length; i++) {
+      const payload = insertAttempts[i];
+      const result = await supabase.from("shop_orders").insert(payload);
+      error = result.error;
+      if (!error) break;
+      const canRetry =
+        i < insertAttempts.length - 1 && isOrderSchemaError(error);
+      if (!canRetry) break;
+      console.warn(
+        `[orders API] insert attempt ${i + 1}/${insertAttempts.length} failed — retrying without newer columns. Run APPLY_SMART_SHIPPING.sql / APPLY_SHIPPING_REGIONS.sql / APPLY_SHOP_SHIPPING.sql`,
+        getErrorMessage(error)
+      );
     }
 
     if (error) {

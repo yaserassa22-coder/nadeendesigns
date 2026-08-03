@@ -2,11 +2,19 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getErrorMessage,
-  isMissingColumnError,
   isMissingTableError,
   missingShopSchemaMessage,
 } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  ORDER_SELECT_CORE,
+  ORDER_SELECT_FULL,
+  ORDER_SELECT_FULL_LEGACY,
+  ORDER_SELECT_FULL_M9,
+  ORDER_SELECT_WITH_SHIPPING_LEGACY,
+  isOrderSchemaError,
+  normalizeShopOrderRow,
+} from "@/lib/shop/order-query";
 import type { ShopOrder } from "@/types/shop";
 
 /** In-memory fallback shared with main orders route via process (dev only). */
@@ -19,95 +27,35 @@ function memoryOrders(): ShopOrder[] {
   return globalThis.__nadeenMemoryOrders;
 }
 
-/** Core columns that exist on the original shop_orders table. */
-const ORDER_SELECT_CORE =
-  "id, name, phone, email, notes, items, gift_options, total, status, created_at";
-
-/** Shipping columns from APPLY_SHOP_SHIPPING.sql + M9/M10 delivery fields */
-const ORDER_SELECT_SHIPPING =
-  "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost, delivery_method, shipping_region_id, shipping_region_name_ar, shipping_building_number, shipping_neighborhood, shipping_region_custom, region_configured, shipping_fee_pending, tracking_number, tracking_url, internal_shipping_notes, carrier_code";
-
-/** M9 columns without M10 smart-shipping fields */
-const ORDER_SELECT_SHIPPING_M9 =
-  "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost, delivery_method, shipping_region_id, shipping_region_name_ar, shipping_building_number, shipping_neighborhood";
-
-/** Notification prefs from APPLY_NOTIFICATION_PREFERENCES.sql */
-const ORDER_SELECT_NOTIFY = "notify_whatsapp, notify_email";
-
-const ORDER_SELECT_FULL = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING}, ${ORDER_SELECT_NOTIFY}`;
-const ORDER_SELECT_FULL_M9 = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_M9}, ${ORDER_SELECT_NOTIFY}`;
-const ORDER_SELECT_SHIPPING_LEGACY =
-  "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost";
-const ORDER_SELECT_WITH_SHIPPING_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}`;
-const ORDER_SELECT_FULL_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}, ${ORDER_SELECT_NOTIFY}`;
-
 async function fetchOrderById(id: string) {
   const supabase = createAdminClient();
 
+  const attempts = [
+    ORDER_SELECT_FULL,
+    ORDER_SELECT_FULL_M9,
+    ORDER_SELECT_FULL_LEGACY,
+    ORDER_SELECT_WITH_SHIPPING_LEGACY,
+    ORDER_SELECT_CORE,
+  ] as const;
+
   let result = await supabase
     .from("shop_orders")
-    .select(ORDER_SELECT_FULL)
+    .select(attempts[0] as "*")
     .eq("id", id)
     .maybeSingle();
 
-  // Schema / PostgREST cache may lack newer columns — degrade gracefully.
-  if (
-    result.error &&
-    (isMissingColumnError(result.error) ||
-      /notify_|shipping_|delivery_method|tracking_|region_configured|carrier_code|column .* does not exist|Could not find the .*column/i.test(
-        getErrorMessage(result.error)
-      ))
-  ) {
-    console.warn(
-      "[orders/:id] optional columns missing on select — retrying. Run APPLY_SMART_SHIPPING.sql"
-    );
+  for (let i = 1; i < attempts.length; i++) {
+    if (!result.error || !isOrderSchemaError(result.error)) break;
+    if (i === 1) {
+      console.warn(
+        "[orders/:id] optional columns missing on select — retrying. Run APPLY_SMART_SHIPPING.sql"
+      );
+    }
     result = await supabase
       .from("shop_orders")
-      .select(ORDER_SELECT_FULL_M9)
+      .select(attempts[i] as "*")
       .eq("id", id)
       .maybeSingle();
-
-    if (
-      result.error &&
-      (isMissingColumnError(result.error) ||
-        /notify_|shipping_|delivery_method|column .* does not exist|Could not find the .*column/i.test(
-          getErrorMessage(result.error)
-        ))
-    ) {
-      result = await supabase
-        .from("shop_orders")
-        .select(ORDER_SELECT_FULL_LEGACY)
-        .eq("id", id)
-        .maybeSingle();
-
-      if (
-        result.error &&
-        (isMissingColumnError(result.error) ||
-          /notify_|shipping_|column .* does not exist|Could not find the .*column/i.test(
-            getErrorMessage(result.error)
-          ))
-      ) {
-        result = await supabase
-          .from("shop_orders")
-          .select(ORDER_SELECT_WITH_SHIPPING_LEGACY)
-          .eq("id", id)
-          .maybeSingle();
-
-        if (
-          result.error &&
-          (isMissingColumnError(result.error) ||
-            /shipping_|column .* does not exist|Could not find the .*column/i.test(
-              getErrorMessage(result.error)
-            ))
-        ) {
-          result = await supabase
-            .from("shop_orders")
-            .select(ORDER_SELECT_CORE)
-            .eq("id", id)
-            .maybeSingle();
-        }
-      }
-    }
   }
 
   return result;
@@ -165,7 +113,9 @@ export async function GET(
       return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
     }
 
-    return NextResponse.json(data as ShopOrder);
+    return NextResponse.json(
+      normalizeShopOrderRow(data as Record<string, unknown>)
+    );
   } catch (e) {
     const cached = fromMemory();
     if (cached) return NextResponse.json(cached);

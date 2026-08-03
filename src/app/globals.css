@@ -138,8 +138,12 @@ select:focus {
 
 @media print {
   aside,
+  nav,
   .print\:hidden {
     display: none !important;
+  }
+  body {
+    background: white !important;
   }
   .shipping-slip {
     box-shadow: none !important;

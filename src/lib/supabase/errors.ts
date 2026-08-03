@@ -36,13 +36,12 @@ export function missingShopSchemaMessage(): string {
 export function isMissingColumnError(error: unknown, column?: string): boolean {
   const code = getErrorCode(error);
   const raw = getErrorMessage(error);
-  if (code === "42703" || /column .* does not exist/i.test(raw)) {
-    if (!column) return true;
-    return new RegExp(column, "i").test(raw);
-  }
-  // PostgREST schema cache
-  if (column && new RegExp(`Could not find the .*column.*${column}`, "i").test(raw)) {
-    return true;
-  }
-  return false;
+  const missing =
+    code === "42703" ||
+    code === "PGRST204" ||
+    /column .* does not exist/i.test(raw) ||
+    /Could not find the .*column/i.test(raw);
+  if (!missing) return false;
+  if (!column) return true;
+  return new RegExp(column, "i").test(raw);
 }
