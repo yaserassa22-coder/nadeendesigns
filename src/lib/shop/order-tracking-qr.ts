@@ -53,7 +53,8 @@ export type OrderTrackingQrSource = {
 };
 
 const QR_API = "https://api.qrserver.com/v1/create-qr-code/";
-const DEFAULT_QR_SIZE = 300;
+/** Print-ready QR edge length (px) for shipping slips. */
+const DEFAULT_QR_SIZE = 320;
 
 /** Public site origin from NEXT_PUBLIC_SITE_URL only — no localhost fallback. */
 export function getPublicSiteUrl(): string | null {
@@ -154,7 +155,7 @@ export function resolveShippingQrPayload(
 }
 
 /**
- * High-contrast print-friendly QR image URL (≥300×300).
+ * High-contrast print-friendly QR image URL (≥320×320, ECC H).
  * Returns null when data would be empty (never generate an empty QR).
  */
 export function buildShippingQrImageUrl(
@@ -167,7 +168,7 @@ export function buildShippingQrImageUrl(
   const size = Math.max(options?.size ?? DEFAULT_QR_SIZE, DEFAULT_QR_SIZE);
   const params = new URLSearchParams({
     size: `${size}x${size}`,
-    ecc: "M",
+    ecc: "H",
     margin: "8",
     color: "000000",
     bgcolor: "FFFFFF",

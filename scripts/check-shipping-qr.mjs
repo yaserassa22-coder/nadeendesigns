@@ -83,10 +83,10 @@ function resolveShippingQrPayload(order, env = process.env) {
 function buildShippingQrImageUrl(data, options = {}) {
   const payload = data?.trim();
   if (!payload) return null;
-  const size = Math.max(options.size ?? 300, 300);
+  const size = Math.max(options.size ?? 320, 320);
   const params = new URLSearchParams({
     size: `${size}x${size}`,
-    ecc: "M",
+    ecc: "H",
     margin: "8",
     color: "000000",
     bgcolor: "FFFFFF",
@@ -128,8 +128,9 @@ const sampleOrder = {
   assert(payload.kind === "tracking_url", "kind should be tracking_url");
   assert(payload.data === url, "QR data should be tracking URL");
   assert(!payload.siteUrlMissing, "siteUrlMissing should be false");
-  const img = buildShippingQrImageUrl(payload.data, { size: 300 });
-  assert(img && img.includes("300x300"), "QR image must be ≥300×300");
+  const img = buildShippingQrImageUrl(payload.data, { size: 320 });
+  assert(img && img.includes("320x320"), "QR image must be ≥320×320");
+  assert(img.includes("ecc=H"), "QR must use high error correction");
   assert(img.includes(encodeURIComponent(url)), "QR must encode tracking URL");
 }
 

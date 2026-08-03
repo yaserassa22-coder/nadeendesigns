@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { OrderCode128Barcode } from "@/components/admin/OrderCode128Barcode";
 import { SITE_NAME } from "@/lib/constants";
 import {
   buildShippingQrImageUrl,
+  formatPublicOrderNumber,
   resolveShippingQrPayload,
 } from "@/lib/shop/order-tracking-qr";
 import { formatDate, formatPrice } from "@/lib/utils";
@@ -14,10 +16,6 @@ import {
   type ShopOrder,
   type ShopOrderStatus,
 } from "@/types/shop";
-
-function orderNumber(id: string) {
-  return `ND-${id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-}
 
 export default function ShippingSlipPrintPage() {
   const params = useParams();
@@ -63,7 +61,7 @@ export default function ShippingSlipPrintPage() {
   const qrImageUrl = useMemo(() => {
     if (!qrPayload?.data) return null;
     return buildShippingQrImageUrl(qrPayload.data, {
-      size: 300,
+      size: 320,
       cacheBust: qrNonce || undefined,
     });
   }, [qrPayload, qrNonce]);
@@ -86,6 +84,7 @@ export default function ShippingSlipPrintPage() {
     order.status === "completed" ? "delivered" : order.status
   ) as ShopOrderStatus;
   const method = order.delivery_method;
+  const displayOrderNumber = formatPublicOrderNumber(order.id);
   const region =
     order.shipping_region_name_ar ||
     order.shipping_region_custom ||
@@ -148,7 +147,7 @@ export default function ShippingSlipPrintPage() {
             <div>
               <dt className="inline text-muted">رقم الطلب: </dt>
               <dd className="inline font-medium" dir="ltr">
-                {orderNumber(order.id)}
+                {displayOrderNumber}
               </dd>
             </div>
             <div>
@@ -190,7 +189,7 @@ export default function ShippingSlipPrintPage() {
           </dl>
         </section>
 
-        <section>
+        <section className="flex min-h-[360px] flex-col">
           <h2 className="text-sm font-semibold text-gold">العميلة</h2>
           <dl className="mt-2 space-y-1 text-sm">
             <div>
@@ -207,20 +206,27 @@ export default function ShippingSlipPrintPage() {
             </div>
           </dl>
           {qrImageUrl ? (
-            <div className="mt-4 flex flex-col items-start gap-2">
+            <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-2 text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrImageUrl}
                 alt="رمز متابعة الطلب"
-                width={300}
-                height={300}
-                className="h-[300px] w-[300px] max-w-full border border-charcoal bg-white p-1"
+                width={320}
+                height={320}
+                className="h-[320px] w-[320px] max-w-full border border-charcoal bg-white p-1"
               />
               <p className="text-sm font-medium text-charcoal">
                 امسح الرمز لمتابعة الطلب
               </p>
+              <OrderCode128Barcode
+                value={displayOrderNumber}
+                className="h-auto w-full max-w-[280px]"
+              />
+              <p className="text-xs text-charcoal" dir="ltr">
+                رقم الطلب: {displayOrderNumber}
+              </p>
               {qrPayload?.trackingUrl && (
-                <p className="max-w-[300px] break-all text-[10px] text-muted" dir="ltr">
+                <p className="max-w-[320px] break-all text-[10px] text-muted" dir="ltr">
                   {qrPayload.trackingUrl}
                 </p>
               )}
