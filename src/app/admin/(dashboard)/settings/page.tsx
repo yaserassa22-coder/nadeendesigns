@@ -16,7 +16,8 @@ export default async function AdminSettingsPage() {
       <div>
         <h1 className="text-3xl font-bold text-charcoal">إعدادات الموقع</h1>
         <p className="mt-2 text-muted">
-          بيانات التواصل، النصوص الرئيسية، وروابط التواصل الاجتماعي
+          بيانات التواصل، الشحن، وروابط التواصل الاجتماعي. محتوى الهيرو وصفحة من
+          نحن من قائمة المحتوى.
         </p>
       </div>
 

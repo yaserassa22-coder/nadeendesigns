@@ -118,6 +118,26 @@ export interface ContactMessage {
   created_at: string;
 }
 
+/** Lucide icon keys used by About values cards */
+export type AboutValueIcon = "Heart" | "Sparkles" | "Users" | "Award";
+
+export interface AboutValueItem {
+  icon: AboutValueIcon;
+  title_ar: string;
+  description_ar: string;
+  title_en?: string;
+  description_en?: string;
+}
+
+/**
+ * Reserved nested CMS bags for future homepage sections (Featured, Services,
+ * Instagram, CTA, etc.) without DB/API changes. Phase A uses flat hero/about fields.
+ */
+export interface SiteCmsBags {
+  homepage?: Record<string, unknown>;
+  about?: Record<string, unknown>;
+}
+
 export interface SiteSettings {
   phone: string;
   whatsapp: string;
@@ -126,9 +146,54 @@ export interface SiteSettings {
   instagram_url: string;
   instagram_handle: string;
   working_hours_ar: string;
-  about_ar: string;
+
+  // —— Hero (flat, merge-safe) ——
   hero_title_ar: string;
+  hero_title_en?: string;
+  /** Substring of title that is bold + gold underline (current UI) */
+  hero_title_emphasis_ar: string;
+  hero_title_emphasis_en?: string;
   hero_subtitle_ar: string;
+  hero_subtitle_en?: string;
+  hero_image_url: string;
+  hero_image_alt_ar: string;
+  hero_image_alt_en?: string;
+  hero_cta_primary_label_ar: string;
+  hero_cta_primary_label_en?: string;
+  hero_cta_primary_href: string;
+  hero_cta_secondary_label_ar: string;
+  hero_cta_secondary_label_en?: string;
+  hero_cta_secondary_href: string;
+
+  // —— About (flat, merge-safe; about_ar already existed) ——
+  about_ar: string;
+  about_en?: string;
+  about_page_title_ar: string;
+  about_page_title_en?: string;
+  about_page_subtitle_ar: string;
+  about_page_subtitle_en?: string;
+  about_story_eyebrow_ar: string;
+  about_story_eyebrow_en?: string;
+  about_story_heading_ar: string;
+  about_story_heading_en?: string;
+  about_secondary_ar: string;
+  about_secondary_en?: string;
+  about_image_url: string;
+  about_image_alt_ar: string;
+  about_image_alt_en?: string;
+  about_cta_label_ar: string;
+  about_cta_label_en?: string;
+  about_cta_href: string;
+  about_values: AboutValueItem[];
+
+  /**
+   * Optional bag for future homepage section payloads (Featured / Services /
+   * Instagram / CTA) — no schema migration required.
+   */
+  homepage_extra?: Record<string, unknown>;
+  /** Namespaced CMS extension point alongside flat hero/about fields */
+  cms?: SiteCmsBags;
+
   /**
    * Flat shipping fee for bridal accessories (DB-backed via settings JSON).
    * Not used for dresses / booking flow. Regional fees override when a zone is selected.

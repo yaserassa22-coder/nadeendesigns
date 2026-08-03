@@ -21,6 +21,8 @@ const LINKS = [
   { href: "/admin/shipping", label: "🚚 إعدادات الشحن" },
   { href: "/admin/notifications", label: "🔔 الإشعارات" },
   { href: "/admin/messages", label: "💬 الرسائل" },
+  { href: "/admin/content/home", label: "🏠 محتوى الرئيسية" },
+  { href: "/admin/content/about", label: "📖 محتوى من نحن" },
   { href: "/admin/settings", label: "⚙️ الإعدادات" },
 ] as const;
 

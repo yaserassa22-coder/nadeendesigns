@@ -96,14 +96,22 @@ export function ShippingRegionsManager({
     setSavingSettings(true);
     setSettingsMsg("");
     try {
+      // Partial patch — server merges so CMS / contact keys are never wiped
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          boutique_pickup_enabled: settings.boutique_pickup_enabled,
+          delivery_enabled: settings.delivery_enabled,
+          shipping_enabled: settings.shipping_enabled,
+          shipping_flat_fee: settings.shipping_flat_fee,
+          shipping_free_threshold: settings.shipping_free_threshold,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "فشل حفظ الإعدادات");
-      setSettingsMsg("تم حفظ إعدادات الاستلام والتوصيل");
+      if (data.settings) setSettings(data.settings as SiteSettings);
+      setSettingsMsg("تم الحفظ بنجاح");
     } catch (e) {
       setSettingsMsg(e instanceof Error ? e.message : "حدث خطأ");
     } finally {

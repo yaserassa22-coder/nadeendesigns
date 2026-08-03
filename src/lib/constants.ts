@@ -183,11 +183,59 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   instagram_url: OFFICIAL_INSTAGRAM_URL,
   instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
   working_hours_ar: "السبت - الخميس: 10:00 ص - 9:00 م",
-  about_ar:
-    "Nadeen Designs هي بوتيك فاخر متخصص في فساتين الزفاف والإكسسوارات، حيث نجمع بين الأناقة الكلاسيكية والتصاميم العصرية لنمنح كل عروس إطلالة لا تُنسى.",
+
+  // Hero — matches hardcoded Hero.tsx
   hero_title_ar: "تفاصيل تصنع الفرق",
+  hero_title_emphasis_ar: "تفاصيل",
   hero_subtitle_ar:
     "فساتين زفاف فاخرة، تصاميم حصرية، وخدمة راقية لتكوني الأجمل في يومك المميز.",
+  hero_image_url: "/hero.webp",
+  hero_image_alt_ar: "فستان زفاف ملكي بالدانتيل الفاخر — Nadeen Designs",
+  hero_cta_primary_label_ar: "اكتشفي المجموعة",
+  hero_cta_primary_href: "/wedding-dresses",
+  hero_cta_secondary_label_ar: "احجزي موعدًا",
+  hero_cta_secondary_href: "/booking",
+
+  // About — matches hardcoded about/page.tsx
+  about_ar:
+    "Nadeen Designs هي بوتيك فاخر متخصص في فساتين الزفاف والإكسسوارات، حيث نجمع بين الأناقة الكلاسيكية والتصاميم العصرية لنمنح كل عروس إطلالة لا تُنسى.",
+  about_page_title_ar: "من نحن",
+  about_page_subtitle_ar: "قصة شغف بالجمال والأناقة",
+  about_story_eyebrow_ar: "Our Story",
+  about_story_heading_ar: "Nadeen Designs",
+  about_secondary_ar:
+    "منذ تأسيسنا، ساعدنا أكثر من 500 عروس في العثور على فستان أحلامها. نؤمن بأن كل عروس تستحق تجربة فريدة وشخصية تعكس شخصيتها وجمالها الداخلي.",
+  about_image_url:
+    "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&q=80",
+  about_image_alt_ar: "بوتيك Nadeen Designs",
+  about_cta_label_ar: "احجزي زيارتكِ",
+  about_cta_href: "/booking",
+  about_values: [
+    {
+      icon: "Heart",
+      title_ar: "شغف بالتفاصيل",
+      description_ar: "كل غرزة وكل تطريز يعكس حبنا للجمال والأناقة",
+    },
+    {
+      icon: "Sparkles",
+      title_ar: "تصاميم حصرية",
+      description_ar: "مجموعات فريدة لا تجدينها في أي مكان آخر",
+    },
+    {
+      icon: "Users",
+      title_ar: "خدمة شخصية",
+      description_ar: "فريق متخصص يرافقكِ في كل خطوة من رحلتكِ",
+    },
+    {
+      icon: "Award",
+      title_ar: "جودة عالمية",
+      description_ar: "أقمشة فاخرة من أرقى الموردين العالميين",
+    },
+  ],
+
+  homepage_extra: {},
+  cms: { homepage: {}, about: {} },
+
   shipping_enabled: true,
   shipping_flat_fee: 0,
   shipping_free_threshold: 0,

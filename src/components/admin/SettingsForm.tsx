@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { SiteSettings } from "@/types";
 import {
   OFFICIAL_INSTAGRAM_HANDLE,
@@ -8,20 +9,54 @@ import {
 } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 
 interface SettingsFormProps {
   initialSettings: SiteSettings;
 }
 
+/** Contact + shipping only — Hero/About CMS lives under /admin/content/* */
+type ContactShippingPatch = Pick<
+  SiteSettings,
+  | "phone"
+  | "whatsapp"
+  | "email"
+  | "address_ar"
+  | "working_hours_ar"
+  | "instagram_url"
+  | "instagram_handle"
+  | "shipping_enabled"
+  | "shipping_flat_fee"
+  | "shipping_free_threshold"
+  | "boutique_pickup_enabled"
+  | "delivery_enabled"
+>;
+
 export function SettingsForm({ initialSettings }: SettingsFormProps) {
-  const [settings, setSettings] = useState(initialSettings);
+  const [settings, setSettings] = useState<ContactShippingPatch>({
+    phone: initialSettings.phone,
+    whatsapp: initialSettings.whatsapp,
+    email: initialSettings.email,
+    address_ar: initialSettings.address_ar,
+    working_hours_ar: initialSettings.working_hours_ar,
+    instagram_url: OFFICIAL_INSTAGRAM_URL,
+    instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
+    shipping_enabled: initialSettings.shipping_enabled,
+    shipping_flat_fee: initialSettings.shipping_flat_fee,
+    shipping_free_threshold: initialSettings.shipping_free_threshold,
+    boutique_pickup_enabled: initialSettings.boutique_pickup_enabled,
+    delivery_enabled: initialSettings.delivery_enabled,
+  });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const update = <K extends keyof SiteSettings>(key: K, value: SiteSettings[K]) => {
+  const update = <K extends keyof ContactShippingPatch>(
+    key: K,
+    value: ContactShippingPatch[K]
+  ) => {
     setSettings((s) => ({ ...s, [key]: value }));
+    setMessage("");
   };
 
   const save = async () => {
@@ -40,7 +75,24 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
-      setMessage("تم حفظ الإعدادات بنجاح");
+      if (data.settings) {
+        const s = data.settings as SiteSettings;
+        setSettings({
+          phone: s.phone,
+          whatsapp: s.whatsapp,
+          email: s.email,
+          address_ar: s.address_ar,
+          working_hours_ar: s.working_hours_ar,
+          instagram_url: OFFICIAL_INSTAGRAM_URL,
+          instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
+          shipping_enabled: s.shipping_enabled,
+          shipping_flat_fee: s.shipping_flat_fee,
+          shipping_free_threshold: s.shipping_free_threshold,
+          boutique_pickup_enabled: s.boutique_pickup_enabled,
+          delivery_enabled: s.delivery_enabled,
+        });
+      }
+      setMessage("تم الحفظ بنجاح");
     } catch (e) {
       setError(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
@@ -50,6 +102,18 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
 
   return (
     <div className="space-y-6 rounded-2xl border border-beige-dark bg-white p-6 md:p-8">
+      <div className="rounded-xl border border-gold/25 bg-gold/5 px-4 py-3 text-sm text-charcoal">
+        محتوى الصفحة الرئيسية وصفحة من نحن يُدار من{" "}
+        <Link href="/admin/content/home" className="font-medium text-gold hover:underline">
+          محتوى الرئيسية
+        </Link>{" "}
+        و{" "}
+        <Link href="/admin/content/about" className="font-medium text-gold hover:underline">
+          محتوى من نحن
+        </Link>
+        .
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Input
           label="الهاتف"
@@ -94,29 +158,6 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             label="العنوان"
             value={settings.address_ar}
             onChange={(e) => update("address_ar", e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <Input
-            label="عنوان الصفحة الرئيسية"
-            value={settings.hero_title_ar}
-            onChange={(e) => update("hero_title_ar", e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <Textarea
-            label="وصف الصفحة الرئيسية"
-            rows={3}
-            value={settings.hero_subtitle_ar}
-            onChange={(e) => update("hero_subtitle_ar", e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <Textarea
-            label="نبذة عنا"
-            rows={5}
-            value={settings.about_ar}
-            onChange={(e) => update("about_ar", e.target.value)}
           />
         </div>
       </div>
@@ -215,7 +256,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
       )}
 
       <Button loading={saving} onClick={save}>
-        حفظ الإعدادات
+        {saving ? "جاري الحفظ..." : "حفظ الإعدادات"}
       </Button>
     </div>
   );

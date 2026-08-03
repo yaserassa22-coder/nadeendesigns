@@ -4,11 +4,31 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { SITE_NAME } from "@/lib/constants";
+import { splitTitleEmphasis } from "@/lib/cms/locale-text";
 import { Button } from "@/components/ui/Button";
+import type { SiteSettings } from "@/types";
 
-const HERO_IMAGE = "/hero.webp";
+interface HeroProps {
+  settings: Pick<
+    SiteSettings,
+    | "hero_title_ar"
+    | "hero_title_emphasis_ar"
+    | "hero_subtitle_ar"
+    | "hero_image_url"
+    | "hero_image_alt_ar"
+    | "hero_cta_primary_label_ar"
+    | "hero_cta_primary_href"
+    | "hero_cta_secondary_label_ar"
+    | "hero_cta_secondary_href"
+  >;
+}
 
-export function Hero() {
+export function Hero({ settings }: HeroProps) {
+  const title = settings.hero_title_ar;
+  const emphasis = settings.hero_title_emphasis_ar;
+  const split = splitTitleEmphasis(title, emphasis);
+  const imageUrl = settings.hero_image_url?.trim() || "/hero.webp";
+
   return (
     <section className="relative flex min-h-[100svh] items-end overflow-hidden md:items-center">
       {/* Full-bleed hero image */}
@@ -19,8 +39,8 @@ export function Hero() {
         className="absolute inset-0"
       >
         <Image
-          src={HERO_IMAGE}
-          alt="فستان زفاف ملكي بالدانتيل الفاخر — Nadeen Designs"
+          src={imageUrl}
+          alt={settings.hero_image_alt_ar}
           fill
           priority
           quality={85}
@@ -63,24 +83,30 @@ export function Hero() {
             transition={{ duration: 0.85, delay: 0.5 }}
             className="font-display-ar mt-7 max-w-xl text-[2.125rem] font-normal leading-[1.55] tracking-[0.02em] text-charcoal sm:text-[2.5rem] sm:leading-[1.5] md:text-[3.15rem] md:leading-[1.45] lg:text-[3.75rem] lg:leading-[1.4]"
           >
-            <span className="relative inline-block font-bold">
-              تفاصيل
-              <span
-                aria-hidden
-                className="absolute -bottom-1 start-0 h-[2px] w-full bg-gold/70"
-              />
-            </span>{" "}
-            <span className="font-normal">تصنع الفرق</span>
+            {split ? (
+              <>
+                {split.before}
+                <span className="relative inline-block font-bold">
+                  {split.emphasis}
+                  <span
+                    aria-hidden
+                    className="absolute -bottom-1 start-0 h-[2px] w-full bg-gold/70"
+                  />
+                </span>
+                {split.after}
+              </>
+            ) : (
+              <span className="font-normal">{title}</span>
+            )}
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, delay: 0.65 }}
-            className="mt-7 max-w-lg text-base leading-relaxed text-charcoal/75 md:text-lg"
+            className="mt-7 max-w-lg whitespace-pre-line text-base leading-relaxed text-charcoal/75 md:text-lg"
           >
-            فساتين زفاف فاخرة، تصاميم حصرية، وخدمة راقية لتكوني الأجمل في يومك
-            المميز.
+            {settings.hero_subtitle_ar}
           </motion.p>
 
           <motion.div
@@ -89,18 +115,18 @@ export function Hero() {
             transition={{ duration: 0.85, delay: 0.8 }}
             className="mt-10 flex flex-wrap gap-4"
           >
-            <Link href="/wedding-dresses">
+            <Link href={settings.hero_cta_primary_href || "/wedding-dresses"}>
               <Button size="lg" className="min-w-[10rem] shadow-lg shadow-gold/25">
-                اكتشفي المجموعة
+                {settings.hero_cta_primary_label_ar}
               </Button>
             </Link>
-            <Link href="/booking">
+            <Link href={settings.hero_cta_secondary_href || "/booking"}>
               <Button
                 variant="outline"
                 size="lg"
                 className="min-w-[10rem] border-gold bg-ivory/70 text-gold backdrop-blur-sm hover:bg-gold hover:text-white"
               >
-                احجزي موعدًا
+                {settings.hero_cta_secondary_label_ar}
               </Button>
             </Link>
           </motion.div>
