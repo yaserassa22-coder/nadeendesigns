@@ -61,6 +61,15 @@ export function Header({
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    if (!accessoriesOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAccessoriesOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [accessoriesOpen]);
+
   return (
     <header
       className={cn(
@@ -107,9 +116,16 @@ export function Header({
           >
             <button
               type="button"
-              className="inline-flex items-center gap-1 text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+              className="inline-flex items-center gap-1 rounded-md text-sm font-medium text-charcoal/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2"
               aria-expanded={accessoriesOpen}
               aria-haspopup="true"
+              onClick={() => setAccessoriesOpen((open) => !open)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setAccessoriesOpen(true);
+                }
+              }}
             >
               {accessories.label}
               <ChevronDown
@@ -120,12 +136,17 @@ export function Header({
               />
             </button>
             {accessoriesOpen && (
-              <div className="absolute top-full end-0 z-50 min-w-[180px] rounded-xl border border-beige-dark bg-white py-2 shadow-lg">
+              <div
+                role="menu"
+                className="absolute top-full end-0 z-50 min-w-[180px] rounded-xl border border-beige-dark bg-white py-2 shadow-lg"
+              >
                 {accessories.children.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="block px-4 py-2.5 text-sm text-charcoal hover:bg-beige hover:text-gold"
+                    role="menuitem"
+                    className="block px-4 py-2.5 text-sm text-charcoal hover:bg-beige hover:text-gold focus-visible:bg-beige focus-visible:outline-none"
+                    onClick={() => setAccessoriesOpen(false)}
                   >
                     {link.label}
                   </Link>
@@ -137,11 +158,11 @@ export function Header({
             <Link
               key={link.href}
               href={link.href}
-              className="relative text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+              className="relative text-sm font-medium text-charcoal/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2"
             >
               {link.label}
               {link.href === "/cart" && count > 0 && (
-                <span className="absolute -top-2 -left-3 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+                <span className="absolute -top-2 -end-3 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
                   {count}
                 </span>
               )}
@@ -159,7 +180,7 @@ export function Header({
           >
             <ShoppingBag className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -top-0.5 -left-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+              <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
                 {count}
               </span>
             )}

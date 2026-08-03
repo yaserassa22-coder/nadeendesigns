@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 import type { OrderWorkflowAction, ShopOrder, ShopOrderStatus } from "@/types/shop";
@@ -50,6 +50,7 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
   const [orders, setOrders] = useState(initialOrders);
   const [filter, setFilter] = useState<ShopOrderStatus | "all">("all");
   const [expanded, setExpanded] = useState<string | null>(focusId);
+  const [appliedFocus, setAppliedFocus] = useState(focusId);
   const [updating, setUpdating] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
 
@@ -63,9 +64,10 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
   const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
 
-  useEffect(() => {
-    if (focusId) setExpanded(focusId);
-  }, [focusId]);
+  if (focusId && focusId !== appliedFocus) {
+    setAppliedFocus(focusId);
+    setExpanded(focusId);
+  }
 
   const filtered = useMemo(
     () =>
@@ -228,7 +230,9 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    لا توجد طلبات
+                    {orders.length === 0
+                      ? "لا توجد طلبات بعد"
+                      : "لا توجد طلبات مطابقة للتصفية"}
                   </td>
                 </tr>
               ) : (
@@ -264,12 +268,13 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
                           <select
                             value={status}
                             disabled={updating === order.id}
+                            aria-label={`تغيير حالة طلب ${orderNumber(order.id)}`}
                             onChange={(e) =>
                               patchStatus(order.id, {
                                 status: e.target.value as ShopOrderStatus,
                               })
                             }
-                            className="mt-2 w-full max-w-[200px] rounded-lg border border-beige-dark bg-white px-3 py-2 text-xs"
+                            className="mt-2 w-full max-w-[200px] rounded-lg border border-beige-dark bg-white px-3 py-2 text-xs focus:border-gold focus:ring-2 focus:ring-gold/20"
                           >
                             {SHOP_ORDER_STATUSES.map((value) => (
                               <option key={value} value={value}>

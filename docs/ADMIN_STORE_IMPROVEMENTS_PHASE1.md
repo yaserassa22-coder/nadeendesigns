@@ -94,9 +94,13 @@
 - Card polish + existing card carousels
 - No DB schema change (JSONB images + text columns already unlimited)
 
-### M8 — Cards/admin polish + final QA
+### M8 — Cards/admin polish + final QA ✅
 - Visual polish; run full acceptance checklist
 - Fix any remaining regressions
+- Checkout shipping flash / gift fee visibility; accessory shipping not client-bypassable
+- A11y (focus, labels, keyboard nav dropdown/gallery); currency ₪ alignment
+- Customer notifications include `/orders/{id}`; admin emails show shipping address
+- QA gates: `tsc --noEmit`, lint, `npm run build`
 
 ---
 

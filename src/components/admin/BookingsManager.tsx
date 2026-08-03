@@ -70,14 +70,12 @@ export function BookingsManager({
     }
   }, []);
 
-  // Keep SSR data, then refresh from API with the admin session
+  // Refresh from API with the admin session after mount
   useEffect(() => {
-    setBookings(initialBookings.map(normalizeBooking));
-    setError(initialError);
-  }, [initialBookings, initialError]);
-
-  useEffect(() => {
-    void loadBookings();
+    const timer = window.setTimeout(() => {
+      void loadBookings();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadBookings]);
 
   const filtered = useMemo(() => {

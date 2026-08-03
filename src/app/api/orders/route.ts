@@ -31,7 +31,6 @@ import {
 import type { SiteSettings } from "@/types";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __nadeenMemoryOrders: ShopOrder[] | undefined;
 }
 
@@ -174,8 +173,8 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data;
-    const needsShipping =
-      body.shipping_required === true || cartNeedsShipping(body.items);
+    // Derive from line items only — never trust client shipping_required:false
+    const needsShipping = cartNeedsShipping(body.items);
 
     if (needsShipping) {
       const ship = body.shipping;

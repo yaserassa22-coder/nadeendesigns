@@ -163,12 +163,15 @@ export function CustomDesignQuestionnaire() {
 
   // Load any previously saved draft once on mount (never wipe it)
   useEffect(() => {
-    const draft = loadDraft();
-    if (draft) {
-      reset(draft);
-      setIsEditing(true);
-    }
-    setHydrated(true);
+    const timer = window.setTimeout(() => {
+      const draft = loadDraft();
+      if (draft) {
+        reset(draft);
+        setIsEditing(true);
+      }
+      setHydrated(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [reset]);
 
   const onSubmit = (data: QuestionnaireData) => {

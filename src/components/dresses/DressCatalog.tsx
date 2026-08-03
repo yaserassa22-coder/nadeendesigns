@@ -18,8 +18,6 @@ interface DressCatalogProps {
 export function DressCatalog({
   dresses,
   category,
-  title,
-  description,
 }: DressCatalogProps) {
   const [search, setSearch] = useState("");
   const [style, setStyle] = useState("");
@@ -51,6 +49,7 @@ export function DressCatalog({
             placeholder="ابحثي عن فستان..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="بحث عن فستان"
             className="w-full rounded-full border border-beige-dark bg-white py-3 pr-12 pl-4 focus:border-gold focus:ring-2 focus:ring-gold/20"
           />
         </div>
@@ -75,6 +74,7 @@ export function DressCatalog({
             value={style}
             onChange={(e) => setStyle(e.target.value)}
             dir="rtl"
+            aria-label="تصفية حسب النمط"
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
             <option value="">كل الأنماط</option>
@@ -88,6 +88,7 @@ export function DressCatalog({
             value={color}
             onChange={(e) => setColor(e.target.value)}
             dir="rtl"
+            aria-label="تصفية حسب اللون"
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
             <option value="">كل الألوان</option>
@@ -100,6 +101,7 @@ export function DressCatalog({
           <select
             value={size}
             onChange={(e) => setSize(e.target.value)}
+            aria-label="تصفية حسب المقاس"
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
             <option value="">كل المقاسات</option>

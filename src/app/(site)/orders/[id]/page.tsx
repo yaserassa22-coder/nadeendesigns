@@ -31,63 +31,94 @@ export default function CustomerOrderPage() {
   const id = typeof params.id === "string" ? params.id : "";
   const [order, setOrder] = useState<ShopOrder | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [refreshWarning, setRefreshWarning] = useState("");
+  const [justPlaced, setJustPlaced] = useState(false);
+  const [loading, setLoading] = useState(Boolean(id));
 
   useEffect(() => {
-    if (!id) {
-      setError("معرّف الطلب غير صالح");
-      setLoading(false);
-      return;
-    }
+    if (!id) return;
 
     let cancelled = false;
 
-    const fromCache = () => {
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+
       try {
-        const raw = sessionStorage.getItem(ORDER_CACHE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw) as ShopOrder;
-        return parsed.id === id ? parsed : null;
+        const flag = sessionStorage.getItem("nadeen_order_just_placed");
+        if (flag === id) {
+          setJustPlaced(true);
+          sessionStorage.removeItem("nadeen_order_just_placed");
+        }
       } catch {
-        return null;
+        /* ignore */
       }
-    };
 
-    const cached = fromCache();
-    if (cached) {
-      setOrder(cached);
-      setLoading(false);
-    }
-
-    fetch(`/api/orders/${id}`)
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "الطلب غير موجود");
-        return data as ShopOrder;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setOrder(data);
+      const fromCache = () => {
         try {
-          sessionStorage.setItem(ORDER_CACHE_KEY, JSON.stringify(data));
+          const raw = sessionStorage.getItem(ORDER_CACHE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw) as ShopOrder;
+          return parsed.id === id ? parsed : null;
         } catch {
-          /* ignore */
+          return null;
         }
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        if (!cached) {
-          setError(e instanceof Error ? e.message : "تعذّر تحميل الطلب");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      };
+
+      const cached = fromCache();
+      if (cached) {
+        setOrder(cached);
+        setLoading(false);
+      }
+
+      fetch(`/api/orders/${id}`)
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "الطلب غير موجود");
+          return data as ShopOrder;
+        })
+        .then((data) => {
+          if (cancelled) return;
+          setOrder(data);
+          setRefreshWarning("");
+          try {
+            sessionStorage.setItem(ORDER_CACHE_KEY, JSON.stringify(data));
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          if (!cached) {
+            setError(e instanceof Error ? e.message : "تعذّر تحميل الطلب");
+          } else {
+            setRefreshWarning(
+              "تعذّر تحديث حالة الطلب من الخادم. تُعرض آخر نسخة محفوظة."
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 0);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [id]);
+
+  if (!id) {
+    return (
+      <>
+        <PageHero title="الطلب غير موجود" description="معرّف الطلب غير صالح" />
+        <section className="py-16 text-center">
+          <Link href="/">
+            <Button>العودة للرئيسية</Button>
+          </Link>
+        </section>
+      </>
+    );
+  }
 
   if (loading) {
     return (
@@ -124,8 +155,24 @@ export default function CustomerOrderPage() {
   return (
     <>
       <PageHero title="تفاصيل طلبكِ" description={`رقم الطلب ${orderNo}`} />
-      <section className="py-12 md:py-20">
+      <section className="py-16 md:py-24">
         <div className="mx-auto max-w-3xl space-y-6 px-4 md:px-8">
+          {justPlaced && (
+            <div
+              className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800"
+              role="status"
+            >
+              <p className="font-semibold">تم استلام طلبكِ بنجاح</p>
+              <p className="mt-1">
+                شكرًا لكِ. سنوافيكِ بالتحديثات عبر الإشعارات والبريد عند التأكيد.
+              </p>
+            </div>
+          )}
+          {refreshWarning && (
+            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+              {refreshWarning}
+            </p>
+          )}
           <div className="rounded-2xl border border-beige-dark bg-white p-6">
             <h2 className="text-lg font-semibold text-charcoal">حالة الشحن / الطلب</h2>
             <p className="mt-2 inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-sm">
@@ -152,7 +199,7 @@ export default function CustomerOrderPage() {
                       {thumb && (
                         <Image
                           src={thumb}
-                          alt=""
+                          alt={item.name_ar}
                           fill
                           className="object-cover"
                           sizes="48px"

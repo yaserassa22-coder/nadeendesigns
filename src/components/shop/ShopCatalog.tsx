@@ -91,7 +91,11 @@ export function ShopCatalog({
       </div>
 
       {filtered.length === 0 ? (
-        <p className="py-16 text-center text-muted">لا توجد منتجات مطابقة</p>
+        <p className="py-16 text-center text-muted">
+          {items.length === 0
+            ? "لا توجد منتجات في هذا القسم بعد"
+            : "لا توجد منتجات مطابقة للبحث أو التصفية"}
+        </p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((item, i) => {
@@ -103,7 +107,7 @@ export function ShopCatalog({
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="group overflow-hidden rounded-2xl bg-white p-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                className="group relative overflow-hidden rounded-2xl bg-white p-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
               >
                 <ProductCardImageCarousel
                   images={item.images}
@@ -112,6 +116,13 @@ export function ShopCatalog({
                   roundedClassName="rounded-none"
                   priority={i < 3}
                 />
+                {!item.is_available && (
+                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-3">
+                    <span className="rounded-full bg-charcoal/80 px-3 py-1 text-xs text-white">
+                      غير متوفر
+                    </span>
+                  </div>
+                )}
                 <Link href={href} className="block p-5">
                   <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
                     {item.name_ar}

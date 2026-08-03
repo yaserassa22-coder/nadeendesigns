@@ -101,7 +101,7 @@ export default async function AdminDashboardPage() {
           <div>
             <h2 className="text-lg font-semibold">إحصائيات التصنيفات</h2>
             <p className="text-sm text-muted">
-              فساتين الزفاف، الإيجار، تصميم خاص، فساتين نوف، طرحة العروس، وبرنص العروس
+              فساتين الزفاف، الإيجار، تصميم خاص، وفساتين نوف
             </p>
           </div>
           <Link href="/admin/dresses">

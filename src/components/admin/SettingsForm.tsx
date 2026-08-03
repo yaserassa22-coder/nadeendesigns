@@ -6,6 +6,7 @@ import {
   OFFICIAL_INSTAGRAM_HANDLE,
   OFFICIAL_INSTAGRAM_URL,
 } from "@/lib/constants";
+import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 
@@ -140,7 +141,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             تفعيل رسوم الشحن عالمياً
           </label>
           <Input
-            label="رسوم الشحن الثابتة (ريال)"
+            label="رسوم الشحن الثابتة (₪)"
             type="number"
             min={0}
             step="1"
@@ -154,7 +155,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             dir="ltr"
           />
           <Input
-            label="حد الشحن المجاني (ريال) — 0 لإيقافه"
+            label="حد الشحن المجاني (₪) — 0 لإيقافه"
             type="number"
             min={0}
             step="1"
@@ -173,8 +174,10 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           (settings.shipping_free_threshold ?? 0) > 0 && (
             <p className="mt-3 text-xs text-muted">
               الشحن مجاني عندما يصل مجموع المنتجات إلى{" "}
-              <span dir="ltr">{settings.shipping_free_threshold}</span> ريال أو
-              أكثر.
+              <span dir="ltr">
+                {formatPrice(settings.shipping_free_threshold ?? 0)}
+              </span>{" "}
+              أو أكثر.
             </p>
           )}
       </div>

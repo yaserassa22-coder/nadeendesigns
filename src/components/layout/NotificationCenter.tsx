@@ -53,11 +53,14 @@ export function NotificationCenter({ className }: { className?: string }) {
   }, []);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
     const onStorage = () => void load();
     window.addEventListener("storage", onStorage);
     const t = window.setInterval(() => void load(), 45_000);
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener("storage", onStorage);
       window.clearInterval(t);
     };

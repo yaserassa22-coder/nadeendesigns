@@ -31,7 +31,7 @@ export async function PUT(request: Request) {
     const body = normalizeSiteSettings((await request.json()) as SiteSettings);
     if (!isSupabaseConfigured()) {
       return NextResponse.json(
-        { error: "Supabase not configured" },
+        { error: "قاعدة البيانات غير مُعدّة. تحققي من إعدادات Supabase." },
         { status: 503 }
       );
     }
@@ -44,7 +44,8 @@ export async function PUT(request: Request) {
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error";
+    const message =
+      e instanceof Error ? e.message : "فشل حفظ الإعدادات. حاولي مرة أخرى.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

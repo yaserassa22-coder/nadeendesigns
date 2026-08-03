@@ -30,18 +30,21 @@ export function ProductGallery({
   priority = true,
 }: ProductGalleryProps) {
   const slides = (images ?? []).filter(Boolean);
+  const slidesKey = slides.join("|");
   const [index, setIndex] = useState(0);
+  const [seenKey, setSeenKey] = useState(slidesKey);
   const touchStartX = useRef<number | null>(null);
   const thumbsRef = useRef<HTMLDivElement>(null);
+
+  if (seenKey !== slidesKey) {
+    setSeenKey(slidesKey);
+    setIndex(0);
+  }
 
   const count = slides.length;
   const multi = count > 1;
   const safeIndex = count === 0 ? 0 : Math.min(index, count - 1);
   const current = slides[safeIndex] ?? featuredImage(slides);
-
-  useEffect(() => {
-    setIndex(0);
-  }, [slides.join("|")]);
 
   useEffect(() => {
     const el = thumbsRef.current?.children[safeIndex] as HTMLElement | undefined;
@@ -90,11 +93,30 @@ export function ProductGallery({
   return (
     <div className={cn("space-y-4", className)}>
       <div
-        className="group/gallery relative aspect-[3/4] overflow-hidden rounded-3xl bg-beige"
+        className="group/gallery relative aspect-[3/4] overflow-hidden rounded-3xl bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+        tabIndex={multi ? 0 : undefined}
+        role={multi ? "region" : undefined}
+        aria-label={multi ? `معرض صور ${alt}` : undefined}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={() => {
           touchStartX.current = null;
+        }}
+        onKeyDown={(e) => {
+          if (!multi) return;
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            const rtl =
+              typeof document !== "undefined" &&
+              document.documentElement.dir === "rtl";
+            go(safeIndex + (rtl ? -1 : 1));
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            const rtl =
+              typeof document !== "undefined" &&
+              document.documentElement.dir === "rtl";
+            go(safeIndex + (rtl ? 1 : -1));
+          }
         }}
       >
         <Image
@@ -115,7 +137,7 @@ export function ProductGallery({
             <button
               type="button"
               aria-label="الصورة السابقة"
-              className="absolute start-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-charcoal shadow-sm transition hover:bg-gold hover:text-white md:flex"
+              className="absolute start-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-charcoal shadow-sm transition hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
               onClick={() => go(safeIndex - 1)}
             >
               <ChevronRight className="h-5 w-5" />
@@ -123,7 +145,7 @@ export function ProductGallery({
             <button
               type="button"
               aria-label="الصورة التالية"
-              className="absolute end-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-charcoal shadow-sm transition hover:bg-gold hover:text-white md:flex"
+              className="absolute end-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-charcoal shadow-sm transition hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
               onClick={() => go(safeIndex + 1)}
             >
               <ChevronLeft className="h-5 w-5" />

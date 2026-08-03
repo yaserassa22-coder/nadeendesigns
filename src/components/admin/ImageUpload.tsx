@@ -146,7 +146,8 @@ export function ImageUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gold/50 bg-beige/40 text-gold transition-colors hover:bg-gold/10 disabled:opacity-50"
+          aria-label="رفع صور"
+          className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gold/50 bg-beige/40 text-gold transition-colors hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 disabled:opacity-50"
         >
           {uploading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -179,7 +180,8 @@ export function ImageUpload({
           value={pasteUrl}
           onChange={(e) => setPasteUrl(e.target.value)}
           placeholder="https://res.cloudinary.com/..."
-          className="min-w-0 flex-1 rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm"
+          aria-label="لصق رابط صورة"
+          className="min-w-0 flex-1 rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm focus:border-gold focus:ring-2 focus:ring-gold/20"
         />
         <button
           type="button"

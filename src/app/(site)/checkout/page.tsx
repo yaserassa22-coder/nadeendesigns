@@ -49,6 +49,7 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState("");
   const [shipping, setShipping] = useState<ShippingForm>(emptyShipping);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -61,6 +62,9 @@ export default function CheckoutPage() {
       })
       .catch(() => {
         if (!cancelled) setSettings(normalizeSiteSettings(null));
+      })
+      .finally(() => {
+        if (!cancelled) setSettingsLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -77,13 +81,18 @@ export default function CheckoutPage() {
   );
 
   const shippingCost = useMemo(
-    () => resolveShippingCost(needsShipping, subtotal, shippingSettings),
-    [needsShipping, subtotal, shippingSettings]
+    () =>
+      settingsLoaded
+        ? resolveShippingCost(needsShipping, subtotal, shippingSettings)
+        : 0,
+    [needsShipping, subtotal, shippingSettings, settingsLoaded]
   );
 
   const freeShipping = useMemo(
-    () => isFreeShippingEligible(needsShipping, subtotal, shippingSettings),
-    [needsShipping, subtotal, shippingSettings]
+    () =>
+      settingsLoaded &&
+      isFreeShippingEligible(needsShipping, subtotal, shippingSettings),
+    [needsShipping, subtotal, shippingSettings, settingsLoaded]
   );
 
   const orderTotal = subtotal + shippingCost;
@@ -99,6 +108,10 @@ export default function CheckoutPage() {
     setError("");
     if (items.length === 0) {
       setError("السلة فارغة");
+      return;
+    }
+    if (!settingsLoaded) {
+      setError("جاري تحميل إعدادات الشحن… انتظري لحظة ثم حاولي مرة أخرى.");
       return;
     }
     if (name.trim().length < 2 || phone.trim().length < 9) {
@@ -182,13 +195,14 @@ export default function CheckoutPage() {
         );
       }
 
-      clearCart();
       if (data.order?.id) {
+        clearCart();
         try {
           sessionStorage.setItem(
             "nadeen_last_order",
             JSON.stringify(data.order)
           );
+          sessionStorage.setItem("nadeen_order_just_placed", data.order.id);
         } catch {
           /* ignore */
         }
@@ -206,6 +220,16 @@ export default function CheckoutPage() {
       setSaving(false);
     }
   };
+
+  const shippingFeeLabel = !settingsLoaded
+    ? "…"
+    : !needsShipping
+      ? "—"
+      : freeShipping || shippingCost === 0
+        ? settings?.shipping_enabled === false
+          ? "معطّل"
+          : "مجاني"
+        : formatPrice(shippingCost);
 
   return (
     <>
@@ -267,67 +291,83 @@ export default function CheckoutPage() {
                   );
                 })}
                 <GiftOptionsSummary giftOptions={giftOptions} />
-                {!hidePrice && (
-                  <div className="space-y-2 rounded-2xl border border-beige-dark bg-beige/20 p-4 text-sm">
+                <div className="space-y-2 rounded-2xl border border-beige-dark bg-beige/20 p-4 text-sm">
+                  {!hidePrice && (
                     <div className="flex justify-between gap-3">
                       <span>مجموع المنتجات</span>
                       <span className="text-gold" dir="ltr">
                         {formatPrice(subtotal)}
                       </span>
                     </div>
-                    <div className="flex justify-between gap-3">
-                      <span>رسوم الشحن</span>
-                      <span className="text-gold" dir="ltr">
-                        {!needsShipping
-                          ? "—"
-                          : freeShipping || shippingCost === 0
-                            ? settings?.shipping_enabled === false
-                              ? "معطّل"
-                              : "مجاني"
-                            : formatPrice(shippingCost)}
-                      </span>
-                    </div>
-                    {needsShipping &&
-                      freeShipping &&
-                      (settings?.shipping_free_threshold ?? 0) > 0 && (
-                        <p className="text-xs text-muted">
-                          تم تطبيق الشحن المجاني (حد{" "}
-                          <span dir="ltr">
-                            {settings?.shipping_free_threshold}
-                          </span>{" "}
-                          ريال)
-                        </p>
-                      )}
+                  )}
+                  {hidePrice && (
+                    <p className="text-xs text-muted">
+                      تم إخفاء أسعار المنتجات بناءً على خيار الهدية.
+                    </p>
+                  )}
+                  <div className="flex justify-between gap-3">
+                    <span>رسوم الشحن</span>
+                    <span className="text-gold" dir="ltr">
+                      {shippingFeeLabel}
+                    </span>
+                  </div>
+                  {needsShipping &&
+                    freeShipping &&
+                    (settings?.shipping_free_threshold ?? 0) > 0 && (
+                      <p className="text-xs text-muted">
+                        تم تطبيق الشحن المجاني (حد{" "}
+                        <span dir="ltr">
+                          {formatPrice(settings?.shipping_free_threshold ?? 0)}
+                        </span>
+                        )
+                      </p>
+                    )}
+                  {!hidePrice && (
                     <div className="flex justify-between gap-3 border-t border-beige-dark pt-2 text-base font-semibold">
                       <span>الإجمالي</span>
                       <span className="text-gold" dir="ltr">
-                        {formatPrice(orderTotal)}
+                        {!settingsLoaded ? "…" : formatPrice(orderTotal)}
                       </span>
                     </div>
-                  </div>
-                )}
+                  )}
+                  {hidePrice && needsShipping && shippingCost > 0 && (
+                    <p className="text-xs text-muted">
+                      رسوم الشحن تُحتسب عند تأكيد الطلب حتى مع إخفاء أسعار المنتجات.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          <div className="space-y-4 rounded-3xl border border-beige-dark bg-white p-6 lg:col-span-3">
+          <form
+            className="space-y-4 rounded-3xl border border-beige-dark bg-white p-6 lg:col-span-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
             <h2 className="text-lg font-semibold text-charcoal">بيانات التواصل</h2>
             <Input
               label="الاسم الكامل *"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
             />
             <Input
               label="رقم الهاتف *"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               dir="ltr"
+              autoComplete="tel"
             />
             <Input
               label="البريد الإلكتروني"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               dir="ltr"
+              autoComplete="email"
             />
             <Textarea
               label="ملاحظات عامة"
@@ -352,22 +392,26 @@ export default function CheckoutPage() {
                     label="اسم المستلم *"
                     value={shipping.full_name}
                     onChange={(e) => updateShipping("full_name", e.target.value)}
+                    autoComplete="shipping name"
                   />
                   <Input
                     label="هاتف التوصيل *"
                     value={shipping.phone}
                     onChange={(e) => updateShipping("phone", e.target.value)}
                     dir="ltr"
+                    autoComplete="shipping tel"
                   />
                   <Input
                     label="المدينة *"
                     value={shipping.city}
                     onChange={(e) => updateShipping("city", e.target.value)}
+                    autoComplete="shipping address-level2"
                   />
                   <Input
                     label="المنطقة *"
                     value={shipping.region}
                     onChange={(e) => updateShipping("region", e.target.value)}
+                    autoComplete="shipping address-level1"
                   />
                   <div className="sm:col-span-2">
                     <Textarea
@@ -384,6 +428,7 @@ export default function CheckoutPage() {
                       updateShipping("postal_code", e.target.value)
                     }
                     dir="ltr"
+                    autoComplete="shipping postal-code"
                   />
                   <div className="sm:col-span-2">
                     <Textarea
@@ -398,19 +443,19 @@ export default function CheckoutPage() {
             )}
 
             {error && (
-              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600" role="alert">
                 {error}
               </p>
             )}
             <Button
+              type="submit"
               size="lg"
               loading={saving}
-              disabled={items.length === 0}
-              onClick={submit}
+              disabled={items.length === 0 || !settingsLoaded}
             >
               تأكيد الطلب
             </Button>
-          </div>
+          </form>
         </div>
       </section>
     </>

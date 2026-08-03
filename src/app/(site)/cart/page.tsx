@@ -49,6 +49,7 @@ export default function CartPage() {
                           alt={item.name_ar}
                           fill
                           className="object-cover"
+                          sizes="96px"
                         />
                       )}
                     </div>
@@ -60,7 +61,7 @@ export default function CartPage() {
                           </h3>
                           <p className="text-sm text-muted">
                             {item.product_type === "veil"
-                              ? "طرحة"
+                              ? "طرحة العروس"
                               : "برنص العروس"}
                           </p>
                         </div>
@@ -72,8 +73,14 @@ export default function CartPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-3">
-                        <label className="text-sm text-muted">الكمية</label>
+                        <label
+                          htmlFor={`qty-${item.line_id}`}
+                          className="text-sm text-muted"
+                        >
+                          الكمية
+                        </label>
                         <input
+                          id={`qty-${item.line_id}`}
                           type="number"
                           min={1}
                           max={20}
@@ -84,13 +91,14 @@ export default function CartPage() {
                               Number(e.target.value) || 1
                             )
                           }
-                          className="w-20 rounded-xl border border-beige-dark px-3 py-2"
+                          className="w-20 rounded-xl border border-beige-dark px-3 py-2 text-charcoal transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20"
                           dir="ltr"
                         />
                         <button
                           type="button"
                           onClick={() => removeItem(item.line_id)}
-                          className="inline-flex items-center gap-1 text-sm text-red-500"
+                          className="inline-flex items-center gap-1 rounded-md text-sm text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 focus-visible:ring-offset-2"
+                          aria-label={`حذف ${item.name_ar}`}
                         >
                           <Trash2 className="h-4 w-4" />
                           حذف

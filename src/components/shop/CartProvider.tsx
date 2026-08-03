@@ -58,8 +58,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setItems(loadCart());
-    setReady(true);
+    const timer = window.setTimeout(() => {
+      setItems(loadCart());
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -79,7 +82,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           i.product_id === input.product_id &&
           i.product_type === input.product_type &&
           JSON.stringify(i.personalization) ===
-            JSON.stringify(input.personalization ?? null)
+            JSON.stringify(input.personalization ?? null) &&
+          JSON.stringify(i.gift_options) ===
+            JSON.stringify(input.gift_options ?? null)
       );
       if (existing) {
         return prev.map((i) =>

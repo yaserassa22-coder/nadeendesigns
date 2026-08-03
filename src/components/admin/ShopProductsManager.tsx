@@ -83,7 +83,11 @@ export function ShopProductsManager({
   }, [items, search, availability]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const safePage = Math.min(page, pageCount);
+  const pageItems = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -233,7 +237,9 @@ export function ShopProductsManager({
               {pageItems.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    لا توجد منتجات
+                    {items.length === 0
+                      ? "لا توجد منتجات بعد"
+                      : "لا توجد نتائج مطابقة للبحث أو التصفية"}
                   </td>
                 </tr>
               ) : (
@@ -245,9 +251,10 @@ export function ShopProductsManager({
                           {featuredImage(item.images) && (
                             <Image
                               src={featuredImage(item.images)!}
-                              alt=""
+                              alt={item.name_ar}
                               fill
                               className="object-cover"
+                              sizes="48px"
                             />
                           )}
                         </div>
@@ -274,7 +281,7 @@ export function ShopProductsManager({
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs ${
                           item.is_available
-                            ? "bg-green-50 text-green-700"
+                            ? "bg-emerald-50 text-emerald-700"
                             : "bg-red-50 text-red-600"
                         }`}
                       >
@@ -291,14 +298,16 @@ export function ShopProductsManager({
                         <button
                           type="button"
                           onClick={() => openEdit(item)}
-                          className="rounded-lg p-2 text-gold hover:bg-gold/10"
+                          className="rounded-lg p-2 text-gold hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+                          aria-label={`تعديل ${item.name_ar}`}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
                           onClick={() => remove(item.id)}
-                          className="rounded-lg p-2 text-red-500 hover:bg-red-50"
+                          className="rounded-lg p-2 text-red-500 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50"
+                          aria-label={`حذف ${item.name_ar}`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -317,19 +326,19 @@ export function ShopProductsManager({
           <Button
             variant="outline"
             size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
+            disabled={safePage <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
             السابق
           </Button>
           <span className="text-sm text-muted">
-            صفحة {page} من {pageCount}
+            صفحة {safePage} من {pageCount}
           </span>
           <Button
             variant="outline"
             size="sm"
-            disabled={page >= pageCount}
-            onClick={() => setPage((p) => p + 1)}
+            disabled={safePage >= pageCount}
+            onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
           >
             التالي
           </Button>
@@ -337,13 +346,23 @@ export function ShopProductsManager({
       )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-charcoal/40 p-4 sm:items-center">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-charcoal/40 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label={editing ? "تعديل المنتج" : "إضافة منتج"}
+        >
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 {editing ? "تعديل المنتج" : "إضافة منتج"}
               </h2>
-              <button type="button" onClick={() => setOpen(false)}>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="إغلاق"
+                className="rounded-lg p-1 text-charcoal hover:bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>

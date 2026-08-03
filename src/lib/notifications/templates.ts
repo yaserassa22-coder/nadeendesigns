@@ -57,6 +57,62 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function shippingAddressHtml(order: ShopOrder) {
+  if (!order.shipping_required) return "";
+  const lines = [
+    order.shipping_full_name,
+    order.shipping_phone,
+    [order.shipping_city, order.shipping_region].filter(Boolean).join(" — "),
+    order.shipping_address,
+    order.shipping_postal_code,
+    order.shipping_notes,
+  ].filter(Boolean);
+  if (lines.length === 0) return "";
+  return `
+    <p style="margin:16px 0 0;text-align:right;color:#5c5348;line-height:1.8;">
+      <strong>عنوان التوصيل:</strong><br/>
+      ${lines.map((l) => escapeHtml(String(l))).join("<br/>")}
+      ${
+        order.shipping_cost != null
+          ? `<br/><span style="color:#8a7f72;font-size:13px;">رسوم الشحن: <span dir="ltr">${formatPrice(Number(order.shipping_cost))}</span></span>`
+          : ""
+      }
+    </p>`;
+}
+
+function shippingAddressText(order: ShopOrder) {
+  if (!order.shipping_required) return "";
+  const lines = [
+    order.shipping_full_name,
+    order.shipping_phone,
+    [order.shipping_city, order.shipping_region].filter(Boolean).join(" — "),
+    order.shipping_address,
+    order.shipping_postal_code,
+    order.shipping_notes,
+  ].filter(Boolean);
+  if (lines.length === 0) return "";
+  const fee =
+    order.shipping_cost != null
+      ? `\nرسوم الشحن: ${formatPrice(Number(order.shipping_cost))}`
+      : "";
+  return `\nعنوان التوصيل:\n${lines.join("\n")}${fee}`;
+}
+
+function customerOrderUrl(orderId: string) {
+  return `${getSiteUrl()}/orders/${orderId}`;
+}
+
+function customerOrderLinkHtml(orderId: string) {
+  const url = customerOrderUrl(orderId);
+  return `
+    <p style="margin:22px 0 0;text-align:center;">
+      <a href="${escapeHtml(url)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#b8956c;color:#fff;text-decoration:none;font-weight:700;">
+        متابعة الطلب
+      </a>
+    </p>
+    <p style="margin:10px 0 0;text-align:center;font-size:12px;color:#8a7f72;" dir="ltr">${escapeHtml(url)}</p>`;
+}
+
 function whatsappLink(phone: string) {
   const digits = phone.replace(/\D/g, "");
   const intl =
@@ -186,6 +242,7 @@ export function customerStatusEmail(
     <p style="margin:18px 0 0;text-align:right;font-size:15px;color:#2c2419;">
       <strong>المجموع:</strong> <span dir="ltr">${formatPrice(Number(order.total))}</span>
     </p>
+    ${customerOrderLinkHtml(order.id)}
     `,
     settings
   );
@@ -233,6 +290,7 @@ export function paymentRequestEmail(
       ${itemsSummaryHtml(order)}
     </table>
     ${linkBlock}
+    ${customerOrderLinkHtml(order.id)}
     `,
     settings
   );
@@ -254,6 +312,7 @@ export function customMessageEmail(
     <div style="margin-top:16px;padding:18px;background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;line-height:1.9;color:#2c2419;text-align:right;">
       ${escapeHtml(message).replace(/\n/g, "<br/>")}
     </div>
+    ${customerOrderLinkHtml(order.id)}
     `,
     settings
   );
@@ -267,7 +326,12 @@ export function adminNewOrderEmail(
   const number = orderNumber(order.id);
   const adminUrl = `${getSiteUrl()}/admin/orders?focus=${order.id}`;
   const subject = `طلب جديد ${number} — ${order.name}`;
-  const budgetNote = order.notes || "—";
+  const notesBlock = order.notes
+    ? `<p style="margin:16px 0 0;text-align:right;color:#5c5348;line-height:1.8;">
+      <strong>ملاحظات:</strong><br/>
+      ${escapeHtml(order.notes).replace(/\n/g, "<br/>")}
+    </p>`
+    : "";
   const html = emailShell(
     subject,
     `
@@ -286,10 +350,8 @@ export function adminNewOrderEmail(
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${itemsSummaryHtml(order)}
     </table>
-    <p style="margin:16px 0 0;text-align:right;color:#5c5348;line-height:1.8;">
-      <strong>ملاحظات / عنوان التوصيل:</strong><br/>
-      ${escapeHtml(budgetNote).replace(/\n/g, "<br/>")}
-    </p>
+    ${shippingAddressHtml(order)}
+    ${notesBlock}
     <p style="margin:24px 0 0;text-align:center;">
       <a href="${adminUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#b8956c;color:#fff;text-decoration:none;font-weight:700;">
         فتح الطلب في لوحة التحكم
@@ -327,6 +389,8 @@ export function customerWhatsAppMessage(
     ``,
     `المجموع: ${formatPrice(Number(order.total))}`,
     ``,
+    `متابعة الطلب: ${customerOrderUrl(order.id)}`,
+    ``,
     `للاستفسار: ${settings.business_phone}`,
     `انستغرام: ${OFFICIAL_INSTAGRAM_HANDLE}`,
   ].join("\n");
@@ -355,6 +419,7 @@ export function paymentRequestWhatsApp(
   } else {
     lines.push(``, `رابط الدفع سيكون متاحاً قريباً.`);
   }
+  lines.push(``, `متابعة الطلب: ${customerOrderUrl(order.id)}`);
   lines.push(``, `للاستفسار: ${settings.business_phone}`);
   return lines.join("\n");
 }
@@ -372,6 +437,8 @@ export function customWhatsAppMessage(
     `بخصوص طلبكِ ${number}:`,
     ``,
     message,
+    ``,
+    `متابعة الطلب: ${customerOrderUrl(order.id)}`,
     ``,
     `للاستفسار: ${settings.business_phone}`,
   ].join("\n");
@@ -391,6 +458,7 @@ export function adminWhatsAppMessage(
     `المجموع: ${formatPrice(Number(order.total))}`,
     ``,
     itemsSummaryText(order),
+    shippingAddressText(order),
     ``,
     `لوحة التحكم: ${getSiteUrl()}/admin/orders?focus=${order.id}`,
   ].join("\n");

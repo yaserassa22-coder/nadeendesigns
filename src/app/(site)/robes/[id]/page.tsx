@@ -75,7 +75,9 @@ export default async function RobeDetailPage({ params }: Props) {
       }
       actions={
         <Link href="/robes">
-          <Button variant="outline">العودة لبرنص العروس</Button>
+          <Button variant="outline" size="lg">
+            العودة لبرنص العروس
+          </Button>
         </Link>
       }
       below={

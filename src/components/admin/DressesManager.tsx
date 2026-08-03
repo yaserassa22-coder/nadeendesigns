@@ -229,6 +229,7 @@ export function DressesManager({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Input
+            label="بحث"
             placeholder="بحث عن فستان..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}

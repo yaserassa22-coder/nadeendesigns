@@ -10,7 +10,6 @@ import type { ShopOrder } from "@/types/shop";
 
 /** In-memory fallback shared with main orders route via process (dev only). */
 declare global {
-  // eslint-disable-next-line no-var
   var __nadeenMemoryOrders: ShopOrder[] | undefined;
 }
 

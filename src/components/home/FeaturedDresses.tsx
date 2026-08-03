@@ -10,6 +10,26 @@ interface FeaturedDressesProps {
 }
 
 export function FeaturedDresses({ dresses }: FeaturedDressesProps) {
+  if (dresses.length === 0) {
+    return (
+      <section className="py-20 md:py-28">
+        <div className="mx-auto max-w-7xl px-4 text-center md:px-8">
+          <SectionHeading
+            subtitle="مجموعتنا المميزة"
+            title="فساتين مختارة بعناية"
+            description="ستظهر الفساتين المميزة هنا قريبًا"
+          />
+          <Link href="/wedding-dresses">
+            <Button variant="outline" size="lg">
+              <ArrowLeft className="h-4 w-4" />
+              تصفّحي فساتين الزفاف
+            </Button>
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-20 md:py-28">
       <div className="mx-auto max-w-7xl px-4 md:px-8">

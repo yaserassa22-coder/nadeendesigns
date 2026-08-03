@@ -70,7 +70,9 @@ export default async function VeilDetailPage({ params }: Props) {
       }
       actions={
         <Link href="/veils">
-          <Button variant="outline">العودة للطرحات</Button>
+          <Button variant="outline" size="lg">
+            العودة لطرحة العروس
+          </Button>
         </Link>
       }
       below={

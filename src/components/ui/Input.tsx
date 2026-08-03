@@ -1,3 +1,6 @@
+"use client";
+
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -6,7 +9,8 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, error, className, id, ...props }: InputProps) {
-  const inputId = id ?? label;
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   return (
     <div className="space-y-2">
       {label && (
@@ -34,7 +38,8 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export function Textarea({ label, error, className, id, ...props }: TextareaProps) {
-  const inputId = id ?? label;
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   return (
     <div className="space-y-2">
       {label && (
@@ -63,7 +68,8 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export function Select({ label, error, options, className, id, ...props }: SelectProps) {
-  const inputId = id ?? label;
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   return (
     <div className="space-y-2">
       {label && (

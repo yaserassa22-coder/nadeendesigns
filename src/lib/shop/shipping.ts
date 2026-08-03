@@ -37,11 +37,14 @@ export function isAccessoryShopProductType(productType: string): boolean {
   return ACCESSORY_SHOP_PRODUCT_TYPES.has(productType);
 }
 
-/** Whether this cart line needs delivery (accessories only). */
+/**
+ * Whether this cart line needs delivery (accessories only).
+ * Known accessory types always ship — client `requires_shipping: false` cannot skip them.
+ * Future accessory kinds opt in via `requires_shipping: true`.
+ */
 export function lineRequiresShipping(item: CartLineForShipping): boolean {
-  if (item.requires_shipping === true) return true;
-  if (item.requires_shipping === false) return false;
-  return isAccessoryShopProductType(item.product_type);
+  if (isAccessoryShopProductType(item.product_type)) return true;
+  return item.requires_shipping === true;
 }
 
 /** Show shipping section when the cart has at least one accessory line. */
