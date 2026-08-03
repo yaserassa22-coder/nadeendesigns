@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
 import { Button } from "@/components/ui/Button";
 import { getVeilById } from "@/lib/data/shop-queries";
+import { featuredImage } from "@/lib/products/featured-image";
 import { formatPrice } from "@/lib/utils";
 
 interface Props {
@@ -22,15 +23,16 @@ export default async function VeilDetailPage({ params }: Props) {
   const { id } = await params;
   const veil = await getVeilById(id);
   if (!veil) notFound();
+  const hero = featuredImage(veil.images);
 
   return (
     <section className="pt-28 pb-16 md:pt-36 md:pb-24">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <div className="grid gap-12 lg:grid-cols-2">
           <div className="relative aspect-[3/4] overflow-hidden rounded-3xl">
-            {veil.images[0] && (
+            {hero && (
               <Image
-                src={veil.images[0]}
+                src={hero}
                 alt={veil.name_ar}
                 fill
                 priority
@@ -76,7 +78,7 @@ export default async function VeilDetailPage({ params }: Props) {
             productId={veil.id}
             nameAr={veil.name_ar}
             price={veil.price}
-            image={veil.images[0]}
+            image={featuredImage(veil.images)}
           />
         ) : (
           <p className="mt-10 rounded-xl bg-red-50 p-4 text-sm text-red-600">

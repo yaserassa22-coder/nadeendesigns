@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { formatPrice } from "@/lib/utils";
+import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
 import { Input, Select } from "@/components/ui/Input";
 
 interface ShopCatalogItem {
@@ -94,26 +94,24 @@ export function ShopCatalog({
         <p className="py-16 text-center text-muted">لا توجد منتجات مطابقة</p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((item, i) => (
-            <motion.article
-              key={item.id}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <Link href={`${basePath}/${item.id}`} className="group block">
-                <div className="relative aspect-[3/4] overflow-hidden rounded-3xl bg-beige">
-                  {item.images[0] && (
-                    <Image
-                      src={item.images[0]}
-                      alt={item.name_ar}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  )}
-                </div>
-                <div className="mt-4">
+          {filtered.map((item, i) => {
+            const href = `${basePath}/${item.id}`;
+            return (
+              <motion.article
+                key={item.id}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="group"
+              >
+                <ProductCardImageCarousel
+                  images={item.images}
+                  alt={item.name_ar}
+                  href={href}
+                  roundedClassName="rounded-3xl"
+                />
+                <Link href={href} className="mt-4 block">
                   <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
                     {item.name_ar}
                   </h3>
@@ -123,10 +121,10 @@ export function ShopCatalog({
                   <p className="mt-2 text-xl text-gold" dir="ltr">
                     {formatPrice(item.price)}
                   </p>
-                </div>
-              </Link>
-            </motion.article>
-          ))}
+                </Link>
+              </motion.article>
+            );
+          })}
         </div>
       )}
     </div>

@@ -5,17 +5,25 @@ import { motion } from "framer-motion";
 import { ChevronDown, Menu, ShoppingBag, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SITE_NAME } from "@/lib/constants";
-import { ACCESSORIES_PARENT } from "@/types";
+import type { AccessoriesNav, NavLink } from "@/lib/categories/nav";
+import {
+  ACCESSORIES_PARENT,
+  DRESS_CATEGORIES,
+  DRESS_CATEGORY_HREFS,
+  DRESS_CATEGORY_LABELS,
+} from "@/types";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/shop/CartProvider";
 
-/** صف التصنيفات الأول */
-const PRIMARY_CATEGORY_LINKS = [
-  { href: "/wedding-dresses", label: "فساتين الزفاف" },
-  { href: "/nouf-dresses", label: "فساتين نوف" },
-  { href: "/rental-dresses", label: "فساتين للإيجار" },
-  { href: "/custom-design", label: "تصميم فستان خاص" },
-] as const;
+const FALLBACK_PRIMARY: NavLink[] = DRESS_CATEGORIES.map((c) => ({
+  href: DRESS_CATEGORY_HREFS[c],
+  label: DRESS_CATEGORY_LABELS[c],
+}));
+
+const FALLBACK_ACCESSORIES: AccessoriesNav = {
+  label: ACCESSORIES_PARENT.label,
+  children: [...ACCESSORIES_PARENT.children],
+};
 
 const UTILITY_LINKS = [
   { href: "/cart", label: "السلة" },
@@ -25,7 +33,15 @@ const UTILITY_LINKS = [
   { href: "/contact", label: "اتصل بنا" },
 ] as const;
 
-export function Header() {
+interface HeaderProps {
+  primaryLinks?: NavLink[];
+  accessories?: AccessoriesNav;
+}
+
+export function Header({
+  primaryLinks = FALLBACK_PRIMARY,
+  accessories = FALLBACK_ACCESSORIES,
+}: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [accessoriesOpen, setAccessoriesOpen] = useState(false);
@@ -64,7 +80,7 @@ export function Header() {
         </button>
 
         <nav className="hidden min-w-0 flex-1 items-center justify-start gap-x-2 lg:flex xl:gap-x-3">
-          {PRIMARY_CATEGORY_LINKS.map((link) => (
+          {primaryLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -94,7 +110,7 @@ export function Header() {
               aria-expanded={accessoriesOpen}
               aria-haspopup="true"
             >
-              {ACCESSORIES_PARENT.label}
+              {accessories.label}
               <ChevronDown
                 className={cn(
                   "h-3.5 w-3.5 transition-transform",
@@ -104,7 +120,7 @@ export function Header() {
             </button>
             {accessoriesOpen && (
               <div className="absolute top-full end-0 z-50 min-w-[180px] rounded-xl border border-beige-dark bg-white py-2 shadow-lg">
-                {ACCESSORIES_PARENT.children.map((link) => (
+                {accessories.children.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -172,7 +188,7 @@ export function Header() {
             >
               الرئيسية
             </Link>
-            {PRIMARY_CATEGORY_LINKS.map((link) => (
+            {primaryLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -183,9 +199,9 @@ export function Header() {
               </Link>
             ))}
             <p className="mt-2 px-4 text-xs font-semibold tracking-wide text-gold">
-              {ACCESSORIES_PARENT.label}
+              {accessories.label}
             </p>
-            {ACCESSORIES_PARENT.children.map((link) => (
+            {accessories.children.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Camera, Mail, MapPin, Phone } from "lucide-react";
 import type { SiteSettings } from "@/types";
+import type { NavLink } from "@/lib/categories/nav";
 import {
   NAV_LINKS,
   OFFICIAL_INSTAGRAM_HANDLE,
@@ -10,9 +11,12 @@ import {
 
 interface FooterProps {
   settings: SiteSettings;
+  navLinks?: NavLink[];
 }
 
-export function Footer({ settings }: FooterProps) {
+export function Footer({ settings, navLinks }: FooterProps) {
+  const links = navLinks?.length ? navLinks : [...NAV_LINKS];
+
   return (
     <footer className="border-t border-beige-dark bg-charcoal text-ivory">
       <div className="mx-auto max-w-7xl px-4 py-16 md:px-8">
@@ -33,7 +37,7 @@ export function Footer({ settings }: FooterProps) {
               روابط سريعة
             </h3>
             <ul className="space-y-2">
-              {NAV_LINKS.map((link) => (
+              {links.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}

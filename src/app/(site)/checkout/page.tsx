@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle } from "lucide-react";
@@ -11,6 +12,7 @@ import { useCart } from "@/components/shop/CartProvider";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
+import { featuredImage } from "@/lib/products/featured-image";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -138,11 +140,27 @@ export default function CheckoutPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {items.map((item) => (
+                {items.map((item) => {
+                  const thumb = featuredImage(
+                    item.image ? [item.image] : undefined
+                  );
+                  return (
                   <div
                     key={item.line_id}
-                    className="rounded-2xl border border-beige-dark bg-white p-4 text-sm"
+                    className="flex gap-3 rounded-2xl border border-beige-dark bg-white p-4 text-sm"
                   >
+                    <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-xl bg-beige">
+                      {thumb && (
+                        <Image
+                          src={thumb}
+                          alt={item.name_ar}
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
                     <p className="font-medium">{item.name_ar}</p>
                     <p className="text-muted">الكمية: {item.quantity}</p>
                     {!hidePrice && (
@@ -158,8 +176,10 @@ export default function CheckoutPage() {
                         />
                       </div>
                     )}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
                 <GiftOptionsSummary giftOptions={giftOptions} />
                 {!hidePrice && (
                   <p className="text-lg">

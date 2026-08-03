@@ -13,6 +13,7 @@ import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
 import { formatPrice } from "@/lib/utils";
+import { featuredImage } from "@/lib/products/featured-image";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
@@ -304,9 +305,9 @@ export function DressesManager({
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-beige">
-                          {dress.images[0] && (
+                          {featuredImage(dress.images) && (
                             <Image
-                              src={dress.images[0]}
+                              src={featuredImage(dress.images)!}
                               alt=""
                               fill
                               className="object-cover"

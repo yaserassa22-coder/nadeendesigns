@@ -10,10 +10,12 @@ import {
   SHOP_ORDER_STATUS_LABELS,
 } from "@/types/shop";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { featuredImage } from "@/lib/products/featured-image";
 import { Select, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
+import Image from "next/image";
 
 interface OrdersManagerProps {
   initialOrders: ShopOrder[];
@@ -420,11 +422,27 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
                               </div>
                             )}
 
-                            {(order.items ?? []).map((item, idx) => (
+                            {(order.items ?? []).map((item, idx) => {
+                              const thumb = featuredImage(
+                                item.image ? [item.image] : undefined
+                              );
+                              return (
                               <div
                                 key={`${order.id}-${idx}`}
-                                className="rounded-xl border border-beige-dark bg-white p-4"
+                                className="flex gap-3 rounded-xl border border-beige-dark bg-white p-4"
                               >
+                                <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-beige">
+                                  {thumb && (
+                                    <Image
+                                      src={thumb}
+                                      alt=""
+                                      fill
+                                      className="object-cover"
+                                      sizes="48px"
+                                    />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
                                 <p className="font-medium">
                                   {item.name_ar} × {item.quantity}
                                 </p>
@@ -439,8 +457,10 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
                                     />
                                   </div>
                                 )}
+                                </div>
                               </div>
-                            ))}
+                              );
+                            })}
                             <GiftOptionsSummary
                               giftOptions={order.gift_options}
                             />

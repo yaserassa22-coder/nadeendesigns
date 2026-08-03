@@ -5,6 +5,7 @@ import {
   normalizeDressList,
   withNormalizedDressCategory,
 } from "@/lib/dresses/category";
+import { assertSameKindMove } from "@/lib/categories/kind";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
@@ -119,6 +120,11 @@ export async function POST(request: Request) {
 
     const body = parsed.data;
 
+    const kindCheck = assertSameKindMove("dress", body.category);
+    if (!kindCheck.ok) {
+      return NextResponse.json({ error: kindCheck.message }, { status: 400 });
+    }
+
     if (!isSupabaseConfigured()) {
       return NextResponse.json(
         { error: "Supabase غير مُعد. تحققي من متغيرات البيئة." },
@@ -190,6 +196,13 @@ export async function PUT(request: Request) {
         { error: mapped.message, issues: parsed.error.issues },
         { status: 400 }
       );
+    }
+
+    if (parsed.data.category) {
+      const kindCheck = assertSameKindMove("dress", parsed.data.category);
+      if (!kindCheck.ok) {
+        return NextResponse.json({ error: kindCheck.message }, { status: 400 });
+      }
     }
 
     if (!isSupabaseConfigured()) {

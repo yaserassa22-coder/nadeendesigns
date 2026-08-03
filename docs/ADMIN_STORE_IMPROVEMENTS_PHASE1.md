@@ -59,10 +59,12 @@
 - QA: create / edit / delete empty / reorder / parent-child / visibility / persistence after refresh
 - **Does not yet** fully replace all public nav (that is M3)
 
-### M3 — Wire products / nav / search + featured image contract
+### M3 — Wire products / nav / search + featured image contract ✅
 - Nav, homepage, search, related products consume categories where safe
 - Enforce `images[0]` as featured everywhere (cards, cart, checkout, order summary, admin lists)
 - Block cross-kind product moves (veil↔dress); allow same-kind category moves
+- **Product card carousels** (pulled forward from M7): swipe on mobile, arrows on desktop, dots, hide chrome if single image — homepage, category/shop/search, related
+- Keep existing public routes (`/wedding-dresses`, `/veils`, `/robes`, `/dresses/[id]`, …) for SEO
 
 ### M4 — Hero typography + opaque mobile menu
 - Hero: “تفاصيل تصنع الفرق” typography polish
@@ -77,11 +79,11 @@
 - Customer in-app notification center
 - Keep email; leave WhatsApp integration path open
 
-### M7 — Unlimited images, descriptions, PDP gallery + card carousels
+### M7 — Unlimited images, descriptions, PDP gallery polish
 - Unlimited images (JSONB if sufficient)
 - Multiline descriptions with exact whitespace rendering
-- PDP galleries + **product card carousels** on homepage, category/shop/search/related
-- Card carousel: swipe, desktop arrows, dots, hide if one image, smooth, performant
+- PDP gallery polish (card carousels delivered in M3)
+- Keep card carousel behavior performant across surfaces
 
 ### M8 — Cards/admin polish + final QA
 - Visual polish; run full acceptance checklist

@@ -7,6 +7,7 @@ import type { BridalRobe, Veil } from "@/types/shop";
 import { VEIL_CATEGORY_OPTIONS } from "@/types/shop";
 import { DRESS_COLORS, DRESS_SIZES } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
+import { featuredImage } from "@/lib/products/featured-image";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
@@ -241,9 +242,9 @@ export function ShopProductsManager({
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-beige">
-                          {item.images[0] && (
+                          {featuredImage(item.images) && (
                             <Image
-                              src={item.images[0]}
+                              src={featuredImage(item.images)!}
                               alt=""
                               fill
                               className="object-cover"

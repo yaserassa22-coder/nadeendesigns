@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, Loader2, Star, X } from "lucide-react";
+import { setFeaturedImage } from "@/lib/products/featured-image";
 import { cn } from "@/lib/utils";
 
 interface ImageUploadProps {
@@ -30,7 +31,7 @@ export function ImageUpload({
 
     try {
       const urls: string[] = [];
-      const list = Array.from(files).slice(0, multiple ? 8 : 1);
+      const list = Array.from(files).slice(0, multiple ? undefined : 1);
 
       for (const file of list) {
         const form = new FormData();
@@ -76,15 +77,38 @@ export function ImageUpload({
     onChange(value.filter((v) => v !== url));
   };
 
+  const makeFeatured = (url: string) => {
+    onChange(setFeaturedImage(value, url));
+  };
+
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-wrap gap-3">
-        {value.map((url) => (
+        {value.map((url, index) => (
           <div
             key={url}
-            className="relative h-24 w-24 overflow-hidden rounded-xl border border-beige-dark"
+            className={cn(
+              "relative h-24 w-24 overflow-hidden rounded-xl border",
+              index === 0 ? "border-gold ring-1 ring-gold/40" : "border-beige-dark"
+            )}
           >
             <Image src={url} alt="" fill className="object-cover" sizes="96px" />
+            {index === 0 && (
+              <span className="absolute bottom-1 start-1 rounded bg-gold px-1.5 py-0.5 text-[10px] font-medium text-white">
+                رئيسية
+              </span>
+            )}
+            {index !== 0 && (
+              <button
+                type="button"
+                onClick={() => makeFeatured(url)}
+                className="absolute bottom-1 start-1 rounded-full bg-charcoal/70 p-1 text-white hover:bg-gold"
+                aria-label="تعيين كصورة رئيسية"
+                title="تعيين كصورة رئيسية"
+              >
+                <Star className="h-3 w-3" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => remove(url)}
@@ -159,7 +183,8 @@ export function ImageUpload({
       </div>
 
       <p className="text-xs text-muted">
-        الرفع عبر Cloudinary (Unsigned Preset). تأكدي من تسجيل الدخول للإدارة قبل الرفع.
+        الصورة الأولى هي الصورة الرئيسية (البطاقات والسلة والطلبات). اضغطي النجمة لتعيين صورة أخرى كرئيسية.
+        الرفع عبر Cloudinary (Unsigned Preset).
       </p>
     </div>
   );
