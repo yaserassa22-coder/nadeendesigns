@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS veils (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Bridal robes (برنس العروس)
+-- Bridal robes (برنص العروس)
 CREATE TABLE IF NOT EXISTS bridal_robes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name_ar TEXT NOT NULL,

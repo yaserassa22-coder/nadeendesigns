@@ -123,7 +123,7 @@ export default function CheckoutPage() {
     <>
       <PageHero
         title="إتمام الطلب"
-        description="أدخلي بياناتكِ لتأكيد طلب طرحة العروس أو برنس العروس."
+        description="أدخلي بياناتكِ لتأكيد طلب طرحة العروس أو برنص العروس."
       />
       <section className="py-16 md:py-24">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-8 lg:grid-cols-5">

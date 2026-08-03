@@ -30,7 +30,7 @@ export default function CartPage() {
                   <Button>تسوّقي طرحة العروس</Button>
                 </Link>
                 <Link href="/robes">
-                  <Button variant="outline">تسوّقي برنس العروس</Button>
+                  <Button variant="outline">تسوّقي برنص العروس</Button>
                 </Link>
               </div>
             </div>
@@ -61,7 +61,7 @@ export default function CartPage() {
                           <p className="text-sm text-muted">
                             {item.product_type === "veil"
                               ? "طرحة"
-                              : "برنس العروس"}
+                              : "برنص العروس"}
                           </p>
                         </div>
                         {!hidePrice && (

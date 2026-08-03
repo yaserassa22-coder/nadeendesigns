@@ -8,7 +8,7 @@ import { Calendar, Clock, MapPin } from "lucide-react";
 export const metadata: Metadata = {
   title: "احجزي موعدًا",
   description:
-    "احجزي موعدكِ في Nadeen Designs — فساتين زفاف، إيجار، تصميم خاص، طرحة العروس، أو برنس العروس.",
+    "احجزي موعدكِ في Nadeen Designs — فساتين زفاف، إيجار، تصميم خاص، طرحة العروس، أو برنص العروس.",
 };
 
 export default async function BookingPage() {

@@ -39,7 +39,7 @@ export default async function RobeDetailPage({ params }: Props) {
             )}
           </div>
           <div>
-            <p className="text-sm text-gold">برنس العروس</p>
+            <p className="text-sm text-gold">برنص العروس</p>
             <h1 className="mt-2 text-3xl font-bold text-charcoal md:text-4xl">
               {robe.name_ar}
             </h1>
@@ -67,7 +67,7 @@ export default async function RobeDetailPage({ params }: Props) {
             </div>
             <div className="mt-8">
               <Link href="/robes">
-                <Button variant="outline">العودة لبرنس العروس</Button>
+                <Button variant="outline">العودة لبرنص العروس</Button>
               </Link>
             </div>
           </div>

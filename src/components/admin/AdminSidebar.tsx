@@ -14,7 +14,7 @@ const LINKS = [
   { href: "/admin/dresses", label: "👰 الفساتين" },
   { href: "/admin/nouf-dresses", label: "👗 فساتين نوف" },
   { href: "/admin/veils", label: "🕊️ طرحة العروس" },
-  { href: "/admin/bridal-robes", label: "🥻 برنس العروس" },
+  { href: "/admin/bridal-robes", label: "🥻 برنص العروس" },
   { href: "/admin/gallery", label: "🖼️ المعرض" },
   { href: "/admin/bookings", label: "📅 الحجوزات" },
   { href: "/admin/orders", label: "🛒 الطلبات" },

@@ -179,7 +179,7 @@ export function normalizeDressCategory(
 /** Public shop nav entries beyond dress categories */
 export const SHOP_NAV_LINKS = [
   { href: "/veils", label: "طرحة العروس" },
-  { href: "/robes", label: "برنس العروس" },
+  { href: "/robes", label: "برنص العروس" },
 ] as const;
 
 /** Parent group for bridal accessories (veils + robes) */
@@ -209,7 +209,7 @@ export const BOOKING_SERVICE_OPTIONS: {
   { value: "custom_design", label: "تصميم فستان خاص" },
   { value: "nouf_dresses", label: "فساتين نوف" },
   { value: "veil", label: "طرحة العروس" },
-  { value: "bridal_cape", label: "برنس العروس" },
+  { value: "bridal_cape", label: "برنص العروس" },
 ];
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -219,7 +219,7 @@ export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   nouf_dresses: "فساتين نوف",
   nouf_dress: "فساتين نوف",
   veil: "طرحة العروس",
-  bridal_cape: "برنس العروس",
+  bridal_cape: "برنص العروس",
   fitting: "تجربة فستان",
   consultation: "استشارة",
   rental: "إيجار",

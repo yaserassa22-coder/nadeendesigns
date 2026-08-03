@@ -103,7 +103,7 @@ export const SEED_CATEGORIES: Category[] = [
     is_visible: true,
     icon_url: null,
     cover_image_url: null,
-    description_ar: "طرحة العروس وبرنس العروس",
+    description_ar: "طرحة العروس وبرنص العروس",
     href: null,
     legacy_key: "bridal_accessories",
     created_at: now,
@@ -126,7 +126,7 @@ export const SEED_CATEGORIES: Category[] = [
   },
   {
     id: IDS.robes,
-    name_ar: "برنس العروس",
+    name_ar: "برنص العروس",
     slug: "robes",
     parent_id: IDS.accessories,
     sort_order: 20,

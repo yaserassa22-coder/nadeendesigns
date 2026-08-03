@@ -48,8 +48,8 @@
 ## Milestones
 
 ### M1 — Rename + accessories parent ✅
-- Labels: الطرحات → طرحة العروس; برنص عروس → برنس العروس
-- Parent: اكسسوارات العروس (children: طرحة العروس, برنس العروس)
+- Labels: الطرحات → طرحة العروس; برنص عروس → برنص العروس
+- Parent: اكسسوارات العروس (children: طرحة العروس, برنص العروس)
 - Files: types, Header, ServicesSection, AdminSidebar, veils/robes pages, cart/checkout/booking copy, layout keywords
 
 ### M2 — Dynamic categories CRUD

@@ -147,10 +147,10 @@ export function ServicesSection() {
                   <Heart className="h-6 w-6" />
                 </div>
                 <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
-                  برنس العروس
+                  برنص العروس
                 </h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
-                  برنس فاخر لجلسات التحضير والتصوير بأناقة مميزة
+                  برنص فاخر لجلسات التحضير والتصوير بأناقة مميزة
                 </p>
               </Link>
             </Reveal>

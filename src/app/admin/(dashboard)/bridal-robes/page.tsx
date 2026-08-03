@@ -6,7 +6,7 @@ export default async function AdminBridalRobesPage() {
   return (
     <ShopProductsManager
       kind="bridal-robes"
-      title="🥻 برنس العروس"
+      title="🥻 برنص العروس"
       initialItems={robes}
     />
   );
