@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Crown,
@@ -15,6 +16,38 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 const cardClassName =
   "group flex h-full min-h-[200px] w-full flex-col rounded-2xl border border-beige-dark bg-white p-6 transition-all hover:border-gold hover:shadow-lg hover:shadow-gold/10";
 
+function Reveal({
+  children,
+  delay = 0,
+  className,
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Avoid framer-motion SSR/client style mismatch (hydration errors).
+  if (!mounted) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export function ServicesSection() {
   return (
     <section id="categories" className="bg-beige/30 py-20 md:py-28">
@@ -25,15 +58,8 @@ export function ServicesSection() {
           description="نقدم لكِ تجربة متكاملة تجعل رحلة اختيار فستان أحلامك لا تُنسى"
         />
 
-        {/* ===== الصف الأول: 4 بطاقات ===== */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0 }}
-            className="h-full"
-          >
+          <Reveal delay={0} className="h-full">
             <Link href="/wedding-dresses" className={cardClassName}>
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
                 <Crown className="h-6 w-6" />
@@ -45,15 +71,9 @@ export function ServicesSection() {
                 تصاميم فاخرة من أفخر الأقمشة العالمية لإطلالة لا تُنسى
               </p>
             </Link>
-          </motion.div>
+          </Reveal>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.08 }}
-            className="h-full"
-          >
+          <Reveal delay={0.08} className="h-full">
             <Link href="/nouf-dresses" className={cardClassName}>
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
                 <Gem className="h-6 w-6" />
@@ -66,15 +86,9 @@ export function ServicesSection() {
                 الفخامة، والتفاصيل الراقية
               </p>
             </Link>
-          </motion.div>
+          </Reveal>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.16 }}
-            className="h-full"
-          >
+          <Reveal delay={0.16} className="h-full">
             <Link href="/rental-dresses" className={cardClassName}>
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
                 <Sparkles className="h-6 w-6" />
@@ -86,15 +100,9 @@ export function ServicesSection() {
                 إطلالة أحلامك بأسعار مناسبة مع خدمة تنظيف وصيانة
               </p>
             </Link>
-          </motion.div>
+          </Reveal>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.24 }}
-            className="h-full"
-          >
+          <Reveal delay={0.24} className="h-full">
             <Link href="/custom-design" className={cardClassName}>
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
                 <WandSparkles className="h-6 w-6" />
@@ -106,10 +114,9 @@ export function ServicesSection() {
                 صممي فستانكِ معنا من الصفر — قطعة فريدة على مقاسكِ وذوقكِ
               </p>
             </Link>
-          </motion.div>
+          </Reveal>
         </div>
 
-        {/* ===== اكسسوارات العروس: طرحة العروس + برنس العروس ===== */}
         <div className="mt-14">
           <div className="mb-6 text-center">
             <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.25em] text-gold uppercase">
@@ -120,13 +127,7 @@ export function ServicesSection() {
             </h3>
           </div>
           <div className="flex flex-col items-center justify-center gap-6 sm:flex-row">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.32 }}
-              className="h-full w-full max-w-sm"
-            >
+            <Reveal delay={0.32} className="h-full w-full max-w-sm">
               <Link href="/veils" className={cardClassName}>
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
                   <Flower2 className="h-6 w-6" />
@@ -138,15 +139,9 @@ export function ServicesSection() {
                   طرحات أنيقة تكمل إطلالتكِ بلمسة من السحر والرقي
                 </p>
               </Link>
-            </motion.div>
+            </Reveal>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.4 }}
-              className="h-full w-full max-w-sm"
-            >
+            <Reveal delay={0.4} className="h-full w-full max-w-sm">
               <Link href="/robes" className={cardClassName}>
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
                   <Heart className="h-6 w-6" />
@@ -158,7 +153,7 @@ export function ServicesSection() {
                   برنس فاخر لجلسات التحضير والتصوير بأناقة مميزة
                 </p>
               </Link>
-            </motion.div>
+            </Reveal>
           </div>
         </div>
       </div>
