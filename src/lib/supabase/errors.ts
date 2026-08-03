@@ -45,3 +45,19 @@ export function isMissingColumnError(error: unknown, column?: string): boolean {
   if (!column) return true;
   return new RegExp(column, "i").test(raw);
 }
+
+/** Postgres CHECK constraint violation (23514). */
+export function isCheckConstraintError(error: unknown): boolean {
+  const code = getErrorCode(error);
+  const raw = getErrorMessage(error);
+  return code === "23514" || /check constraint/i.test(raw);
+}
+
+/**
+ * True when the failing CHECK is shop_orders_status_check
+ * (stale workflow statuses — needs APPLY_NOTIFICATIONS / APPLY_MISSING).
+ */
+export function isShopOrdersStatusCheckError(error: unknown): boolean {
+  if (!isCheckConstraintError(error)) return false;
+  return /shop_orders_status_check/i.test(getErrorMessage(error));
+}

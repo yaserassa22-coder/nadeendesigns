@@ -1,19 +1,88 @@
 -- =============================================================================
 -- APPLY_MISSING_MIGRATIONS.sql
--- Targeted, idempotent fix for checkout shipping schema gaps.
+-- Targeted, idempotent fix for checkout shipping + order workflow schema gaps.
 --
 -- Live probe (2026-08-03) on NadEEN Designs Supabase showed:
 --   ✓ shipping_regions exists (M9 seeds present)
 --   ✓ shop_orders.delivery_method / shipping_region_id / name_ar /
 --     building_number / neighborhood exist
---   ✗ shop_orders M5 address + shipping_cost columns MISSING
---   ✗ shop_orders M10 smart-shipping columns MISSING
---   ✗ shipping_regions estimated_days_min/max / estimated_delivery_ar MISSING
+--   ✗ shop_orders_status_check still legacy:
+--       only pending | confirmed | cancelled | completed
+--     (admin workflow statuses under_review / awaiting_payment /
+--      payment_received / in_production / ready_for_pickup / shipped /
+--      delivered all fail with 23514)
+--   ✗ notification_logs table MISSING
+--   ✗ shop_orders M5 address + shipping_cost columns (may already exist)
+--   ✗ shop_orders M10 smart-shipping columns (may already exist)
+--   ✗ shipping_regions estimated_days_min/max / estimated_delivery_ar
 --
 -- Run in Supabase → SQL Editor → paste entire file → Run.
--- Safe to re-run (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
--- Prefer this over re-running full APPLY_ALL when only shipping is broken.
+-- Safe to re-run (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS / DROP+ADD CHECK).
+-- Prefer this over re-running full APPLY_ALL when only shipping/status is broken.
+-- For status-only: APPLY_NOTIFICATIONS.sql is equivalent for the workflow block.
 -- =============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Order workflow statuses + notification_logs (APPLY_NOTIFICATIONS / M011–012)
+-- Live DB CHECK was still the original 4-value enum — expand before shipping.
+-- ---------------------------------------------------------------------------
+ALTER TABLE shop_orders DROP CONSTRAINT IF EXISTS shop_orders_status_check;
+
+UPDATE shop_orders SET status = 'delivered' WHERE status = 'completed';
+
+ALTER TABLE shop_orders
+  ADD CONSTRAINT shop_orders_status_check
+  CHECK (
+    status IN (
+      'pending',
+      'under_review',
+      'confirmed',
+      'awaiting_payment',
+      'payment_received',
+      'in_production',
+      'ready_for_pickup',
+      'shipped',
+      'delivered',
+      'cancelled',
+      'completed'
+    )
+  );
+
+CREATE TABLE IF NOT EXISTS notification_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES shop_orders(id) ON DELETE SET NULL,
+  customer_id TEXT,
+  notification_type TEXT NOT NULL,
+  channel TEXT NOT NULL CHECK (channel IN ('email', 'whatsapp')),
+  order_status TEXT,
+  recipient TEXT,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('sent', 'failed', 'pending_retry')),
+  delivery_result TEXT,
+  error_message TEXT,
+  attempts INT NOT NULL DEFAULT 1,
+  payload JSONB,
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE notification_logs ADD COLUMN IF NOT EXISTS customer_id TEXT;
+ALTER TABLE notification_logs ADD COLUMN IF NOT EXISTS delivery_result TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_notification_logs_order ON notification_logs(order_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_status ON notification_logs(status);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_created ON notification_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_dedupe
+  ON notification_logs(order_id, notification_type, channel, order_status, status);
+
+ALTER TABLE notification_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin all notification_logs" ON notification_logs;
+CREATE POLICY "Admin all notification_logs" ON notification_logs FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+) WITH CHECK (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
 
 -- ---------------------------------------------------------------------------
 -- M5 / APPLY_SHOP_SHIPPING — base address + shipping_cost on shop_orders

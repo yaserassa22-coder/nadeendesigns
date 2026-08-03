@@ -84,8 +84,8 @@ CREATE TABLE IF NOT EXISTS shop_orders (
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN (
       'pending',
-      'confirmed',
       'under_review',
+      'confirmed',
       'awaiting_payment',
       'payment_received',
       'in_production',

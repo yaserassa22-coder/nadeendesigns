@@ -2,6 +2,12 @@
 -- RUN IN SUPABASE → SQL Editor
 -- Full order workflow statuses + notification_logs
 -- Safe to run multiple times.
+--
+-- Required when Admin status changes fail with 23514 / shop_orders_status_check.
+-- Live DBs created from early shop_orders (pending|confirmed|cancelled|completed)
+-- reject under_review, awaiting_payment, payment_received, in_production,
+-- ready_for_pickup, shipped, delivered until this CHECK is expanded.
+-- Same block is included in APPLY_MISSING_MIGRATIONS.sql.
 -- =============================================================================
 
 ALTER TABLE shop_orders DROP CONSTRAINT IF EXISTS shop_orders_status_check;

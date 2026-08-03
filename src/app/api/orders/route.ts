@@ -5,7 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getErrorCode,
   getErrorMessage,
+  isCheckConstraintError,
   isMissingTableError,
+  isShopOrdersStatusCheckError,
   missingShopSchemaMessage,
 } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -87,11 +89,21 @@ function mapOrderError(error: unknown): { message: string; status: number } {
     };
   }
 
-  if (code === "23514" || /check constraint/i.test(raw)) {
+  // Only blame APPLY_NOTIFICATIONS when the failing CHECK is status enum —
+  // other 23514s (e.g. delivery_method) must not get a false migration hint.
+  if (isShopOrdersStatusCheckError(error)) {
     return {
       status: 400,
       message:
-        "بيانات الطلب لا تطابق قيود قاعدة البيانات. نفّذي supabase/APPLY_NOTIFICATIONS.sql لتحديث حالات الطلب.",
+        "بيانات الطلب لا تطابق قيود قاعدة البيانات. نفّذي supabase/APPLY_NOTIFICATIONS.sql (أو قسم حالات الطلب في APPLY_MISSING_MIGRATIONS.sql) لتحديث حالات الطلب.",
+    };
+  }
+  if (isCheckConstraintError(error)) {
+    return {
+      status: 400,
+      message: raw.trim()
+        ? `بيانات الطلب لا تطابق قيود قاعدة البيانات: ${raw}`
+        : "بيانات الطلب لا تطابق قيود قاعدة البيانات.",
     };
   }
 
