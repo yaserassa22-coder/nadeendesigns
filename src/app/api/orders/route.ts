@@ -335,7 +335,7 @@ export async function POST(request: Request) {
         i < insertAttempts.length - 1 && isOrderSchemaError(error);
       if (!canRetry) break;
       console.warn(
-        `[orders API] insert attempt ${i + 1}/${insertAttempts.length} failed — retrying without newer columns. Run APPLY_SMART_SHIPPING.sql / APPLY_SHIPPING_REGIONS.sql / APPLY_SHOP_SHIPPING.sql`,
+        `[orders API] insert attempt ${i + 1}/${insertAttempts.length} failed — retrying without newer columns. Run supabase/APPLY_MISSING_MIGRATIONS.sql`,
         getErrorMessage(error)
       );
     }
@@ -350,7 +350,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "تعذّر حفظ بيانات الشحن — نفّذي supabase/APPLY_SHOP_SHIPPING.sql و APPLY_SHIPPING_REGIONS.sql ثم أعيدي المحاولة.",
+              "تعذّر حفظ بيانات الشحن — نفّذي supabase/APPLY_MISSING_MIGRATIONS.sql في SQL Editor ثم أعيدي المحاولة.",
           },
           { status: 503 }
         );

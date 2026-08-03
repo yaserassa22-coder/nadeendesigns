@@ -18,7 +18,7 @@ import { SEED_SHIPPING_REGIONS } from "@/lib/shop/shipping-region-seeds";
 const SEED_REGIONS = SEED_SHIPPING_REGIONS;
 
 function missingRegionsMessage() {
-  return "جدول مناطق الشحن غير موجود. نفّذي supabase/APPLY_SHIPPING_REGIONS.sql في SQL Editor ثم أعيدي المحاولة.";
+  return "جدول مناطق الشحن غير موجود. نفّذي supabase/APPLY_MISSING_MIGRATIONS.sql في SQL Editor ثم أعيدي المحاولة.";
 }
 
 function mapRegionError(error: unknown): { message: string; status: number } {

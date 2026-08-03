@@ -48,7 +48,7 @@ async function fetchOrderById(id: string) {
     if (!result.error || !isOrderSchemaError(result.error)) break;
     if (i === 1) {
       console.warn(
-        "[orders/:id] optional columns missing on select — retrying. Run APPLY_SMART_SHIPPING.sql"
+        "[orders/:id] optional columns missing on select — retrying. Run APPLY_MISSING_MIGRATIONS.sql"
       );
     }
     result = await supabase

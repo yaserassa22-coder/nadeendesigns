@@ -54,7 +54,7 @@ export async function getUnknownShippingRegionHints(): Promise<
       )
     ) {
       console.warn(
-        "[getUnknownShippingRegionHints] M10 columns missing — run APPLY_SMART_SHIPPING.sql"
+        "[getUnknownShippingRegionHints] M10 columns missing — run APPLY_MISSING_MIGRATIONS.sql"
       );
       return [];
     }
