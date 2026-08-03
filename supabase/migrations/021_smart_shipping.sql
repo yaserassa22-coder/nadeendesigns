@@ -1,5 +1,45 @@
 -- Milestone 10: smart region autocomplete, unknown regions, pending fees
--- Safe to re-run (idempotent). Future-ready columns for carriers / tracking / campaigns.
+-- Safe to re-run (idempotent). Self-contained: creates shipping_regions if missing.
+-- Prefer APPLY_SHIPPING_REGIONS.sql (020) first for seeds + M9 order columns.
+-- Editor copy: APPLY_SMART_SHIPPING.sql
+
+-- ---------------------------------------------------------------------------
+-- Ensure shipping_regions exists (from M9 / 020)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shipping_regions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_ar TEXT NOT NULL,
+  name_en TEXT NOT NULL DEFAULT '',
+  shipping_fee NUMERIC NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  estimated_days INT,
+  carrier_code TEXT,
+  free_shipping_override NUMERIC,
+  discount NUMERIC,
+  meta JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shipping_regions_active
+  ON shipping_regions(is_active);
+CREATE INDEX IF NOT EXISTS idx_shipping_regions_sort
+  ON shipping_regions(sort_order);
+
+ALTER TABLE shipping_regions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read active shipping_regions" ON shipping_regions;
+CREATE POLICY "Public read active shipping_regions" ON shipping_regions
+  FOR SELECT USING (is_active = true);
+
+DROP POLICY IF EXISTS "Admin all shipping_regions" ON shipping_regions;
+CREATE POLICY "Admin all shipping_regions" ON shipping_regions
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- ---------------------------------------------------------------------------
 -- shipping_regions: estimated delivery window + search indexes
@@ -13,7 +53,6 @@ ALTER TABLE shipping_regions
 ALTER TABLE shipping_regions
   ADD COLUMN IF NOT EXISTS estimated_delivery_ar TEXT;
 
--- Backfill min/max from legacy estimated_days when present
 UPDATE shipping_regions
 SET
   estimated_days_min = COALESCE(estimated_days_min, estimated_days),
@@ -21,7 +60,6 @@ SET
 WHERE estimated_days IS NOT NULL
   AND (estimated_days_min IS NULL OR estimated_days_max IS NULL);
 
--- Ensure meta exists (M9) for carrier campaigns / free-shipping overrides later
 ALTER TABLE shipping_regions
   ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
 

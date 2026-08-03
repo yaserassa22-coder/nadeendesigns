@@ -272,7 +272,10 @@ export function orderToShippingDisplay(
   > | null
 ): ShippingDisplay {
   return {
-    required: order.shipping_required ?? false,
+    required:
+      order.shipping_required === true ||
+      order.delivery_method === "delivery" ||
+      order.delivery_method === "pickup",
     delivery_method: order.delivery_method ?? null,
     full_name: order.shipping_full_name ?? null,
     phone: order.shipping_phone ?? null,

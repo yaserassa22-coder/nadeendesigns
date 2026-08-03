@@ -81,7 +81,10 @@ export const shopOrderCreateSchema = z
     shipping_required: z.boolean().optional(),
     delivery_method: z.enum(["pickup", "delivery"]).nullable().optional(),
     shipping: shippingAddressSchema.nullable().optional(),
+    /** Persisted as shop_orders.shipping_cost */
     shipping_cost: z.number().min(0).optional(),
+    /** Legacy/alias — mapped to shipping_cost on the server */
+    shipping_fee: z.number().min(0).optional(),
     notify_whatsapp: z.boolean().optional(),
     notify_email: z.boolean().optional(),
   })

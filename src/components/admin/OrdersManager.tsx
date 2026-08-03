@@ -761,9 +761,7 @@ export function OrdersManager({
                                     لا يتطلب شحناً (فساتين / بدون اكسسوارات).
                                   </p>
                                 )}
-                                {(order.delivery_method === "delivery" ||
-                                  (order.delivery_method !== "pickup" &&
-                                    order.shipping_required)) && (
+                                {order.delivery_method === "delivery" && (
                                   <div className="mt-3 border-t border-beige-dark pt-3">
                                     {shippingEditId === order.id ? (
                                       <div className="space-y-3">
@@ -863,8 +861,7 @@ export function OrdersManager({
                                   <div className="flex justify-between gap-2">
                                     <dt className="text-muted">رسوم الشحن</dt>
                                     <dd dir="ltr">
-                                      {order.delivery_method === "delivery" ||
-                                      order.shipping_required
+                                      {order.delivery_method === "delivery"
                                         ? order.shipping_fee_pending
                                           ? "قيد المراجعة"
                                           : Number(order.shipping_cost ?? 0) > 0
@@ -874,7 +871,16 @@ export function OrdersManager({
                                             : "مجاني"
                                         : order.delivery_method === "pickup"
                                           ? "مجاني"
-                                          : "—"}
+                                          : order.shipping_required
+                                            ? order.shipping_fee_pending
+                                              ? "قيد المراجعة"
+                                              : Number(order.shipping_cost ?? 0) >
+                                                  0
+                                                ? formatPrice(
+                                                    Number(order.shipping_cost)
+                                                  )
+                                                : "مجاني"
+                                            : "—"}
                                     </dd>
                                   </div>
                                   <div className="flex justify-between gap-2 border-t border-beige-dark pt-2 font-semibold">

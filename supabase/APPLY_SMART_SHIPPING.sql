@@ -1,10 +1,57 @@
--- Apply in Supabase SQL Editor if migration runner is not used.
--- Same as migrations/021_smart_shipping.sql
--- Milestone 10: smart region autocomplete, unknown regions, pending fees
--- Safe to re-run (idempotent). Future-ready columns for carriers / tracking / campaigns.
+-- =============================================================================
+-- Milestone 10 – Smart shipping (idempotent)
+-- Same as migrations/021_smart_shipping.sql, but SELF-CONTAINED:
+-- creates shipping_regions if missing (does not assume M9 was applied).
+--
+-- Recommended full order for a database that already has shop_orders:
+--   1) APPLY_SHOP_SHIPPING.sql          (M5 base address/cost columns)
+--   2) APPLY_SHIPPING_REGIONS.sql       (M9 table + seeds + delivery_method)
+--   3) APPLY_SMART_SHIPPING.sql         (this file – M10 columns)
+--
+-- If you only run THIS file: the table is created empty (no region seeds).
+-- Prefer running APPLY_SHIPPING_REGIONS.sql first for seeds + M9 order columns.
+-- =============================================================================
 
 -- ---------------------------------------------------------------------------
--- shipping_regions: estimated delivery window + search indexes
+-- Ensure shipping_regions exists (from M9 / 020)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shipping_regions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_ar TEXT NOT NULL,
+  name_en TEXT NOT NULL DEFAULT '',
+  shipping_fee NUMERIC NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  estimated_days INT,
+  carrier_code TEXT,
+  free_shipping_override NUMERIC,
+  discount NUMERIC,
+  meta JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shipping_regions_active
+  ON shipping_regions(is_active);
+CREATE INDEX IF NOT EXISTS idx_shipping_regions_sort
+  ON shipping_regions(sort_order);
+
+ALTER TABLE shipping_regions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read active shipping_regions" ON shipping_regions;
+CREATE POLICY "Public read active shipping_regions" ON shipping_regions
+  FOR SELECT USING (is_active = true);
+
+DROP POLICY IF EXISTS "Admin all shipping_regions" ON shipping_regions;
+CREATE POLICY "Admin all shipping_regions" ON shipping_regions
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- ---------------------------------------------------------------------------
+-- shipping_regions: estimated delivery window + search indexes (M10)
 -- ---------------------------------------------------------------------------
 ALTER TABLE shipping_regions
   ADD COLUMN IF NOT EXISTS estimated_days_min INT;
@@ -23,7 +70,6 @@ SET
 WHERE estimated_days IS NOT NULL
   AND (estimated_days_min IS NULL OR estimated_days_max IS NULL);
 
--- Ensure meta exists (M9) for carrier campaigns / free-shipping overrides later
 ALTER TABLE shipping_regions
   ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
 
@@ -38,6 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_shipping_regions_active_sort
 
 -- ---------------------------------------------------------------------------
 -- shop_orders: unknown region + pending fee + tracking readiness
+-- Requires shop_orders to already exist.
 -- ---------------------------------------------------------------------------
 ALTER TABLE shop_orders
   ADD COLUMN IF NOT EXISTS shipping_fee_pending BOOLEAN NOT NULL DEFAULT false;
@@ -90,3 +137,5 @@ COMMENT ON COLUMN shipping_regions.estimated_delivery_ar IS
   'Optional Arabic free-text estimated delivery (overrides min/max display when set).';
 COMMENT ON COLUMN shipping_regions.meta IS
   'JSONB bag for carriers, campaign prices, free-shipping overrides, etc.';
+
+NOTIFY pgrst, 'reload schema';

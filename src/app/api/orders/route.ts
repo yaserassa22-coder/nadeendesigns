@@ -16,15 +16,19 @@ import {
 } from "@/lib/notifications/service";
 import { shopOrderCreateSchema } from "@/lib/validations/shop-product";
 import {
-  cartNeedsShipping,
-  findRegionByName,
-  resolveShippingCost,
-} from "@/lib/shop/shipping";
-import {
   isOrderSchemaError,
   isShippingRegionFkError,
   selectShopOrdersList,
 } from "@/lib/shop/order-query";
+import {
+  buildProgressiveInsertPayloads,
+  buildShopOrderRow,
+  DELIVERY_PERSIST_KEYS,
+  matchShippingRegion,
+  resolveDeliveryShipping,
+  resolveNeedsShipping,
+  type RegionMatch,
+} from "@/lib/shop/order-insert";
 import { normalizeSiteSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
@@ -181,20 +185,13 @@ export async function POST(request: Request) {
     // Never trust client shipping_required:false to skip accessories — but DO
     // honor delivery_method when the customer selected pickup/delivery so we
     // never drop shipping fields after a false-negative accessory detection.
-    const needsShipping =
-      cartNeedsShipping(body.items) ||
-      body.delivery_method === "delivery" ||
-      body.delivery_method === "pickup" ||
-      body.shipping_required === true;
+    const needsShipping = resolveNeedsShipping(body);
     const siteSettings = await loadSiteSettingsForShipping();
 
     let deliveryMethod: DeliveryMethod | null = null;
-    let regionFee: number | null = null;
-    let regionNameAr: string | null = null;
-    let regionId: string | null = null;
-    let regionCustom: string | null = null;
-    let feePending = false;
-    let regionConfigured = true;
+    let matched: RegionMatch | null = null;
+    let regionMatchSource: "db" | "seed" | null = null;
+    let regionText = "";
 
     if (needsShipping) {
       const method = body.delivery_method;
@@ -238,155 +235,61 @@ export async function POST(request: Request) {
             { status: 400 }
           );
         }
-        const regionText = ship.region?.trim() || "";
-        regionId = ship.shipping_region_id?.trim() || null;
-        if (!regionId && regionText.length < 2) {
+        regionText = ship.region?.trim() || "";
+        const regionIdHint = ship.shipping_region_id?.trim() || null;
+        if (!regionIdHint && regionText.length < 2) {
           return NextResponse.json(
             { error: "المنطقة / المدينة مطلوبة للتوصيل." },
             { status: 400 }
           );
         }
 
-        type RegionRow = {
-          id: string;
-          name_ar: string;
-          name_en?: string | null;
-          shipping_fee: number;
-          is_active: boolean;
-          estimated_days?: number | null;
-          estimated_days_min?: number | null;
-          estimated_days_max?: number | null;
-          estimated_delivery_ar?: string | null;
-        };
-
-        let matched: RegionRow | null = null;
-
+        let dbRows: RegionMatch[] | null = null;
         if (isSupabaseConfigured()) {
           try {
             const supabase = createAdminClient();
-            if (regionId) {
-              const { data: region } = await supabase
-                .from("shipping_regions")
-                .select(
-                  "id, name_ar, name_en, shipping_fee, is_active, estimated_days, estimated_days_min, estimated_days_max, estimated_delivery_ar"
-                )
-                .eq("id", regionId)
-                .maybeSingle();
-              if (region && region.is_active !== false) {
-                matched = region as RegionRow;
-              }
-            }
-            if (!matched && regionText) {
-              const { data: active } = await supabase
-                .from("shipping_regions")
-                .select(
-                  "id, name_ar, name_en, shipping_fee, is_active, estimated_days, estimated_days_min, estimated_days_max, estimated_delivery_ar"
-                )
-                .eq("is_active", true);
-              matched = findRegionByName(
-                (active as RegionRow[] | null) ?? [],
-                regionText
-              );
+            const { data: active, error: regionErr } = await supabase
+              .from("shipping_regions")
+              .select(
+                "id, name_ar, name_en, shipping_fee, is_active, estimated_days, estimated_days_min, estimated_days_max, estimated_delivery_ar"
+              )
+              .eq("is_active", true);
+            if (!regionErr) {
+              dbRows = (active as RegionMatch[] | null) ?? [];
             }
           } catch {
-            matched = null;
+            dbRows = null;
           }
-        } else if (regionText) {
-          // Dev memory mode — match against seed names only
-          const seed: RegionRow[] = [
-            { id: "b1000000-0000-4000-8000-000000000001", name_ar: "الرياض", name_en: "Riyadh", shipping_fee: 35, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000002", name_ar: "جدة", name_en: "Jeddah", shipping_fee: 40, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000003", name_ar: "الدمام", name_en: "Dammam", shipping_fee: 45, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000004", name_ar: "مكة", name_en: "Makkah", shipping_fee: 40, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000005", name_ar: "المدينة", name_en: "Madinah", shipping_fee: 45, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000006", name_ar: "القصيم", name_en: "Qassim", shipping_fee: 50, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000007", name_ar: "تبوك", name_en: "Tabuk", shipping_fee: 55, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000008", name_ar: "أبها", name_en: "Abha", shipping_fee: 55, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000009", name_ar: "حائل", name_en: "Hail", shipping_fee: 55, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000010", name_ar: "الطائف", name_en: "Taif", shipping_fee: 45, is_active: true },
-            { id: "b1000000-0000-4000-8000-000000000011", name_ar: "أخرى", name_en: "Other", shipping_fee: 60, is_active: true },
-          ];
-          matched =
-            (regionId ? seed.find((r) => r.id === regionId) : null) ??
-            findRegionByName(seed, regionText);
         }
 
-        if (matched) {
-          regionId = matched.id;
-          regionNameAr = matched.name_ar;
-          regionFee = Number(matched.shipping_fee) || 0;
-          regionConfigured = true;
-          feePending = false;
-          regionCustom = null;
-        } else {
-          // Unknown / custom region — do not block checkout
-          regionId = null;
-          regionNameAr = regionText || ship.region?.trim() || null;
-          regionCustom = regionNameAr;
-          regionFee = null;
-          regionConfigured = false;
-          feePending = true;
+        const found = matchShippingRegion(regionIdHint, regionText, dbRows);
+        if (found) {
+          matched = found.match;
+          regionMatchSource = found.source;
         }
       }
     }
 
-    const shipping =
-      needsShipping && deliveryMethod === "delivery" ? body.shipping : null;
-    const itemsSubtotal = body.items.reduce(
-      (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
-      0
-    );
-    const shippingCost = feePending
-      ? 0
-      : resolveShippingCost(needsShipping, itemsSubtotal, siteSettings, {
-          deliveryMethod,
-          regionFee,
-        });
-    const computedTotal = itemsSubtotal + shippingCost;
+    const resolved = resolveDeliveryShipping({
+      body,
+      needsShipping,
+      deliveryMethod,
+      matched,
+      regionMatchSource,
+      regionText,
+      siteSettings,
+    });
 
-    const id = crypto.randomUUID();
-    const created_at = new Date().toISOString();
-    const row: ShopOrder = {
-      id,
-      name: body.name.trim(),
-      phone: body.phone.trim(),
-      email: body.email?.trim() ? body.email.trim() : null,
-      notes: body.notes?.trim() ? body.notes.trim() : null,
-      items: body.items.map((i) => ({
-        ...i,
-        image: i.image ?? undefined,
-      })),
-      gift_options: body.gift_options ?? null,
-      total: computedTotal,
-      status: "pending",
-      created_at,
-      shipping_required: needsShipping,
-      delivery_method: needsShipping ? deliveryMethod : null,
-      shipping_full_name: shipping?.full_name?.trim() || null,
-      shipping_phone: shipping?.phone?.trim() || null,
-      shipping_city: shipping?.city?.trim() || null,
-      shipping_region:
-        shipping?.region?.trim() || regionNameAr || null,
-      shipping_region_id: regionId,
-      shipping_region_name_ar: regionNameAr,
-      shipping_region_custom: regionCustom,
-      region_configured: needsShipping && deliveryMethod === "delivery"
-        ? regionConfigured
-        : true,
-      shipping_fee_pending: feePending,
-      shipping_address: shipping?.address?.trim() || null,
-      shipping_building_number: shipping?.building_number?.trim() || null,
-      shipping_neighborhood: shipping?.neighborhood?.trim() || null,
-      shipping_postal_code: shipping?.postal_code?.trim() || null,
-      shipping_notes: shipping?.notes?.trim() || null,
-      shipping_cost: shippingCost,
-      tracking_number: null,
-      tracking_url: null,
-      internal_shipping_notes: null,
-      carrier_code: null,
-      notify_whatsapp: body.notify_whatsapp ?? true,
-      notify_email: body.notify_email ?? true,
-    };
+    const row = buildShopOrderRow(body, resolved);
+
+    console.info("[orders API] resolved shipping for insert", {
+      id: row.id,
+      delivery_method: row.delivery_method,
+      shipping_cost: row.shipping_cost,
+      shipping_fee_pending: row.shipping_fee_pending,
+      total: row.total,
+      region_id: row.shipping_region_id,
+    });
 
     if (!isSupabaseConfigured()) {
       memoryOrdersStore().unshift(row);
@@ -396,80 +299,15 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient();
-    const core = {
-      id: row.id,
-      name: row.name,
-      phone: row.phone,
-      email: row.email,
-      notes: row.notes,
-      items: row.items,
-      gift_options: row.gift_options,
-      total: row.total,
-      status: row.status,
-    };
-    const withShippingLegacy = {
-      ...core,
-      shipping_required: row.shipping_required,
-      shipping_full_name: row.shipping_full_name,
-      shipping_phone: row.shipping_phone,
-      shipping_city: row.shipping_city,
-      shipping_region: row.shipping_region,
-      shipping_address: row.shipping_address,
-      shipping_postal_code: row.shipping_postal_code,
-      shipping_notes: row.shipping_notes,
-      shipping_cost: row.shipping_cost,
-    };
-    const withShippingM9 = {
-      ...withShippingLegacy,
-      delivery_method: row.delivery_method,
-      shipping_region_id: row.shipping_region_id,
-      shipping_region_name_ar: row.shipping_region_name_ar,
-      shipping_building_number: row.shipping_building_number,
-      shipping_neighborhood: row.shipping_neighborhood,
-    };
-    const insertFull = {
-      ...withShippingM9,
-      shipping_region_custom: row.shipping_region_custom,
-      region_configured: row.region_configured,
-      shipping_fee_pending: row.shipping_fee_pending,
-      tracking_number: row.tracking_number,
-      tracking_url: row.tracking_url,
-      internal_shipping_notes: row.internal_shipping_notes,
-      carrier_code: row.carrier_code,
-      notify_whatsapp: row.notify_whatsapp ?? true,
-      notify_email: row.notify_email ?? true,
-    };
-
-    // Progressive insert: never lose an order when optional shipping columns are absent.
-    // Prefer payloads that keep delivery_method whenever the customer chose delivery.
-    const insertAttempts = [
-      insertFull,
-      {
-        ...withShippingM9,
-        notify_whatsapp: row.notify_whatsapp ?? true,
-        notify_email: row.notify_email ?? true,
-      },
-      withShippingM9,
-      {
-        ...withShippingLegacy,
-        notify_whatsapp: row.notify_whatsapp ?? true,
-        notify_email: row.notify_email ?? true,
-      },
-      withShippingLegacy,
-      {
-        ...core,
-        notify_whatsapp: row.notify_whatsapp ?? true,
-        notify_email: row.notify_email ?? true,
-      },
-      core,
-    ];
+    const insertAttempts = buildProgressiveInsertPayloads(row);
+    const insertFull = insertAttempts[0];
 
     let error: { message?: string; code?: string } | null = null;
     let savedPayload: Record<string, unknown> | null = null;
     let clearRegionId = false;
 
     for (let i = 0; i < insertAttempts.length; i++) {
-      let payload = { ...(insertAttempts[i] as Record<string, unknown>) };
+      let payload = { ...insertAttempts[i] };
       if (clearRegionId && "shipping_region_id" in payload) {
         payload = { ...payload, shipping_region_id: null };
       }
@@ -487,7 +325,6 @@ export async function POST(request: Request) {
           getErrorMessage(error)
         );
         clearRegionId = true;
-        regionId = null;
         row.shipping_region_id = null;
         i -= 1; // retry same payload tier with null region id
         continue;
@@ -503,6 +340,20 @@ export async function POST(request: Request) {
     }
 
     if (error) {
+      // Delivery/pickup must not silently save without shipping columns.
+      if (
+        (row.delivery_method === "delivery" ||
+          row.delivery_method === "pickup") &&
+        isOrderSchemaError(error)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "تعذّر حفظ بيانات الشحن — نفّذي supabase/APPLY_SHOP_SHIPPING.sql و APPLY_SHIPPING_REGIONS.sql ثم أعيدي المحاولة.",
+          },
+          { status: 503 }
+        );
+      }
       const mapped = mapOrderError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
@@ -514,13 +365,20 @@ export async function POST(request: Request) {
         ...insertFull,
         shipping_region_id: clearRegionId ? null : insertFull.shipping_region_id,
       };
-      const missingKeys = Object.keys(fullForPatch).filter(
-        (k) => !(k in savedPayload!)
-      );
+      const missingKeys = [
+        ...Object.keys(fullForPatch).filter((k) => !(k in savedPayload!)),
+        // Always re-assert critical delivery keys even if a narrower tier omitted them
+        ...DELIVERY_PERSIST_KEYS.filter((k) => !(k in savedPayload!)),
+      ].filter((k, idx, arr) => arr.indexOf(k) === idx);
+
       if (missingKeys.length > 0) {
         const patch: Record<string, unknown> = {};
         for (const k of missingKeys) {
-          patch[k] = (fullForPatch as Record<string, unknown>)[k];
+          if (k in fullForPatch) {
+            patch[k] = (fullForPatch as Record<string, unknown>)[k];
+          } else if (k in row) {
+            patch[k] = (row as unknown as Record<string, unknown>)[k];
+          }
         }
         const { error: patchError } = await supabase
           .from("shop_orders")
@@ -530,10 +388,20 @@ export async function POST(request: Request) {
           // Strip unknown columns one group at a time
           const m9Keys = [
             "delivery_method",
+            "shipping_required",
+            "shipping_cost",
             "shipping_region_id",
             "shipping_region_name_ar",
             "shipping_building_number",
             "shipping_neighborhood",
+            "shipping_full_name",
+            "shipping_phone",
+            "shipping_city",
+            "shipping_region",
+            "shipping_address",
+            "shipping_postal_code",
+            "shipping_notes",
+            "total",
           ];
           const m9Patch: Record<string, unknown> = {};
           for (const k of m9Keys) {
