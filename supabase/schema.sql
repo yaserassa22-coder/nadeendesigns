@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS dresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name_ar TEXT NOT NULL,
   description_ar TEXT NOT NULL DEFAULT '',
-  category TEXT NOT NULL CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dresses')),
+  -- TEXT slug / legacy_key; validated by app + dynamic categories table (no hardcoded CHECK)
+  category TEXT NOT NULL,
   price NUMERIC,
   rental_price NUMERIC,
   size TEXT,

@@ -28,9 +28,7 @@ SET category = 'nouf_dresses',
     updated_at = now()
 WHERE category = 'nouf_dress';
 
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dresses'));
+-- Do NOT recreate dresses_category_check (dynamic categories; see migration 025)
 
 -- Booking service type: allow nouf_dresses
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;

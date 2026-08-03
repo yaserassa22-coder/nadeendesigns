@@ -62,11 +62,8 @@ CREATE TABLE IF NOT EXISTS shop_orders (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Dress category: فستان نوف
+-- Dress category: drop obsolete hardcoded CHECK (dynamic categories; see 016 / 025)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dresses'));
 
 ALTER TABLE veils ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bridal_robes ENABLE ROW LEVEL SECURITY;

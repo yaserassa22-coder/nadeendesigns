@@ -1,11 +1,8 @@
 -- Categories + booking delivery fields + expanded service types
 -- Safe to run on existing databases
 
--- 1) Dress categories
+-- 1) Dress categories — drop obsolete CHECK only (dynamic categories; see 016 / 025)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'veils', 'robes'));
 
 -- 2) Booking service types (includes new + legacy values)
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;

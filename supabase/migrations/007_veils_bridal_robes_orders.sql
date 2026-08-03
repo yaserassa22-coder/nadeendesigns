@@ -93,11 +93,8 @@ ON CONFLICT (id) DO NOTHING;
 
 DELETE FROM dresses WHERE category IN ('veils', 'robes');
 
--- Narrow dresses category check (recreate constraint safely)
+-- Drop obsolete category CHECK (do not recreate — dynamic categories; see 016 / 025)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design'));
 
 ALTER TABLE veils ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bridal_robes ENABLE ROW LEVEL SECURITY;

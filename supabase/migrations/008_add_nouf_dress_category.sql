@@ -1,8 +1,6 @@
--- Add فستان نوف (nouf_dress) to dresses category check
+-- Legacy: once added nouf_dress to dresses_category_check.
+-- CHECK dropped permanently (dynamic categories; see 016 / 025); keep booking service_type widen.
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dress'));
 
 -- Allow booking service type for نوف dresses
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;

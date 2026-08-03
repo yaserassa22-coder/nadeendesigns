@@ -1,8 +1,7 @@
 -- =============================================================================
--- RUN IN SUPABASE → SQL Editor  (REQUIRED for saving فساتين نوف)
--- Without this, POST /api/dresses with category=nouf_dresses fails with
--- check constraint dresses_category_check (HTTP 400).
--- Safe to run multiple times.
+-- Nouf category data normalize + drop obsolete CHECK (no hardcoded re-add).
+-- Prefer APPLY_DROP_CATEGORY_CHECK.sql / APPLY_ALL.sql for full fix.
+-- Safe to run multiple times. Preserves all dress rows.
 -- =============================================================================
 
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
@@ -27,10 +26,6 @@ UPDATE dresses
 SET category = 'nouf_dresses',
     updated_at = now()
 WHERE category = 'nouf_dress';
-
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dresses'));
 
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 ALTER TABLE bookings

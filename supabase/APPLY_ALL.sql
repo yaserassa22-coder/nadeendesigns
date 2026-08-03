@@ -37,10 +37,16 @@
 --   25. Soft delete / archive / audit: APPLY_SOFT_DELETE_ARCHIVE.sql (= 022)
 --   26. Reports schedules: APPLY_REPORTS.sql (= 023) — future-ready; no cron runner
 --   27. Smart appointments: APPLY_SMART_APPOINTMENTS.sql (= 024)
+--   28. Drop obsolete dresses_category_check: APPLY_DROP_CATEGORY_CHECK.sql (= 025)
+--       (must run AFTER any legacy block that once re-added the CHECK)
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, shop_orders base) must
 -- already exist from the main schema / earlier project setup. This file applies
 -- incremental migrations on top.
+--
+-- NOTE: dresses.category is TEXT (slug / legacy_key). Hardcoded CHECK constraints
+-- are obsolete after dynamic categories (016). APPLY_ALL drops the constraint and
+-- never recreates it — existing product rows are preserved.
 -- =============================================================================
 
 
@@ -51,12 +57,9 @@
 
 -- Add custom_design and keep robes (برنص عروس)
 -- Prefer running 002_booking_delivery_and_service_types.sql for full update
+-- Hardcoded dresses_category_check removed: categories are dynamic (see 016 / 025).
 
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
-
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'veils', 'robes'));
 
 
 
@@ -68,11 +71,8 @@ ALTER TABLE dresses
 -- Categories + booking delivery fields + expanded service types
 -- Safe to run on existing databases
 
--- 1) Dress categories
+-- 1) Dress categories — drop obsolete CHECK only (do not recreate hardcoded list)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'veils', 'robes'));
 
 -- 2) Booking service types (includes new + legacy values)
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
@@ -158,11 +158,9 @@ UPDATE dresses SET style = 'تصميم مخصص' WHERE style IN ('custom', 'Cust
 -- Source: supabase/migrations/008_add_nouf_dress_category.sql
 -- #############################################################################
 
--- Add فستان نوف (nouf_dress) to dresses category check
+-- Legacy: once added nouf_dress to dresses_category_check.
+-- CHECK dropped permanently (dynamic categories); keep booking service_type widen.
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dress'));
 
 -- Allow booking service type for نوف dresses
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
@@ -318,9 +316,7 @@ SET category = 'nouf_dresses',
     updated_at = now()
 WHERE category = 'nouf_dress';
 
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dresses'));
+-- Do NOT recreate dresses_category_check (dynamic categories; see migration 025)
 
 -- Booking service type: allow nouf_dresses
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
@@ -354,10 +350,8 @@ WHERE service_type = 'nouf_dress';
 -- #############################################################################
 
 -- =============================================================================
--- RUN IN SUPABASE → SQL Editor  (REQUIRED for saving فساتين نوف)
--- Without this, POST /api/dresses with category=nouf_dresses fails with
--- check constraint dresses_category_check (HTTP 400).
--- Safe to run multiple times.
+-- Nouf category data normalize + drop obsolete CHECK (no hardcoded re-add).
+-- Safe to run multiple times. Preserves all dress rows.
 -- =============================================================================
 
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
@@ -382,10 +376,6 @@ UPDATE dresses
 SET category = 'nouf_dresses',
     updated_at = now()
 WHERE category = 'nouf_dress';
-
-ALTER TABLE dresses
-  ADD CONSTRAINT dresses_category_check
-  CHECK (category IN ('wedding', 'rental', 'custom_design', 'nouf_dresses'));
 
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 ALTER TABLE bookings
@@ -1970,6 +1960,50 @@ VALUES (
   now()
 )
 ON CONFLICT (key) DO NOTHING;
+
+
+-- #############################################################################
+-- Migration 025 — Drop obsolete dresses_category_check
+-- Source: supabase/migrations/025_drop_dresses_category_check.sql
+--         supabase/APPLY_DROP_CATEGORY_CHECK.sql
+-- Must run last so no earlier legacy block can leave a hardcoded CHECK in place.
+-- #############################################################################
+
+DO $$
+DECLARE
+  r RECORD;
+  t TEXT;
+  tables TEXT[] := ARRAY['dresses', 'veils', 'bridal_robes'];
+BEGIN
+  FOREACH t IN ARRAY tables
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = t
+    ) THEN
+      CONTINUE;
+    END IF;
+
+    EXECUTE format(
+      'ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I',
+      t,
+      t || '_category_check'
+    );
+
+    FOR r IN
+      SELECT c.conname
+      FROM pg_constraint c
+      JOIN pg_class rel ON rel.oid = c.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+      WHERE nsp.nspname = 'public'
+        AND rel.relname = t
+        AND c.contype = 'c'
+        AND pg_get_constraintdef(c.oid) ILIKE '%category%'
+    LOOP
+      EXECUTE format('ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I', t, r.conname);
+    END LOOP;
+  END LOOP;
+END $$;
 
 
 -- =============================================================================
