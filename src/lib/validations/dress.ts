@@ -79,6 +79,7 @@ export const dressColorSchema = optionalStyleOrColor("color");
 
 export const dressPayloadSchema = z.object({
   name_ar: z.string().trim().min(2, "اسم الفستان يجب أن يكون حرفين على الأقل"),
+  /** Unlimited multiline TEXT — no .max(); trim ends in admin save handlers */
   description_ar: z.string().optional().default(""),
   category: dressCategorySchema,
   price: optionalNullableNumber("السعر").optional(),

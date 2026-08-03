@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { cartNeedsShipping } from "@/lib/shop/shipping";
 
+/** Product descriptions are unlimited TEXT — no .max() / HTML maxlength. */
+const unlimitedDescription = z.string().default("");
+
 export const veilPayloadSchema = z.object({
   name_ar: z.string().min(2),
-  description_ar: z.string().default(""),
+  description_ar: unlimitedDescription,
   price: z.number().min(0),
   images: z.array(z.string()).default([]),
   category: z.string().min(1),
@@ -16,7 +19,7 @@ export const veilPayloadSchema = z.object({
 
 export const bridalRobePayloadSchema = z.object({
   name_ar: z.string().min(2),
-  description_ar: z.string().default(""),
+  description_ar: unlimitedDescription,
   price: z.number().min(0),
   images: z.array(z.string()).default([]),
   color: z.string().nullable().optional(),

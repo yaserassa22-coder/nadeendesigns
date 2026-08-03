@@ -23,6 +23,8 @@ import Image from "next/image";
 
 interface OrdersManagerProps {
   initialOrders: ShopOrder[];
+  initialError?: string | null;
+  initialCount?: number;
 }
 
 function normalizeStatus(status: ShopOrderStatus): ShopOrderStatus {
@@ -43,11 +45,16 @@ function actionClass(tone?: "default" | "danger" | "gold") {
   return "border-beige-dark bg-white text-charcoal hover:bg-beige/40";
 }
 
-export function OrdersManager({ initialOrders }: OrdersManagerProps) {
+export function OrdersManager({
+  initialOrders,
+  initialError = null,
+  initialCount,
+}: OrdersManagerProps) {
   const searchParams = useSearchParams();
   const focusId = searchParams.get("focus");
 
   const [orders, setOrders] = useState(initialOrders);
+  const [loadError, setLoadError] = useState(initialError);
   const [filter, setFilter] = useState<ShopOrderStatus | "all">("all");
   const [expanded, setExpanded] = useState<string | null>(focusId);
   const [appliedFocus, setAppliedFocus] = useState(focusId);
@@ -193,13 +200,44 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
         <div>
           <h1 className="text-2xl font-bold text-charcoal">🛒 الطلبات</h1>
           <p className="mt-1 text-sm text-muted">
-            سير عمل الطلب الكامل — كل تغيير حالة يُرسل واتساب وإيميل تلقائياً
+            سير عمل الطلب الكامل — طرحة العروس، برنص العروس، وجميع طلبات المتجر (
+            {typeof initialCount === "number" ? initialCount : orders.length}{" "}
+            طلب)
           </p>
         </div>
         <Button variant="outline" loading={retrying} onClick={retryNotifications}>
           إعادة إرسال الإشعارات الفاشلة
         </Button>
       </div>
+
+      {loadError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          <p className="font-medium">تعذّر تحميل الطلبات</p>
+          <p className="mt-1 whitespace-pre-wrap" dir="ltr">
+            {loadError}
+          </p>
+          <button
+            type="button"
+            className="mt-2 text-sm text-gold underline"
+            onClick={() => {
+              setLoadError(null);
+              void fetch("/api/orders")
+                .then((r) => r.json())
+                .then((data) => {
+                  if (Array.isArray(data)) setOrders(data);
+                  else if (data?.error) setLoadError(String(data.error));
+                })
+                .catch((e) =>
+                  setLoadError(
+                    e instanceof Error ? e.message : "فشل إعادة التحميل"
+                  )
+                );
+            }}
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       <Select
         label="تصفية الحالة"

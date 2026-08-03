@@ -148,7 +148,7 @@ export function DressesManager({
 
   const payload = () => ({
     name_ar: form.name_ar.trim(),
-    description_ar: form.description_ar.trim(),
+    description_ar: form.description_ar.replace(/^\s+|\s+$/g, ""),
     // Locked section always saves its own category (never wedding for نوف)
     category:
       lockedCategory ??
@@ -485,16 +485,17 @@ export function DressesManager({
               <div className="sm:col-span-2">
                 <Textarea
                   label="الوصف"
-                  rows={8}
+                  rows={10}
                   value={form.description_ar}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, description_ar: e.target.value }))
                   }
-                  placeholder="وصف المنتج… Enter لسطر جديد (عربي / English)"
-                  className="whitespace-pre-wrap font-normal"
+                  placeholder="وصف المنتج… Enter لسطر جديد (عربي / English) — بدون حد للطول"
+                  className="min-h-[12rem] resize-y whitespace-pre-wrap font-normal"
                 />
                 <p className="mt-1 text-xs text-muted">
-                  يُحفظ التنسيق (الأسطر الجديدة) ويظهر كما هو في صفحة المنتج.
+                  وصف غير محدود الطول. يُحفظ التنسيق (الأسطر الجديدة) ويظهر كما هو
+                  في صفحة المنتج.
                 </p>
               </div>
               <div className="sm:col-span-2">

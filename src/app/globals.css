@@ -26,6 +26,7 @@
   --color-muted: var(--muted);
   --font-sans: var(--font-noto-arabic);
   --font-display: var(--font-cormorant);
+  --font-display-ar: var(--font-amiri);
 }
 
 * {
@@ -115,6 +116,13 @@ body {
 }
 .font-personalize-luxury {
   font-family: var(--font-cormorant), "Cormorant Garamond", serif;
+}
+
+/* Premium Arabic display (hero / editorial) */
+.font-display-ar {
+  font-family: var(--font-amiri), "Amiri", "Noto Naskh Arabic", serif;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
 }
 .font-personalize-classic-en {
   font-family: var(--font-pers-classic-en), "Playfair Display", serif;

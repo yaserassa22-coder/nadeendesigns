@@ -61,16 +61,16 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, delay: 0.5 }}
-            className="mt-7 max-w-xl text-[2rem] font-medium leading-[1.45] tracking-[0.04em] text-charcoal md:text-[2.75rem] md:leading-[1.4] lg:text-[3.25rem]"
+            className="font-display-ar mt-7 max-w-xl text-[2.125rem] font-normal leading-[1.55] tracking-[0.02em] text-charcoal sm:text-[2.5rem] sm:leading-[1.5] md:text-[3.15rem] md:leading-[1.45] lg:text-[3.75rem] lg:leading-[1.4]"
           >
-            <span className="relative inline-block">
+            <span className="relative inline-block font-bold">
               تفاصيل
               <span
                 aria-hidden
                 className="absolute -bottom-1 start-0 h-[2px] w-full bg-gold/70"
               />
             </span>{" "}
-            تصنع الفرق
+            <span className="font-normal">تصنع الفرق</span>
           </motion.h1>
 
           <motion.p

@@ -116,9 +116,11 @@ export function ShopProductsManager({
   };
 
   const payload = () => {
+    // Trim ends only — preserve internal newlines / blank lines in descriptions
+    const description_ar = form.description_ar.replace(/^\s+|\s+$/g, "");
     const base = {
       name_ar: form.name_ar.trim(),
-      description_ar: form.description_ar.trim(),
+      description_ar,
       price: Number(form.price || 0),
       images: form.images,
       color: form.color || null,
@@ -380,16 +382,17 @@ export function ShopProductsManager({
               <div className="sm:col-span-2">
                 <Textarea
                   label="الوصف"
-                  rows={8}
+                  rows={10}
                   value={form.description_ar}
                   onChange={(e) =>
                     setForm({ ...form, description_ar: e.target.value })
                   }
-                  placeholder="وصف المنتج… Enter لسطر جديد (عربي / English)"
-                  className="whitespace-pre-wrap font-normal"
+                  placeholder="وصف المنتج… Enter لسطر جديد (عربي / English) — بدون حد للطول"
+                  className="min-h-[12rem] resize-y whitespace-pre-wrap font-normal"
                 />
                 <p className="mt-1 text-xs text-muted">
-                  يُحفظ التنسيق (الأسطر الجديدة) ويظهر كما هو في صفحة المنتج.
+                  وصف غير محدود الطول. يُحفظ التنسيق (الأسطر الجديدة) ويظهر كما هو
+                  في صفحة المنتج.
                 </p>
               </div>
               <Input

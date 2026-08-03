@@ -50,7 +50,7 @@ export function Textarea({ label, error, className, id, ...props }: TextareaProp
       <textarea
         id={inputId}
         className={cn(
-          "w-full resize-none rounded-xl border border-beige-dark bg-white px-4 py-3 text-charcoal transition-colors placeholder:text-muted/60 focus:border-gold focus:ring-2 focus:ring-gold/20",
+          "w-full min-h-[7.5rem] resize-y rounded-xl border border-beige-dark bg-white px-4 py-3 text-charcoal transition-colors placeholder:text-muted/60 focus:border-gold focus:ring-2 focus:ring-gold/20 whitespace-pre-wrap",
           error && "border-red-400",
           className
         )}

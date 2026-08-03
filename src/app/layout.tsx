@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Noto_Sans_Arabic } from "next/font/google";
+import {
+  Amiri,
+  Cormorant_Garamond,
+  Noto_Sans_Arabic,
+} from "next/font/google";
 import { OFFICIAL_INSTAGRAM_URL, SITE_NAME } from "@/lib/constants";
 import "./globals.css";
 
@@ -7,6 +11,14 @@ const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
+/** Premium Arabic display — used for hero / editorial headlines */
+const amiri = Amiri({
+  variable: "--font-amiri",
+  subsets: ["arabic", "latin"],
+  weight: ["400", "700"],
   display: "swap",
 });
 
@@ -72,7 +84,7 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
-      className={`${cormorant.variable} ${notoArabic.variable} h-full antialiased`}
+      className={`${cormorant.variable} ${amiri.variable} ${notoArabic.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-ivory text-charcoal">
         <script
