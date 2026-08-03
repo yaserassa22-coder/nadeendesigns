@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidCheckoutPhone, isValidPersonName } from "@/lib/phone";
 import { cartNeedsShipping } from "@/lib/shop/shipping";
 
 /** Product descriptions are unlimited TEXT — no .max() / HTML maxlength. */
@@ -47,9 +48,13 @@ export const shopOrderItemSchema = z.object({
 });
 
 export const shippingAddressSchema = z.object({
-  full_name: z.string().min(2, "اسم المستلم مطلوب"),
-  phone: z.string().min(9, "هاتف التوصيل غير صالح"),
-  city: z.string().min(2, "المدينة مطلوبة"),
+  full_name: z
+    .string()
+    .refine(isValidPersonName, "اسم المستلم مطلوب"),
+  phone: z
+    .string()
+    .refine(isValidCheckoutPhone, "هاتف التوصيل غير صالح"),
+  city: z.string().min(2, "البلدة / المدينة مطلوبة"),
   /** Configured region name or free-text city/region */
   region: z.string().min(2, "المنطقة مطلوبة"),
   address: z.string().min(5, "العنوان التفصيلي مطلوب"),
@@ -63,8 +68,12 @@ export const shippingAddressSchema = z.object({
 
 export const shopOrderCreateSchema = z
   .object({
-    name: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل"),
-    phone: z.string().min(9, "رقم الهاتف غير صالح"),
+    name: z
+      .string()
+      .refine(isValidPersonName, "الاسم يجب أن يكون حرفين على الأقل"),
+    phone: z
+      .string()
+      .refine(isValidCheckoutPhone, "رقم الهاتف غير صالح"),
     email: z
       .union([
         z.string().email("البريد الإلكتروني غير صالح"),
@@ -146,7 +155,7 @@ export const shopOrderCreateSchema = z
           "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
       });
     }
-    if (wantWa && data.phone.trim().length < 9) {
+    if (wantWa && !isValidCheckoutPhone(data.phone)) {
       ctx.addIssue({
         code: "custom",
         path: ["phone"],

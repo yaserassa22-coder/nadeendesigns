@@ -1,8 +1,9 @@
 import { isWhatsAppConfigured } from "@/lib/notifications/config";
+import { phoneDigits } from "@/lib/phone";
 
 /** Normalize phone to E.164-ish digits for Twilio WhatsApp. */
 export function normalizeWhatsAppTo(phone: string): string | null {
-  const digits = phone.replace(/\D/g, "");
+  const digits = phoneDigits(phone);
   if (digits.length < 9) return null;
 
   // Israel local 05xxxxxxxx → 9725xxxxxxxx

@@ -29,6 +29,7 @@ import {
   resolveNeedsShipping,
   type RegionMatch,
 } from "@/lib/shop/order-insert";
+import { isValidCheckoutPhone, isValidPersonName } from "@/lib/phone";
 import { normalizeSiteSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
@@ -222,15 +223,15 @@ export async function POST(request: Request) {
         const ship = body.shipping;
         if (
           !ship ||
-          ship.full_name.trim().length < 2 ||
-          ship.phone.trim().length < 9 ||
+          !isValidPersonName(ship.full_name) ||
+          !isValidCheckoutPhone(ship.phone) ||
           ship.city.trim().length < 2 ||
           ship.address.trim().length < 5
         ) {
           return NextResponse.json(
             {
               error:
-                "بيانات التوصيل مطلوبة (الاسم، الهاتف، المدينة، والعنوان).",
+                "بيانات التوصيل مطلوبة (الاسم، الهاتف، البلدة / المدينة، والعنوان).",
             },
             { status: 400 }
           );

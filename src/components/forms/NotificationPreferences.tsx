@@ -1,5 +1,6 @@
 "use client";
 
+import { isValidCheckoutPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 export type NotificationPreferenceValue = {
@@ -96,11 +97,8 @@ export function validateNotificationPreferences(
   if (!prefs.notify_whatsapp && !prefs.notify_email) {
     return "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)";
   }
-  if (prefs.notify_whatsapp) {
-    const phone = contact.phone.trim();
-    if (phone.length < 9 || !/^[\d+\s()-]+$/.test(phone)) {
-      return "رقم واتساب غير صالح — أدخلي رقم هاتف صحيح لاستلام التحديثات عبر WhatsApp";
-    }
+  if (prefs.notify_whatsapp && !isValidCheckoutPhone(contact.phone)) {
+    return "رقم واتساب غير صالح — أدخلي رقم هاتف صحيح لاستلام التحديثات عبر WhatsApp";
   }
   if (prefs.notify_email) {
     const email = contact.email.trim();

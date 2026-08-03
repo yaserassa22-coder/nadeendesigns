@@ -37,7 +37,7 @@ export function RegionAutocomplete({
   regions,
   value,
   onChange,
-  label = "المنطقة / المدينة",
+  label = "المنطقة",
   error,
   disabled,
 }: RegionAutocompleteProps) {

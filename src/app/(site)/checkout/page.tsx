@@ -19,6 +19,11 @@ import {
   validateNotificationPreferences,
   type NotificationPreferenceValue,
 } from "@/components/forms/NotificationPreferences";
+import {
+  isValidCheckoutPhone,
+  isValidPersonName,
+  normalizePersonName,
+} from "@/lib/phone";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import {
@@ -206,12 +211,22 @@ export default function CheckoutPage() {
       setError("جاري تحميل إعدادات الشحن… انتظري لحظة ثم حاولي مرة أخرى.");
       return;
     }
-    if (name.trim().length < 2 || phone.trim().length < 9) {
+    // Contact name/phone may be empty if the customer only filled delivery
+    // recipient fields — fall back to shipping values so validation matches the UI.
+    const shippingName = normalizePersonName(shipping.full_name);
+    const shippingPhone = shipping.phone.trim();
+    const contactName =
+      normalizePersonName(name) ||
+      (deliveryMethod === "delivery" ? shippingName : "");
+    const contactPhone =
+      phone.trim() || (deliveryMethod === "delivery" ? shippingPhone : "");
+
+    if (!isValidPersonName(contactName) || !isValidCheckoutPhone(contactPhone)) {
       setError("الاسم ورقم الهاتف مطلوبان");
       return;
     }
     const notifyError = validateNotificationPreferences(notifyPrefs, {
-      phone,
+      phone: contactPhone,
       email,
     });
     if (notifyError) {
@@ -232,11 +247,13 @@ export default function CheckoutPage() {
         return;
       }
       if (deliveryMethod === "delivery") {
-        if (shipping.full_name.trim().length < 2) {
+        const recipientName = shippingName || contactName;
+        const recipientPhone = shippingPhone || contactPhone;
+        if (!isValidPersonName(recipientName)) {
           setError("اسم المستلم مطلوب للتوصيل");
           return;
         }
-        if (shipping.phone.trim().length < 9) {
+        if (!isValidCheckoutPhone(recipientPhone)) {
           setError("هاتف التوصيل مطلوب");
           return;
         }
@@ -245,7 +262,7 @@ export default function CheckoutPage() {
           return;
         }
         if (shipping.city.trim().length < 2) {
-          setError("المدينة مطلوبة للتوصيل");
+          setError("البلدة / المدينة مطلوبة للتوصيل");
           return;
         }
         if (shipping.address.trim().length < 5) {
@@ -257,9 +274,13 @@ export default function CheckoutPage() {
 
     setSaving(true);
     const regionText = regionSel.regionText.trim();
+    const recipientName =
+      shippingName || (deliveryMethod === "delivery" ? contactName : "");
+    const recipientPhone =
+      shippingPhone || (deliveryMethod === "delivery" ? contactPhone : "");
     const payload = {
-      name: name.trim(),
-      phone: phone.trim(),
+      name: contactName,
+      phone: contactPhone,
       email: email.trim() || null,
       notes: notes.trim() || null,
       gift_options: giftOptions,
@@ -272,8 +293,8 @@ export default function CheckoutPage() {
       shipping:
         needsShipping && deliveryMethod === "delivery"
           ? {
-              full_name: shipping.full_name.trim(),
-              phone: shipping.phone.trim(),
+              full_name: recipientName,
+              phone: recipientPhone,
               city: shipping.city.trim(),
               region: regionText,
               address: shipping.address.trim(),
@@ -616,7 +637,7 @@ export default function CheckoutPage() {
                       autoComplete="shipping tel"
                     />
                     <Input
-                      label="المدينة *"
+                      label="البلدة / المدينة *"
                       value={shipping.city}
                       onChange={(e) => updateShipping("city", e.target.value)}
                       autoComplete="shipping address-level2"
