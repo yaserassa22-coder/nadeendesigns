@@ -2,8 +2,15 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, RefreshCw, Sparkles } from "lucide-react";
-import type { Booking, BookingStatus, DeliveryStatus } from "@/types";
+import type {
+  AppointmentLifecycleAction,
+  Booking,
+  BookingSource,
+  BookingStatus,
+  DeliveryStatus,
+} from "@/types";
 import {
+  BOOKING_SOURCE_LABELS,
   BOOKING_STATUS_LABELS,
   DELIVERY_STATUS_LABELS,
   getServiceTypeLabel,
@@ -19,6 +26,9 @@ import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleAc
 import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 import { postLifecycle } from "@/lib/admin/lifecycle-client";
+import { ManualBookingModal } from "@/components/admin/appointments/ManualBookingModal";
+import { WaitingListPanel } from "@/components/admin/appointments/WaitingListPanel";
+import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 
 interface BookingsManagerProps {
   initialBookings: Booking[];
@@ -56,6 +66,20 @@ export function BookingsManager({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.capabilities) setCaps(d.capabilities);
+        })
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const loadBookings = useCallback(async () => {
     setLoading(true);
@@ -100,7 +124,11 @@ export function BookingsManager({
 
   const patchBooking = async (
     id: string,
-    payload: { status?: BookingStatus; delivery_status?: DeliveryStatus }
+    payload: {
+      status?: BookingStatus;
+      delivery_status?: DeliveryStatus;
+      lifecycle_action?: AppointmentLifecycleAction;
+    }
   ) => {
     setUpdating(id);
     try {
@@ -111,9 +139,7 @@ export function BookingsManager({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "فشل التحديث");
-      setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, ...payload } : b))
-      );
+      await loadBookings();
     } catch (e) {
       alert(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
@@ -137,6 +163,13 @@ export function BookingsManager({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setManualOpen(true)}>إضافة حجز يدوي</Button>
+          <a
+            href="/admin/calendar"
+            className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
+          >
+            التقويم
+          </a>
           <a
             href="/api/admin/export?module=bookings"
             className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
@@ -175,7 +208,7 @@ export function BookingsManager({
                 <th className="px-4 py-3 text-right font-medium">العميلة</th>
                 <th className="px-4 py-3 text-right font-medium">الموعد</th>
                 <th className="px-4 py-3 text-right font-medium">الخدمة</th>
-                <th className="px-4 py-3 text-right font-medium">التوصيل</th>
+                <th className="px-4 py-3 text-right font-medium">المصدر</th>
                 <th className="px-4 py-3 text-right font-medium">الحالة</th>
                 <th className="px-4 py-3 text-right font-medium">إجراءات</th>
               </tr>
@@ -190,11 +223,7 @@ export function BookingsManager({
               ) : (
                 filtered.map((booking) => {
                   const isOpen = expanded === booking.id;
-                  const hasDetails =
-                    booking.delivery_required ||
-                    Boolean(booking.personalization) ||
-                    Boolean(booking.gift_options?.enabled) ||
-                    Boolean(booking.notes);
+                  const hasDetails = true;
                   return (
                     <Fragment key={booking.id}>
                       <tr className="border-t border-beige-dark">
@@ -217,6 +246,9 @@ export function BookingsManager({
                           {booking.gift_options?.enabled && (
                             <p className="mt-1 text-xs text-gold">🎁 تغليف هدية</p>
                           )}
+                          {booking.is_vip ? (
+                            <p className="mt-1 text-xs text-amber-700">VIP ★</p>
+                          ) : null}
                           {booking.notes && (
                             <p className="mt-1 line-clamp-2 text-xs text-muted">
                               {booking.notes}
@@ -238,7 +270,12 @@ export function BookingsManager({
                           {getServiceTypeLabel(booking.service_type)}
                         </td>
                         <td className="px-4 py-3">
-                          {booking.delivery_required ? "نعم" : "لا"}
+                          {
+                            BOOKING_SOURCE_LABELS[
+                              (booking.booking_source ||
+                                "online") as BookingSource
+                            ]
+                          }
                         </td>
                         <td className="px-4 py-3">
                           <select
@@ -283,6 +320,9 @@ export function BookingsManager({
                                 (booking as Booking & { archived_at?: string | null })
                                   .archived_at
                               )}
+                              allowArchive={caps?.canArchive ?? true}
+                              allowRestore={caps?.canRestore ?? true}
+                              allowSoftDelete={caps?.canSoftDelete ?? true}
                               onChanged={(kind) => {
                                 if (kind === "soft_delete") {
                                   setLastDeletedId(booking.id);
@@ -409,6 +449,30 @@ export function BookingsManager({
                                   </p>
                                 </div>
                               )}
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    ["arrived", "وصلت العميلة"],
+                                    ["started", "بدأ الموعد"],
+                                    ["completed", "انتهى الموعد"],
+                                    ["no_show", "لم تحضر"],
+                                  ] as const
+                                ).map(([action, label]) => (
+                                  <Button
+                                    key={action}
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={updating === booking.id}
+                                    onClick={() =>
+                                      void patchBooking(booking.id, {
+                                        lifecycle_action: action,
+                                      })
+                                    }
+                                  >
+                                    {label}
+                                  </Button>
+                                ))}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -421,6 +485,15 @@ export function BookingsManager({
           </table>
         </div>
       </div>
+
+      <WaitingListPanel />
+
+      <ManualBookingModal
+        open={manualOpen}
+        onClose={() => setManualOpen(false)}
+        onCreated={() => void loadBookings()}
+        canForceOverride={caps?.canForceOverride ?? false}
+      />
 
       <UndoSnackbar
         message={snack}

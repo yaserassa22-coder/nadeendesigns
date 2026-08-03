@@ -59,6 +59,14 @@ export type BookingsMetrics = {
   /** Future-ready: bookings have no price column yet */
   bookingRevenue: number;
   mostRequestedServices: NamedCount[];
+  /** Phase D appointment KPIs */
+  noShows: number;
+  cancelRate: number;
+  noShowRate: number;
+  busyHours: NamedCount[];
+  busyDays: NamedCount[];
+  consultantPerformance: NamedCount[];
+  bySource: NamedCount[];
 };
 
 export type ProductRow = {

@@ -15,6 +15,7 @@ import {
 } from "@/components/forms/NotificationPreferences";
 import { CUSTOM_DESIGN_BRIEF_KEY } from "@/lib/constants";
 import { BOOKING_SERVICE_OPTIONS } from "@/types";
+import { cn } from "@/lib/utils";
 
 const bookingSchema = z
   .object({
@@ -72,6 +73,8 @@ type BookingFormData = z.infer<typeof bookingSchema>;
 
 type ApiFieldError = { field: string; message: string };
 
+type SlotInfo = { time: string; available: boolean; label?: string };
+
 const API_FIELD_TO_FORM: Record<string, keyof BookingFormData | "form"> = {
   name: "name",
   phone: "phone",
@@ -96,6 +99,11 @@ export function BookingForm() {
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [slots, setSlots] = useState<SlotInfo[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [waitlistDone, setWaitlistDone] = useState(false);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
 
   const {
     register,
@@ -104,6 +112,7 @@ export function BookingForm() {
     watch,
     setError: setFormError,
     clearErrors,
+    getValues,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<BookingFormData>({
@@ -121,6 +130,8 @@ export function BookingForm() {
     notify_whatsapp: watch("notify_whatsapp"),
     notify_email: watch("notify_email"),
   };
+  const selectedDate = watch("date");
+  const selectedTime = watch("time");
 
   useEffect(() => {
     try {
@@ -136,6 +147,37 @@ export function BookingForm() {
 
     if (serviceParam) setValue("service_type", defaultService);
   }, [setValue, serviceParam, defaultService]);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      setSlots([]);
+      return;
+    }
+    let cancelled = false;
+    setSlotsLoading(true);
+    setValue("time", "");
+    void fetch(
+      `/api/bookings/availability?date=${encodeURIComponent(selectedDate)}`,
+      { cache: "no-store" }
+    )
+      .then(async (r) => {
+        const d = await r.json();
+        if (cancelled) return;
+        const list: SlotInfo[] = Array.isArray(d.slots) ? d.slots : [];
+        setSlots(list);
+        const anyOpen = list.some((s) => s.available);
+        setShowWaitlist(!anyOpen && list.length >= 0);
+      })
+      .catch(() => {
+        if (!cancelled) setSlots([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, setValue]);
 
   const applyApiFieldErrors = (fields?: ApiFieldError[], fallback?: string) => {
     clearErrors();
@@ -171,6 +213,39 @@ export function BookingForm() {
     setError(formLevel || fields[0]?.message || fallback || "");
   };
 
+  const joinWaitlist = async () => {
+    const v = getValues();
+    if (!v.name?.trim() || !v.phone?.trim()) {
+      setError("أدخلي الاسم والهاتف للانضمام لقائمة الانتظار");
+      return;
+    }
+    setWaitlistLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/waiting-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: v.name,
+          phone: v.phone,
+          email: v.email || null,
+          preferred_date: v.date || null,
+          preferred_time: v.time || null,
+          notes: v.notes || null,
+          notify_whatsapp: v.notify_whatsapp,
+          notify_email: v.notify_email,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل الانضمام");
+      setWaitlistDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل الانضمام");
+    } finally {
+      setWaitlistLoading(false);
+    }
+  };
+
   const onSubmit = async (data: BookingFormData) => {
     setError("");
     clearErrors();
@@ -196,6 +271,7 @@ export function BookingForm() {
         notes: data.notes?.trim() ? data.notes.trim() : null,
         notify_whatsapp: data.notify_whatsapp,
         notify_email: data.notify_email,
+        booking_source: "online",
       };
 
       const res = await fetch("/api/bookings", {
@@ -207,6 +283,9 @@ export function BookingForm() {
       const errBody = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        if (res.status === 409) {
+          setShowWaitlist(true);
+        }
         applyApiFieldErrors(
           errBody.fields as ApiFieldError[] | undefined,
           errBody.message || errBody.error || "حدث خطأ"
@@ -237,6 +316,21 @@ export function BookingForm() {
         <p className="mt-2 text-muted">سنتواصل معكِ قريبًا لتأكيد الموعد</p>
         <Button className="mt-6" onClick={() => setSuccess(false)}>
           حجز موعد آخر
+        </Button>
+      </div>
+    );
+  }
+
+  if (waitlistDone) {
+    return (
+      <div className="rounded-2xl border border-gold/30 bg-gold/5 p-8 text-center">
+        <CheckCircle className="mx-auto h-12 w-12 text-gold" />
+        <h3 className="mt-4 text-xl font-semibold text-charcoal">
+          تم إضافتكِ إلى قائمة الانتظار
+        </h3>
+        <p className="mt-2 text-muted">سنتواصل عند توفّر موعد مناسب</p>
+        <Button className="mt-6" onClick={() => setWaitlistDone(false)}>
+          العودة للنموذج
         </Button>
       </div>
     );
@@ -279,20 +373,77 @@ export function BookingForm() {
         }))}
       />
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <Input
-          label="التاريخ *"
-          type="date"
-          {...register("date")}
-          error={errors.date?.message}
-        />
-        <Input
-          label="الوقت *"
-          type="time"
-          {...register("time")}
-          error={errors.time?.message}
-        />
+      <Input
+        label="التاريخ *"
+        type="date"
+        {...register("date")}
+        error={errors.date?.message}
+      />
+
+      <div>
+        <p className="mb-2 text-sm font-medium text-charcoal">الوقت *</p>
+        {!selectedDate ? (
+          <p className="text-sm text-muted">اختاري التاريخ أولًا لعرض المواعيد</p>
+        ) : slotsLoading ? (
+          <p className="text-sm text-muted">جاري تحميل المواعيد...</p>
+        ) : slots.length === 0 ? (
+          <p className="text-sm text-muted">
+            لا توجد مواعيد لهذا اليوم (عطلة أو خارج أيام العمل)
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {slots.map((slot) => (
+              <button
+                key={slot.time}
+                type="button"
+                disabled={!slot.available}
+                onClick={() =>
+                  setValue("time", slot.time, { shouldValidate: true })
+                }
+                className={cn(
+                  "rounded-xl border px-2 py-2 text-sm transition",
+                  !slot.available &&
+                    "cursor-not-allowed border-beige-dark/60 bg-beige/40 text-muted line-through",
+                  slot.available &&
+                    selectedTime === slot.time &&
+                    "border-gold bg-gold text-white",
+                  slot.available &&
+                    selectedTime !== slot.time &&
+                    "border-beige-dark hover:border-gold/50"
+                )}
+              >
+                <span dir="ltr">{slot.time}</span>
+                {!slot.available && (
+                  <span className="mt-0.5 block text-[10px] no-underline">
+                    {slot.label || "غير متاح"}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        <input type="hidden" {...register("time")} />
+        {errors.time?.message && (
+          <p className="mt-1 text-sm text-red-600">{errors.time.message}</p>
+        )}
       </div>
+
+      {(showWaitlist || (slots.length > 0 && !slots.some((s) => s.available))) && (
+        <div className="rounded-xl border border-beige-dark bg-beige/30 p-4 text-sm">
+          <p className="text-charcoal">
+            الموعد غير متاح؟ انضمّي إلى قائمة الانتظار وسنبلغكِ عند التوفّر.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3"
+            loading={waitlistLoading}
+            onClick={() => void joinWaitlist()}
+          >
+            الانضمام لقائمة الانتظار
+          </Button>
+        </div>
+      )}
 
       <Textarea
         label="ملاحظات إضافية"

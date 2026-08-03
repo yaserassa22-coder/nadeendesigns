@@ -52,6 +52,23 @@ export function TrashManager() {
   const [busy, setBusy] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
   const [lastRestored, setLastRestored] = useState<TrashItem | null>(null);
+  const [canRestore, setCanRestore] = useState(true);
+  const [canPermanent, setCanPermanent] = useState(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.capabilities) {
+            setCanRestore(Boolean(d.capabilities.canRestore));
+            setCanPermanent(Boolean(d.capabilities.canPermanentDelete));
+          }
+        })
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const keyOf = (item: TrashItem) => `${item.module}:${item.id}`;
 
@@ -191,15 +208,17 @@ export function TrashManager() {
             <RefreshCw className="h-4 w-4" />
             تحديث
           </Button>
-          <Button
-            variant="outline"
-            className="border-red-200 text-red-700 hover:bg-red-50"
-            onClick={() => setConfirm({ kind: "empty" })}
-            disabled={items.length === 0}
-          >
-            <Trash2 className="h-4 w-4" />
-            تفريغ السلة
-          </Button>
+          {canPermanent ? (
+            <Button
+              variant="outline"
+              className="border-red-200 text-red-700 hover:bg-red-50"
+              onClick={() => setConfirm({ kind: "empty" })}
+              disabled={items.length === 0}
+            >
+              <Trash2 className="h-4 w-4" />
+              تفريغ السلة
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -276,23 +295,30 @@ export function TrashManager() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => void restoreOne(item)}
-                          disabled={busy}
-                        >
-                          استعادة
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="border-red-200 text-red-700 hover:bg-red-50"
-                          onClick={() =>
-                            setConfirm({ kind: "permanent", item })
-                          }
-                          disabled={busy}
-                        >
-                          حذف نهائي
-                        </Button>
+                        {canRestore ? (
+                          <Button
+                            variant="outline"
+                            onClick={() => void restoreOne(item)}
+                            disabled={busy}
+                          >
+                            استعادة
+                          </Button>
+                        ) : null}
+                        {canPermanent ? (
+                          <Button
+                            variant="outline"
+                            className="border-red-200 text-red-700 hover:bg-red-50"
+                            onClick={() =>
+                              setConfirm({ kind: "permanent", item })
+                            }
+                            disabled={busy}
+                          >
+                            حذف نهائي
+                          </Button>
+                        ) : null}
+                        {!canRestore && !canPermanent ? (
+                          <span className="text-xs text-muted">عرض فقط</span>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

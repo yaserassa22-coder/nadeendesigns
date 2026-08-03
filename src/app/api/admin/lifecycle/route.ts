@@ -12,6 +12,7 @@ import {
   canRestore,
   canSoftDelete,
 } from "@/lib/admin/permissions";
+import { getAdminActorRole } from "@/lib/admin/reports-data";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
@@ -68,10 +69,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "المعرّف مطلوب" }, { status: 400 });
   }
 
+  const role = await getAdminActorRole(user!.id);
   const actor = {
     id: user!.id,
     email: user!.email,
-    role: "admin",
+    role,
   };
 
   if (action === "archive" && !canArchive(actor)) {

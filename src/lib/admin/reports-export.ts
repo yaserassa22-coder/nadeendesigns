@@ -32,6 +32,9 @@ function kpiRows(data: ReportsPayload): ExportTable {
     ["حجوزات مؤكدة", data.bookings.confirmed],
     ["حجوزات مكتملة", data.bookings.completed],
     ["حجوزات ملغاة", data.bookings.cancelled],
+    ["لم تحضر", data.bookings.noShows ?? 0],
+    ["نسبة الإلغاء %", data.bookings.cancelRate ?? 0],
+    ["نسبة عدم الحضور %", data.bookings.noShowRate ?? 0],
     ["عملاء جدد", data.customers.newCustomers],
     ["عملاء عائدون", data.customers.returningCustomers],
     ["توصيل", data.shipping.deliveryCount],
@@ -101,6 +104,21 @@ export function buildExportTables(
       title: "أكثر الخدمات طلباً",
       headers: ["الخدمة", "العدد"],
       rows: data.bookings.mostRequestedServices.map((s) => [s.name, s.count]),
+    });
+    tables.push({
+      title: "الساعات الأكثر ازدحامًا",
+      headers: ["الساعة", "العدد"],
+      rows: (data.bookings.busyHours ?? []).map((s) => [s.name, s.count]),
+    });
+    tables.push({
+      title: "الأيام الأكثر ازدحامًا",
+      headers: ["اليوم", "العدد"],
+      rows: (data.bookings.busyDays ?? []).map((s) => [s.name, s.count]),
+    });
+    tables.push({
+      title: "حسب مصدر الحجز",
+      headers: ["المصدر", "العدد"],
+      rows: (data.bookings.bySource ?? []).map((s) => [s.name, s.count]),
     });
   }
 

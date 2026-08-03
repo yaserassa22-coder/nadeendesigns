@@ -579,6 +579,15 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
           <Kpi title="مؤكدة" value={data.bookings.confirmed} />
           <Kpi title="مكتملة" value={data.bookings.completed} />
           <Kpi title="ملغاة" value={data.bookings.cancelled} />
+          <Kpi title="لم تحضر" value={data.bookings.noShows ?? 0} />
+          <Kpi
+            title="نسبة الإلغاء %"
+            value={data.bookings.cancelRate ?? 0}
+          />
+          <Kpi
+            title="نسبة عدم الحضور %"
+            value={data.bookings.noShowRate ?? 0}
+          />
           <Kpi
             title="إيرادات الحجوزات"
             value={formatPrice(data.bookings.bookingRevenue)}
@@ -764,15 +773,44 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
       )}
 
       {(section === "overview" || section === "bookings") && (
-        <Panel title="أكثر الخدمات طلباً">
-          <SimpleTable
-            headers={["الخدمة", "العدد"]}
-            rows={data.bookings.mostRequestedServices.map((s) => [
-              s.name,
-              s.count,
-            ])}
-          />
-        </Panel>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel title="أكثر الخدمات طلباً">
+            <SimpleTable
+              headers={["الخدمة", "العدد"]}
+              rows={data.bookings.mostRequestedServices.map((s) => [
+                s.name,
+                s.count,
+              ])}
+            />
+          </Panel>
+          <Panel title="الساعات الأكثر ازدحامًا">
+            <SimpleTable
+              headers={["الساعة", "العدد"]}
+              rows={(data.bookings.busyHours ?? []).map((s) => [
+                s.name,
+                s.count,
+              ])}
+            />
+          </Panel>
+          <Panel title="الأيام الأكثر ازدحامًا">
+            <SimpleTable
+              headers={["اليوم", "العدد"]}
+              rows={(data.bookings.busyDays ?? []).map((s) => [
+                s.name,
+                s.count,
+              ])}
+            />
+          </Panel>
+          <Panel title="حسب مصدر الحجز">
+            <SimpleTable
+              headers={["المصدر", "العدد"]}
+              rows={(data.bookings.bySource ?? []).map((s) => [
+                s.name,
+                s.count,
+              ])}
+            />
+          </Panel>
+        </div>
       )}
 
       {(section === "overview" || section === "shipping") && (

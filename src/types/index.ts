@@ -23,6 +23,14 @@ export {
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 
+export type BookingSource = "online" | "phone" | "walk_in" | "admin";
+
+export type AppointmentLifecycleAction =
+  | "arrived"
+  | "started"
+  | "completed"
+  | "no_show";
+
 /** Booking service types (product-focused) */
 export type ServiceType =
   | "wedding_dress"
@@ -105,6 +113,64 @@ export interface Booking {
   notify_whatsapp?: boolean;
   /** Customer opted in to email updates (default true for legacy rows) */
   notify_email?: boolean;
+  /** Phase D — smart appointments */
+  booking_source?: BookingSource | null;
+  consultant_id?: string | null;
+  duration_minutes?: number | null;
+  buffer_before?: number | null;
+  buffer_after?: number | null;
+  is_vip?: boolean | null;
+  arrived_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  no_show_at?: string | null;
+  archived_at?: string | null;
+  is_deleted?: boolean | null;
+}
+
+export interface Consultant {
+  id: string;
+  name_ar: string;
+  active: boolean;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type WaitingListStatus =
+  | "waiting"
+  | "notified"
+  | "booked"
+  | "cancelled";
+
+export interface WaitingListEntry {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  preferred_date?: string | null;
+  preferred_time?: string | null;
+  consultant_id?: string | null;
+  notes?: string | null;
+  status: WaitingListStatus;
+  notify_whatsapp?: boolean;
+  notify_email?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export type SpecialDayType =
+  | "holiday"
+  | "vacation"
+  | "maintenance"
+  | "private_event";
+
+export interface SpecialDay {
+  id: string;
+  day_date: string;
+  day_type: SpecialDayType;
+  note?: string | null;
+  created_at?: string;
 }
 
 export interface ContactMessage {
@@ -281,6 +347,13 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   confirmed: "مؤكد",
   cancelled: "ملغي",
   completed: "مكتمل",
+};
+
+export const BOOKING_SOURCE_LABELS: Record<BookingSource, string> = {
+  online: "أونلاين",
+  phone: "هاتف",
+  walk_in: "حضور مباشر",
+  admin: "يدوي (إدارة)",
 };
 
 /** Options shown in the public booking form */

@@ -5,6 +5,11 @@ import {
   type LifecycleActor,
 } from "@/lib/admin/lifecycle";
 import type { LifecycleModule } from "@/lib/admin/lifecycle-types";
+import {
+  canPermanentDelete,
+  canSoftDelete,
+} from "@/lib/admin/permissions";
+import { getAdminActorRole } from "@/lib/admin/reports-data";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -35,6 +40,22 @@ export async function handleModuleDelete(options: {
   const permanent =
     searchParams.get("permanent") === "1" ||
     searchParams.get("permanent") === "true";
+
+  const role = await getAdminActorRole(actor.id);
+  const actorWithRole = { ...actor, role };
+
+  if (permanent && !canPermanentDelete(actorWithRole)) {
+    return NextResponse.json(
+      { error: "غير مصرح بالحذف النهائي" },
+      { status: 403 }
+    );
+  }
+  if (!permanent && !canSoftDelete(actorWithRole)) {
+    return NextResponse.json(
+      { error: "غير مصرح بالحذف" },
+      { status: 403 }
+    );
+  }
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ success: true, soft: !permanent });

@@ -24,7 +24,9 @@ export type LifecycleAction =
   | "report_generated"
   | "report_exported"
   | "report_printed"
-  | "report_emailed";
+  | "report_emailed"
+  | "force_override"
+  | "appointment_status";
 
 export type ListVisibility = "active" | "archived" | "deleted" | "all";
 

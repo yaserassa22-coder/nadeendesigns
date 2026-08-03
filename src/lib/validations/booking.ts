@@ -68,10 +68,11 @@ export const bookingCreateSchema = z.object({
     .min(9, "رقم الهاتف غير صالح (9 أرقام على الأقل)")
     .regex(/^[\d+\s()-]+$/, "رقم الهاتف غير صالح"),
   email: z
-    .string({ message: "البريد الإلكتروني مطلوب" })
+    .string()
     .trim()
-    .min(1, "البريد الإلكتروني مطلوب")
-    .email("البريد الإلكتروني غير صالح"),
+    .optional()
+    .nullable()
+    .transform((v) => (v == null || !String(v).trim() ? "" : String(v).trim())),
   date: z
     .string({ message: "تاريخ الحجز مطلوب" })
     .trim()
@@ -93,15 +94,36 @@ export const bookingCreateSchema = z.object({
     ),
   notify_whatsapp: z.boolean().optional().default(true),
   notify_email: z.boolean().optional().default(true),
+  booking_source: z
+    .enum(["online", "phone", "walk_in", "admin"])
+    .optional()
+    .default("online"),
+  consultant_id: z.string().uuid().optional().nullable(),
+  duration_minutes: z.number().int().min(15).max(480).optional(),
+  buffer_before: z.number().int().min(0).max(180).optional(),
+  buffer_after: z.number().int().min(0).max(180).optional(),
+  is_vip: z.boolean().optional().default(false),
+  /** Owner-only conflict override */
+  force: z.boolean().optional().default(false),
 })
   .superRefine((data, ctx) => {
-    if (!data.notify_whatsapp && !data.notify_email) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["notify_whatsapp"],
-        message:
-          "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
-      });
+    const isOnline = (data.booking_source ?? "online") === "online";
+    if (isOnline) {
+      if (!data.email || !z.string().email().safeParse(data.email).success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["email"],
+          message: "البريد الإلكتروني مطلوب",
+        });
+      }
+      if (!data.notify_whatsapp && !data.notify_email) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["notify_whatsapp"],
+          message:
+            "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
+        });
+      }
     }
     if (data.notify_whatsapp && data.phone.trim().length < 9) {
       ctx.addIssue({
@@ -111,9 +133,8 @@ export const bookingCreateSchema = z.object({
           "رقم واتساب غير صالح — أدخلي رقم هاتف صحيح لاستلام التحديثات عبر WhatsApp",
       });
     }
-    if (data.notify_email) {
-      const email = data.email.trim();
-      if (!email || !z.string().email().safeParse(email).success) {
+    if (data.notify_email && data.email) {
+      if (!z.string().email().safeParse(data.email).success) {
         ctx.addIssue({
           code: "custom",
           path: ["email"],

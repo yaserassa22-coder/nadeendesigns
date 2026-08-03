@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ContactMessage } from "@/types";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { postLifecycle } from "@/lib/admin/lifecycle-client";
 import { formatDate } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
+import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 
 interface MessagesManagerProps {
   initialMessages: ContactMessage[];
@@ -21,6 +23,34 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
   const [visibility, setVisibility] = useState<ListVisibility>("active");
   const [snack, setSnack] = useState<string | null>(null);
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
+  const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.capabilities) setCaps(d.capabilities);
+        })
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const markRead = async (id: string, is_read = true) => {
+    const res = await fetch("/api/messages", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, is_read }),
+    });
+    if (res.ok) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, is_read } : m))
+      );
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -90,6 +120,13 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                 </div>
                 <div className="flex items-center gap-3">
                   <p className="text-xs text-muted">{formatDate(m.created_at)}</p>
+                  {!m.is_read ? (
+                    <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs text-gold">
+                      جديدة
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted">مقروءة</span>
+                  )}
                   <RowLifecycleActions
                     module="messages"
                     id={m.id}
@@ -97,6 +134,9 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                       (m as ContactMessage & { archived_at?: string | null })
                         .archived_at
                     )}
+                    allowArchive={caps?.canArchive ?? true}
+                    allowRestore={caps?.canRestore ?? true}
+                    allowSoftDelete={caps?.canSoftDelete ?? true}
                     onChanged={(kind) => {
                       if (kind === "soft_delete") {
                         setLastDeletedId(m.id);
@@ -125,6 +165,78 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
               <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-charcoal">
                 {m.message}
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {!m.is_read && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void markRead(m.id, true)}
+                  >
+                    تعليم كمقروءة
+                  </Button>
+                )}
+                {m.is_read && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void markRead(m.id, false)}
+                  >
+                    تعليم كغير مقروءة
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setReplyTo(m.id);
+                    setReplyText("");
+                  }}
+                >
+                  رد
+                </Button>
+                {m.email && (
+                  <a
+                    href={`mailto:${m.email}?subject=${encodeURIComponent(
+                      `رد: ${m.subject}`
+                    )}`}
+                    className="inline-flex items-center rounded-xl border border-beige-dark px-3 py-1.5 text-sm hover:bg-beige"
+                  >
+                    فتح البريد
+                  </a>
+                )}
+              </div>
+              {replyTo === m.id && (
+                <div className="mt-3 space-y-2 rounded-xl bg-beige/40 p-3">
+                  <p className="text-xs text-muted">
+                    مسودة رد — تُفتح عبر البريد للإرسال (لا يوجد SMTP للرد المباشر بعد).
+                  </p>
+                  <textarea
+                    className="w-full rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm"
+                    rows={3}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="اكتبي الرد..."
+                  />
+                  <div className="flex gap-2">
+                    <a
+                      href={`mailto:${m.email}?subject=${encodeURIComponent(
+                        `رد: ${m.subject}`
+                      )}&body=${encodeURIComponent(replyText)}`}
+                      className="inline-flex items-center rounded-xl bg-gold px-4 py-2 text-sm text-white"
+                      onClick={() => void markRead(m.id, true)}
+                    >
+                      إرسال عبر البريد
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReplyTo(null)}
+                    >
+                      إلغاء
+                    </Button>
+                  </div>
+                </div>
+              )}
             </article>
           ))
         )}

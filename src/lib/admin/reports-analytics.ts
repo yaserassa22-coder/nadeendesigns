@@ -340,15 +340,57 @@ export function computeBookingsMetrics(bookings: Booking[]): BookingsMetrics {
   let confirmed = 0;
   let completed = 0;
   let cancelled = 0;
+  let noShows = 0;
   const services = new Map<string, number>();
+  const hourMap = new Map<string, number>();
+  const dayMap = new Map<string, number>();
+  const sourceMap = new Map<string, number>();
+  const consultantMap = new Map<string, number>();
+  const dayLabels = [
+    "الأحد",
+    "الإثنين",
+    "الثلاثاء",
+    "الأربعاء",
+    "الخميس",
+    "الجمعة",
+    "السبت",
+  ];
 
   for (const b of bookings) {
-    if (b.status === "confirmed") confirmed += 1;
+    const row = b as Booking & {
+      no_show_at?: string | null;
+      booking_source?: string | null;
+      consultant_id?: string | null;
+    };
+    if (row.no_show_at) noShows += 1;
+    else if (b.status === "confirmed") confirmed += 1;
     else if (b.status === "completed") completed += 1;
     else if (b.status === "cancelled") cancelled += 1;
     const svc = b.service_type || "أخرى";
     services.set(svc, (services.get(svc) ?? 0) + 1);
+
+    const hour = (b.time || "00:00").slice(0, 2) + ":00";
+    hourMap.set(hour, (hourMap.get(hour) ?? 0) + 1);
+
+    const d = new Date(`${b.date}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      const label = dayLabels[d.getDay()] ?? String(d.getDay());
+      dayMap.set(label, (dayMap.get(label) ?? 0) + 1);
+    }
+
+    const src = row.booking_source || "online";
+    sourceMap.set(src, (sourceMap.get(src) ?? 0) + 1);
+
+    const cid = row.consultant_id || "غير معيّنة";
+    consultantMap.set(cid, (consultantMap.get(cid) ?? 0) + 1);
   }
+
+  const total = bookings.length || 1;
+  const toNamed = (m: Map<string, number>, limit = 8) =>
+    [...m.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
 
   return {
     newCount: bookings.length,
@@ -356,10 +398,14 @@ export function computeBookingsMetrics(bookings: Booking[]): BookingsMetrics {
     completed,
     cancelled,
     bookingRevenue: 0,
-    mostRequestedServices: [...services.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8),
+    mostRequestedServices: toNamed(services),
+    noShows,
+    cancelRate: Math.round((cancelled / total) * 1000) / 10,
+    noShowRate: Math.round((noShows / total) * 1000) / 10,
+    busyHours: toNamed(hourMap),
+    busyDays: toNamed(dayMap, 7),
+    consultantPerformance: toNamed(consultantMap),
+    bySource: toNamed(sourceMap),
   };
 }
 

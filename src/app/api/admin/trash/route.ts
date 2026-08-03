@@ -12,6 +12,7 @@ import {
   canPermanentDelete,
   canRestore,
 } from "@/lib/admin/permissions";
+import { getAdminActorRole } from "@/lib/admin/reports-data";
 import { MODULE_LABEL_AR } from "@/lib/admin/lifecycle-types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
@@ -66,10 +67,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "جسم الطلب غير صالح" }, { status: 400 });
   }
 
+  const role = await getAdminActorRole(user!.id);
   const actor = {
     id: user!.id,
     email: user!.email,
-    role: "admin",
+    role,
   };
 
   const supabase = await createPrivilegedClient();
