@@ -80,10 +80,11 @@
 - Customer order page: `/orders/[id]`
 - Existing orders without shipping remain safe (nullable columns)
 
-### M6 — Order confirm + in-app notification center
-- Confirm/status notifications (create, confirm, status change, ready, delivered)
-- Customer in-app notification center
-- Keep email; leave WhatsApp integration path open
+### M6 — Order confirm + in-app notification center ✅
+- Confirm/status notifications (create, confirm, status change, ready, delivered) — email + WhatsApp path
+- Customer in-app notification center (bell in header; order-linked inbox)
+- Keep email; WhatsApp via Twilio when configured
+- SQL: `APPLY_CUSTOMER_NOTIFICATIONS.sql`
 
 ### M7 — Unlimited images, descriptions, PDP gallery polish
 - Unlimited images (JSONB if sufficient)

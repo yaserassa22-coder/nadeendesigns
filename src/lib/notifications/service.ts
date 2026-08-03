@@ -23,6 +23,7 @@ import {
   paymentRequestWhatsApp,
 } from "@/lib/notifications/templates";
 import { sendWhatsApp } from "@/lib/notifications/whatsapp";
+import { createInAppNotification } from "@/lib/notifications/in-app";
 import {
   CUSTOMER_EMAIL_STATUSES,
   type ShopOrder,
@@ -421,6 +422,7 @@ export async function notifyAdminNewOrder(order: ShopOrder) {
 export async function onOrderSubmitted(order: ShopOrder) {
   try {
     await Promise.allSettled([
+      createInAppNotification({ order, status: "pending" }),
       notifyCustomerOrderStatus(order, "pending"),
       notifyAdminNewOrder(order),
     ]);
@@ -446,13 +448,13 @@ export async function onOrderStatusChanged(
 
   try {
     const nextOrder = { ...order, status: nextStatus };
+    await createInAppNotification({ order: nextOrder, status: nextStatus });
     if (nextStatus === "awaiting_payment") {
       const amount =
         typeof options?.paymentAmount === "number" && options.paymentAmount > 0
           ? options.paymentAmount
           : Number(order.total) || 0;
       await notifyPaymentRequest(nextOrder, amount);
-      // Also send WhatsApp status line if payment request failed channels partially
       return;
     }
     await notifyCustomerOrderStatus(nextOrder, nextStatus);

@@ -14,6 +14,7 @@ import {
 } from "@/types";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/shop/CartProvider";
+import { NotificationCenter } from "@/components/layout/NotificationCenter";
 
 const FALLBACK_PRIMARY: NavLink[] = DRESS_CATEGORIES.map((c) => ({
   href: DRESS_CATEGORY_HREFS[c],
@@ -146,20 +147,24 @@ export function Header({
               )}
             </Link>
           ))}
+          <NotificationCenter />
         </nav>
 
-        <Link
-          href="/cart"
-          className="relative rounded-full p-2 text-charcoal hover:text-gold lg:hidden"
-          aria-label="السلة"
-        >
-          <ShoppingBag className="h-5 w-5" />
-          {count > 0 && (
-            <span className="absolute -top-0.5 -left-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
-              {count}
-            </span>
-          )}
-        </Link>
+        <div className="flex items-center gap-1 lg:hidden">
+          <NotificationCenter />
+          <Link
+            href="/cart"
+            className="relative rounded-full p-2 text-charcoal hover:text-gold"
+            aria-label="السلة"
+          >
+            <ShoppingBag className="h-5 w-5" />
+            {count > 0 && (
+              <span className="absolute -top-0.5 -left-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+                {count}
+              </span>
+            )}
+          </Link>
+        </div>
       </div>
 
       {mobileOpen && (
