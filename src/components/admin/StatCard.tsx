@@ -13,14 +13,14 @@ export function StatCard({ title, value, icon: Icon, hint, className }: StatCard
   return (
     <div
       className={cn(
-        "rounded-2xl border border-beige-dark bg-white p-6 shadow-sm",
+        "rounded-2xl border border-beige-dark bg-background p-6 shadow-sm",
         className
       )}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-muted">{title}</p>
-          <p className="mt-2 font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-charcoal">
+          <p className="mt-2 font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-foreground">
             {value}
           </p>
           {hint && <p className="mt-2 text-xs text-muted">{hint}</p>}
