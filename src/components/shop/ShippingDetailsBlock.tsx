@@ -33,6 +33,10 @@ export type ShippingDisplay = {
 /** Safe for legacy orders with no shipping columns. */
 export function hasShippingDetails(s?: ShippingDisplay | null): boolean {
   if (!s) return false;
+  // delivery_method=delivery always shows the shipping section (never dress-only).
+  if (s.delivery_method === "delivery" || s.delivery_method === "pickup") {
+    return true;
+  }
   if (s.required === false && !s.delivery_method) return false;
   return Boolean(
     s.delivery_method ||
@@ -211,7 +215,8 @@ export function ShippingDetailsBlock({
             </p>
           </div>
         ) : (typeof s.cost === "number" && s.cost > 0) ||
-          (showZeroCost && s.required) ? (
+          (showZeroCost &&
+            (s.required || s.delivery_method === "delivery")) ? (
           <div>
             <dt className="inline text-charcoal/70">رسوم الشحن: </dt>
             <dd className="inline text-gold" dir="ltr">

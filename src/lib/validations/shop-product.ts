@@ -87,7 +87,10 @@ export const shopOrderCreateSchema = z
   })
   .superRefine((data, ctx) => {
     const needs =
-      data.shipping_required === true || cartNeedsShipping(data.items);
+      data.shipping_required === true ||
+      data.delivery_method === "delivery" ||
+      data.delivery_method === "pickup" ||
+      cartNeedsShipping(data.items);
     if (needs) {
       const method = data.delivery_method;
       if (method !== "pickup" && method !== "delivery") {

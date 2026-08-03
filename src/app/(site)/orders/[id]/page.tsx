@@ -284,8 +284,9 @@ export default function CustomerOrderPage() {
             <GiftOptionsSummary giftOptions={order.gift_options} />
           </div>
 
-          {(order.shipping_required ||
-            order.delivery_method ||
+          {(order.delivery_method === "delivery" ||
+            order.delivery_method === "pickup" ||
+            order.shipping_required ||
             ship.address) && (
             <div className="rounded-2xl border border-beige-dark bg-white p-6">
               <ShippingDetailsBlock
@@ -311,13 +312,16 @@ export default function CustomerOrderPage() {
                 <div className="flex justify-between gap-3">
                   <span>رسوم الشحن</span>
                   <span dir="ltr">
-                    {order.shipping_required
+                    {order.delivery_method === "delivery" ||
+                    order.shipping_required
                       ? order.shipping_fee_pending
                         ? "قيد المراجعة"
                         : shippingCost > 0
                           ? formatPrice(shippingCost)
                           : "مجاني"
-                      : "—"}
+                      : order.delivery_method === "pickup"
+                        ? "مجاني"
+                        : "—"}
                   </span>
                 </div>
                 {order.shipping_fee_pending && (

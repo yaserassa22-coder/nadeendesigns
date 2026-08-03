@@ -22,6 +22,7 @@ import {
 } from "@/lib/shop/shipping";
 import {
   isOrderSchemaError,
+  isShippingRegionFkError,
   selectShopOrdersList,
 } from "@/lib/shop/order-query";
 import { normalizeSiteSettings } from "@/lib/settings";
@@ -176,8 +177,15 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data;
-    // Derive from line items only — never trust client shipping_required:false
-    const needsShipping = cartNeedsShipping(body.items);
+    // Accessories from line items, OR an explicit checkout delivery choice.
+    // Never trust client shipping_required:false to skip accessories — but DO
+    // honor delivery_method when the customer selected pickup/delivery so we
+    // never drop shipping fields after a false-negative accessory detection.
+    const needsShipping =
+      cartNeedsShipping(body.items) ||
+      body.delivery_method === "delivery" ||
+      body.delivery_method === "pickup" ||
+      body.shipping_required === true;
     const siteSettings = await loadSiteSettingsForShipping();
 
     let deliveryMethod: DeliveryMethod | null = null;
@@ -433,6 +441,7 @@ export async function POST(request: Request) {
     };
 
     // Progressive insert: never lose an order when optional shipping columns are absent.
+    // Prefer payloads that keep delivery_method whenever the customer chose delivery.
     const insertAttempts = [
       insertFull,
       {
@@ -456,11 +465,34 @@ export async function POST(request: Request) {
     ];
 
     let error: { message?: string; code?: string } | null = null;
+    let savedPayload: Record<string, unknown> | null = null;
+    let clearRegionId = false;
+
     for (let i = 0; i < insertAttempts.length; i++) {
-      const payload = insertAttempts[i];
+      let payload = { ...(insertAttempts[i] as Record<string, unknown>) };
+      if (clearRegionId && "shipping_region_id" in payload) {
+        payload = { ...payload, shipping_region_id: null };
+      }
       const result = await supabase.from("shop_orders").insert(payload);
       error = result.error;
-      if (!error) break;
+      if (!error) {
+        savedPayload = payload;
+        break;
+      }
+
+      // Invalid/stale region id — keep delivery_method + address; clear FK and retry.
+      if (!clearRegionId && isShippingRegionFkError(error)) {
+        console.warn(
+          "[orders API] shipping_region_id FK failed — retrying with null region id",
+          getErrorMessage(error)
+        );
+        clearRegionId = true;
+        regionId = null;
+        row.shipping_region_id = null;
+        i -= 1; // retry same payload tier with null region id
+        continue;
+      }
+
       const canRetry =
         i < insertAttempts.length - 1 && isOrderSchemaError(error);
       if (!canRetry) break;
@@ -473,6 +505,59 @@ export async function POST(request: Request) {
     if (error) {
       const mapped = mapOrderError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+    }
+
+    // Best-effort: if progressive insert dropped delivery/shipping columns,
+    // patch them back so admin never loses delivery_method=delivery.
+    if (savedPayload && row.delivery_method) {
+      const fullForPatch = {
+        ...insertFull,
+        shipping_region_id: clearRegionId ? null : insertFull.shipping_region_id,
+      };
+      const missingKeys = Object.keys(fullForPatch).filter(
+        (k) => !(k in savedPayload!)
+      );
+      if (missingKeys.length > 0) {
+        const patch: Record<string, unknown> = {};
+        for (const k of missingKeys) {
+          patch[k] = (fullForPatch as Record<string, unknown>)[k];
+        }
+        const { error: patchError } = await supabase
+          .from("shop_orders")
+          .update(patch)
+          .eq("id", row.id);
+        if (patchError && isOrderSchemaError(patchError)) {
+          // Strip unknown columns one group at a time
+          const m9Keys = [
+            "delivery_method",
+            "shipping_region_id",
+            "shipping_region_name_ar",
+            "shipping_building_number",
+            "shipping_neighborhood",
+          ];
+          const m9Patch: Record<string, unknown> = {};
+          for (const k of m9Keys) {
+            if (k in patch) m9Patch[k] = patch[k];
+          }
+          if (Object.keys(m9Patch).length > 0) {
+            const retry = await supabase
+              .from("shop_orders")
+              .update(m9Patch)
+              .eq("id", row.id);
+            if (retry.error) {
+              console.warn(
+                "[orders API] could not backfill delivery_method after progressive insert",
+                getErrorMessage(retry.error)
+              );
+            }
+          }
+        } else if (patchError) {
+          console.warn(
+            "[orders API] shipping field backfill failed",
+            getErrorMessage(patchError)
+          );
+        }
+      }
     }
 
     // Same-process read-through so confirmation GET works even if anon RLS

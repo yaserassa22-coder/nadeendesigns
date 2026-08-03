@@ -1,8 +1,10 @@
 import {
+  getErrorCode,
   getErrorMessage,
   isMissingColumnError,
 } from "@/lib/supabase/errors";
-import type { ShopOrder } from "@/types/shop";
+import { cartNeedsShipping } from "@/lib/shop/shipping";
+import type { DeliveryMethod, ShopOrder } from "@/types/shop";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Core columns that exist on the original shop_orders table. */
@@ -27,17 +29,88 @@ export const ORDER_SELECT_SHIPPING_LEGACY =
 export const ORDER_SELECT_WITH_SHIPPING_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}`;
 export const ORDER_SELECT_FULL_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}, ${ORDER_SELECT_NOTIFY}`;
 
-/** True when PostgREST/Postgres reports missing optional order columns. */
+/**
+ * True only for missing optional order columns — not FK/check/RLS failures.
+ * Broad `/shipping_/` matching previously caused progressive insert to drop
+ * delivery_method after shipping_region_id FK errors.
+ */
 export function isOrderSchemaError(error: unknown): boolean {
-  if (isMissingColumnError(error)) return true;
-  return /notify_|shipping_|delivery_method|tracking_|region_configured|carrier_code|column .* does not exist|Could not find the .*column/i.test(
-    getErrorMessage(error)
+  return isMissingColumnError(error);
+}
+
+/** FK failure on shipping_region_id — retry full payload with null region id. */
+export function isShippingRegionFkError(error: unknown): boolean {
+  const code = getErrorCode(error);
+  const raw = getErrorMessage(error);
+  if (code === "23503") {
+    return /shipping_region_id/i.test(raw);
+  }
+  return (
+    /foreign key/i.test(raw) &&
+    /shipping_region_id/i.test(raw)
   );
+}
+
+function hasCourierAddress(order: {
+  shipping_address?: string | null;
+  shipping_full_name?: string | null;
+  shipping_city?: string | null;
+  shipping_region?: string | null;
+  shipping_region_name_ar?: string | null;
+  shipping_region_custom?: string | null;
+}): boolean {
+  return Boolean(
+    order.shipping_address ||
+      order.shipping_full_name ||
+      order.shipping_city ||
+      order.shipping_region ||
+      order.shipping_region_name_ar ||
+      order.shipping_region_custom
+  );
+}
+
+/**
+ * Infer delivery_method / shipping_required for legacy rows or when select
+ * fallback omitted M9 columns but address fields are present.
+ */
+export function hydrateOrderShippingFields(
+  order: ShopOrder
+): ShopOrder {
+  let delivery_method = order.delivery_method ?? null;
+  let shipping_required = order.shipping_required;
+
+  if (
+    delivery_method !== "pickup" &&
+    delivery_method !== "delivery" &&
+    hasCourierAddress(order)
+  ) {
+    delivery_method = "delivery";
+  }
+
+  if (
+    shipping_required == null &&
+    (delivery_method === "delivery" ||
+      delivery_method === "pickup" ||
+      cartNeedsShipping(order.items ?? []))
+  ) {
+    shipping_required = true;
+  }
+
+  // Explicit delivery must never look like a dress-only non-shipping order.
+  if (delivery_method === "delivery" && shipping_required === false) {
+    shipping_required = true;
+  }
+
+  return {
+    ...order,
+    delivery_method: delivery_method as DeliveryMethod | null,
+    shipping_required,
+  };
 }
 
 export function normalizeShopOrderRow(row: Record<string, unknown>): ShopOrder {
   const items = Array.isArray(row.items) ? row.items : [];
-  return {
+  const base: ShopOrder = {
     ...(row as unknown as ShopOrder),
     items: items as ShopOrder["items"],
     total: Number(row.total ?? 0),
@@ -54,6 +127,7 @@ export function normalizeShopOrderRow(row: Record<string, unknown>): ShopOrder {
         ? row.region_configured
         : Boolean(row.region_configured),
   };
+  return hydrateOrderShippingFields(base);
 }
 
 type ListResult = {
@@ -114,6 +188,25 @@ export async function selectShopOrdersList(
   return { data: [], error: lastError, count: 0 };
 }
 
+/** Admin shipping section — never treat delivery_method=delivery as dress-only. */
+export function orderShowsShippingSection(order: {
+  delivery_method?: string | null;
+  shipping_required?: boolean | null;
+  shipping_address?: string | null;
+  shipping_full_name?: string | null;
+  shipping_city?: string | null;
+  shipping_region?: string | null;
+  shipping_region_name_ar?: string | null;
+  shipping_region_custom?: string | null;
+  shipping_fee_pending?: boolean | null;
+}): boolean {
+  if (order.delivery_method === "delivery") return true;
+  if (order.delivery_method === "pickup") return true;
+  if (order.shipping_required) return true;
+  if (order.shipping_fee_pending) return true;
+  return hasCourierAddress(order);
+}
+
 /** Delivery orders that should show the shipping-slip print action. */
 export function isDeliveryOrderForSlip(order: {
   delivery_method?: string | null;
@@ -121,14 +214,16 @@ export function isDeliveryOrderForSlip(order: {
   shipping_address?: string | null;
   shipping_full_name?: string | null;
   shipping_city?: string | null;
+  shipping_region?: string | null;
+  shipping_region_name_ar?: string | null;
+  shipping_region_custom?: string | null;
+  shipping_fee_pending?: boolean | null;
 }): boolean {
+  // Prefer delivery_method — never use requires_shipping-only gating.
   if (order.delivery_method === "pickup") return false;
   if (order.delivery_method === "delivery") return true;
-  // Legacy rows / columns not persisted: address implies courier delivery
+  // Legacy rows without delivery_method column
   if (order.shipping_required === false) return false;
-  return Boolean(
-    order.shipping_address ||
-      order.shipping_full_name ||
-      order.shipping_city
-  );
+  if (order.shipping_fee_pending) return true;
+  return hasCourierAddress(order);
 }

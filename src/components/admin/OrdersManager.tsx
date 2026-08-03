@@ -23,7 +23,10 @@ import {
 } from "@/types/shop";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
-import { isDeliveryOrderForSlip } from "@/lib/shop/order-query";
+import {
+  isDeliveryOrderForSlip,
+  orderShowsShippingSection,
+} from "@/lib/shop/order-query";
 import { Select, Textarea, Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
@@ -747,9 +750,7 @@ export function OrdersManager({
                                       : ""}
                                   </p>
                                 )}
-                                {order.shipping_required ||
-                                order.delivery_method ||
-                                orderToShippingDisplay(order).address ? (
+                                {orderShowsShippingSection(order) ? (
                                   <ShippingDetailsBlock
                                     shipping={orderToShippingDisplay(order)}
                                     showZeroCost
@@ -760,8 +761,9 @@ export function OrdersManager({
                                     لا يتطلب شحناً (فساتين / بدون اكسسوارات).
                                   </p>
                                 )}
-                                {(order.shipping_required ||
-                                  order.delivery_method === "delivery") && (
+                                {(order.delivery_method === "delivery" ||
+                                  (order.delivery_method !== "pickup" &&
+                                    order.shipping_required)) && (
                                   <div className="mt-3 border-t border-beige-dark pt-3">
                                     {shippingEditId === order.id ? (
                                       <div className="space-y-3">
@@ -861,7 +863,8 @@ export function OrdersManager({
                                   <div className="flex justify-between gap-2">
                                     <dt className="text-muted">رسوم الشحن</dt>
                                     <dd dir="ltr">
-                                      {order.shipping_required
+                                      {order.delivery_method === "delivery" ||
+                                      order.shipping_required
                                         ? order.shipping_fee_pending
                                           ? "قيد المراجعة"
                                           : Number(order.shipping_cost ?? 0) > 0
@@ -869,7 +872,9 @@ export function OrdersManager({
                                                 Number(order.shipping_cost)
                                               )
                                             : "مجاني"
-                                        : "—"}
+                                        : order.delivery_method === "pickup"
+                                          ? "مجاني"
+                                          : "—"}
                                     </dd>
                                   </div>
                                   <div className="flex justify-between gap-2 border-t border-beige-dark pt-2 font-semibold">
