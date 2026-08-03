@@ -426,57 +426,156 @@ export function OrdersManager({ initialOrders }: OrdersManagerProps) {
                               </div>
                             )}
 
-                            {(order.items ?? []).map((item, idx) => {
-                              const thumb = featuredImage(
-                                item.image ? [item.image] : undefined
-                              );
-                              return (
-                              <div
-                                key={`${order.id}-${idx}`}
-                                className="flex gap-3 rounded-xl border border-beige-dark bg-white p-4"
-                              >
-                                <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-beige">
-                                  {thumb && (
-                                    <Image
-                                      src={thumb}
-                                      alt=""
-                                      fill
-                                      className="object-cover"
-                                      sizes="48px"
-                                    />
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                <p className="font-medium">
-                                  {item.name_ar} × {item.quantity}
+                            <div className="grid gap-4 lg:grid-cols-2">
+                              <section className="rounded-xl border border-beige-dark bg-white p-4">
+                                <h3 className="text-sm font-semibold text-gold">
+                                  معلومات الطلب
+                                </h3>
+                                <p className="mt-2 text-xs text-muted" dir="ltr">
+                                  {orderNumber(order.id)}
                                 </p>
-                                <p className="text-sm text-gold" dir="ltr">
-                                  {formatPrice(item.unit_price * item.quantity)}
+                                <p className="mt-1 text-sm">
+                                  الحالة: {SHOP_ORDER_STATUS_LABELS[status]}
                                 </p>
-                                {item.personalization && (
-                                  <div className="mt-3">
-                                    <PersonalizationSummary
-                                      personalization={item.personalization}
-                                      compact
-                                    />
-                                  </div>
+                                <p className="text-sm text-muted">
+                                  التاريخ: {formatDate(order.created_at)}
+                                </p>
+                                {(order.items ?? []).map((item, idx) => {
+                                  const thumb = featuredImage(
+                                    item.image ? [item.image] : undefined
+                                  );
+                                  return (
+                                    <div
+                                      key={`${order.id}-${idx}`}
+                                      className="mt-3 flex gap-3 border-t border-beige-dark/50 pt-3"
+                                    >
+                                      <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded-lg bg-beige">
+                                        {thumb && (
+                                          <Image
+                                            src={thumb}
+                                            alt=""
+                                            fill
+                                            className="object-cover"
+                                            sizes="40px"
+                                          />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium">
+                                          {item.name_ar} × {item.quantity}
+                                        </p>
+                                        <p className="text-xs text-gold" dir="ltr">
+                                          {formatPrice(
+                                            item.unit_price * item.quantity
+                                          )}
+                                        </p>
+                                        {item.personalization && (
+                                          <div className="mt-2">
+                                            <PersonalizationSummary
+                                              personalization={item.personalization}
+                                              compact
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                <GiftOptionsSummary
+                                  giftOptions={order.gift_options}
+                                />
+                                {order.notes && (
+                                  <p className="mt-3 text-sm text-muted">
+                                    ملاحظات: {order.notes}
+                                  </p>
                                 )}
-                                </div>
-                              </div>
-                              );
-                            })}
-                            <GiftOptionsSummary
-                              giftOptions={order.gift_options}
-                            />
-                            <ShippingDetailsBlock
-                              className="mt-3 rounded-xl border border-beige-dark bg-beige/30 p-3"
-                              shipping={orderToShippingDisplay(order)}
-                            />
-                            {order.notes && (
-                              <p className="text-sm text-muted">
-                                ملاحظات: {order.notes}
-                              </p>
-                            )}
+                              </section>
+
+                              <section className="rounded-xl border border-beige-dark bg-white p-4">
+                                <h3 className="text-sm font-semibold text-gold">
+                                  معلومات العميلة
+                                </h3>
+                                <dl className="mt-2 space-y-1 text-sm">
+                                  <div>
+                                    <dt className="inline text-muted">الاسم: </dt>
+                                    <dd className="inline">{order.name}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="inline text-muted">الهاتف: </dt>
+                                    <dd className="inline" dir="ltr">
+                                      {order.phone}
+                                    </dd>
+                                  </div>
+                                  {order.email && (
+                                    <div>
+                                      <dt className="inline text-muted">
+                                        البريد:{" "}
+                                      </dt>
+                                      <dd className="inline">{order.email}</dd>
+                                    </div>
+                                  )}
+                                </dl>
+                              </section>
+
+                              <section className="rounded-xl border border-beige-dark bg-white p-4">
+                                <h3 className="mb-2 text-sm font-semibold text-gold">
+                                  معلومات الشحن
+                                </h3>
+                                {order.shipping_required ||
+                                orderToShippingDisplay(order).address ? (
+                                  <ShippingDetailsBlock
+                                    shipping={orderToShippingDisplay(order)}
+                                    showZeroCost
+                                  />
+                                ) : (
+                                  <p className="text-sm text-muted">
+                                    لا يتطلب شحناً (فساتين / بدون اكسسوارات).
+                                  </p>
+                                )}
+                              </section>
+
+                              <section className="rounded-xl border border-beige-dark bg-white p-4">
+                                <h3 className="text-sm font-semibold text-gold">
+                                  معلومات الدفع
+                                </h3>
+                                <dl className="mt-2 space-y-1 text-sm">
+                                  <div className="flex justify-between gap-2">
+                                    <dt className="text-muted">مجموع المنتجات</dt>
+                                    <dd dir="ltr">
+                                      {formatPrice(
+                                        (order.items ?? []).reduce(
+                                          (s, i) =>
+                                            s + i.unit_price * i.quantity,
+                                          0
+                                        )
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div className="flex justify-between gap-2">
+                                    <dt className="text-muted">رسوم الشحن</dt>
+                                    <dd dir="ltr">
+                                      {order.shipping_required
+                                        ? Number(order.shipping_cost ?? 0) > 0
+                                          ? formatPrice(
+                                              Number(order.shipping_cost)
+                                            )
+                                          : "مجاني"
+                                        : "—"}
+                                    </dd>
+                                  </div>
+                                  <div className="flex justify-between gap-2 border-t border-beige-dark pt-2 font-semibold">
+                                    <dt>الإجمالي</dt>
+                                    <dd className="text-gold" dir="ltr">
+                                      {formatPrice(Number(order.total))}
+                                    </dd>
+                                  </div>
+                                  <div className="pt-1 text-xs text-muted">
+                                    حالة الدفع ضمن سير العمل:{" "}
+                                    {SHOP_ORDER_STATUS_LABELS[status]}
+                                  </div>
+                                </dl>
+                              </section>
+                            </div>
                           </td>
                         </tr>
                       )}

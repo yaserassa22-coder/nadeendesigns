@@ -131,6 +131,8 @@ export interface SiteSettings {
    */
   shipping_enabled: boolean;
   shipping_flat_fee: number;
+  /** Order subtotal at/above this → free shipping (0 = no free-shipping rule) */
+  shipping_free_threshold: number;
 }
 
 export interface DressFilters {

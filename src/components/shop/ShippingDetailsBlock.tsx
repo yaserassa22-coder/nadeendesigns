@@ -32,13 +32,20 @@ export function ShippingDetailsBlock({
   shipping,
   title = "عنوان التوصيل",
   className,
+  showZeroCost = false,
 }: {
   shipping?: ShippingDisplay | null;
   title?: string;
   className?: string;
+  showZeroCost?: boolean;
 }) {
-  if (!hasShippingDetails(shipping)) return null;
-  const s = shipping!;
+  if (!hasShippingDetails(shipping) && !showZeroCost) return null;
+  if (!shipping) return null;
+  const s = shipping;
+  const hasAddress = Boolean(
+    s.full_name || s.phone || s.city || s.region || s.address
+  );
+  if (!hasAddress && !showZeroCost) return null;
 
   return (
     <div className={className}>
@@ -86,14 +93,17 @@ export function ShippingDetailsBlock({
             <dd className="inline whitespace-pre-wrap">{s.notes}</dd>
           </div>
         )}
-        {typeof s.cost === "number" && s.cost > 0 && (
+        {(typeof s.cost === "number" && s.cost > 0) ||
+        (showZeroCost && s.required) ? (
           <div>
             <dt className="inline text-charcoal/70">رسوم الشحن: </dt>
             <dd className="inline text-gold" dir="ltr">
-              {formatPrice(s.cost)}
+              {typeof s.cost === "number" && s.cost > 0
+                ? formatPrice(s.cost)
+                : "مجاني"}
             </dd>
           </div>
-        )}
+        ) : null}
       </dl>
     </div>
   );

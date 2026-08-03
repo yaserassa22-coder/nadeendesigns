@@ -4,20 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle } from "lucide-react";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { useCart } from "@/components/shop/CartProvider";
-import {
-  orderToShippingDisplay,
-  ShippingDetailsBlock,
-} from "@/components/shop/ShippingDetailsBlock";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
-import { resolveShippingCost } from "@/lib/shop/shipping";
+import {
+  isFreeShippingEligible,
+  resolveShippingCost,
+} from "@/lib/shop/shipping";
 import { normalizeSiteSettings } from "@/lib/settings";
 import type { SiteSettings } from "@/types";
 import type { ShopOrder } from "@/types/shop";
@@ -53,7 +51,6 @@ export default function CheckoutPage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [placedOrder, setPlacedOrder] = useState<ShopOrder | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,13 +67,23 @@ export default function CheckoutPage() {
     };
   }, []);
 
+  const shippingSettings = useMemo(
+    () => ({
+      shipping_enabled: settings?.shipping_enabled,
+      shipping_flat_fee: settings?.shipping_flat_fee,
+      shipping_free_threshold: settings?.shipping_free_threshold,
+    }),
+    [settings]
+  );
+
   const shippingCost = useMemo(
-    () =>
-      resolveShippingCost(needsShipping, {
-        shipping_enabled: settings?.shipping_enabled,
-        shipping_flat_fee: settings?.shipping_flat_fee,
-      }),
-    [needsShipping, settings]
+    () => resolveShippingCost(needsShipping, subtotal, shippingSettings),
+    [needsShipping, subtotal, shippingSettings]
+  );
+
+  const freeShipping = useMemo(
+    () => isFreeShippingEligible(needsShipping, subtotal, shippingSettings),
+    [needsShipping, subtotal, shippingSettings]
   );
 
   const orderTotal = subtotal + shippingCost;
@@ -155,14 +162,6 @@ export default function CheckoutPage() {
     };
 
     try {
-      console.info("[checkout] submitting order", {
-        items: payload.items.length,
-        total: payload.total,
-        needsShipping,
-        shippingCost,
-        hasGift: Boolean(payload.gift_options),
-      });
-
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -177,21 +176,27 @@ export default function CheckoutPage() {
       }
 
       if (!res.ok) {
-        console.error("[checkout] order failed", {
-          status: res.status,
-          data,
-        });
         throw new Error(
           data.error ||
             `فشل إرسال الطلب (رمز ${res.status}). راجعي اتصال قاعدة البيانات.`
         );
       }
 
-      console.info("[checkout] order success", data);
-      setPlacedOrder(data.order ?? null);
       clearCart();
+      if (data.order?.id) {
+        try {
+          sessionStorage.setItem(
+            "nadeen_last_order",
+            JSON.stringify(data.order)
+          );
+        } catch {
+          /* ignore */
+        }
+        router.push(`/orders/${data.order.id}`);
+      } else {
+        setError("تم إنشاء الطلب لكن تعذّر فتح صفحة التأكيد.");
+      }
     } catch (e) {
-      console.error("[checkout] unexpected error", e);
       setError(
         e instanceof Error
           ? e.message
@@ -202,65 +207,11 @@ export default function CheckoutPage() {
     }
   };
 
-  if (placedOrder) {
-    const ship = orderToShippingDisplay(placedOrder);
-    const hidePlacedPrice = Boolean(placedOrder.gift_options?.hide_price);
-    return (
-      <>
-        <PageHero
-          title="تم استلام طلبكِ"
-          description="شكرًا لتسوقكِ من Nadeen Designs"
-        />
-        <section className="py-16">
-          <div className="mx-auto max-w-xl space-y-6 px-4 text-center">
-            <CheckCircle className="mx-auto h-14 w-14 text-gold" />
-            <p className="text-muted">سنتواصل معكِ قريبًا لتأكيد التفاصيل.</p>
-            <div className="rounded-2xl border border-beige-dark bg-white p-6 text-start">
-              <h2 className="text-lg font-semibold text-charcoal">ملخص الطلب</h2>
-              <ul className="mt-3 space-y-2 text-sm">
-                {placedOrder.items.map((item, idx) => (
-                  <li
-                    key={`${item.product_id}-${idx}`}
-                    className="flex justify-between gap-3"
-                  >
-                    <span>
-                      {item.name_ar} × {item.quantity}
-                    </span>
-                    {!hidePlacedPrice && (
-                      <span className="text-gold" dir="ltr">
-                        {formatPrice(item.unit_price * item.quantity)}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {!hidePlacedPrice && (
-                <p className="mt-4 border-t border-beige-dark pt-3 text-sm">
-                  المجموع:{" "}
-                  <span className="text-gold" dir="ltr">
-                    {formatPrice(placedOrder.total)}
-                  </span>
-                </p>
-              )}
-              <ShippingDetailsBlock
-                className="mt-4 border-t border-beige-dark pt-4"
-                shipping={ship}
-              />
-            </div>
-            <Button className="mt-4" onClick={() => router.push("/")}>
-              العودة للرئيسية
-            </Button>
-          </div>
-        </section>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHero
         title="إتمام الطلب"
-        description="أدخلي بياناتكِ لتأكيد طلب اكسسوارات العروس."
+        description="أدخلي بياناتكِ لتأكيد الطلب."
       />
       <section className="py-16 md:py-24">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-8 lg:grid-cols-5">
@@ -317,27 +268,42 @@ export default function CheckoutPage() {
                 })}
                 <GiftOptionsSummary giftOptions={giftOptions} />
                 {!hidePrice && (
-                  <div className="space-y-1 text-sm">
-                    <p>
-                      المجموع الفرعي:{" "}
+                  <div className="space-y-2 rounded-2xl border border-beige-dark bg-beige/20 p-4 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span>مجموع المنتجات</span>
                       <span className="text-gold" dir="ltr">
                         {formatPrice(subtotal)}
                       </span>
-                    </p>
-                    {needsShipping && shippingCost > 0 && (
-                      <p>
-                        الشحن:{" "}
-                        <span className="text-gold" dir="ltr">
-                          {formatPrice(shippingCost)}
-                        </span>
-                      </p>
-                    )}
-                    <p className="text-lg font-semibold">
-                      الإجمالي:{" "}
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span>رسوم الشحن</span>
+                      <span className="text-gold" dir="ltr">
+                        {!needsShipping
+                          ? "—"
+                          : freeShipping || shippingCost === 0
+                            ? settings?.shipping_enabled === false
+                              ? "معطّل"
+                              : "مجاني"
+                            : formatPrice(shippingCost)}
+                      </span>
+                    </div>
+                    {needsShipping &&
+                      freeShipping &&
+                      (settings?.shipping_free_threshold ?? 0) > 0 && (
+                        <p className="text-xs text-muted">
+                          تم تطبيق الشحن المجاني (حد{" "}
+                          <span dir="ltr">
+                            {settings?.shipping_free_threshold}
+                          </span>{" "}
+                          ريال)
+                        </p>
+                      )}
+                    <div className="flex justify-between gap-3 border-t border-beige-dark pt-2 text-base font-semibold">
+                      <span>الإجمالي</span>
                       <span className="text-gold" dir="ltr">
                         {formatPrice(orderTotal)}
                       </span>
-                    </p>
+                    </div>
                   </div>
                 )}
               </div>

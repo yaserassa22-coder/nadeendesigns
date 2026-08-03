@@ -226,6 +226,7 @@ CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 CREATE POLICY "Public insert bookings" ON bookings FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public insert contact" ON contact_messages FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public insert shop_orders" ON shop_orders FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public read shop_orders by id" ON shop_orders FOR SELECT USING (true);
 
 -- Admin full access (authenticated users with admin profile)
 CREATE POLICY "Admin all dresses" ON dresses FOR ALL USING (

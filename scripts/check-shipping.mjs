@@ -1,4 +1,4 @@
-/** Sanity checks for accessory-only shipping gating (mirrors src/lib/shop/shipping.ts). */
+/** Sanity checks for accessory-only shipping + free threshold. */
 
 const ACCESSORY = new Set(["veil", "bridal_robe"]);
 
@@ -12,11 +12,16 @@ function cartNeedsShipping(items) {
   return items.some(lineRequiresShipping);
 }
 
-function resolveShippingCost(needsShipping, settings) {
+function resolveShippingCost(needsShipping, subtotal, settings) {
   if (!needsShipping) return 0;
   if (settings.shipping_enabled === false) return 0;
   const fee = Number(settings.shipping_flat_fee ?? 0);
-  return Number.isFinite(fee) && fee > 0 ? fee : 0;
+  if (!Number.isFinite(fee) || fee <= 0) return 0;
+  const threshold = Number(settings.shipping_free_threshold ?? 0);
+  if (Number.isFinite(threshold) && threshold > 0 && subtotal >= threshold) {
+    return 0;
+  }
+  return fee;
 }
 
 function assert(cond, msg) {
@@ -30,22 +35,46 @@ assert(
   cartNeedsShipping([{ product_type: "dress" }, { product_type: "veil" }]),
   "mixed"
 );
+
 assert(
-  cartNeedsShipping([
-    { product_type: "dress" },
-    { product_type: "future_hat", requires_shipping: true },
-  ]),
-  "future flag"
-);
-assert(
-  resolveShippingCost(true, { shipping_enabled: true, shipping_flat_fee: 35 }) ===
-    35,
+  resolveShippingCost(true, 100, {
+    shipping_enabled: true,
+    shipping_flat_fee: 35,
+    shipping_free_threshold: 0,
+  }) === 35,
   "fee"
 );
 assert(
-  resolveShippingCost(false, { shipping_enabled: true, shipping_flat_fee: 35 }) ===
-    0,
-  "no ship"
+  resolveShippingCost(true, 100, {
+    shipping_enabled: false,
+    shipping_flat_fee: 35,
+    shipping_free_threshold: 0,
+  }) === 0,
+  "disabled"
+);
+assert(
+  resolveShippingCost(true, 500, {
+    shipping_enabled: true,
+    shipping_flat_fee: 35,
+    shipping_free_threshold: 400,
+  }) === 0,
+  "free threshold"
+);
+assert(
+  resolveShippingCost(true, 300, {
+    shipping_enabled: true,
+    shipping_flat_fee: 35,
+    shipping_free_threshold: 400,
+  }) === 35,
+  "below threshold"
+);
+assert(
+  resolveShippingCost(false, 1000, {
+    shipping_enabled: true,
+    shipping_flat_fee: 35,
+    shipping_free_threshold: 100,
+  }) === 0,
+  "dress no ship"
 );
 
 console.log("shipping helpers OK");

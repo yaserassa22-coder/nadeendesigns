@@ -10,6 +10,13 @@ export const ACCESSORY_SHOP_PRODUCT_TYPES = new Set<string>([
   "bridal_robe",
 ]);
 
+export type ShippingSettings = {
+  shipping_enabled?: boolean;
+  shipping_flat_fee?: number;
+  /** Subtotal at/above this amount → free shipping (0 = disabled) */
+  shipping_free_threshold?: number;
+};
+
 export type ShippingAddressInput = {
   full_name: string;
   phone: string;
@@ -18,11 +25,6 @@ export type ShippingAddressInput = {
   address: string;
   postal_code?: string | null;
   notes?: string | null;
-};
-
-export type OrderShipping = ShippingAddressInput & {
-  required: boolean;
-  cost: number;
 };
 
 export type CartLineForShipping = {
@@ -47,12 +49,43 @@ export function cartNeedsShipping(items: CartLineForShipping[]): boolean {
   return items.some(lineRequiresShipping);
 }
 
+export function normalizeShippingFee(value: unknown): number {
+  const fee = Number(value ?? 0);
+  return Number.isFinite(fee) && fee > 0 ? fee : 0;
+}
+
+export function normalizeFreeThreshold(value: unknown): number {
+  const t = Number(value ?? 0);
+  return Number.isFinite(t) && t > 0 ? t : 0;
+}
+
+/**
+ * Flat fee when shipping is needed and enabled.
+ * Free when disabled, fee is 0, or subtotal meets free-shipping threshold.
+ */
 export function resolveShippingCost(
   needsShipping: boolean,
-  settings: { shipping_enabled?: boolean; shipping_flat_fee?: number }
+  subtotal: number,
+  settings: ShippingSettings
 ): number {
   if (!needsShipping) return 0;
   if (settings.shipping_enabled === false) return 0;
-  const fee = Number(settings.shipping_flat_fee ?? 0);
-  return Number.isFinite(fee) && fee > 0 ? fee : 0;
+  const fee = normalizeShippingFee(settings.shipping_flat_fee);
+  if (fee <= 0) return 0;
+  const threshold = normalizeFreeThreshold(settings.shipping_free_threshold);
+  if (threshold > 0 && subtotal >= threshold) return 0;
+  return fee;
+}
+
+export function isFreeShippingEligible(
+  needsShipping: boolean,
+  subtotal: number,
+  settings: ShippingSettings
+): boolean {
+  if (!needsShipping) return false;
+  if (settings.shipping_enabled === false) return false;
+  const fee = normalizeShippingFee(settings.shipping_flat_fee);
+  if (fee <= 0) return false;
+  const threshold = normalizeFreeThreshold(settings.shipping_free_threshold);
+  return threshold > 0 && subtotal >= threshold;
 }

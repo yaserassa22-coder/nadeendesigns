@@ -74,8 +74,10 @@
 - Shipping for **اكسسوارات العروس only** (طرحة العروس، برنص العروس، future accessory products)
 - Dresses do **not** use shop checkout shipping (booking flow unchanged)
 - Checkout shipping section when cart has accessories (incl. mixed cart)
-- DB-backed flat fee in site settings (`shipping_enabled`, `shipping_flat_fee`)
-- Save + display shipping on admin orders and customer confirmation
+- DB-backed settings: `shipping_enabled`, `shipping_flat_fee`, `shipping_free_threshold`
+- Checkout summary: products total + shipping fee + grand total
+- Admin order details: order / shipping / customer / payment sections
+- Customer order page: `/orders/[id]`
 - Existing orders without shipping remain safe (nullable columns)
 
 ### M6 — Order confirm + in-app notification center

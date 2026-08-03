@@ -15,7 +15,12 @@ import {
   onOrderSubmitted,
 } from "@/lib/notifications/service";
 import { shopOrderCreateSchema } from "@/lib/validations/shop-product";
-import { cartNeedsShipping } from "@/lib/shop/shipping";
+import {
+  cartNeedsShipping,
+  resolveShippingCost,
+} from "@/lib/shop/shipping";
+import { normalizeSiteSettings } from "@/lib/settings";
+import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
   ORDER_WORKFLOW_ACTIONS,
   SHOP_ORDER_STATUSES,
@@ -23,8 +28,35 @@ import {
   type ShopOrder,
   type ShopOrderStatus,
 } from "@/types/shop";
+import type { SiteSettings } from "@/types";
 
-const memoryOrders: ShopOrder[] = [];
+declare global {
+  // eslint-disable-next-line no-var
+  var __nadeenMemoryOrders: ShopOrder[] | undefined;
+}
+
+function memoryOrdersStore(): ShopOrder[] {
+  if (!globalThis.__nadeenMemoryOrders) globalThis.__nadeenMemoryOrders = [];
+  return globalThis.__nadeenMemoryOrders;
+}
+
+async function loadSiteSettingsForShipping(): Promise<SiteSettings> {
+  if (!isSupabaseConfigured()) {
+    return normalizeSiteSettings(DEFAULT_SETTINGS);
+  }
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "site")
+      .single();
+    if (error || !data?.value) return normalizeSiteSettings(DEFAULT_SETTINGS);
+    return normalizeSiteSettings(data.value as SiteSettings);
+  } catch {
+    return normalizeSiteSettings(DEFAULT_SETTINGS);
+  }
+}
 
 function mapOrderError(error: unknown): { message: string; status: number } {
   const raw = getErrorMessage(error);
@@ -98,7 +130,7 @@ export async function GET() {
   if (authError) return authError;
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(memoryOrders);
+    return NextResponse.json(memoryOrdersStore());
   }
 
   try {
@@ -144,11 +176,39 @@ export async function POST(request: Request) {
     const body = parsed.data;
     const needsShipping =
       body.shipping_required === true || cartNeedsShipping(body.items);
+
+    if (needsShipping) {
+      const ship = body.shipping;
+      if (
+        !ship ||
+        ship.full_name.trim().length < 2 ||
+        ship.phone.trim().length < 9 ||
+        ship.city.trim().length < 2 ||
+        ship.region.trim().length < 2 ||
+        ship.address.trim().length < 5
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "بيانات التوصيل مطلوبة لطلب اكسسوارات العروس (الاسم، الهاتف، المدينة، المنطقة، والعنوان).",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const shipping = needsShipping ? body.shipping : null;
-    const shippingCost =
-      needsShipping && typeof body.shipping_cost === "number"
-        ? body.shipping_cost
-        : 0;
+    const itemsSubtotal = body.items.reduce(
+      (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
+      0
+    );
+    const siteSettings = await loadSiteSettingsForShipping();
+    const shippingCost = resolveShippingCost(
+      needsShipping,
+      itemsSubtotal,
+      siteSettings
+    );
+    const computedTotal = itemsSubtotal + shippingCost;
 
     const id = crypto.randomUUID();
     const created_at = new Date().toISOString();
@@ -163,7 +223,7 @@ export async function POST(request: Request) {
         image: i.image ?? undefined,
       })),
       gift_options: body.gift_options ?? null,
-      total: body.total,
+      total: computedTotal,
       status: "pending",
       created_at,
       shipping_required: needsShipping,
@@ -178,7 +238,7 @@ export async function POST(request: Request) {
     };
 
     if (!isSupabaseConfigured()) {
-      memoryOrders.unshift(row);
+      memoryOrdersStore().unshift(row);
       console.info("[orders API] saved to memory (Supabase not configured)", row.id);
       scheduleNotifications(() => onOrderSubmitted(row));
       return NextResponse.json({ success: true, order: row });
@@ -281,11 +341,12 @@ export async function PATCH(request: Request) {
         : undefined;
 
     if (!isSupabaseConfigured()) {
-      const idx = memoryOrders.findIndex((o) => o.id === body.id);
+      const store = memoryOrdersStore();
+      const idx = store.findIndex((o) => o.id === body.id);
       if (idx < 0) {
         return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
       }
-      const previous = memoryOrders[idx].status;
+      const previous = store[idx].status;
       if (previous === status) {
         return NextResponse.json({
           success: true,
@@ -293,8 +354,8 @@ export async function PATCH(request: Request) {
           message: "لم تتغير الحالة — لم تُرسل إشعارات",
         });
       }
-      memoryOrders[idx] = { ...memoryOrders[idx], status };
-      const order = memoryOrders[idx];
+      store[idx] = { ...store[idx], status };
+      const order = store[idx];
       scheduleNotifications(() =>
         onOrderStatusChanged(order, previous, status, { paymentAmount })
       );

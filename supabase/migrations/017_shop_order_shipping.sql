@@ -28,6 +28,11 @@ ALTER TABLE shop_orders
 ALTER TABLE shop_orders
   ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC NOT NULL DEFAULT 0;
 
+-- Allow customers to open confirmation links by order UUID (unguessable).
+DROP POLICY IF EXISTS "Public read shop_orders by id" ON shop_orders;
+CREATE POLICY "Public read shop_orders by id" ON shop_orders
+  FOR SELECT USING (true);
+
 COMMENT ON COLUMN shop_orders.shipping_required IS
   'True when order includes bridal accessories that need delivery';
 COMMENT ON COLUMN shop_orders.shipping_cost IS

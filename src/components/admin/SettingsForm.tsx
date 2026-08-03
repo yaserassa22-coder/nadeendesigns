@@ -126,20 +126,21 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </h3>
         <p className="mt-1 text-sm text-muted">
           ينطبق على طرحة العروس وبرنص العروس وأي منتجات مستقبلية تحت اكسسوارات
-          العروس فقط — وليس على الفساتين.
+          العروس فقط — وليس على الفساتين. عنوان التوصيل يبقى مطلوباً للطلبات
+          التي تحتاج توصيلاً حتى عند تعطيل الرسوم أو الشحن المجاني.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm">
+          <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm md:col-span-2">
             <input
               type="checkbox"
               checked={settings.shipping_enabled}
               onChange={(e) => update("shipping_enabled", e.target.checked)}
               className="h-4 w-4 accent-gold"
             />
-            تفعيل رسوم الشحن الثابتة
+            تفعيل رسوم الشحن عالمياً
           </label>
           <Input
-            label="رسوم الشحن (ريال)"
+            label="رسوم الشحن الثابتة (ريال)"
             type="number"
             min={0}
             step="1"
@@ -152,7 +153,30 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             }
             dir="ltr"
           />
+          <Input
+            label="حد الشحن المجاني (ريال) — 0 لإيقافه"
+            type="number"
+            min={0}
+            step="1"
+            value={String(settings.shipping_free_threshold ?? 0)}
+            onChange={(e) =>
+              update(
+                "shipping_free_threshold",
+                Math.max(0, Number(e.target.value) || 0)
+              )
+            }
+            dir="ltr"
+          />
         </div>
+        {settings.shipping_enabled &&
+          (settings.shipping_flat_fee ?? 0) > 0 &&
+          (settings.shipping_free_threshold ?? 0) > 0 && (
+            <p className="mt-3 text-xs text-muted">
+              الشحن مجاني عندما يصل مجموع المنتجات إلى{" "}
+              <span dir="ltr">{settings.shipping_free_threshold}</span> ريال أو
+              أكثر.
+            </p>
+          )}
       </div>
 
       {message && (

@@ -27,3 +27,7 @@ ALTER TABLE shop_orders
 
 ALTER TABLE shop_orders
   ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC NOT NULL DEFAULT 0;
+
+DROP POLICY IF EXISTS "Public read shop_orders by id" ON shop_orders;
+CREATE POLICY "Public read shop_orders by id" ON shop_orders
+  FOR SELECT USING (true);

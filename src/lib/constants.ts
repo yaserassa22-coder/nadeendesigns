@@ -190,6 +190,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     "فساتين زفاف فاخرة، تصاميم حصرية، وخدمة راقية لتكوني الأجمل في يومك المميز.",
   shipping_enabled: true,
   shipping_flat_fee: 0,
+  shipping_free_threshold: 0,
 };
 
 export const WHATSAPP_MESSAGE =
