@@ -143,21 +143,8 @@ CREATE TABLE IF NOT EXISTS bookings (
   email TEXT,
   date DATE NOT NULL,
   time TIME NOT NULL,
-  service_type TEXT NOT NULL CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  ),
+  -- service_type: no DB CHECK — validated in app (Zod); see migration 026
+  service_type TEXT NOT NULL,
   city TEXT,
   region TEXT,
   dress_id UUID REFERENCES dresses(id) ON DELETE SET NULL,

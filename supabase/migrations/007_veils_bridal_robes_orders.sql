@@ -42,7 +42,19 @@ CREATE TABLE IF NOT EXISTS shop_orders (
   gift_options JSONB,
   total NUMERIC NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
+    CHECK (status IN (
+      'pending',
+      'under_review',
+      'confirmed',
+      'awaiting_payment',
+      'payment_received',
+      'in_production',
+      'ready_for_pickup',
+      'shipped',
+      'delivered',
+      'cancelled',
+      'completed'
+    )),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

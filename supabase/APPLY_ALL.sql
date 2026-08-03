@@ -11,6 +11,13 @@
 --   constraints (early + end). If you still see that error, you are running a
 --   STALE paste — re-copy this file from the repo, or run APPLY_DROP_CATEGORY_CHECK.sql.
 --
+-- ⚠ CRITICAL — bookings_service_type_check:
+--   NEVER re-ADD a hardcoded CHECK (service_type IN (...)). The allowed list grew
+--   over time (nouf_dress / nouf_dresses, etc.); early incomplete ADD fails with:
+--     check constraint "bookings_service_type_check" ... is violated by some row
+--   Validation is app-level (Zod). This file only DROPs the constraint (early + end).
+--   Unblock live DB: run APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK.sql (= 026).
+--
 -- If checkout only fails with shipping schema mismatch (shipping_cost /
 -- address columns missing while shipping_regions already exists), prefer the
 -- smaller targeted file instead:
@@ -18,7 +25,8 @@
 -- (= M5 APPLY_SHOP_SHIPPING + M9 APPLY_SHIPPING_REGIONS + M10 APPLY_SMART_SHIPPING)
 --
 -- EXECUTION ORDER (documented):
---   00. Early drop of obsolete category CHECKs (same as 025; before any legacy)
+--   00. Early drop of obsolete category + bookings_service_type CHECKs
+--       (same as 025 / 026; before any legacy)
 --   01. migrations/001_add_custom_design_category.sql
 --   02. migrations/002_booking_delivery_and_service_types.sql
 --   03. migrations/003_normalize_dress_styles_ar.sql
@@ -47,7 +55,8 @@
 --   26. Reports schedules: APPLY_REPORTS.sql (= 023) — future-ready; no cron runner
 --   27. Smart appointments: APPLY_SMART_APPOINTMENTS.sql (= 024)
 --   28. Drop obsolete dresses_category_check: APPLY_DROP_CATEGORY_CHECK.sql (= 025)
---       (repeated at end; this file never ADD CONSTRAINT ..._category_check)
+--   29. Drop obsolete bookings_service_type_check: APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK.sql (= 026)
+--       (repeated at end; this file never ADD ..._category_check / bookings_service_type_check)
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, shop_orders base) must
 -- already exist from the main schema / earlier project setup. This file applies
@@ -56,6 +65,8 @@
 -- NOTE: dresses.category is TEXT (slug / legacy_key). Hardcoded CHECK constraints
 -- are obsolete after dynamic categories (016). APPLY_ALL drops the constraint and
 -- never recreates it — existing product rows are preserved.
+-- NOTE: bookings.service_type is TEXT; hardcoded service_type CHECK is obsolete
+-- (app Zod validation). APPLY_ALL drops it and never recreates it.
 -- =============================================================================
 
 
@@ -103,6 +114,39 @@ END $$;
 
 
 -- #############################################################################
+-- 00b — Early drop obsolete bookings_service_type_check
+-- Same logic as migrations/026_drop_bookings_service_type_check.sql
+-- #############################################################################
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'bookings'
+  ) THEN
+    NULL;
+  ELSE
+    ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
+
+    FOR r IN
+      SELECT c.conname
+      FROM pg_constraint c
+      JOIN pg_class rel ON rel.oid = c.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+      WHERE nsp.nspname = 'public'
+        AND rel.relname = 'bookings'
+        AND c.contype = 'c'
+        AND pg_get_constraintdef(c.oid) ILIKE '%service_type%'
+    LOOP
+      EXECUTE format('ALTER TABLE bookings DROP CONSTRAINT IF EXISTS %I', r.conname);
+    END LOOP;
+  END IF;
+END $$;
+
+
+-- #############################################################################
 -- Migration 001 — Custom design category
 -- Source: supabase/migrations/001_add_custom_design_category.sql
 -- #############################################################################
@@ -127,23 +171,9 @@ ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 -- 1) Dress categories — drop obsolete CHECK only (do not recreate hardcoded list)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
--- 2) Booking service types (includes new + legacy values)
+-- 2) Booking service_type — drop obsolete CHECK only (app Zod validates; see 026).
+-- Do NOT ADD CONSTRAINT bookings_service_type_check here (or anywhere in this file).
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 -- 3) Delivery fields
 ALTER TABLE bookings
@@ -215,24 +245,8 @@ UPDATE dresses SET style = 'تصميم مخصص' WHERE style IN ('custom', 'Cust
 -- CHECK dropped permanently (dynamic categories); keep booking service_type widen.
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
--- Allow booking service type for نوف dresses
+-- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 
 
@@ -286,7 +300,19 @@ CREATE TABLE IF NOT EXISTS shop_orders (
   gift_options JSONB,
   total NUMERIC NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
+    CHECK (status IN (
+      'pending',
+      'under_review',
+      'confirmed',
+      'awaiting_payment',
+      'payment_received',
+      'in_production',
+      'ready_for_pickup',
+      'shipped',
+      'delivered',
+      'cancelled',
+      'completed'
+    )),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -371,25 +397,8 @@ WHERE category = 'nouf_dress';
 
 -- Do NOT recreate dresses_category_check (dynamic categories; see migration 025)
 
--- Booking service type: allow nouf_dresses
+-- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 UPDATE bookings
 SET service_type = 'nouf_dresses'
@@ -430,24 +439,8 @@ SET category = 'nouf_dresses',
     updated_at = now()
 WHERE category = 'nouf_dress';
 
+-- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 UPDATE bookings
 SET service_type = 'nouf_dresses'
@@ -462,27 +455,13 @@ WHERE service_type = 'nouf_dress';
 
 -- Expand shop order statuses + notification_logs
 -- Safe to run multiple times.
+-- NOTE: Do NOT re-ADD an incomplete status list here — live DBs may already have
+-- awaiting_payment / payment_received (full list applied in migration 012 below).
 
 ALTER TABLE shop_orders DROP CONSTRAINT IF EXISTS shop_orders_status_check;
 
 -- Normalize legacy completed → delivered
 UPDATE shop_orders SET status = 'delivered' WHERE status = 'completed';
-
-ALTER TABLE shop_orders
-  ADD CONSTRAINT shop_orders_status_check
-  CHECK (
-    status IN (
-      'pending',
-      'confirmed',
-      'under_review',
-      'in_production',
-      'ready_for_pickup',
-      'shipped',
-      'delivered',
-      'cancelled',
-      'completed'
-    )
-  );
 
 CREATE TABLE IF NOT EXISTS notification_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -708,25 +687,8 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS gift_options JSONB;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
+-- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IS NULL
-    OR service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
 ALTER TABLE bookings
@@ -789,26 +751,8 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS gift_options JSONB;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
--- Service types used by the form (+ legacy)
+-- Service types: drop obsolete CHECK only (app Zod; see 026). Never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IS NULL
-    OR service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 -- Status check
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
@@ -873,24 +817,8 @@ NOTIFY pgrst, 'reload schema';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS region TEXT;
 
+-- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_delivery_status_check;
 ALTER TABLE bookings
@@ -2019,7 +1947,7 @@ ON CONFLICT (key) DO NOTHING;
 -- Migration 025 — Drop obsolete dresses_category_check
 -- Source: supabase/migrations/025_drop_dresses_category_check.sql
 --         supabase/APPLY_DROP_CATEGORY_CHECK.sql
--- Must run last so no earlier legacy block can leave a hardcoded CHECK in place.
+-- Must run late so no earlier legacy block can leave a hardcoded CHECK in place.
 -- #############################################################################
 
 DO $$
@@ -2056,6 +1984,41 @@ BEGIN
       EXECUTE format('ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I', t, r.conname);
     END LOOP;
   END LOOP;
+END $$;
+
+
+-- #############################################################################
+-- Migration 026 — Drop obsolete bookings_service_type_check
+-- Source: supabase/migrations/026_drop_bookings_service_type_check.sql
+--         supabase/APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK.sql
+-- Must run last so no earlier legacy block can leave a hardcoded CHECK in place.
+-- #############################################################################
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'bookings'
+  ) THEN
+    NULL;
+  ELSE
+    ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
+
+    FOR r IN
+      SELECT c.conname
+      FROM pg_constraint c
+      JOIN pg_class rel ON rel.oid = c.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+      WHERE nsp.nspname = 'public'
+        AND rel.relname = 'bookings'
+        AND c.contype = 'c'
+        AND pg_get_constraintdef(c.oid) ILIKE '%service_type%'
+    LOOP
+      EXECUTE format('ALTER TABLE bookings DROP CONSTRAINT IF EXISTS %I', r.conname);
+    END LOOP;
+  END IF;
 END $$;
 
 

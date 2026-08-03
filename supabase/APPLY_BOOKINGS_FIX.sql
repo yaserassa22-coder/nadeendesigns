@@ -7,24 +7,8 @@
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS region TEXT;
 
+-- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_delivery_status_check;
 ALTER TABLE bookings

@@ -4,23 +4,9 @@
 -- 1) Dress categories — drop obsolete CHECK only (dynamic categories; see 016 / 025)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
--- 2) Booking service types (includes new + legacy values)
+-- 2) Booking service_type — drop obsolete CHECK only (app Zod validates; see 026).
+-- Do NOT ADD CONSTRAINT bookings_service_type_check (incomplete lists fail on live rows).
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 -- 3) Delivery fields
 ALTER TABLE bookings

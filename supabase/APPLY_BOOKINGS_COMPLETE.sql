@@ -34,26 +34,8 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS gift_options JSONB;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
--- Service types used by the form (+ legacy)
+-- Service types: drop obsolete CHECK only (app Zod; see 026). Never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_service_type_check
-  CHECK (
-    service_type IS NULL
-    OR service_type IN (
-      'wedding_dress',
-      'rental_dress',
-      'custom_design',
-      'nouf_dresses',
-      'nouf_dress',
-      'veil',
-      'bridal_cape',
-      'fitting',
-      'consultation',
-      'rental',
-      'purchase'
-    )
-  );
 
 -- Status check
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check;

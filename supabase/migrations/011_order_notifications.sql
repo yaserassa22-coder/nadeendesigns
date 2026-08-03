@@ -1,26 +1,12 @@
 -- Expand shop order statuses + notification_logs
 -- Safe to run multiple times.
 
+-- Drop only here — do NOT re-ADD an incomplete status list (live DBs may already
+-- have awaiting_payment / payment_received). Full list is applied in 012.
 ALTER TABLE shop_orders DROP CONSTRAINT IF EXISTS shop_orders_status_check;
 
 -- Normalize legacy completed → delivered
 UPDATE shop_orders SET status = 'delivered' WHERE status = 'completed';
-
-ALTER TABLE shop_orders
-  ADD CONSTRAINT shop_orders_status_check
-  CHECK (
-    status IN (
-      'pending',
-      'confirmed',
-      'under_review',
-      'in_production',
-      'ready_for_pickup',
-      'shipped',
-      'delivered',
-      'cancelled',
-      'completed'
-    )
-  );
 
 CREATE TABLE IF NOT EXISTS notification_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
