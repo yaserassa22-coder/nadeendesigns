@@ -17,6 +17,7 @@ import {
 import { shopOrderCreateSchema } from "@/lib/validations/shop-product";
 import {
   cartNeedsShipping,
+  findRegionByName,
   resolveShippingCost,
 } from "@/lib/shop/shipping";
 import { normalizeSiteSettings } from "@/lib/settings";
@@ -182,6 +183,9 @@ export async function POST(request: Request) {
     let regionFee: number | null = null;
     let regionNameAr: string | null = null;
     let regionId: string | null = null;
+    let regionCustom: string | null = null;
+    let feePending = false;
+    let regionConfigured = true;
 
     if (needsShipping) {
       const method = body.delivery_method;
@@ -225,36 +229,94 @@ export async function POST(request: Request) {
             { status: 400 }
           );
         }
+        const regionText = ship.region?.trim() || "";
         regionId = ship.shipping_region_id?.trim() || null;
-        if (!regionId) {
+        if (!regionId && regionText.length < 2) {
           return NextResponse.json(
-            { error: "المنطقة مطلوبة للتوصيل." },
+            { error: "المنطقة / المدينة مطلوبة للتوصيل." },
             { status: 400 }
           );
         }
-        // Resolve region fee from DB (or seed fallback)
+
+        type RegionRow = {
+          id: string;
+          name_ar: string;
+          name_en?: string | null;
+          shipping_fee: number;
+          is_active: boolean;
+          estimated_days?: number | null;
+          estimated_days_min?: number | null;
+          estimated_days_max?: number | null;
+          estimated_delivery_ar?: string | null;
+        };
+
+        let matched: RegionRow | null = null;
+
         if (isSupabaseConfigured()) {
           try {
             const supabase = createAdminClient();
-            const { data: region } = await supabase
-              .from("shipping_regions")
-              .select("id, name_ar, shipping_fee, is_active")
-              .eq("id", regionId)
-              .maybeSingle();
-            if (!region || region.is_active === false) {
-              return NextResponse.json(
-                { error: "المنطقة المحددة غير متاحة." },
-                { status: 400 }
+            if (regionId) {
+              const { data: region } = await supabase
+                .from("shipping_regions")
+                .select(
+                  "id, name_ar, name_en, shipping_fee, is_active, estimated_days, estimated_days_min, estimated_days_max, estimated_delivery_ar"
+                )
+                .eq("id", regionId)
+                .maybeSingle();
+              if (region && region.is_active !== false) {
+                matched = region as RegionRow;
+              }
+            }
+            if (!matched && regionText) {
+              const { data: active } = await supabase
+                .from("shipping_regions")
+                .select(
+                  "id, name_ar, name_en, shipping_fee, is_active, estimated_days, estimated_days_min, estimated_days_max, estimated_delivery_ar"
+                )
+                .eq("is_active", true);
+              matched = findRegionByName(
+                (active as RegionRow[] | null) ?? [],
+                regionText
               );
             }
-            regionNameAr = region.name_ar;
-            regionFee = Number(region.shipping_fee) || 0;
           } catch {
-            regionNameAr = ship.region?.trim() || null;
-            regionFee = null;
+            matched = null;
           }
+        } else if (regionText) {
+          // Dev memory mode — match against seed names only
+          const seed: RegionRow[] = [
+            { id: "b1000000-0000-4000-8000-000000000001", name_ar: "الرياض", name_en: "Riyadh", shipping_fee: 35, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000002", name_ar: "جدة", name_en: "Jeddah", shipping_fee: 40, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000003", name_ar: "الدمام", name_en: "Dammam", shipping_fee: 45, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000004", name_ar: "مكة", name_en: "Makkah", shipping_fee: 40, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000005", name_ar: "المدينة", name_en: "Madinah", shipping_fee: 45, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000006", name_ar: "القصيم", name_en: "Qassim", shipping_fee: 50, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000007", name_ar: "تبوك", name_en: "Tabuk", shipping_fee: 55, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000008", name_ar: "أبها", name_en: "Abha", shipping_fee: 55, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000009", name_ar: "حائل", name_en: "Hail", shipping_fee: 55, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000010", name_ar: "الطائف", name_en: "Taif", shipping_fee: 45, is_active: true },
+            { id: "b1000000-0000-4000-8000-000000000011", name_ar: "أخرى", name_en: "Other", shipping_fee: 60, is_active: true },
+          ];
+          matched =
+            (regionId ? seed.find((r) => r.id === regionId) : null) ??
+            findRegionByName(seed, regionText);
+        }
+
+        if (matched) {
+          regionId = matched.id;
+          regionNameAr = matched.name_ar;
+          regionFee = Number(matched.shipping_fee) || 0;
+          regionConfigured = true;
+          feePending = false;
+          regionCustom = null;
         } else {
-          regionNameAr = ship.region?.trim() || null;
+          // Unknown / custom region — do not block checkout
+          regionId = null;
+          regionNameAr = regionText || ship.region?.trim() || null;
+          regionCustom = regionNameAr;
+          regionFee = null;
+          regionConfigured = false;
+          feePending = true;
         }
       }
     }
@@ -265,15 +327,12 @@ export async function POST(request: Request) {
       (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
       0
     );
-    const shippingCost = resolveShippingCost(
-      needsShipping,
-      itemsSubtotal,
-      siteSettings,
-      {
-        deliveryMethod,
-        regionFee,
-      }
-    );
+    const shippingCost = feePending
+      ? 0
+      : resolveShippingCost(needsShipping, itemsSubtotal, siteSettings, {
+          deliveryMethod,
+          regionFee,
+        });
     const computedTotal = itemsSubtotal + shippingCost;
 
     const id = crypto.randomUUID();
@@ -301,12 +360,21 @@ export async function POST(request: Request) {
         shipping?.region?.trim() || regionNameAr || null,
       shipping_region_id: regionId,
       shipping_region_name_ar: regionNameAr,
+      shipping_region_custom: regionCustom,
+      region_configured: needsShipping && deliveryMethod === "delivery"
+        ? regionConfigured
+        : true,
+      shipping_fee_pending: feePending,
       shipping_address: shipping?.address?.trim() || null,
       shipping_building_number: shipping?.building_number?.trim() || null,
       shipping_neighborhood: shipping?.neighborhood?.trim() || null,
       shipping_postal_code: shipping?.postal_code?.trim() || null,
       shipping_notes: shipping?.notes?.trim() || null,
       shipping_cost: shippingCost,
+      tracking_number: null,
+      tracking_url: null,
+      internal_shipping_notes: null,
+      carrier_code: null,
       notify_whatsapp: body.notify_whatsapp ?? true,
       notify_email: body.notify_email ?? true,
     };
@@ -337,12 +405,19 @@ export async function POST(request: Request) {
       shipping_region: row.shipping_region,
       shipping_region_id: row.shipping_region_id,
       shipping_region_name_ar: row.shipping_region_name_ar,
+      shipping_region_custom: row.shipping_region_custom,
+      region_configured: row.region_configured,
+      shipping_fee_pending: row.shipping_fee_pending,
       shipping_address: row.shipping_address,
       shipping_building_number: row.shipping_building_number,
       shipping_neighborhood: row.shipping_neighborhood,
       shipping_postal_code: row.shipping_postal_code,
       shipping_notes: row.shipping_notes,
       shipping_cost: row.shipping_cost,
+      tracking_number: row.tracking_number,
+      tracking_url: row.tracking_url,
+      internal_shipping_notes: row.internal_shipping_notes,
+      carrier_code: row.carrier_code,
       notify_whatsapp: row.notify_whatsapp ?? true,
       notify_email: row.notify_email ?? true,
     };
@@ -352,12 +427,12 @@ export async function POST(request: Request) {
     // Migration not applied yet — fall back without newer columns
     if (
       error &&
-      /shipping_|delivery_method|notify_|column .* does not exist/i.test(
+      /shipping_|delivery_method|notify_|region_configured|tracking_|carrier_code|column .* does not exist/i.test(
         getErrorMessage(error)
       )
     ) {
       console.warn(
-        "[orders API] optional columns missing — inserting core fields. Run APPLY_SHIPPING_REGIONS.sql / APPLY_SHOP_SHIPPING.sql"
+        "[orders API] optional columns missing — inserting core fields. Run APPLY_SMART_SHIPPING.sql / APPLY_SHIPPING_REGIONS.sql"
       );
       const core = {
         id: row.id,
@@ -441,6 +516,18 @@ export async function PATCH(request: Request) {
       status?: ShopOrderStatus;
       action?: OrderWorkflowAction;
       paymentAmount?: number;
+      /** Admin shipping edits (pending fee, tracking, notes) */
+      shipping_cost?: number;
+      shipping_fee_pending?: boolean;
+      region_configured?: boolean;
+      shipping_region_id?: string | null;
+      shipping_region_name_ar?: string | null;
+      shipping_region_custom?: string | null;
+      tracking_number?: string | null;
+      tracking_url?: string | null;
+      internal_shipping_notes?: string | null;
+      carrier_code?: string | null;
+      shipping_notes?: string | null;
     };
 
     if (!body.id) {
@@ -448,7 +535,20 @@ export async function PATCH(request: Request) {
     }
 
     const status = resolveStatusFromBody(body);
-    if (!status) {
+    const hasShippingPatch =
+      body.shipping_cost !== undefined ||
+      body.shipping_fee_pending !== undefined ||
+      body.region_configured !== undefined ||
+      body.shipping_region_id !== undefined ||
+      body.shipping_region_name_ar !== undefined ||
+      body.shipping_region_custom !== undefined ||
+      body.tracking_number !== undefined ||
+      body.tracking_url !== undefined ||
+      body.internal_shipping_notes !== undefined ||
+      body.carrier_code !== undefined ||
+      body.shipping_notes !== undefined;
+
+    if (!status && !hasShippingPatch) {
       return NextResponse.json(
         { error: "حالة الطلب أو الإجراء غير صالح" },
         { status: 400 }
@@ -460,6 +560,64 @@ export async function PATCH(request: Request) {
         ? body.paymentAmount
         : undefined;
 
+    const buildShippingUpdate = (existing: ShopOrder) => {
+      const patch: Record<string, unknown> = {};
+      if (body.tracking_number !== undefined) {
+        patch.tracking_number = body.tracking_number?.trim() || null;
+      }
+      if (body.tracking_url !== undefined) {
+        patch.tracking_url = body.tracking_url?.trim() || null;
+      }
+      if (body.internal_shipping_notes !== undefined) {
+        patch.internal_shipping_notes =
+          body.internal_shipping_notes?.trim() || null;
+      }
+      if (body.carrier_code !== undefined) {
+        patch.carrier_code = body.carrier_code?.trim() || null;
+      }
+      if (body.shipping_notes !== undefined) {
+        patch.shipping_notes = body.shipping_notes?.trim() || null;
+      }
+      if (body.shipping_region_id !== undefined) {
+        patch.shipping_region_id = body.shipping_region_id;
+      }
+      if (body.shipping_region_name_ar !== undefined) {
+        patch.shipping_region_name_ar = body.shipping_region_name_ar;
+      }
+      if (body.shipping_region_custom !== undefined) {
+        patch.shipping_region_custom = body.shipping_region_custom;
+      }
+      if (body.region_configured !== undefined) {
+        patch.region_configured = body.region_configured;
+      }
+
+      if (body.shipping_cost !== undefined || body.shipping_fee_pending !== undefined) {
+        const itemsSubtotal = (existing.items ?? []).reduce(
+          (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
+          0
+        );
+        const nextFee =
+          body.shipping_cost !== undefined
+            ? Math.max(0, Number(body.shipping_cost) || 0)
+            : Number(existing.shipping_cost ?? 0);
+        const nextPending =
+          body.shipping_fee_pending !== undefined
+            ? Boolean(body.shipping_fee_pending)
+            : body.shipping_cost !== undefined
+              ? false
+              : Boolean(existing.shipping_fee_pending);
+        patch.shipping_cost = nextPending ? 0 : nextFee;
+        patch.shipping_fee_pending = nextPending;
+        if (!nextPending && body.shipping_cost !== undefined) {
+          patch.region_configured = true;
+          patch.total = itemsSubtotal + nextFee;
+        } else if (nextPending) {
+          patch.total = itemsSubtotal;
+        }
+      }
+      return patch;
+    };
+
     if (!isSupabaseConfigured()) {
       const store = memoryOrdersStore();
       const idx = store.findIndex((o) => o.id === body.id);
@@ -467,19 +625,27 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
       }
       const previous = store[idx].status;
-      if (previous === status) {
+      let order = store[idx];
+      if (hasShippingPatch) {
+        order = { ...order, ...buildShippingUpdate(order) } as ShopOrder;
+        store[idx] = order;
+      }
+      if (status && previous !== status) {
+        store[idx] = { ...store[idx], status };
+        order = store[idx];
+        scheduleNotifications(() =>
+          onOrderStatusChanged(order, previous, status, { paymentAmount })
+        );
+        return NextResponse.json({ success: true, status, order });
+      }
+      if (status && previous === status && !hasShippingPatch) {
         return NextResponse.json({
           success: true,
           unchanged: true,
           message: "لم تتغير الحالة — لم تُرسل إشعارات",
         });
       }
-      store[idx] = { ...store[idx], status };
-      const order = store[idx];
-      scheduleNotifications(() =>
-        onOrderStatusChanged(order, previous, status, { paymentAmount })
-      );
-      return NextResponse.json({ success: true, status });
+      return NextResponse.json({ success: true, order: store[idx] });
     }
 
     const supabase = await createPrivilegedClient();
@@ -498,7 +664,15 @@ export async function PATCH(request: Request) {
     }
 
     const previous = existing.status as ShopOrderStatus;
-    if (previous === status) {
+    const updatePayload: Record<string, unknown> = {};
+    if (hasShippingPatch) {
+      Object.assign(updatePayload, buildShippingUpdate(existing as ShopOrder));
+    }
+    if (status && previous !== status) {
+      updatePayload.status = status;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
       return NextResponse.json({
         success: true,
         unchanged: true,
@@ -506,20 +680,28 @@ export async function PATCH(request: Request) {
       });
     }
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("shop_orders")
-      .update({ status })
-      .eq("id", body.id);
+      .update(updatePayload)
+      .eq("id", body.id)
+      .select("*")
+      .maybeSingle();
     if (error) {
       const mapped = mapOrderError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
 
-    const order = { ...(existing as ShopOrder), status };
-    scheduleNotifications(() =>
-      onOrderStatusChanged(order, previous, status, { paymentAmount })
-    );
-    return NextResponse.json({ success: true, status });
+    const order = (updated as ShopOrder) ?? {
+      ...(existing as ShopOrder),
+      ...updatePayload,
+    };
+    if (status && previous !== status) {
+      scheduleNotifications(() =>
+        onOrderStatusChanged(order, previous, status, { paymentAmount })
+      );
+      return NextResponse.json({ success: true, status, order });
+    }
+    return NextResponse.json({ success: true, order });
   } catch (e) {
     const mapped = mapOrderError(e);
     return NextResponse.json({ error: mapped.message }, { status: mapped.status });

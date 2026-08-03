@@ -76,24 +76,28 @@ function shippingAddressHtml(order: ShopOrder) {
   const lines = [
     order.shipping_full_name,
     order.shipping_phone,
-    order.shipping_region_name_ar || order.shipping_region,
+    order.shipping_region_name_ar ||
+      order.shipping_region_custom ||
+      order.shipping_region,
     order.shipping_city,
     order.shipping_neighborhood,
     order.shipping_building_number,
     order.shipping_address,
     order.shipping_postal_code,
     order.shipping_notes,
+    order.tracking_number ? `رقم التتبع: ${order.tracking_number}` : null,
   ].filter(Boolean);
-  if (lines.length === 0) return "";
+  if (lines.length === 0 && !order.shipping_fee_pending) return "";
+  const feeLine = order.shipping_fee_pending
+    ? `<br/><span style="color:#8a7f72;font-size:13px;">رسوم الشحن: قيد المراجعة — سيتم تحديدها بعد مراجعة المنطقة.</span>`
+    : order.shipping_cost != null
+      ? `<br/><span style="color:#8a7f72;font-size:13px;">رسوم الشحن: <span dir="ltr">${formatPrice(Number(order.shipping_cost))}</span></span>`
+      : "";
   return `
     <p style="margin:16px 0 0;text-align:right;color:#5c5348;line-height:1.8;">
       <strong>عنوان التوصيل:</strong><br/>
       ${lines.map((l) => escapeHtml(String(l))).join("<br/>")}
-      ${
-        order.shipping_cost != null
-          ? `<br/><span style="color:#8a7f72;font-size:13px;">رسوم الشحن: <span dir="ltr">${formatPrice(Number(order.shipping_cost))}</span></span>`
-          : ""
-      }
+      ${feeLine}
     </p>`;
 }
 
@@ -105,17 +109,21 @@ function shippingAddressText(order: ShopOrder) {
   const lines = [
     order.shipping_full_name,
     order.shipping_phone,
-    order.shipping_region_name_ar || order.shipping_region,
+    order.shipping_region_name_ar ||
+      order.shipping_region_custom ||
+      order.shipping_region,
     order.shipping_city,
     order.shipping_neighborhood,
     order.shipping_building_number,
     order.shipping_address,
     order.shipping_postal_code,
     order.shipping_notes,
+    order.tracking_number ? `رقم التتبع: ${order.tracking_number}` : null,
   ].filter(Boolean);
-  if (lines.length === 0) return "";
-  const fee =
-    order.shipping_cost != null
+  if (lines.length === 0 && !order.shipping_fee_pending) return "";
+  const fee = order.shipping_fee_pending
+    ? `\nرسوم الشحن: قيد المراجعة`
+    : order.shipping_cost != null
       ? `\nرسوم الشحن: ${formatPrice(Number(order.shipping_cost))}`
       : "";
   return `\nعنوان التوصيل:\n${lines.join("\n")}${fee}`;
@@ -206,10 +214,10 @@ function emailShell(
 
 function statusHeadline(status: ShopOrderStatus, order?: ShopOrder): string {
   if (status === "ready_for_pickup") {
-    return "طلبك أصبح جاهزاً للاستلام من البوتيك";
+    return "طلبك جاهز للاستلام من البوتيك";
   }
   if (status === "shipped") {
-    return "تم تسليم طلبك لشركة الشحن";
+    return "تم تجهيز طلبك وسيتم شحنه";
   }
   if (status === "delivered" && order?.delivery_method === "pickup") {
     return "تم استلام طلبك من البوتيك";
@@ -219,8 +227,8 @@ function statusHeadline(status: ShopOrderStatus, order?: ShopOrder): string {
     confirmed: "تم تأكيد طلبكِ",
     payment_received: "تم استلام الدفعة",
     in_production: "طلبكِ قيد التجهيز",
-    ready_for_pickup: "طلبكِ جاهز للاستلام",
-    shipped: "تم شحن طلبكِ",
+    ready_for_pickup: "طلبك جاهز للاستلام من البوتيك",
+    shipped: "تم تجهيز طلبك وسيتم شحنه",
     delivered: "تم تسليم طلبكِ",
     cancelled: "تم إلغاء الطلب",
   };
@@ -411,9 +419,9 @@ export function customerWhatsAppMessage(
 
   if (!settings.whatsapp_templates[status]) {
     if (status === "ready_for_pickup") {
-      headline = "طلبك أصبح جاهزاً للاستلام من البوتيك.";
+      headline = "طلبك جاهز للاستلام من البوتيك.";
     } else if (status === "shipped") {
-      headline = "تم تسليم طلبك لشركة الشحن.";
+      headline = "تم تجهيز طلبك وسيتم شحنه.";
     } else if (status === "delivered" && order.delivery_method === "pickup") {
       headline = "تم استلام طلبك من البوتيك. شكراً لثقتكِ ❤️";
     }

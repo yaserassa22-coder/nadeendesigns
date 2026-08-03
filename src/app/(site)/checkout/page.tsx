@@ -8,8 +8,12 @@ import { PageHero } from "@/components/dresses/DressCatalog";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { useCart } from "@/components/shop/CartProvider";
+import {
+  RegionAutocomplete,
+  type RegionSelection,
+} from "@/components/shop/RegionAutocomplete";
 import { Button } from "@/components/ui/Button";
-import { Input, Select, Textarea } from "@/components/ui/Input";
+import { Input, Textarea } from "@/components/ui/Input";
 import {
   NotificationPreferences,
   validateNotificationPreferences,
@@ -19,6 +23,7 @@ import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import {
   defaultDeliveryMethod,
+  formatEstimatedDelivery,
   isFreeShippingEligible,
   resolveShippingCost,
   type DeliveryMethod,
@@ -61,6 +66,11 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [shipping, setShipping] = useState<ShippingForm>(emptyShipping);
+  const [regionSel, setRegionSel] = useState<RegionSelection>({
+    regionId: null,
+    regionText: "",
+    matched: null,
+  });
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(
     null
   );
@@ -103,16 +113,15 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  // Prefill happens when switching to delivery (see onChange below)
-
   const pickupEnabled = settings?.boutique_pickup_enabled !== false;
   const deliveryEnabled = settings?.delivery_enabled !== false;
 
-  const selectedRegion = useMemo(
-    () =>
-      regions.find((r) => r.id === shipping.shipping_region_id) ?? null,
-    [regions, shipping.shipping_region_id]
-  );
+  const selectedRegion = regionSel.matched;
+  const feePending =
+    deliveryMethod === "delivery" &&
+    regionSel.regionText.trim().length >= 2 &&
+    !selectedRegion &&
+    !regionSel.regionId;
 
   const shippingSettings = useMemo(
     () => ({
@@ -127,7 +136,7 @@ export default function CheckoutPage() {
 
   const shippingCost = useMemo(
     () =>
-      settingsLoaded
+      settingsLoaded && !feePending
         ? resolveShippingCost(needsShipping, subtotal, shippingSettings, {
             deliveryMethod,
             regionFee: selectedRegion
@@ -142,12 +151,14 @@ export default function CheckoutPage() {
       settingsLoaded,
       deliveryMethod,
       selectedRegion,
+      feePending,
     ]
   );
 
   const freeShipping = useMemo(
     () =>
       settingsLoaded &&
+      !feePending &&
       isFreeShippingEligible(needsShipping, subtotal, shippingSettings, {
         deliveryMethod,
         regionFee: selectedRegion
@@ -161,24 +172,27 @@ export default function CheckoutPage() {
       settingsLoaded,
       deliveryMethod,
       selectedRegion,
+      feePending,
     ]
   );
 
   const orderTotal = subtotal + shippingCost;
   const hidePrice = items.some((i) => i.gift_options?.hide_price);
   const giftOptions = items.find((i) => i.gift_options)?.gift_options ?? null;
+  const estimatedLabel = formatEstimatedDelivery(selectedRegion);
 
   const updateShipping = <K extends keyof ShippingForm>(
     key: K,
     value: ShippingForm[K]
   ) => setShipping((s) => ({ ...s, [key]: value }));
 
-  const onRegionChange = (regionId: string) => {
-    const region = regions.find((r) => r.id === regionId);
+  const onRegionChange = (next: RegionSelection) => {
+    setRegionSel(next);
     setShipping((s) => ({
       ...s,
-      shipping_region_id: regionId,
-      region: region?.name_ar ?? "",
+      shipping_region_id: next.regionId ?? "",
+      region: next.regionText,
+      city: s.city || next.matched?.name_ar || s.city,
     }));
   };
 
@@ -226,8 +240,8 @@ export default function CheckoutPage() {
           setError("هاتف التوصيل مطلوب");
           return;
         }
-        if (!shipping.shipping_region_id) {
-          setError("المنطقة مطلوبة للتوصيل");
+        if (regionSel.regionText.trim().length < 2) {
+          setError("المنطقة / المدينة مطلوبة للتوصيل");
           return;
         }
         if (shipping.city.trim().length < 2) {
@@ -242,6 +256,7 @@ export default function CheckoutPage() {
     }
 
     setSaving(true);
+    const regionText = regionSel.regionText.trim();
     const payload = {
       name: name.trim(),
       phone: phone.trim(),
@@ -260,16 +275,13 @@ export default function CheckoutPage() {
               full_name: shipping.full_name.trim(),
               phone: shipping.phone.trim(),
               city: shipping.city.trim(),
-              region:
-                selectedRegion?.name_ar?.trim() ||
-                shipping.region.trim() ||
-                "—",
+              region: regionText,
               address: shipping.address.trim(),
               building_number: shipping.building_number.trim() || null,
               neighborhood: shipping.neighborhood.trim() || null,
               postal_code: shipping.postal_code.trim() || null,
               notes: shipping.notes.trim() || null,
-              shipping_region_id: shipping.shipping_region_id || null,
+              shipping_region_id: regionSel.regionId || null,
             }
           : null,
       items: items.map((i) => ({
@@ -337,11 +349,13 @@ export default function CheckoutPage() {
       ? "—"
       : deliveryMethod === "pickup"
         ? "مجاني"
-        : freeShipping || shippingCost === 0
-          ? settings?.shipping_enabled === false
-            ? "معطّل"
-            : "مجاني"
-          : formatPrice(shippingCost);
+        : feePending
+          ? "قيد المراجعة"
+          : freeShipping || shippingCost === 0
+            ? settings?.shipping_enabled === false
+              ? "معطّل"
+              : "مجاني"
+            : formatPrice(shippingCost);
 
   return (
     <>
@@ -423,8 +437,14 @@ export default function CheckoutPage() {
                       {shippingFeeLabel}
                     </span>
                   </div>
+                  {feePending && (
+                    <p className="text-xs text-amber-800">
+                      سيتم تحديد رسوم التوصيل بعد مراجعة المنطقة.
+                    </p>
+                  )}
                   {needsShipping &&
                     deliveryMethod === "delivery" &&
+                    !feePending &&
                     freeShipping &&
                     (settings?.shipping_free_threshold ?? 0) > 0 && (
                       <p className="text-xs text-muted">
@@ -435,13 +455,25 @@ export default function CheckoutPage() {
                         )
                       </p>
                     )}
+                  {estimatedLabel && !feePending && (
+                    <p className="text-xs text-muted">
+                      مدة التوصيل المتوقعة: {estimatedLabel}
+                    </p>
+                  )}
                   {!hidePrice && (
                     <div className="flex justify-between gap-3 border-t border-beige-dark pt-2 text-base font-semibold">
-                      <span>الإجمالي</span>
+                      <span>
+                        {feePending ? "إجمالي المنتجات" : "الإجمالي"}
+                      </span>
                       <span className="text-gold" dir="ltr">
                         {!settingsLoaded ? "…" : formatPrice(orderTotal)}
                       </span>
                     </div>
+                  )}
+                  {feePending && !hidePrice && (
+                    <p className="text-xs text-muted">
+                      الإجمالي النهائي يُحدَّث بعد تحديد رسوم الشحن من الإدارة.
+                    </p>
                   )}
                   {hidePrice && needsShipping && shippingCost > 0 && (
                     <p className="text-xs text-muted">
@@ -562,21 +594,10 @@ export default function CheckoutPage() {
                 {deliveryMethod === "delivery" && deliveryEnabled && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
-                      <Select
-                        label="المنطقة *"
-                        value={shipping.shipping_region_id}
-                        onChange={(e) => onRegionChange(e.target.value)}
-                        options={[
-                          { value: "", label: "اختاري المنطقة…" },
-                          ...regions.map((r) => ({
-                            value: r.id,
-                            label: `${r.name_ar} — ${
-                              Number(r.shipping_fee) > 0
-                                ? formatPrice(Number(r.shipping_fee))
-                                : "مجاني"
-                            }`,
-                          })),
-                        ]}
+                      <RegionAutocomplete
+                        regions={regions}
+                        value={regionSel}
+                        onChange={onRegionChange}
                       />
                     </div>
                     <Input

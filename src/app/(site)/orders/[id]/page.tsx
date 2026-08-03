@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -72,15 +72,19 @@ export default function CustomerOrderPage() {
     let cancelled = false;
 
     const placedNow = readJustPlacedFlag(id);
-    if (placedNow) setJustPlaced(true);
-
     const cached = readCachedOrder(id);
+
+    // Defer sync sessionStorage hydration to avoid cascading render lint.
+    startTransition(() => {
+      if (placedNow) setJustPlaced(true);
+      if (cached) {
+        setOrder(cached);
+        if (placedNow) setLoading(false);
+      }
+    });
+
     // Show checkout payload immediately after place-order, but keep loading
     // until the server responds when there is no local copy yet.
-    if (cached) {
-      setOrder(cached);
-      if (placedNow) setLoading(false);
-    }
 
     const loadFromServer = async () => {
       try {
@@ -215,6 +219,11 @@ export default function CustomerOrderPage() {
                   طلبك جاهز للاستلام من البوتيك.
                 </p>
               )}
+            {order.delivery_method === "delivery" && status === "shipped" && (
+              <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                تم تجهيز طلبك وسيتم شحنه.
+              </p>
+            )}
             {order.delivery_method === "pickup" &&
               status !== "ready_for_pickup" &&
               status !== "delivered" && (
@@ -303,14 +312,25 @@ export default function CustomerOrderPage() {
                   <span>رسوم الشحن</span>
                   <span dir="ltr">
                     {order.shipping_required
-                      ? shippingCost > 0
-                        ? formatPrice(shippingCost)
-                        : "مجاني"
+                      ? order.shipping_fee_pending
+                        ? "قيد المراجعة"
+                        : shippingCost > 0
+                          ? formatPrice(shippingCost)
+                          : "مجاني"
                       : "—"}
                   </span>
                 </div>
+                {order.shipping_fee_pending && (
+                  <p className="text-xs text-amber-800">
+                    سيتم تحديد رسوم التوصيل بعد مراجعة المنطقة.
+                  </p>
+                )}
                 <div className="flex justify-between gap-3 border-t border-beige-dark pt-2 text-base font-semibold">
-                  <span>إجمالي الطلب</span>
+                  <span>
+                    {order.shipping_fee_pending
+                      ? "إجمالي المنتجات"
+                      : "إجمالي الطلب"}
+                  </span>
                   <span className="text-gold" dir="ltr">
                     {formatPrice(Number(order.total))}
                   </span>

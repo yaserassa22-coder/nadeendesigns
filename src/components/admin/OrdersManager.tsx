@@ -23,7 +23,7 @@ import {
 } from "@/types/shop";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
-import { Select, Textarea } from "@/components/ui/Input";
+import { Select, Textarea, Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
@@ -83,6 +83,13 @@ export function OrdersManager({
   const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
 
+  const [shippingEditId, setShippingEditId] = useState<string | null>(null);
+  const [shipFee, setShipFee] = useState("");
+  const [shipTracking, setShipTracking] = useState("");
+  const [shipTrackingUrl, setShipTrackingUrl] = useState("");
+  const [shipInternalNotes, setShipInternalNotes] = useState("");
+  const [savingShipping, setSavingShipping] = useState(false);
+
   if (focusId && focusId !== appliedFocus) {
     setAppliedFocus(focusId);
     setExpanded(focusId);
@@ -91,7 +98,10 @@ export function OrdersManager({
   const regionOptions = useMemo(() => {
     const names = new Set<string>();
     for (const o of orders) {
-      const n = o.shipping_region_name_ar || o.shipping_region;
+      const n =
+        o.shipping_region_name_ar ||
+        o.shipping_region_custom ||
+        o.shipping_region;
       if (n) names.add(n);
     }
     return Array.from(names).sort((a, b) => a.localeCompare(b, "ar"));
@@ -109,7 +119,11 @@ export function OrdersManager({
         }
       }
       if (regionFilter !== "all") {
-        const n = o.shipping_region_name_ar || o.shipping_region || "";
+        const n =
+          o.shipping_region_name_ar ||
+          o.shipping_region_custom ||
+          o.shipping_region ||
+          "";
         if (n !== regionFilter) return false;
       }
       return true;
@@ -146,11 +160,63 @@ export function OrdersManager({
           prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o))
         );
       }
+      if (data.order) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === id ? { ...o, ...data.order } : o))
+        );
+      }
     } catch (e) {
       alert(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
       setUpdating(null);
       setPaymentOrderId(null);
+    }
+  };
+
+  const openShippingEdit = (order: ShopOrder) => {
+    setShippingEditId(order.id);
+    setShipFee(
+      order.shipping_fee_pending
+        ? ""
+        : String(order.shipping_cost ?? 0)
+    );
+    setShipTracking(order.tracking_number ?? "");
+    setShipTrackingUrl(order.tracking_url ?? "");
+    setShipInternalNotes(order.internal_shipping_notes ?? "");
+  };
+
+  const saveShippingEdit = async (order: ShopOrder) => {
+    setSavingShipping(true);
+    try {
+      const feeNum = shipFee.trim() === "" ? undefined : Number(shipFee);
+      const body: Record<string, unknown> = {
+        id: order.id,
+        tracking_number: shipTracking.trim() || null,
+        tracking_url: shipTrackingUrl.trim() || null,
+        internal_shipping_notes: shipInternalNotes.trim() || null,
+      };
+      if (feeNum !== undefined && Number.isFinite(feeNum) && feeNum >= 0) {
+        body.shipping_cost = feeNum;
+        body.shipping_fee_pending = false;
+        body.region_configured = true;
+      }
+      const res = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "فشل حفظ بيانات الشحن");
+      if (data.order) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? { ...o, ...data.order } : o))
+        );
+      }
+      setShippingEditId(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "حدث خطأ");
+    } finally {
+      setSavingShipping(false);
     }
   };
 
@@ -652,16 +718,114 @@ export function OrdersManager({
                                 <h3 className="mb-2 text-sm font-semibold text-gold">
                                   معلومات الشحن
                                 </h3>
+                                {order.shipping_fee_pending && (
+                                  <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                                    ⚠️ منطقة جديدة غير موجودة — رسوم الشحن قيد
+                                    المراجعة
+                                    {(
+                                      order.shipping_region_custom ||
+                                      order.shipping_region_name_ar ||
+                                      order.shipping_region
+                                    )
+                                      ? ` («${
+                                          order.shipping_region_custom ||
+                                          order.shipping_region_name_ar ||
+                                          order.shipping_region
+                                        }»)`
+                                      : ""}
+                                  </p>
+                                )}
                                 {order.shipping_required ||
+                                order.delivery_method ||
                                 orderToShippingDisplay(order).address ? (
                                   <ShippingDetailsBlock
                                     shipping={orderToShippingDisplay(order)}
                                     showZeroCost
+                                    showInternalNotes
                                   />
                                 ) : (
                                   <p className="text-sm text-muted">
                                     لا يتطلب شحناً (فساتين / بدون اكسسوارات).
                                   </p>
+                                )}
+                                {(order.shipping_required ||
+                                  order.delivery_method === "delivery") && (
+                                  <div className="mt-3 border-t border-beige-dark pt-3">
+                                    {shippingEditId === order.id ? (
+                                      <div className="space-y-3">
+                                        <Input
+                                          label={
+                                            order.shipping_fee_pending
+                                              ? "تعيين رسوم الشحن *"
+                                              : "رسوم الشحن"
+                                          }
+                                          type="number"
+                                          min={0}
+                                          step="1"
+                                          value={shipFee}
+                                          onChange={(e) =>
+                                            setShipFee(e.target.value)
+                                          }
+                                          dir="ltr"
+                                          placeholder="مثال: 45"
+                                        />
+                                        <Input
+                                          label="رقم التتبع"
+                                          value={shipTracking}
+                                          onChange={(e) =>
+                                            setShipTracking(e.target.value)
+                                          }
+                                          dir="ltr"
+                                        />
+                                        <Input
+                                          label="رابط التتبع"
+                                          value={shipTrackingUrl}
+                                          onChange={(e) =>
+                                            setShipTrackingUrl(e.target.value)
+                                          }
+                                          dir="ltr"
+                                        />
+                                        <Textarea
+                                          label="ملاحظات شحن داخلية"
+                                          rows={2}
+                                          value={shipInternalNotes}
+                                          onChange={(e) =>
+                                            setShipInternalNotes(e.target.value)
+                                          }
+                                        />
+                                        <div className="flex flex-wrap gap-2">
+                                          <Button
+                                            size="sm"
+                                            loading={savingShipping}
+                                            onClick={() =>
+                                              void saveShippingEdit(order)
+                                            }
+                                          >
+                                            حفظ بيانات الشحن
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                              setShippingEditId(null)
+                                            }
+                                          >
+                                            إلغاء
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => openShippingEdit(order)}
+                                      >
+                                        {order.shipping_fee_pending
+                                          ? "تعيين الرسوم والتتبع"
+                                          : "تعديل الرسوم / التتبع / ملاحظات داخلية"}
+                                      </Button>
+                                    )}
+                                  </div>
                                 )}
                               </section>
 
@@ -686,16 +850,22 @@ export function OrdersManager({
                                     <dt className="text-muted">رسوم الشحن</dt>
                                     <dd dir="ltr">
                                       {order.shipping_required
-                                        ? Number(order.shipping_cost ?? 0) > 0
-                                          ? formatPrice(
-                                              Number(order.shipping_cost)
-                                            )
-                                          : "مجاني"
+                                        ? order.shipping_fee_pending
+                                          ? "قيد المراجعة"
+                                          : Number(order.shipping_cost ?? 0) > 0
+                                            ? formatPrice(
+                                                Number(order.shipping_cost)
+                                              )
+                                            : "مجاني"
                                         : "—"}
                                     </dd>
                                   </div>
                                   <div className="flex justify-between gap-2 border-t border-beige-dark pt-2 font-semibold">
-                                    <dt>الإجمالي</dt>
+                                    <dt>
+                                      {order.shipping_fee_pending
+                                        ? "إجمالي المنتجات"
+                                        : "الإجمالي"}
+                                    </dt>
                                     <dd className="text-gold" dir="ltr">
                                       {formatPrice(Number(order.total))}
                                     </dd>

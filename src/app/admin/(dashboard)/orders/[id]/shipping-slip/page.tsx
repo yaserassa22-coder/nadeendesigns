@@ -69,7 +69,10 @@ export default function ShippingSlipPrintPage() {
   ) as ShopOrderStatus;
   const method = order.delivery_method;
   const region =
-    order.shipping_region_name_ar || order.shipping_region || "—";
+    order.shipping_region_name_ar ||
+    order.shipping_region_custom ||
+    order.shipping_region ||
+    "—";
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(order.id)}`;
 
   return (
@@ -132,6 +135,22 @@ export default function ShippingSlipPrintPage() {
                     : "—"}
               </dd>
             </div>
+            {order.tracking_number && (
+              <div>
+                <dt className="inline text-muted">رقم التتبع: </dt>
+                <dd className="inline font-medium" dir="ltr">
+                  {order.tracking_number}
+                </dd>
+              </div>
+            )}
+            {order.carrier_code && (
+              <div>
+                <dt className="inline text-muted">شركة الشحن: </dt>
+                <dd className="inline" dir="ltr">
+                  {order.carrier_code}
+                </dd>
+              </div>
+            )}
           </dl>
         </section>
 
@@ -171,7 +190,12 @@ export default function ShippingSlipPrintPage() {
           <dl className="mt-2 space-y-1">
             <div>
               <dt className="inline text-muted">المنطقة: </dt>
-              <dd className="inline">{region}</dd>
+              <dd className="inline">
+                {region}
+                {order.region_configured === false || order.shipping_fee_pending
+                  ? " (غير مُعدّة)"
+                  : ""}
+              </dd>
             </div>
             {order.shipping_city && (
               <div>
@@ -209,10 +233,24 @@ export default function ShippingSlipPrintPage() {
             )}
             {order.shipping_notes && (
               <div>
-                <dt className="inline text-muted">ملاحظات: </dt>
+                <dt className="inline text-muted">ملاحظات التوصيل: </dt>
                 <dd className="inline whitespace-pre-wrap">
                   {order.shipping_notes}
                 </dd>
+              </div>
+            )}
+            {order.internal_shipping_notes && (
+              <div>
+                <dt className="inline text-muted">ملاحظات داخلية: </dt>
+                <dd className="inline whitespace-pre-wrap">
+                  {order.internal_shipping_notes}
+                </dd>
+              </div>
+            )}
+            {order.notes && (
+              <div>
+                <dt className="inline text-muted">ملاحظات العميلة: </dt>
+                <dd className="inline whitespace-pre-wrap">{order.notes}</dd>
               </div>
             )}
           </dl>
@@ -248,13 +286,15 @@ export default function ShippingSlipPrintPage() {
           <div className="flex justify-between gap-4">
             <dt className="text-muted">رسوم الشحن</dt>
             <dd dir="ltr">
-              {Number(order.shipping_cost ?? 0) > 0
-                ? formatPrice(Number(order.shipping_cost))
-                : "مجاني"}
+              {order.shipping_fee_pending
+                ? "قيد المراجعة"
+                : Number(order.shipping_cost ?? 0) > 0
+                  ? formatPrice(Number(order.shipping_cost))
+                  : "مجاني"}
             </dd>
           </div>
           <div className="flex justify-between gap-4 border-t border-beige-dark pt-2 text-base font-semibold">
-            <dt>الإجمالي</dt>
+            <dt>{order.shipping_fee_pending ? "إجمالي المنتجات" : "الإجمالي"}</dt>
             <dd className="text-gold" dir="ltr">
               {formatPrice(Number(order.total))}
             </dd>

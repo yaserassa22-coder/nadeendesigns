@@ -134,3 +134,79 @@ export function defaultDeliveryMethod(
   if (pickup || delivery) return delivery ? "delivery" : "pickup";
   return null;
 }
+
+export type RegionEstimateFields = {
+  estimated_delivery_ar?: string | null;
+  estimated_days_min?: number | null;
+  estimated_days_max?: number | null;
+  estimated_days?: number | null;
+};
+
+/** Arabic label for estimated delivery window (region snapshot or live region). */
+export function formatEstimatedDelivery(
+  region?: RegionEstimateFields | null
+): string | null {
+  if (!region) return null;
+  const custom = region.estimated_delivery_ar?.trim();
+  if (custom) return custom;
+  const min =
+    typeof region.estimated_days_min === "number" &&
+    Number.isFinite(region.estimated_days_min)
+      ? region.estimated_days_min
+      : typeof region.estimated_days === "number" &&
+          Number.isFinite(region.estimated_days)
+        ? region.estimated_days
+        : null;
+  const max =
+    typeof region.estimated_days_max === "number" &&
+    Number.isFinite(region.estimated_days_max)
+      ? region.estimated_days_max
+      : min;
+  if (min == null) return null;
+  if (max == null || max === min) return `${min} يوم تقريباً`;
+  return `${min}–${max} أيام تقريباً`;
+}
+
+/** Case-insensitive exact match on Arabic or English region name. */
+export function findRegionByName<T extends { name_ar: string; name_en?: string | null }>(
+  regions: T[],
+  text: string
+): T | null {
+  const q = text.trim().toLowerCase();
+  if (!q) return null;
+  return (
+    regions.find(
+      (r) =>
+        r.name_ar.trim().toLowerCase() === q ||
+        (r.name_en?.trim().toLowerCase() ?? "") === q
+    ) ?? null
+  );
+}
+
+/**
+ * Filter active regions for autocomplete (client-side).
+ * Scale choice: load active list once + in-memory filter (fine for hundreds).
+ * API also supports `?q=` ILIKE for when the catalog grows beyond memory.
+ */
+export function filterRegionsByQuery<
+  T extends { name_ar: string; name_en?: string | null },
+>(regions: T[], query: string, limit = 20): T[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return regions.slice(0, limit);
+  const scored: { r: T; score: number }[] = [];
+  for (const r of regions) {
+    const ar = r.name_ar.toLowerCase();
+    const en = (r.name_en ?? "").toLowerCase();
+    if (ar === q || en === q) {
+      scored.push({ r, score: 0 });
+    } else if (ar.startsWith(q) || en.startsWith(q)) {
+      scored.push({ r, score: 1 });
+    } else if (ar.includes(q) || en.includes(q)) {
+      scored.push({ r, score: 2 });
+    }
+  }
+  return scored
+    .sort((a, b) => a.score - b.score)
+    .slice(0, limit)
+    .map((s) => s.r);
+}

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { ShippingRegionsManager } from "@/components/admin/ShippingRegionsManager";
-import { getAdminShippingRegions } from "@/lib/admin/shipping-regions-data";
+import {
+  getAdminShippingRegions,
+  getUnknownShippingRegionHints,
+} from "@/lib/admin/shipping-regions-data";
 import { getAdminSettings } from "@/lib/admin/data";
 
 export const metadata: Metadata = {
@@ -8,9 +11,10 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminShippingPage() {
-  const [regions, settings] = await Promise.all([
+  const [regions, settings, unknownRegions] = await Promise.all([
     getAdminShippingRegions(),
     getAdminSettings(),
+    getUnknownShippingRegionHints(),
   ]);
 
   return (
@@ -18,12 +22,13 @@ export default async function AdminShippingPage() {
       <div>
         <h1 className="text-3xl font-bold text-charcoal">إعدادات الشحن</h1>
         <p className="mt-2 text-muted">
-          مناطق الشحن، الرسوم، وتفعيل الاستلام من البوتيك أو التوصيل
+          مناطق الشحن، الرسوم، مدة التوصيل، وتفعيل الاستلام من البوتيك أو التوصيل
         </p>
       </div>
       <ShippingRegionsManager
         initialRegions={regions}
         initialSettings={settings}
+        initialUnknownRegions={unknownRegions}
       />
     </div>
   );

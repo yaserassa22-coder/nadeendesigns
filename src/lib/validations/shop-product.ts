@@ -50,12 +50,14 @@ export const shippingAddressSchema = z.object({
   full_name: z.string().min(2, "اسم المستلم مطلوب"),
   phone: z.string().min(9, "هاتف التوصيل غير صالح"),
   city: z.string().min(2, "المدينة مطلوبة"),
+  /** Configured region name or free-text city/region */
   region: z.string().min(2, "المنطقة مطلوبة"),
   address: z.string().min(5, "العنوان التفصيلي مطلوب"),
   postal_code: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   building_number: z.string().nullable().optional(),
   neighborhood: z.string().nullable().optional(),
+  /** Optional — unknown regions checkout without a catalog id */
   shipping_region_id: z.string().uuid().nullable().optional(),
 });
 
@@ -112,11 +114,15 @@ export const shopOrderCreateSchema = z
               });
             }
           }
-          if (!data.shipping.shipping_region_id) {
+          const regionText = data.shipping.region?.trim() ?? "";
+          if (
+            !data.shipping.shipping_region_id &&
+            regionText.length < 2
+          ) {
             ctx.addIssue({
               code: "custom",
-              path: ["shipping", "shipping_region_id"],
-              message: "المنطقة مطلوبة للتوصيل",
+              path: ["shipping", "region"],
+              message: "المنطقة / المدينة مطلوبة للتوصيل",
             });
           }
         }

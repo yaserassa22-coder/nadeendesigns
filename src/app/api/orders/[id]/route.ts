@@ -23,15 +23,19 @@ function memoryOrders(): ShopOrder[] {
 const ORDER_SELECT_CORE =
   "id, name, phone, email, notes, items, gift_options, total, status, created_at";
 
-/** Shipping columns from APPLY_SHOP_SHIPPING.sql + M9 delivery fields */
+/** Shipping columns from APPLY_SHOP_SHIPPING.sql + M9/M10 delivery fields */
 const ORDER_SELECT_SHIPPING =
+  "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost, delivery_method, shipping_region_id, shipping_region_name_ar, shipping_building_number, shipping_neighborhood, shipping_region_custom, region_configured, shipping_fee_pending, tracking_number, tracking_url, internal_shipping_notes, carrier_code";
+
+/** M9 columns without M10 smart-shipping fields */
+const ORDER_SELECT_SHIPPING_M9 =
   "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost, delivery_method, shipping_region_id, shipping_region_name_ar, shipping_building_number, shipping_neighborhood";
 
 /** Notification prefs from APPLY_NOTIFICATION_PREFERENCES.sql */
 const ORDER_SELECT_NOTIFY = "notify_whatsapp, notify_email";
 
 const ORDER_SELECT_FULL = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING}, ${ORDER_SELECT_NOTIFY}`;
-const ORDER_SELECT_WITH_SHIPPING = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING}`;
+const ORDER_SELECT_FULL_M9 = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_M9}, ${ORDER_SELECT_NOTIFY}`;
 const ORDER_SELECT_SHIPPING_LEGACY =
   "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost";
 const ORDER_SELECT_WITH_SHIPPING_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}`;
@@ -50,44 +54,58 @@ async function fetchOrderById(id: string) {
   if (
     result.error &&
     (isMissingColumnError(result.error) ||
-      /notify_|shipping_|delivery_method|column .* does not exist|Could not find the .*column/i.test(
+      /notify_|shipping_|delivery_method|tracking_|region_configured|carrier_code|column .* does not exist|Could not find the .*column/i.test(
         getErrorMessage(result.error)
       ))
   ) {
     console.warn(
-      "[orders/:id] optional columns missing on select — retrying. Run APPLY_SHIPPING_REGIONS.sql"
+      "[orders/:id] optional columns missing on select — retrying. Run APPLY_SMART_SHIPPING.sql"
     );
     result = await supabase
       .from("shop_orders")
-      .select(ORDER_SELECT_FULL_LEGACY)
+      .select(ORDER_SELECT_FULL_M9)
       .eq("id", id)
       .maybeSingle();
 
     if (
       result.error &&
       (isMissingColumnError(result.error) ||
-        /notify_|shipping_|column .* does not exist|Could not find the .*column/i.test(
+        /notify_|shipping_|delivery_method|column .* does not exist|Could not find the .*column/i.test(
           getErrorMessage(result.error)
         ))
     ) {
       result = await supabase
         .from("shop_orders")
-        .select(ORDER_SELECT_WITH_SHIPPING_LEGACY)
+        .select(ORDER_SELECT_FULL_LEGACY)
         .eq("id", id)
         .maybeSingle();
 
       if (
         result.error &&
         (isMissingColumnError(result.error) ||
-          /shipping_|column .* does not exist|Could not find the .*column/i.test(
+          /notify_|shipping_|column .* does not exist|Could not find the .*column/i.test(
             getErrorMessage(result.error)
           ))
       ) {
         result = await supabase
           .from("shop_orders")
-          .select(ORDER_SELECT_CORE)
+          .select(ORDER_SELECT_WITH_SHIPPING_LEGACY)
           .eq("id", id)
           .maybeSingle();
+
+        if (
+          result.error &&
+          (isMissingColumnError(result.error) ||
+            /shipping_|column .* does not exist|Could not find the .*column/i.test(
+              getErrorMessage(result.error)
+            ))
+        ) {
+          result = await supabase
+            .from("shop_orders")
+            .select(ORDER_SELECT_CORE)
+            .eq("id", id)
+            .maybeSingle();
+        }
       }
     }
   }

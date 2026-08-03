@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Eye,
+  EyeOff,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import type { ShippingRegion } from "@/types/shop";
 import type { SiteSettings } from "@/types";
+import type { UnknownShippingRegionHint } from "@/lib/admin/shipping-regions-data";
+import { formatEstimatedDelivery } from "@/lib/shop/shipping";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -11,6 +22,7 @@ import { Input } from "@/components/ui/Input";
 interface ShippingRegionsManagerProps {
   initialRegions: ShippingRegion[];
   initialSettings: SiteSettings;
+  initialUnknownRegions?: UnknownShippingRegionHint[];
 }
 
 const emptyForm = {
@@ -19,13 +31,18 @@ const emptyForm = {
   shipping_fee: "0",
   sort_order: "0",
   is_active: true,
+  estimated_days_min: "",
+  estimated_days_max: "",
+  estimated_delivery_ar: "",
 };
 
 export function ShippingRegionsManager({
   initialRegions,
   initialSettings,
+  initialUnknownRegions = [],
 }: ShippingRegionsManagerProps) {
   const [regions, setRegions] = useState(initialRegions);
+  const [unknownRegions, setUnknownRegions] = useState(initialUnknownRegions);
   const [settings, setSettings] = useState(initialSettings);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ShippingRegion | null>(null);
@@ -41,8 +58,11 @@ export function ShippingRegionsManager({
     setError("");
   };
 
-  const openCreate = () => {
+  const openCreate = (prefillName?: string) => {
     reset();
+    if (prefillName) {
+      setForm((f) => ({ ...f, name_ar: prefillName }));
+    }
     setOpen(true);
   };
 
@@ -54,6 +74,19 @@ export function ShippingRegionsManager({
       shipping_fee: String(item.shipping_fee ?? 0),
       sort_order: String(item.sort_order ?? 0),
       is_active: item.is_active,
+      estimated_days_min:
+        item.estimated_days_min != null
+          ? String(item.estimated_days_min)
+          : item.estimated_days != null
+            ? String(item.estimated_days)
+            : "",
+      estimated_days_max:
+        item.estimated_days_max != null
+          ? String(item.estimated_days_max)
+          : item.estimated_days != null
+            ? String(item.estimated_days)
+            : "",
+      estimated_delivery_ar: item.estimated_delivery_ar ?? "",
     });
     setError("");
     setOpen(true);
@@ -78,6 +111,12 @@ export function ShippingRegionsManager({
     }
   };
 
+  const parseOptionalInt = (v: string) => {
+    if (!v.trim()) return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+  };
+
   const save = async () => {
     if (!form.name_ar.trim()) {
       setError("اسم المنطقة مطلوب");
@@ -86,12 +125,18 @@ export function ShippingRegionsManager({
     setSaving(true);
     setError("");
     try {
+      const minDays = parseOptionalInt(form.estimated_days_min);
+      const maxDays = parseOptionalInt(form.estimated_days_max);
       const body = {
         name_ar: form.name_ar.trim(),
         name_en: form.name_en.trim(),
         shipping_fee: Math.max(0, Number(form.shipping_fee) || 0),
         sort_order: Number(form.sort_order) || 0,
         is_active: form.is_active,
+        estimated_days_min: minDays,
+        estimated_days_max: maxDays ?? minDays,
+        estimated_days: minDays,
+        estimated_delivery_ar: form.estimated_delivery_ar.trim() || null,
       };
       const res = await fetch("/api/shipping-regions", {
         method: editing ? "PUT" : "POST",
@@ -110,6 +155,12 @@ export function ShippingRegionsManager({
       } else {
         setRegions((prev) =>
           [...prev, data].sort((a, b) => a.sort_order - b.sort_order)
+        );
+        setUnknownRegions((prev) =>
+          prev.filter(
+            (u) =>
+              u.text.trim().toLowerCase() !== form.name_ar.trim().toLowerCase()
+          )
         );
       }
       setOpen(false);
@@ -182,6 +233,13 @@ export function ShippingRegionsManager({
     setRegions((prev) => prev.filter((r) => r.id !== item.id));
   };
 
+  const knownNames = new Set(
+    regions.map((r) => r.name_ar.trim().toLowerCase())
+  );
+  const pendingUnknown = unknownRegions.filter(
+    (u) => !knownNames.has(u.text.trim().toLowerCase())
+  );
+
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border border-beige-dark bg-white p-6">
@@ -233,14 +291,48 @@ export function ShippingRegionsManager({
         </Button>
       </div>
 
+      {pendingUnknown.length > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-6">
+          <h2 className="text-lg font-semibold text-amber-950">
+            ⚠️ منطقة جديدة غير موجودة
+          </h2>
+          <p className="mt-1 text-sm text-amber-900/80">
+            عميلات أدخلن مناطق غير مُعدّة في النظام. أضيفيها كمناطق شحن لتعيين
+            الرسوم ومدة التوصيل وإظهارها في البحث.
+          </p>
+          <ul className="mt-4 space-y-3">
+            {pendingUnknown.map((u) => (
+              <li
+                key={u.text}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium text-charcoal">{u.text}</p>
+                  <p className="text-xs text-muted">
+                    ظهرت في {u.orderCount} طلب
+                    {u.orderCount > 1 ? "ات" : ""}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => openCreate(u.text)}
+                >
+                  ➕ إضافة كمنطقة شحن
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-charcoal">مناطق الشحن</h2>
           <p className="mt-1 text-sm text-muted">
-            أضيفي وعدّلي المناطق ورسوم الشحن وترتيبها.
+            أضيفي وعدّلي المناطق ورسوم الشحن ومدة التوصيل وترتيبها.
           </p>
         </div>
-        <Button onClick={openCreate}>
+        <Button onClick={() => openCreate()}>
           <Plus className="ml-1 h-4 w-4" />
           إضافة منطقة
         </Button>
@@ -253,6 +345,7 @@ export function ShippingRegionsManager({
               <tr>
                 <th className="px-4 py-3 text-right font-medium">المنطقة</th>
                 <th className="px-4 py-3 text-right font-medium">الرسوم</th>
+                <th className="px-4 py-3 text-right font-medium">مدة التوصيل</th>
                 <th className="px-4 py-3 text-right font-medium">الترتيب</th>
                 <th className="px-4 py-3 text-right font-medium">الحالة</th>
                 <th className="px-4 py-3 text-right font-medium">إجراءات</th>
@@ -261,7 +354,7 @@ export function ShippingRegionsManager({
             <tbody>
               {regions.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted">
                     لا توجد مناطق بعد
                   </td>
                 </tr>
@@ -278,6 +371,9 @@ export function ShippingRegionsManager({
                     </td>
                     <td className="px-4 py-3" dir="ltr">
                       {formatPrice(Number(item.shipping_fee))}
+                    </td>
+                    <td className="px-4 py-3 text-muted">
+                      {formatEstimatedDelivery(item) || "—"}
                     </td>
                     <td className="px-4 py-3">{item.sort_order}</td>
                     <td className="px-4 py-3">
@@ -353,7 +449,7 @@ export function ShippingRegionsManager({
               reset();
             }}
           />
-          <div className="relative w-full max-w-md rounded-2xl border border-beige-dark bg-white p-6 shadow-xl">
+          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-beige-dark bg-white p-6 shadow-xl">
             <button
               type="button"
               onClick={() => {
@@ -394,6 +490,45 @@ export function ShippingRegionsManager({
                   setForm((f) => ({ ...f, shipping_fee: e.target.value }))
                 }
                 dir="ltr"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="أقل أيام توصيل"
+                  type="number"
+                  min={0}
+                  value={form.estimated_days_min}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      estimated_days_min: e.target.value,
+                    }))
+                  }
+                  dir="ltr"
+                />
+                <Input
+                  label="أكثر أيام توصيل"
+                  type="number"
+                  min={0}
+                  value={form.estimated_days_max}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      estimated_days_max: e.target.value,
+                    }))
+                  }
+                  dir="ltr"
+                />
+              </div>
+              <Input
+                label="نص مدة التوصيل (اختياري)"
+                placeholder="مثال: خلال 3–5 أيام عمل"
+                value={form.estimated_delivery_ar}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    estimated_delivery_ar: e.target.value,
+                  }))
+                }
               />
               <Input
                 label="الترتيب"

@@ -190,7 +190,12 @@ export interface ShippingRegion {
   shipping_fee: number;
   is_active: boolean;
   sort_order: number;
+  /** Legacy single-day estimate (kept for M9 rows) */
   estimated_days?: number | null;
+  estimated_days_min?: number | null;
+  estimated_days_max?: number | null;
+  /** Free-text Arabic estimate; preferred over min/max when set */
+  estimated_delivery_ar?: string | null;
   carrier_code?: string | null;
   free_shipping_override?: number | null;
   discount?: number | null;
@@ -231,12 +236,23 @@ export interface ShopOrder {
   shipping_region?: string | null;
   shipping_region_id?: string | null;
   shipping_region_name_ar?: string | null;
+  /** Exact free-text region when not matched to shipping_regions */
+  shipping_region_custom?: string | null;
+  /** False when region was unknown at checkout */
+  region_configured?: boolean | null;
+  /** True until admin sets a fee for an unknown region */
+  shipping_fee_pending?: boolean | null;
   shipping_address?: string | null;
   shipping_building_number?: string | null;
   shipping_neighborhood?: string | null;
   shipping_postal_code?: string | null;
   shipping_notes?: string | null;
   shipping_cost?: number | null;
+  tracking_number?: string | null;
+  tracking_url?: string | null;
+  /** Admin-only; not shown to customers */
+  internal_shipping_notes?: string | null;
+  carrier_code?: string | null;
   /** Customer opted in to WhatsApp updates (default true for legacy rows) */
   notify_whatsapp?: boolean;
   /** Customer opted in to email updates (default true for legacy rows) */
@@ -296,8 +312,8 @@ export const DEFAULT_WHATSAPP_BY_STATUS: Partial<
   awaiting_payment: "بانتظار استلام الدفعة لإكمال طلبكِ 💳",
   payment_received: "تم استلام الدفعة بنجاح، شكراً لثقتكِ 💛",
   in_production: "طلبكِ قيد التنفيذ في الأتيليه 👗",
-  ready_for_pickup: "طلبك أصبح جاهزاً للاستلام من البوتيك.",
-  shipped: "تم تسليم طلبك لشركة الشحن.",
+  ready_for_pickup: "طلبك جاهز للاستلام من البوتيك.",
+  shipped: "تم تجهيز طلبك وسيتم شحنه.",
   delivered: "تم تسليم طلبك، نتمنى أن ينال إعجابك ❤️",
   cancelled: "تم إلغاء طلبكِ. إن كان لديكِ استفسار، نحن هنا لمساعدتكِ.",
 };

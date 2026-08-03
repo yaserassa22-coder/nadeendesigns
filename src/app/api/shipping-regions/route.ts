@@ -51,10 +51,13 @@ function mapRegionError(error: unknown): { message: string; status: number } {
   };
 }
 
-/** Public: active regions only. Admin (?all=1): all regions. */
+/** Public: active regions only. Admin (?all=1): all regions.
+ * Optional `q` — ILIKE search on name_ar / name_en (indexed) for large catalogs.
+ */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const wantAll = searchParams.get("all") === "1";
+  const q = (searchParams.get("q") ?? "").trim();
 
   if (wantAll) {
     const { error: authError } = await requireAdminApi();
@@ -62,9 +65,17 @@ export async function GET(request: Request) {
   }
 
   if (!isSupabaseConfigured()) {
-    const list = wantAll
+    let list = wantAll
       ? SEED_REGIONS
       : SEED_REGIONS.filter((r) => r.is_active);
+    if (q) {
+      const lower = q.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.name_ar.toLowerCase().includes(lower) ||
+          r.name_en.toLowerCase().includes(lower)
+      );
+    }
     return NextResponse.json(list);
   }
 
@@ -77,13 +88,29 @@ export async function GET(request: Request) {
       .select("*")
       .order("sort_order", { ascending: true });
     if (!wantAll) query = query.eq("is_active", true);
+    if (q) {
+      // Indexed name_ar / name_en — prefer this when catalogs grow beyond in-memory filter
+      const safe = q.replace(/[%_,.()]/g, " ").trim();
+      if (safe) {
+        const pattern = `%${safe}%`;
+        query = query.or(`name_ar.ilike.${pattern},name_en.ilike.${pattern}`);
+      }
+    }
     const { data, error } = await query;
     if (error) {
       if (isMissingTableError(error, "shipping_regions")) {
         console.warn("[shipping-regions] table missing — seed fallback");
-        const list = wantAll
+        let list = wantAll
           ? SEED_REGIONS
           : SEED_REGIONS.filter((r) => r.is_active);
+        if (q) {
+          const lower = q.toLowerCase();
+          list = list.filter(
+            (r) =>
+              r.name_ar.toLowerCase().includes(lower) ||
+              r.name_en.toLowerCase().includes(lower)
+          );
+        }
         return NextResponse.json(list);
       }
       const mapped = mapRegionError(error);
@@ -115,6 +142,11 @@ export async function POST(request: Request) {
       is_active: parsed.is_active ?? true,
       sort_order: parsed.sort_order ?? 0,
       estimated_days: parsed.estimated_days ?? null,
+      estimated_days_min: parsed.estimated_days_min ?? parsed.estimated_days ?? null,
+      estimated_days_max: parsed.estimated_days_max ?? parsed.estimated_days ?? null,
+      estimated_delivery_ar: parsed.estimated_delivery_ar?.trim()
+        ? parsed.estimated_delivery_ar.trim()
+        : null,
       carrier_code: parsed.carrier_code ?? null,
       free_shipping_override: parsed.free_shipping_override ?? null,
       discount: parsed.discount ?? null,
