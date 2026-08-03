@@ -104,7 +104,8 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         icon_url: form.icon_url || null,
         cover_image_url: form.cover_image_url || null,
         description_ar: form.description_ar,
-        href: form.href.trim() || null,
+        // Prefer explicit path; otherwise derive from slug so homepage/nav can link.
+        href: form.href.trim() || `/${form.slug.trim().toLowerCase()}`,
       };
       const res = await fetch("/api/categories", {
         method: editing ? "PUT" : "POST",

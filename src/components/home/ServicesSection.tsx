@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { motion } from "framer-motion";
@@ -13,11 +14,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { resolveCategoryHref } from "@/lib/categories/href";
 import type { Category } from "@/types/category";
 import { buildCategoryTree } from "@/types/category";
 
 const cardClassName =
-  "group flex h-full min-h-[200px] w-full flex-col rounded-2xl border border-beige-dark bg-white p-6 transition-all hover:border-gold hover:shadow-lg hover:shadow-gold/10";
+  "group flex h-full min-h-[200px] w-full flex-col overflow-hidden rounded-2xl border border-beige-dark bg-white transition-all hover:border-gold hover:shadow-lg hover:shadow-gold/10";
 
 const ICON_BY_LEGACY: Record<string, LucideIcon> = {
   wedding: Crown,
@@ -74,23 +76,47 @@ function ServiceCard({
   title,
   description,
   Icon,
+  coverImageUrl,
 }: {
   href: string;
   title: string;
   description: string;
   Icon: LucideIcon;
+  coverImageUrl: string | null;
 }) {
   return (
     <Link href={href} className={cardClassName}>
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
-        <Icon className="h-6 w-6" />
+      <div className="relative h-36 w-full overflow-hidden bg-gradient-to-br from-beige via-beige-dark/40 to-gold/20">
+        {coverImageUrl ? (
+          <Image
+            src={coverImageUrl}
+            alt=""
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          />
+        ) : (
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            aria-hidden
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/70 text-gold shadow-sm">
+              <Icon className="h-7 w-7" />
+            </div>
+          </div>
+        )}
       </div>
-      <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
-        {title}
-      </h3>
-      <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
-        {description}
-      </p>
+      <div className="flex flex-1 flex-col p-6">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
+          <Icon className="h-6 w-6" />
+        </div>
+        <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
+          {title}
+        </h3>
+        <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
+          {description}
+        </p>
+      </div>
     </Link>
   );
 }
@@ -100,18 +126,15 @@ interface ServicesSectionProps {
 }
 
 export function ServicesSection({ categories }: ServicesSectionProps) {
-  const visible = categories.filter((c) => c.is_visible);
+  // Only hide when is_visible is false — do not require products, images, or href.
+  const visible = categories.filter((c) => c.is_visible !== false);
   const tree = buildCategoryTree(visible);
 
-  const dressRoots = tree.filter(
-    (n) => n.legacy_key !== "bridal_accessories" && n.href
-  );
+  const dressRoots = tree.filter((n) => n.legacy_key !== "bridal_accessories");
   const accessoriesRoot = tree.find(
     (n) => n.legacy_key === "bridal_accessories"
   );
-  const accessoryChildren = (accessoriesRoot?.children ?? []).filter(
-    (c) => c.href
-  );
+  const accessoryChildren = accessoriesRoot?.children ?? [];
 
   return (
     <section id="categories" className="bg-beige/30 py-20 md:py-28">
@@ -133,10 +156,11 @@ export function ServicesSection({ categories }: ServicesSectionProps) {
             return (
               <Reveal key={cat.id} delay={i * 0.08} className="h-full">
                 <ServiceCard
-                  href={cat.href!}
+                  href={resolveCategoryHref(cat)}
                   title={cat.name_ar}
                   description={description}
                   Icon={Icon}
+                  coverImageUrl={cat.cover_image_url}
                 />
               </Reveal>
             );
@@ -173,10 +197,11 @@ export function ServicesSection({ categories }: ServicesSectionProps) {
                     className="h-full w-full max-w-sm"
                   >
                     <ServiceCard
-                      href={cat.href!}
+                      href={resolveCategoryHref(cat)}
                       title={cat.name_ar}
                       description={description}
                       Icon={Icon}
+                      coverImageUrl={cat.cover_image_url}
                     />
                   </Reveal>
                 );

@@ -10,6 +10,7 @@ import {
   type Category,
   type CategoryTreeNode,
 } from "@/types/category";
+import { resolveCategoryHref } from "@/lib/categories/href";
 import { isDressLegacyKey } from "@/lib/categories/kind";
 
 export type NavLink = { href: string; label: string };
@@ -37,8 +38,8 @@ const FALLBACK_ACCESSORIES: AccessoriesNav = {
 };
 
 function linkFromCategory(c: Category | CategoryTreeNode): NavLink | null {
-  if (!c.is_visible || !c.href) return null;
-  return { href: c.href, label: c.name_ar };
+  if (c.is_visible === false) return null;
+  return { href: resolveCategoryHref(c), label: c.name_ar };
 }
 
 /** Build header/footer nav from categories; falls back to static labels if empty. */

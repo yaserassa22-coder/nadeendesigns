@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/auth";
+import { resolveCategoryHref } from "@/lib/categories/href";
+import { revalidateCategoryPaths } from "@/lib/categories/revalidate";
 import { SEED_CATEGORIES } from "@/types/category";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -68,6 +70,9 @@ export async function POST(request: Request) {
         { status: 503 }
       );
     }
+    const href =
+      parsed.href ??
+      (parsed.slug ? resolveCategoryHref({ href: null, slug: parsed.slug }) : null);
     const body = {
       name_ar: parsed.name_ar,
       slug: parsed.slug,
@@ -77,7 +82,7 @@ export async function POST(request: Request) {
       icon_url: parsed.icon_url ?? null,
       cover_image_url: parsed.cover_image_url ?? null,
       description_ar: parsed.description_ar ?? "",
-      href: parsed.href ?? null,
+      href,
       legacy_key: parsed.legacy_key ?? null,
       updated_at: new Date().toISOString(),
     };
@@ -91,6 +96,7 @@ export async function POST(request: Request) {
       const mapped = mapCategoryError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
+    revalidateCategoryPaths([data?.href, data?.slug ? `/${data.slug}` : null]);
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -141,6 +147,7 @@ export async function PUT(request: Request) {
       const mapped = mapCategoryError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
+    revalidateCategoryPaths([data?.href, data?.slug ? `/${data.slug}` : null]);
     return NextResponse.json(data);
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -212,10 +219,14 @@ export async function DELETE(request: Request) {
   }
 
   const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");
-  return handleModuleDelete({
+  const response = await handleModuleDelete({
     request,
     module: "categories",
     actor: { id: user!.id, email: user!.email },
     missingIdMessage: "معرّف التصنيف مطلوب",
   });
+  if (response.ok) {
+    revalidateCategoryPaths();
+  }
+  return response;
 }
