@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Menu, ShoppingBag, X } from "lucide-react";
+import { ChevronDown, Menu, ShoppingBag, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SITE_NAME } from "@/lib/constants";
+import { ACCESSORIES_PARENT } from "@/types";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/shop/CartProvider";
 
@@ -16,12 +17,6 @@ const PRIMARY_CATEGORY_LINKS = [
   { href: "/custom-design", label: "تصميم فستان خاص" },
 ] as const;
 
-/** صف التصنيفات الثاني: الطرحات يمين · برنص عروس يسارها */
-const SECONDARY_CATEGORY_LINKS = [
-  { href: "/veils", label: "الطرحات" },
-  { href: "/robes", label: "برنص عروس" },
-] as const;
-
 const UTILITY_LINKS = [
   { href: "/cart", label: "السلة" },
   { href: "/gallery", label: "معرض الصور" },
@@ -30,16 +25,10 @@ const UTILITY_LINKS = [
   { href: "/contact", label: "اتصل بنا" },
 ] as const;
 
-const ALL_MOBILE_LINKS = [
-  { href: "/", label: "الرئيسية" },
-  ...PRIMARY_CATEGORY_LINKS,
-  ...SECONDARY_CATEGORY_LINKS,
-  ...UTILITY_LINKS,
-] as const;
-
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [accessoriesOpen, setAccessoriesOpen] = useState(false);
   const { count } = useCart();
 
   useEffect(() => {
@@ -74,7 +63,6 @@ export function Header() {
           <Menu className="h-6 w-6 text-charcoal" />
         </button>
 
-        {/* يمين الشعار (RTL): صف التصنيفات الأول */}
         <nav className="hidden min-w-0 flex-1 items-center justify-start gap-x-2 lg:flex xl:gap-x-3">
           {PRIMARY_CATEGORY_LINKS.map((link) => (
             <Link
@@ -94,17 +82,40 @@ export function Header() {
           <span className="mt-0.5 h-px w-0 bg-gold transition-all duration-500 group-hover:w-full" />
         </Link>
 
-        {/* يسار الشعار: الطرحات ثم برنص عروس، ثم الروابط الأخرى */}
         <nav className="hidden flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2 lg:flex xl:gap-4">
-          {SECONDARY_CATEGORY_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+          <div
+            className="relative"
+            onMouseEnter={() => setAccessoriesOpen(true)}
+            onMouseLeave={() => setAccessoriesOpen(false)}
+          >
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+              aria-expanded={accessoriesOpen}
+              aria-haspopup="true"
             >
-              {link.label}
-            </Link>
-          ))}
+              {ACCESSORIES_PARENT.label}
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 transition-transform",
+                  accessoriesOpen && "rotate-180"
+                )}
+              />
+            </button>
+            {accessoriesOpen && (
+              <div className="absolute top-full end-0 z-50 min-w-[180px] rounded-xl border border-beige-dark bg-white py-2 shadow-lg">
+                {ACCESSORIES_PARENT.children.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="block px-4 py-2.5 text-sm text-charcoal hover:bg-beige hover:text-gold"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
           {UTILITY_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -139,7 +150,7 @@ export function Header() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 bg-ivory lg:hidden"
+          className="fixed inset-0 z-[60] bg-ivory lg:hidden"
         >
           <div className="flex items-center justify-between px-4 py-5">
             <span className="font-[family-name:var(--font-cormorant)] text-2xl tracking-widest text-gold">
@@ -153,8 +164,38 @@ export function Header() {
               <X className="h-6 w-6" />
             </button>
           </div>
-          <nav className="flex flex-col gap-2 px-6 py-4">
-            {ALL_MOBILE_LINKS.map((link) => (
+          <nav className="flex flex-col gap-1 overflow-y-auto px-6 py-4">
+            <Link
+              href="/"
+              onClick={() => setMobileOpen(false)}
+              className="rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
+            >
+              الرئيسية
+            </Link>
+            {PRIMARY_CATEGORY_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <p className="mt-2 px-4 text-xs font-semibold tracking-wide text-gold">
+              {ACCESSORIES_PARENT.label}
+            </p>
+            {ACCESSORIES_PARENT.children.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-4 py-3 text-base font-medium text-charcoal/90 hover:bg-beige"
+              >
+                {link.label}
+              </Link>
+            ))}
+            {UTILITY_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

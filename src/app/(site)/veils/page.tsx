@@ -5,7 +5,7 @@ import { getVeils } from "@/lib/data/shop-queries";
 import { VEIL_CATEGORY_OPTIONS } from "@/types/shop";
 
 export const metadata: Metadata = {
-  title: "الطرحات",
+  title: "طرحة العروس",
   description: "طرحات زفاف فاخرة من Nadeen Designs مع إمكانية التخصيص والشراء.",
 };
 
@@ -15,7 +15,7 @@ export default async function VeilsPage() {
   return (
     <>
       <PageHero
-        title="الطرحات"
+        title="طرحة العروس"
         description="طرحات فاخرة تكمل إطلالتكِ — خصّصي الكتابة واطلبي تغليف هدية أنيق."
       />
       <section className="py-16 md:py-24">

@@ -158,7 +158,7 @@ export function PersonalizationForm({
         </div>
         <h2 className="text-2xl font-bold text-charcoal md:text-3xl">
           خصّصي الكتابة على{" "}
-          {productType === "veils" ? "الطرحة" : "برنص العروس"}
+          {productType === "veils" ? "طرحة العروس" : "برنس العروس"}
         </h2>
         <p className="mt-2 text-muted">
           اختاري اللغة، الخط، اللون، وموضع الكتابة لإطلالة خاصة بكِ.

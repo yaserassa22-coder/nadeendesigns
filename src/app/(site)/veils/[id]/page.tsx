@@ -39,7 +39,7 @@ export default async function VeilDetailPage({ params }: Props) {
             )}
           </div>
           <div>
-            <p className="text-sm text-gold">الطرحات · {veil.category}</p>
+            <p className="text-sm text-gold">طرحة العروس · {veil.category}</p>
             <h1 className="mt-2 text-3xl font-bold text-charcoal md:text-4xl">
               {veil.name_ar}
             </h1>

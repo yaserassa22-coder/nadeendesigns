@@ -109,48 +109,57 @@ export function ServicesSection() {
           </motion.div>
         </div>
 
-        {/* ===== الصف الثاني فقط: الطرحات (يمين) + برنص عروس (يسارها) — في الوسط ===== */}
-        <div className="mt-10 flex flex-col items-center justify-center gap-6 sm:flex-row">
-          {/* RTL: first flex child sits on the right */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.32 }}
-            className="h-full w-full max-w-sm"
-          >
-            <Link href="/veils" className={cardClassName}>
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
-                <Flower2 className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
-                الطرحات
-              </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
-                طرحات أنيقة تكمل إطلالتكِ بلمسة من السحر والرقي
-              </p>
-            </Link>
-          </motion.div>
+        {/* ===== اكسسوارات العروس: طرحة العروس + برنس العروس ===== */}
+        <div className="mt-14">
+          <div className="mb-6 text-center">
+            <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.25em] text-gold uppercase">
+              Accessories
+            </p>
+            <h3 className="mt-2 text-2xl font-semibold text-charcoal">
+              اكسسوارات العروس
+            </h3>
+          </div>
+          <div className="flex flex-col items-center justify-center gap-6 sm:flex-row">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.32 }}
+              className="h-full w-full max-w-sm"
+            >
+              <Link href="/veils" className={cardClassName}>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
+                  <Flower2 className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
+                  طرحة العروس
+                </h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
+                  طرحات أنيقة تكمل إطلالتكِ بلمسة من السحر والرقي
+                </p>
+              </Link>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-            className="h-full w-full max-w-sm"
-          >
-            <Link href="/robes" className={cardClassName}>
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
-                <Heart className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
-                برنص عروس
-              </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
-                برنص فاخر لجلسات التحضير والتصوير بأناقة مميزة
-              </p>
-            </Link>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+              className="h-full w-full max-w-sm"
+            >
+              <Link href="/robes" className={cardClassName}>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
+                  <Heart className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-semibold text-charcoal group-hover:text-gold">
+                  برنس العروس
+                </h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">
+                  برنس فاخر لجلسات التحضير والتصوير بأناقة مميزة
+                </p>
+              </Link>
+            </motion.div>
+          </div>
         </div>
       </div>
     </section>

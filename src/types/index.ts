@@ -171,9 +171,16 @@ export function normalizeDressCategory(
 
 /** Public shop nav entries beyond dress categories */
 export const SHOP_NAV_LINKS = [
-  { href: "/veils", label: "الطرحات" },
-  { href: "/robes", label: "برنص عروس" },
+  { href: "/veils", label: "طرحة العروس" },
+  { href: "/robes", label: "برنس العروس" },
 ] as const;
+
+/** Parent group for bridal accessories (veils + robes) */
+export const ACCESSORIES_PARENT = {
+  label: "اكسسوارات العروس",
+  slug: "bridal-accessories",
+  children: SHOP_NAV_LINKS,
+} as const;
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   pending: "قيد الانتظار",
@@ -194,8 +201,8 @@ export const BOOKING_SERVICE_OPTIONS: {
   { value: "rental_dress", label: "فستان للإيجار" },
   { value: "custom_design", label: "تصميم فستان خاص" },
   { value: "nouf_dresses", label: "فساتين نوف" },
-  { value: "veil", label: "طرحة" },
-  { value: "bridal_cape", label: "برنص عروس" },
+  { value: "veil", label: "طرحة العروس" },
+  { value: "bridal_cape", label: "برنس العروس" },
 ];
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -204,8 +211,8 @@ export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   custom_design: "تصميم فستان خاص",
   nouf_dresses: "فساتين نوف",
   nouf_dress: "فساتين نوف",
-  veil: "طرحة",
-  bridal_cape: "برنص عروس",
+  veil: "طرحة العروس",
+  bridal_cape: "برنس العروس",
   fitting: "تجربة فستان",
   consultation: "استشارة",
   rental: "إيجار",

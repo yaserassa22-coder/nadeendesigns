@@ -56,7 +56,7 @@ export default async function AdminDashboardPage() {
       {!shopReady && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
           جداول المتجر (`veils` / `bridal_robes` / `shop_orders`) غير موجودة في
-          Supabase — لذلك يفشل تأكيد الطلب وحفظ منتجات الطرحات/البرنص. افتحي{" "}
+          Supabase — لذلك يفشل تأكيد الطلب وحفظ منتجات طرحة العروس/برنس العروس. افتحي{" "}
           <strong>SQL Editor</strong> ونفّذي ملف{" "}
           <code className="rounded bg-white px-1">supabase/APPLY_SHOP_CHECKOUT.sql</code>{" "}
           ثم أعيدي تحميل الصفحة.
@@ -101,7 +101,7 @@ export default async function AdminDashboardPage() {
           <div>
             <h2 className="text-lg font-semibold">إحصائيات التصنيفات</h2>
             <p className="text-sm text-muted">
-              فساتين الزفاف، الإيجار، تصميم خاص، فساتين نوف، الطرحات، وبرنص عروس
+              فساتين الزفاف، الإيجار، تصميم خاص، فساتين نوف، طرحة العروس، وبرنس العروس
             </p>
           </div>
           <Link href="/admin/dresses">
