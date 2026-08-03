@@ -26,6 +26,8 @@ export type ShippingDisplay = {
   tracking_number?: string | null;
   tracking_url?: string | null;
   estimated_delivery?: string | null;
+  /** Shipping company / carrier code — future-ready */
+  carrier_code?: string | null;
   /** Admin-only — rendered when showInternalNotes */
   internal_notes?: string | null;
 };
@@ -187,6 +189,14 @@ export function ShippingDetailsBlock({
             <dd className="inline">{s.estimated_delivery}</dd>
           </div>
         )}
+        {s.carrier_code && (
+          <div>
+            <dt className="inline text-charcoal/70">شركة الشحن: </dt>
+            <dd className="inline" dir="ltr">
+              {s.carrier_code}
+            </dd>
+          </div>
+        )}
         {s.tracking_number && (
           <div>
             <dt className="inline text-charcoal/70">رقم التتبع: </dt>
@@ -262,6 +272,8 @@ export function orderToShippingDisplay(
     tracking_number?: string | null;
     tracking_url?: string | null;
     internal_shipping_notes?: string | null;
+    carrier_code?: string | null;
+    estimated_delivery?: string | null;
   },
   region?: Pick<
     ShippingRegion,
@@ -293,7 +305,9 @@ export function orderToShippingDisplay(
     region_configured: order.region_configured ?? true,
     tracking_number: order.tracking_number ?? null,
     tracking_url: order.tracking_url ?? null,
-    estimated_delivery: formatEstimatedDelivery(region),
+    estimated_delivery:
+      formatEstimatedDelivery(region) || order.estimated_delivery || null,
+    carrier_code: order.carrier_code ?? null,
     internal_notes: order.internal_shipping_notes ?? null,
   };
 }

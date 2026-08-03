@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:shipping-qr": "node scripts/check-shipping-qr.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",

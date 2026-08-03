@@ -252,7 +252,13 @@ export interface ShopOrder {
   tracking_url?: string | null;
   /** Admin-only; not shown to customers */
   internal_shipping_notes?: string | null;
+  /** Carrier / shipping company code — future-ready for integrations */
   carrier_code?: string | null;
+  /**
+   * Customer-facing estimated delivery label (API enrichment from region;
+   * not a persisted shop_orders column).
+   */
+  estimated_delivery?: string | null;
   /** Customer opted in to WhatsApp updates (default true for legacy rows) */
   notify_whatsapp?: boolean;
   /** Customer opted in to email updates (default true for legacy rows) */

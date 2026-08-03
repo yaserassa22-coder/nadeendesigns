@@ -204,15 +204,69 @@ export default function CustomerOrderPage() {
           )}
           <div className="rounded-2xl border border-beige-dark bg-white p-6">
             <h2 className="text-lg font-semibold text-charcoal">حالة الشحن / الطلب</h2>
-            <p className="mt-2 inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-sm">
-              {getOrderStatusLabel(status, order.delivery_method)}
-            </p>
-            {order.delivery_method && (
-              <p className="mt-2 text-sm text-muted">
-                طريقة الاستلام:{" "}
-                {DELIVERY_METHOD_LABELS[order.delivery_method]}
-              </p>
-            )}
+            <dl className="mt-3 space-y-2 text-sm">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <dt className="text-muted">رقم الطلب:</dt>
+                <dd className="font-medium" dir="ltr">
+                  {orderNo}
+                </dd>
+              </div>
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <dt className="text-muted">الاسم:</dt>
+                <dd>{order.shipping_full_name || order.name}</dd>
+              </div>
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <dt className="text-muted">حالة الطلب:</dt>
+                <dd>
+                  <span className="inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-sm">
+                    {getOrderStatusLabel(status, order.delivery_method)}
+                  </span>
+                </dd>
+              </div>
+              {order.delivery_method && (
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <dt className="text-muted">طريقة الاستلام:</dt>
+                  <dd>{DELIVERY_METHOD_LABELS[order.delivery_method]}</dd>
+                </div>
+              )}
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <dt className="text-muted">حالة الشحن:</dt>
+                <dd>{getOrderStatusLabel(status, order.delivery_method)}</dd>
+              </div>
+              {order.carrier_code && (
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <dt className="text-muted">شركة الشحن:</dt>
+                  <dd dir="ltr">{order.carrier_code}</dd>
+                </div>
+              )}
+              {order.tracking_number && (
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <dt className="text-muted">رقم التتبع:</dt>
+                  <dd dir="ltr">
+                    {order.tracking_url ? (
+                      <a
+                        href={order.tracking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gold underline"
+                      >
+                        {order.tracking_number}
+                      </a>
+                    ) : (
+                      order.tracking_number
+                    )}
+                  </dd>
+                </div>
+              )}
+              {(order.estimated_delivery || ship.estimated_delivery) && (
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <dt className="text-muted">مدة التوصيل المتوقعة:</dt>
+                  <dd>
+                    {order.estimated_delivery || ship.estimated_delivery}
+                  </dd>
+                </div>
+              )}
+            </dl>
             {order.delivery_method === "pickup" &&
               status === "ready_for_pickup" && (
                 <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -231,7 +285,7 @@ export default function CustomerOrderPage() {
                   يمكنك استلام طلبك من البوتيك بعد إشعارك بجاهزية الطلب.
                 </p>
               )}
-            <p className="mt-2 text-xs text-muted">
+            <p className="mt-3 text-xs text-muted">
               تاريخ الطلب: {formatDate(order.created_at)}
             </p>
           </div>

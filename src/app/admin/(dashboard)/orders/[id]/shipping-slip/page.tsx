@@ -1,8 +1,12 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { SITE_NAME } from "@/lib/constants";
+import {
+  buildShippingQrImageUrl,
+  resolveShippingQrPayload,
+} from "@/lib/shop/order-tracking-qr";
 import { formatDate, formatPrice } from "@/lib/utils";
 import {
   DELIVERY_METHOD_LABELS,
@@ -21,6 +25,8 @@ export default function ShippingSlipPrintPage() {
   const [order, setOrder] = useState<ShopOrder | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  /** Cache-bust so "regenerate QR" refreshes the image with the current URL. */
+  const [qrNonce, setQrNonce] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -50,6 +56,18 @@ export default function ShippingSlipPrintPage() {
     }
   }, [order]);
 
+  const qrPayload = useMemo(
+    () => (order ? resolveShippingQrPayload(order) : null),
+    [order]
+  );
+  const qrImageUrl = useMemo(() => {
+    if (!qrPayload?.data) return null;
+    return buildShippingQrImageUrl(qrPayload.data, {
+      size: 300,
+      cacheBust: qrNonce || undefined,
+    });
+  }, [qrPayload, qrNonce]);
+
   if (loading) {
     return (
       <div className="p-10 text-center text-muted print:hidden">جاري التحميل…</div>
@@ -73,18 +91,27 @@ export default function ShippingSlipPrintPage() {
     order.shipping_region_custom ||
     order.shipping_region ||
     "—";
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(order.id)}`;
 
   return (
     <div className="shipping-slip mx-auto max-w-[210mm] bg-white p-8 text-charcoal" dir="rtl">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4 print:hidden">
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="rounded-xl bg-gold px-4 py-2 text-sm font-medium text-white"
-        >
-          طباعة بيانات الشحن
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="rounded-xl bg-gold px-4 py-2 text-sm font-medium text-white"
+          >
+            طباعة بيانات الشحن
+          </button>
+          <button
+            type="button"
+            onClick={() => setQrNonce((n) => n + 1)}
+            className="rounded-xl border border-beige-dark px-4 py-2 text-sm"
+            title="إعادة إنشاء رمز QR بالرابط الحالي"
+          >
+            إعادة إنشاء QR
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => window.close()}
@@ -93,6 +120,15 @@ export default function ShippingSlipPrintPage() {
           إغلاق
         </button>
       </div>
+
+      {qrPayload?.warning && (
+        <div
+          className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden"
+          role="status"
+        >
+          {qrPayload.warning}
+        </div>
+      )}
 
       <header className="flex items-center justify-between border-b border-beige-dark pb-4">
         <div>
@@ -170,10 +206,30 @@ export default function ShippingSlipPrintPage() {
               </dd>
             </div>
           </dl>
-          <div className="mt-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrUrl} alt="QR" width={96} height={96} className="rounded" />
-          </div>
+          {qrImageUrl ? (
+            <div className="mt-4 flex flex-col items-start gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrImageUrl}
+                alt="رمز متابعة الطلب"
+                width={300}
+                height={300}
+                className="h-[300px] w-[300px] max-w-full border border-charcoal bg-white p-1"
+              />
+              <p className="text-sm font-medium text-charcoal">
+                امسح الرمز لمتابعة الطلب
+              </p>
+              {qrPayload?.trackingUrl && (
+                <p className="max-w-[300px] break-all text-[10px] text-muted" dir="ltr">
+                  {qrPayload.trackingUrl}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-red-700 print:hidden">
+              تعذّر إنشاء رمز QR — لا يوجد محتوى للترميز.
+            </p>
+          )}
         </section>
       </div>
 
