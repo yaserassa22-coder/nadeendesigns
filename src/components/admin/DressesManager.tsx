@@ -116,7 +116,10 @@ export function DressesManager({
   const [search, setSearch] = useState("");
 
   const dressCategories = useMemo(
-    () => categories.filter((c) => isDressProductCategory(c)),
+    () =>
+      categories.filter(
+        (c) => isDressProductCategory(c) && c.is_visible !== false
+      ),
     [categories]
   );
 

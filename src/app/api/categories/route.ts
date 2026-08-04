@@ -50,10 +50,20 @@ export async function GET() {
     return NextResponse.json(SEED_CATEGORIES);
   }
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("categories")
     .select("*")
     .order("sort_order", { ascending: true });
+  query = query.eq("is_deleted", false) as typeof query;
+  let { data, error } = await query;
+  if (error && /is_deleted|PGRST204|42703/i.test(`${error.message}${error.code}`)) {
+    const retry = await supabase
+      .from("categories")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) {
     if (isMissingTableError(error, "categories")) {
       console.warn("[categories API] table missing — returning seed data");

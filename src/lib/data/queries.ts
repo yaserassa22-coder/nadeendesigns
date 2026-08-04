@@ -121,18 +121,13 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
 
 /**
  * Load dresses for a category by id and/or TEXT keys (slug / legacy_key).
- * Prefer categoryId when available.
+ * Unions category_id matches with TEXT dual-write rows so partial FK
+ * backfills never hide products that only have the legacy TEXT key.
  */
 export async function getDressesByCategoryKeys(
   keys: Array<string | null | undefined>,
   categoryId?: string | null
 ): Promise<Dress[]> {
-  if (categoryId) {
-    const byId = await getDresses({ categoryId });
-    if (byId.length > 0) return byId;
-    // Fall through to TEXT if FK not backfilled
-  }
-
   const unique = [
     ...new Set(
       keys
@@ -141,43 +136,59 @@ export async function getDressesByCategoryKeys(
         .flatMap((k) => categoryQueryValues(k))
     ),
   ];
-  if (unique.length === 0) return categoryId ? [] : [];
 
+  const byId = categoryId ? await getDresses({ categoryId }) : [];
+
+  let byText: Dress[] = [];
   if (unique.length === 1) {
-    return getDresses({ category: unique[0], categoryId: categoryId ?? undefined });
-  }
-
-  let dresses: Dress[];
-  if (isSupabaseConfigured()) {
-    const supabase = await createClient();
-    let query = supabase
-      .from("dresses")
-      .select("*")
-      .in("category", unique)
-      .order("created_at", { ascending: false });
-    query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
-
-    let { data, error } = await query;
-    if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
-      const retry = await supabase
+    byText = await getDresses({ category: unique[0] });
+  } else if (unique.length > 1) {
+    if (isSupabaseConfigured()) {
+      const supabase = await createClient();
+      let query = supabase
         .from("dresses")
         .select("*")
         .in("category", unique)
         .order("created_at", { ascending: false });
-      data = retry.data;
-      error = retry.error;
+      query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+
+      let { data, error } = await query;
+      if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+        const retry = await supabase
+          .from("dresses")
+          .select("*")
+          .in("category", unique)
+          .order("created_at", { ascending: false });
+        data = retry.data;
+        error = retry.error;
+      }
+      byText = error
+        ? normalizeDressList(SEED_DRESSES).filter((d) => unique.includes(d.category))
+        : normalizeDressList(data as Dress[]);
+    } else {
+      byText = normalizeDressList(SEED_DRESSES).filter((d) =>
+        unique.includes(d.category)
+      );
     }
-    dresses = error
-      ? normalizeDressList(SEED_DRESSES)
-      : normalizeDressList(data as Dress[]);
-  } else {
-    dresses = normalizeDressList(SEED_DRESSES);
   }
 
   const allowed = new Set(unique);
-  return dresses.filter(
-    (d) =>
-      (categoryId && d.category_id === categoryId) || allowed.has(d.category)
+  const merged = new Map<string, Dress>();
+  for (const d of byId) merged.set(d.id, d);
+  for (const d of byText) {
+    if (
+      (categoryId && d.category_id === categoryId) ||
+      allowed.has(d.category) ||
+      !categoryId
+    ) {
+      merged.set(d.id, d);
+    }
+  }
+
+  if (!categoryId && unique.length === 0) return [];
+  return [...merged.values()].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 }
 

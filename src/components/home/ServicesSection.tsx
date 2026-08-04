@@ -134,12 +134,14 @@ export function ServicesSection({
   categories,
   accessoryProducts = [],
 }: ServicesSectionProps) {
-  // Caller (getStorefrontCategories) already applies is_visible + product-count.
+  // Caller (getStorefrontCategories) already applies is_visible from DB.
   const visible = categories.filter((c) => c.is_visible !== false);
   const tree = buildCategoryTree(visible);
 
   const dressRoots = tree.filter(
-    (n) => n.product_kind !== "accessories_group" && n.legacy_key !== "bridal_accessories"
+    (n) =>
+      n.product_kind !== "accessories_group" &&
+      n.legacy_key !== "bridal_accessories"
   );
   const accessoriesRoot = tree.find(
     (n) =>

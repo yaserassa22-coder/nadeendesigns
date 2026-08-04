@@ -17,7 +17,9 @@ export default async function AdminDressesPage({ searchParams }: Props) {
     getAdminDresses(),
     getAdminCategories(),
   ]);
-  const dressCategories = categories.filter((c) => isDressProductCategory(c));
+  const dressCategories = categories.filter(
+    (c) => isDressProductCategory(c) && c.is_visible !== false
+  );
   const params = await searchParams;
   const initialCategory =
     params.category &&

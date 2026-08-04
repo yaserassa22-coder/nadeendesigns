@@ -8,7 +8,6 @@ import {
   filterLifecycleRows,
   isLifecycleSchemaError,
 } from "@/lib/admin/query-lifecycle";
-import { filterStorefrontCategories } from "@/lib/categories/storefront";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -87,11 +86,11 @@ export async function getVisibleCategories(): Promise<Category[]> {
 
 /**
  * Storefront categories for Header / Footer / Homepage collections:
- * visible (not draft) AND has at least one product.
+ * all visible (is_visible) non-deleted categories from the DB.
+ * Empty collections are allowed so Admin-created categories appear immediately.
  */
 export async function getStorefrontCategories(): Promise<Category[]> {
-  const all = await getCategories();
-  return filterStorefrontCategories(all);
+  return getVisibleCategories();
 }
 
 function normalizePublicPath(path: string): string {

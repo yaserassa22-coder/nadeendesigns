@@ -13,6 +13,10 @@ export const OFFICIAL_INSTAGRAM_URL =
   "https://www.instagram.com/nadeendesign_/";
 export const OFFICIAL_INSTAGRAM_HANDLE = "@nadeendesign_";
 
+/**
+ * @deprecated Offline Footer/Header fallback only.
+ * Live storefront uses buildStorefrontNav(getStorefrontCategories()).
+ */
 export const CATEGORY_NAV_LINKS = [
   ...DRESS_CATEGORIES.map((category) => ({
     href: DRESS_CATEGORY_HREFS[category],
@@ -21,6 +25,7 @@ export const CATEGORY_NAV_LINKS = [
   ...SHOP_NAV_LINKS,
 ];
 
+/** @deprecated Offline Footer fallback only — prefer buildFooterNavLinks(DB). */
 export const NAV_LINKS = [
   { href: "/", label: "الرئيسية" },
   ...CATEGORY_NAV_LINKS,

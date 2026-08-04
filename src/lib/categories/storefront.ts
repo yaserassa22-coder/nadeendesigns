@@ -93,8 +93,12 @@ function isBridalRobeCategory(c: Category): boolean {
 }
 
 /**
- * Categories allowed on storefront nav / homepage / footer:
- * - is_visible !== false (draft/unpublished hidden)
+ * Optional non-empty filter (kept for analytics / future surfaces).
+ * Storefront nav + homepage use getVisibleCategories() instead so
+ * Admin-created empty categories appear immediately (Sprint 1.2).
+ *
+ * Rules when used:
+ * - is_visible !== false
  * - has at least one product (or accessories parent with a child that does)
  */
 export async function filterStorefrontCategories(

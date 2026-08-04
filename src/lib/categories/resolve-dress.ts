@@ -53,8 +53,10 @@ export async function resolveDressCategory(input: {
   };
 }
 
-/** Dress-kind categories for admin selectors (dynamic from DB). */
+/** Dress-kind categories for admin selectors (all visible non-deleted from DB). */
 export async function getDressAssignableCategories(): Promise<Category[]> {
   const all = await getCategories();
-  return all.filter((c) => isDressProductCategory(c) && c.is_visible !== false);
+  return all.filter(
+    (c) => isDressProductCategory(c) && c.is_visible !== false
+  );
 }

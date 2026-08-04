@@ -66,14 +66,16 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
     };
   }
 
-  // Caller should pass getStorefrontCategories() (visible + has products).
+  // Caller should pass getStorefrontCategories() (visible DB categories).
   const tree = buildCategoryTree(categories.filter((c) => c.is_visible));
   const primary: NavLink[] = [];
   let accessories: AccessoriesNav = { ...FALLBACK_ACCESSORIES, children: [] };
   const categoryLinks: NavLink[] = [];
+  let sawAccessoriesGroup = false;
 
   for (const root of tree) {
     if (isAccessoriesGroupCategory(root)) {
+      sawAccessoriesGroup = true;
       accessories = {
         label: root.name_ar || FALLBACK_ACCESSORIES.label,
         children: [],
@@ -87,6 +89,7 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
 
     const link = linkFromCategory(root);
     if (link) {
+      // Dress sections + any new Admin root category (product_kind dress/null)
       if (isDressProductCategory(root) || !root.parent_id) {
         primary.push(link);
       }
@@ -96,22 +99,17 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
     }
   }
 
-  if (!primary.length) {
+  // Offline / empty-DB fallback only — never overwrite a DB-built accessories group
+  // with hardcoded SHOP_NAV_LINKS when the group simply has no children yet.
+  if (!primary.length && !sawAccessoriesGroup) {
     return {
       primary: FALLBACK_PRIMARY,
-      accessories: accessories.children.length
-        ? accessories
-        : FALLBACK_ACCESSORIES,
-      categoryLinks: [
-        ...FALLBACK_PRIMARY,
-        ...(accessories.children.length
-          ? accessories.children
-          : FALLBACK_ACCESSORIES.children),
-      ],
+      accessories: FALLBACK_ACCESSORIES,
+      categoryLinks: [...FALLBACK_PRIMARY, ...FALLBACK_ACCESSORIES.children],
     };
   }
 
-  if (!accessories.children.length) {
+  if (!sawAccessoriesGroup && !accessories.children.length) {
     accessories = FALLBACK_ACCESSORIES;
     for (const child of accessories.children) {
       if (!categoryLinks.some((l) => l.href === child.href)) {
