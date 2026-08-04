@@ -2,25 +2,17 @@ import { z } from "zod";
 import { DRESS_COLORS, DRESS_STYLES } from "@/lib/constants";
 import { normalizeDressColor } from "@/lib/colors";
 import { normalizeDressStyle } from "@/lib/styles";
-import { DRESS_CATEGORIES, normalizeDressCategory } from "@/types";
 
-const ALLOWED_CATEGORIES_MSG = DRESS_CATEGORIES.join(", ");
+const optionalUuid = z
+  .union([z.string().uuid("معرّف التصنيف غير صالح"), z.literal(""), z.null()])
+  .optional()
+  .transform((v) => (v === "" || v === undefined ? null : v));
 
-/** Accept canonical + legacy category values, always output canonical. */
-export const dressCategorySchema = z
+/** Free-text category key (legacy_key / slug) — resolved against DB at write time. */
+export const dressCategoryTextSchema = z
   .string()
   .min(1, "التصنيف مطلوب")
-  .transform((value, ctx) => {
-    const normalized = normalizeDressCategory(value.trim());
-    if (!normalized) {
-      ctx.addIssue({
-        code: "custom",
-        message: `تصنيف غير صالح: "${value}". المسموح: ${ALLOWED_CATEGORIES_MSG}`,
-      });
-      return z.NEVER;
-    }
-    return normalized;
-  });
+  .transform((value) => value.trim());
 
 function optionalNullableNumber(label: string) {
   return z.preprocess((value) => {
@@ -77,11 +69,12 @@ function optionalStyleOrColor(
 export const dressStyleSchema = optionalStyleOrColor("style");
 export const dressColorSchema = optionalStyleOrColor("color");
 
-export const dressPayloadSchema = z.object({
+/** Base object (supports .partial() for PUT). */
+export const dressPayloadBaseSchema = z.object({
   name_ar: z.string().trim().min(2, "اسم الفستان يجب أن يكون حرفين على الأقل"),
-  /** Unlimited multiline TEXT — no .max(); trim ends in admin save handlers */
   description_ar: z.string().optional().default(""),
-  category: dressCategorySchema,
+  category_id: optionalUuid,
+  category: dressCategoryTextSchema.optional(),
   price: optionalNullableNumber("السعر").optional(),
   rental_price: optionalNullableNumber("سعر الإيجار").optional(),
   size: z.union([z.string(), z.null()]).optional(),
@@ -91,3 +84,22 @@ export const dressPayloadSchema = z.object({
   is_available: z.boolean().optional(),
   images: z.array(z.string()).optional().default([]),
 });
+
+/**
+ * Dress create payload — prefer category_id; category TEXT accepted for transition.
+ * At least one of category_id / category required.
+ */
+export const dressPayloadSchema = dressPayloadBaseSchema.superRefine(
+  (data, ctx) => {
+    if (!data.category_id && !data.category) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["category_id"],
+        message: "التصنيف مطلوب",
+      });
+    }
+  }
+);
+
+/** @deprecated Use dressCategoryTextSchema */
+export const dressCategorySchema = dressCategoryTextSchema;

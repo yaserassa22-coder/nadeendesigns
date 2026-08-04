@@ -26,6 +26,10 @@ const emptyForm = {
   cover_image_url: "" as string,
   description_ar: "",
   href: "",
+  product_kind: "dress" as string,
+  seo_title_ar: "",
+  seo_description_ar: "",
+  seo_og_image_url: "" as string,
 };
 
 export function CategoriesManager({ initialCategories }: CategoriesManagerProps) {
@@ -72,6 +76,10 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
       cover_image_url: item.cover_image_url ?? "",
       description_ar: item.description_ar ?? "",
       href: item.href ?? "",
+      product_kind: item.product_kind ?? "dress",
+      seo_title_ar: item.seo_title_ar ?? "",
+      seo_description_ar: item.seo_description_ar ?? "",
+      seo_og_image_url: item.seo_og_image_url ?? "",
     });
     setSlugTouched(true);
     setError("");
@@ -104,8 +112,11 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         icon_url: form.icon_url || null,
         cover_image_url: form.cover_image_url || null,
         description_ar: form.description_ar,
-        // Prefer explicit path; otherwise derive from slug so homepage/nav can link.
         href: form.href.trim() || `/${form.slug.trim().toLowerCase()}`,
+        product_kind: form.product_kind || "dress",
+        seo_title_ar: form.seo_title_ar.trim() || null,
+        seo_description_ar: form.seo_description_ar.trim() || null,
+        seo_og_image_url: form.seo_og_image_url || null,
       };
       const res = await fetch("/api/categories", {
         method: editing ? "PUT" : "POST",
@@ -334,6 +345,19 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                 onChange={(e) => setForm((p) => ({ ...p, href: e.target.value }))}
                 placeholder="/veils"
               />
+              <Select
+                label="نوع المنتج"
+                value={form.product_kind}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, product_kind: e.target.value }))
+                }
+                options={[
+                  { value: "dress", label: "فساتين" },
+                  { value: "veil", label: "طرحة العروس" },
+                  { value: "bridal_robe", label: "برنص العروس" },
+                  { value: "accessories_group", label: "مجموعة اكسسوارات" },
+                ]}
+              />
               <label className="flex items-center gap-3 text-sm text-charcoal">
                 <input
                   type="checkbox"
@@ -351,6 +375,24 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                 placeholder="وصف اختياري للتصنيف…"
                 className="min-h-[96px] resize-y whitespace-pre-wrap"
               />
+              <Input
+                label="عنوان SEO (اختياري)"
+                value={form.seo_title_ar}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, seo_title_ar: e.target.value }))
+                }
+                placeholder="يُستخدم في عنوان الصفحة إن وُجد"
+              />
+              <Textarea
+                label="وصف SEO (اختياري)"
+                rows={3}
+                value={form.seo_description_ar}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, seo_description_ar: e.target.value }))
+                }
+                placeholder="وصف محركات البحث / Open Graph"
+                className="min-h-[72px] resize-y"
+              />
               <div>
                 <p className="mb-2 text-sm font-medium text-charcoal">أيقونة مخصصة</p>
                 <ImageUpload
@@ -366,6 +408,16 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                   value={form.cover_image_url ? [form.cover_image_url] : []}
                   onChange={(urls) =>
                     setForm((p) => ({ ...p, cover_image_url: urls[0] ?? "" }))
+                  }
+                />
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-medium text-charcoal">صورة Open Graph (اختياري)</p>
+                <ImageUpload
+                  multiple={false}
+                  value={form.seo_og_image_url ? [form.seo_og_image_url] : []}
+                  onChange={(urls) =>
+                    setForm((p) => ({ ...p, seo_og_image_url: urls[0] ?? "" }))
                   }
                 />
               </div>

@@ -1,14 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pencil, Plus, X } from "lucide-react";
-import type { Dress, DressCategory } from "@/types";
-import {
-  DRESS_CATEGORIES,
-  DRESS_CATEGORY_LABELS,
-  normalizeDressCategory,
-} from "@/types";
+import type { Dress } from "@/types";
+import type { Category } from "@/types/category";
+import { isDressProductCategory } from "@/types/category";
 import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
@@ -25,7 +22,7 @@ import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter"
 type DressFormState = {
   name_ar: string;
   description_ar: string;
-  category: DressCategory;
+  category_id: string;
   price: string;
   rental_price: string;
   size: string;
@@ -37,10 +34,10 @@ type DressFormState = {
   imageUrlInput: string;
 };
 
-const emptyForm = (category: DressCategory = "wedding"): DressFormState => ({
+const emptyForm = (categoryId = ""): DressFormState => ({
   name_ar: "",
   description_ar: "",
-  category,
+  category_id: categoryId,
   price: "",
   rental_price: "",
   size: "",
@@ -52,11 +49,31 @@ const emptyForm = (category: DressCategory = "wedding"): DressFormState => ({
   imageUrlInput: "",
 });
 
-function toForm(dress: Dress): DressFormState {
+function resolveDressCategoryId(
+  dress: Dress,
+  categories: Category[]
+): string {
+  if (dress.category_id) {
+    const byId = categories.find((c) => c.id === dress.category_id);
+    if (byId) return byId.id;
+  }
+  const key = dress.category?.trim().toLowerCase();
+  if (!key) return categories[0]?.id ?? "";
+  const match = categories.find(
+    (c) =>
+      c.legacy_key?.toLowerCase() === key ||
+      c.slug?.toLowerCase() === key ||
+      (key === "wedding_dress" && c.legacy_key === "wedding") ||
+      (key === "nouf_dress" && c.legacy_key === "nouf_dresses")
+  );
+  return match?.id ?? categories[0]?.id ?? "";
+}
+
+function toForm(dress: Dress, categories: Category[]): DressFormState {
   return {
     name_ar: dress.name_ar,
     description_ar: dress.description_ar,
-    category: normalizeDressCategory(dress.category) ?? "wedding",
+    category_id: resolveDressCategoryId(dress, categories),
     price: dress.price?.toString() ?? "",
     rental_price: dress.rental_price?.toString() ?? "",
     size: dress.size ?? "",
@@ -69,22 +86,55 @@ function toForm(dress: Dress): DressFormState {
   };
 }
 
+function labelForCategory(
+  dress: Dress,
+  categories: Category[]
+): string {
+  const id = resolveDressCategoryId(dress, categories);
+  return categories.find((c) => c.id === id)?.name_ar ?? dress.category ?? "—";
+}
+
 interface DressesManagerProps {
   initialDresses: Dress[];
-  initialCategoryFilter?: DressCategory | "all";
-  /** When set, all products are managed under this category only (e.g. nouf_dresses). */
-  lockedCategory?: DressCategory;
+  initialCategories: Category[];
+  /** Filter / lock by category id (preferred) */
+  initialCategoryFilter?: string | "all";
+  lockedCategoryId?: string;
+  /** @deprecated legacy_key lock — resolved against initialCategories */
+  lockedCategory?: string;
 }
 
 export function DressesManager({
   initialDresses,
+  initialCategories,
   initialCategoryFilter = "all",
+  lockedCategoryId,
   lockedCategory,
 }: DressesManagerProps) {
   const [dresses, setDresses] = useState(initialDresses);
+  const [categories, setCategories] = useState(initialCategories);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<DressCategory | "all">(
-    lockedCategory ?? initialCategoryFilter
+
+  const dressCategories = useMemo(
+    () => categories.filter((c) => isDressProductCategory(c)),
+    [categories]
+  );
+
+  const resolvedLockId = useMemo(() => {
+    if (lockedCategoryId) return lockedCategoryId;
+    if (!lockedCategory) return undefined;
+    return (
+      dressCategories.find(
+        (c) =>
+          c.legacy_key === lockedCategory ||
+          c.slug === lockedCategory ||
+          c.id === lockedCategory
+      )?.id ?? undefined
+    );
+  }, [lockedCategoryId, lockedCategory, dressCategories]);
+
+  const [categoryFilter, setCategoryFilter] = useState<string | "all">(
+    resolvedLockId ?? initialCategoryFilter
   );
   const [availabilityFilter, setAvailabilityFilter] = useState<
     "all" | "yes" | "no"
@@ -95,11 +145,22 @@ export function DressesManager({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Dress | null>(null);
   const [form, setForm] = useState<DressFormState>(
-    emptyForm(lockedCategory ?? "wedding")
+    emptyForm(resolvedLockId ?? dressCategories[0]?.id ?? "")
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [visibility, setVisibility] = useState<ListVisibility>("active");
+
+  const refetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch("/api/categories");
+      if (!res.ok) return;
+      const data = (await res.json()) as Category[];
+      if (Array.isArray(data)) setCategories(data);
+    } catch {
+      /* keep current */
+    }
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -110,18 +171,22 @@ export function DressesManager({
       visibility
     );
     return visible.filter((d) => {
-      const effectiveCategory = lockedCategory ?? categoryFilter;
-      if (effectiveCategory !== "all" && d.category !== effectiveCategory) {
-        return false;
+      const effectiveCategory = resolvedLockId ?? categoryFilter;
+      if (effectiveCategory !== "all") {
+        const dressCatId = resolveDressCategoryId(d, dressCategories);
+        if (dressCatId !== effectiveCategory && d.category !== effectiveCategory) {
+          return false;
+        }
       }
       if (availabilityFilter === "yes" && !d.is_available) return false;
       if (availabilityFilter === "no" && d.is_available) return false;
       if (featuredFilter === "yes" && !d.is_featured) return false;
       if (featuredFilter === "no" && d.is_featured) return false;
       if (!q) return true;
+      const label = labelForCategory(d, dressCategories).toLowerCase();
       return (
         d.name_ar.toLowerCase().includes(q) ||
-        DRESS_CATEGORY_LABELS[d.category]?.includes(search) ||
+        label.includes(q) ||
         (d.style?.toLowerCase().includes(q) ?? false)
       );
     });
@@ -130,25 +195,28 @@ export function DressesManager({
     visibility,
     search,
     categoryFilter,
-    lockedCategory,
+    resolvedLockId,
     availabilityFilter,
     featuredFilter,
+    dressCategories,
   ]);
 
   const openCreate = () => {
     setEditing(null);
     const defaultCategory =
-      lockedCategory ??
-      (categoryFilter !== "all" ? categoryFilter : "wedding");
+      resolvedLockId ??
+      (categoryFilter !== "all" ? categoryFilter : dressCategories[0]?.id ?? "");
     setForm(emptyForm(defaultCategory));
     setError("");
+    void refetchCategories();
     setOpen(true);
   };
 
   const openEdit = (dress: Dress) => {
     setEditing(dress);
-    setForm(toForm(dress));
+    setForm(toForm(dress, dressCategories));
     setError("");
+    void refetchCategories();
     setOpen(true);
   };
 
@@ -161,11 +229,7 @@ export function DressesManager({
   const payload = () => ({
     name_ar: form.name_ar.trim(),
     description_ar: form.description_ar.replace(/^\s+|\s+$/g, ""),
-    // Locked section always saves its own category (never wedding for نوف)
-    category:
-      lockedCategory ??
-      normalizeDressCategory(form.category) ??
-      form.category,
+    category_id: resolvedLockId ?? form.category_id,
     price: form.price ? Number(form.price) : null,
     rental_price: form.rental_price ? Number(form.rental_price) : null,
     size: form.size || null,
@@ -179,6 +243,10 @@ export function DressesManager({
   const save = async () => {
     if (!form.name_ar.trim()) {
       setError("اسم الفستان مطلوب");
+      return;
+    }
+    if (!(resolvedLockId ?? form.category_id)) {
+      setError("التصنيف مطلوب");
       return;
     }
     setSaving(true);
@@ -225,6 +293,9 @@ export function DressesManager({
     }));
   };
 
+  const lockedLabel =
+    dressCategories.find((c) => c.id === resolvedLockId)?.name_ar ?? "تصنيف مقفل";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -235,18 +306,18 @@ export function DressesManager({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {!lockedCategory && (
+          {!resolvedLockId && (
             <Select
               label="تصفية حسب التصنيف"
               value={categoryFilter}
               onChange={(e) =>
-                setCategoryFilter(e.target.value as DressCategory | "all")
+                setCategoryFilter(e.target.value as string | "all")
               }
               options={[
                 { value: "all", label: "كل التصنيفات" },
-                ...DRESS_CATEGORIES.map((value) => ({
-                  value,
-                  label: DRESS_CATEGORY_LABELS[value],
+                ...dressCategories.map((c) => ({
+                  value: c.id,
+                  label: c.name_ar,
                 })),
               ]}
             />
@@ -282,7 +353,9 @@ export function DressesManager({
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
-          {lockedCategory === "nouf_dresses" ? "إضافة فستان نوف" : "إضافة منتج"}
+          {resolvedLockId && lockedCategory === "nouf_dresses"
+            ? "إضافة فستان نوف"
+            : "إضافة منتج"}
         </Button>
       </div>
 
@@ -332,7 +405,7 @@ export function DressesManager({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {DRESS_CATEGORY_LABELS[dress.category]}
+                      {labelForCategory(dress, dressCategories)}
                     </td>
                     <td className="px-4 py-3" dir="ltr">
                       {dress.price
@@ -420,25 +493,21 @@ export function DressesManager({
                 value={form.name_ar}
                 onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
               />
-              {lockedCategory ? (
-                <Input
-                  label="التصنيف"
-                  value={DRESS_CATEGORY_LABELS[lockedCategory]}
-                  disabled
-                />
+              {resolvedLockId ? (
+                <Input label="التصنيف" value={lockedLabel} disabled />
               ) : (
                 <Select
                   label="التصنيف"
-                  value={form.category}
+                  value={form.category_id}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      category: e.target.value as DressCategory,
+                      category_id: e.target.value,
                     })
                   }
-                  options={DRESS_CATEGORIES.map((value) => ({
-                    value,
-                    label: DRESS_CATEGORY_LABELS[value],
+                  options={dressCategories.map((c) => ({
+                    value: c.id,
+                    label: c.name_ar,
                   }))}
                 />
               )}

@@ -7,11 +7,12 @@ import {
 } from "@/types";
 import {
   buildCategoryTree,
+  isAccessoriesGroupCategory,
+  isDressProductCategory,
   type Category,
   type CategoryTreeNode,
 } from "@/types/category";
 import { resolveCategoryHref } from "@/lib/categories/href";
-import { isDressLegacyKey } from "@/lib/categories/kind";
 
 export type NavLink = { href: string; label: string };
 
@@ -27,6 +28,7 @@ export type StorefrontNav = {
   categoryLinks: NavLink[];
 };
 
+/** Offline fallback only when categories table is empty / unconfigured */
 const FALLBACK_PRIMARY: NavLink[] = DRESS_CATEGORIES.map((c) => ({
   href: DRESS_CATEGORY_HREFS[c],
   label: DRESS_CATEGORY_LABELS[c],
@@ -40,6 +42,18 @@ const FALLBACK_ACCESSORIES: AccessoriesNav = {
 function linkFromCategory(c: Category | CategoryTreeNode): NavLink | null {
   if (c.is_visible === false) return null;
   return { href: resolveCategoryHref(c), label: c.name_ar };
+}
+
+/** Flatten nested category tree into nav links (unlimited practical depth). */
+function collectNestedLinks(
+  nodes: CategoryTreeNode[],
+  into: NavLink[]
+): void {
+  for (const node of nodes) {
+    const link = linkFromCategory(node);
+    if (link) into.push(link);
+    if (node.children.length) collectNestedLinks(node.children, into);
+  }
 }
 
 /** Build header/footer nav from categories; falls back to static labels if empty. */
@@ -58,13 +72,12 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
   const categoryLinks: NavLink[] = [];
 
   for (const root of tree) {
-    if (root.legacy_key === "bridal_accessories") {
+    if (isAccessoriesGroupCategory(root)) {
       accessories = {
         label: root.name_ar || FALLBACK_ACCESSORIES.label,
-        children: root.children
-          .map(linkFromCategory)
-          .filter((l): l is NavLink => l !== null),
+        children: [],
       };
+      collectNestedLinks(root.children, accessories.children);
       for (const child of accessories.children) {
         categoryLinks.push(child);
       }
@@ -73,10 +86,12 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
 
     const link = linkFromCategory(root);
     if (link) {
-      if (isDressLegacyKey(root.legacy_key) || !root.parent_id) {
+      if (isDressProductCategory(root) || !root.parent_id) {
         primary.push(link);
       }
       categoryLinks.push(link);
+      // Nested dress children also appear in flat footer links
+      collectNestedLinks(root.children, categoryLinks);
     }
   }
 

@@ -3,13 +3,17 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DressCatalog, PageHero } from "@/components/dresses/DressCatalog";
 import { resolveCategoryHref } from "@/lib/categories/href";
-import { productKindFromLegacyKey } from "@/lib/categories/kind";
+import { productKindFromCategory } from "@/lib/categories/kind";
 import {
   getCategories,
   getCategoryBySlug,
 } from "@/lib/data/categories";
 import { getDressesByCategoryKeys } from "@/lib/data/queries";
-import { buildCategoryTree, type Category } from "@/types/category";
+import {
+  buildCategoryTree,
+  isAccessoriesGroupCategory,
+  type Category,
+} from "@/types/category";
 
 /** Allow categories created after build/deploy to resolve at runtime. */
 export const dynamicParams = true;
@@ -39,7 +43,6 @@ export async function generateStaticParams() {
       if (!c.slug?.trim()) return false;
       if (c.is_visible === false) return false;
       const href = resolveCategoryHref(c);
-      // Dedicated static routes own these paths — no need to prebuild [slug].
       if (DEDICATED_CATEGORY_PATHS.has(href)) return false;
       return true;
     })
@@ -54,12 +57,28 @@ export async function generateMetadata({
   if (!category || category.is_visible === false) {
     return { title: "التصنيف غير موجود" };
   }
+  const title =
+    category.seo_title_ar?.trim() || category.name_ar;
   const description =
+    category.seo_description_ar?.trim() ||
     category.description_ar?.trim() ||
     `اكتشفي مجموعة ${category.name_ar} من Nadeen Designs.`;
+  const canonical = resolveCategoryHref(category);
+  const ogImage =
+    category.seo_og_image_url?.trim() ||
+    category.cover_image_url?.trim() ||
+    undefined;
+
   return {
-    title: category.name_ar,
+    title,
     description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+    },
   };
 }
 
@@ -67,17 +86,49 @@ function redirectIfDedicated(category: Category, requestSlug: string) {
   const href = resolveCategoryHref(category);
   const requestPath = `/${requestSlug}`;
 
-  // Prefer stored legacy href when it points at a dedicated static page.
   if (href !== requestPath && DEDICATED_CATEGORY_PATHS.has(href)) {
     redirect(href);
   }
 
-  const kind = productKindFromLegacyKey(category.legacy_key);
+  const kind = productKindFromCategory(category);
   if (kind === "veil") redirect("/veils");
   if (kind === "bridal_robe") redirect("/robes");
-  if (category.legacy_key === "custom_design" && href === "/custom-design") {
+  if (
+    (category.legacy_key === "custom_design" || category.slug === "custom-design") &&
+    href === "/custom-design"
+  ) {
     redirect("/custom-design");
   }
+}
+
+function CategoryJsonLd({
+  category,
+  description,
+}: {
+  category: Category;
+  description: string;
+}) {
+  const url = resolveCategoryHref(category);
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: category.seo_title_ar?.trim() || category.name_ar,
+    description,
+    url,
+    ...(category.cover_image_url || category.seo_og_image_url
+      ? {
+          image:
+            category.seo_og_image_url?.trim() ||
+            category.cover_image_url?.trim(),
+        }
+      : {}),
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
 }
 
 export default async function DynamicCategoryPage({ params }: PageProps) {
@@ -90,21 +141,17 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
 
   redirectIfDedicated(category, slug);
 
-  // Accessories parent: link to visible children instead of an empty dress grid.
-  if (category.legacy_key === "bridal_accessories") {
+  if (isAccessoriesGroupCategory(category)) {
     const tree = buildCategoryTree(await getCategories());
     const node = tree.find((n) => n.id === category.id);
     const children = (node?.children ?? []).filter((c) => c.is_visible !== false);
+    const description =
+      category.description_ar?.trim() || "اختاري من اكسسوارات العروس";
 
     return (
       <>
-        <PageHero
-          title={category.name_ar}
-          description={
-            category.description_ar?.trim() ||
-            "اختاري من اكسسوارات العروس"
-          }
-        />
+        <CategoryJsonLd category={category} description={description} />
+        <PageHero title={category.name_ar} description={description} />
         <section className="py-16 md:py-24">
           <div className="mx-auto grid max-w-3xl gap-4 px-4 md:px-8">
             {children.length === 0 ? (
@@ -126,10 +173,10 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
     );
   }
 
-  const dresses = await getDressesByCategoryKeys([
-    category.slug,
-    category.legacy_key,
-  ]);
+  const dresses = await getDressesByCategoryKeys(
+    [category.slug, category.legacy_key],
+    category.id
+  );
 
   const description =
     category.description_ar?.trim() ||
@@ -137,14 +184,35 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
 
   return (
     <>
+      <CategoryJsonLd category={category} description={description} />
+      <nav
+        aria-label="مسار التنقل"
+        className="mx-auto max-w-7xl px-4 pt-6 text-sm text-muted md:px-8"
+      >
+        <ol className="flex flex-wrap items-center gap-2">
+          <li>
+            <Link href="/" className="hover:text-gold">
+              الرئيسية
+            </Link>
+          </li>
+          <li aria-hidden>/</li>
+          <li className="text-charcoal">{category.name_ar}</li>
+        </ol>
+      </nav>
       <PageHero title={category.name_ar} description={description} />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
-          <DressCatalog
-            dresses={dresses}
-            title={category.name_ar}
-            description=""
-          />
+          {dresses.length === 0 ? (
+            <p className="py-16 text-center text-muted">
+              لا توجد منتجات في هذا التصنيف حالياً
+            </p>
+          ) : (
+            <DressCatalog
+              dresses={dresses}
+              title={category.name_ar}
+              description=""
+            />
+          )}
         </div>
       </section>
     </>

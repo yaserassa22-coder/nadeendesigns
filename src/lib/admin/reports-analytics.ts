@@ -135,7 +135,7 @@ function categoryLabelForItem(
   if (entry?.category_key && entry.category_key in DRESS_CATEGORY_LABELS) {
     return DRESS_CATEGORY_LABELS[entry.category_key as DressCategory];
   }
-  return "فساتين";
+  return entry?.category_key ?? "فساتين";
 }
 
 function pctChange(current: number, previous: number): number | null {

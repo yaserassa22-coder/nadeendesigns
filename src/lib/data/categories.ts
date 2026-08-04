@@ -1,4 +1,9 @@
-import { SEED_CATEGORIES, type Category } from "@/types/category";
+import {
+  SEED_CATEGORIES,
+  resolveCategoryProductKind,
+  type Category,
+  type CategoryProductKind,
+} from "@/types/category";
 import {
   filterLifecycleRows,
   isLifecycleSchemaError,
@@ -6,6 +11,19 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+
+/** Ensure new columns exist on rows from older DB schemas. */
+export function normalizeCategoryRow(row: Category): Category {
+  return {
+    ...row,
+    product_kind:
+      (row.product_kind as CategoryProductKind | null) ??
+      resolveCategoryProductKind(row),
+    seo_title_ar: row.seo_title_ar ?? null,
+    seo_description_ar: row.seo_description_ar ?? null,
+    seo_og_image_url: row.seo_og_image_url ?? null,
+  };
+}
 
 /**
  * Public categories for storefront nav/homepage.
@@ -43,14 +61,17 @@ export async function getCategories(): Promise<Category[]> {
           return SEED_CATEGORIES;
         }
         return filterLifecycleRows(
-          (retry.data as Category[]) ?? [],
+          ((retry.data as Category[]) ?? []).map(normalizeCategoryRow),
           "active"
         );
       }
       console.error("[getCategories]", error);
       return SEED_CATEGORIES;
     }
-    return filterLifecycleRows((data as Category[]) ?? [], "active");
+    return filterLifecycleRows(
+      ((data as Category[]) ?? []).map(normalizeCategoryRow),
+      "active"
+    );
   } catch (e) {
     console.error("[getCategories]", e);
     return SEED_CATEGORIES;
@@ -91,4 +112,10 @@ export async function getCategoryBySlug(
     return normalizePublicPath(href).toLowerCase() === path.toLowerCase();
   });
   return match ?? null;
+}
+
+export async function getCategoryById(id: string): Promise<Category | null> {
+  if (!id) return null;
+  const all = await getCategories();
+  return all.find((c) => c.id === id) ?? null;
 }

@@ -8,8 +8,13 @@ export function filterDressesClient(
 ): Dress[] {
   let result = [...dresses];
 
-  if (filters.category) {
-    result = result.filter((d) => d.category === filters.category);
+  if (filters.categoryId) {
+    result = result.filter((d) => d.category_id === filters.categoryId);
+  } else if (filters.category) {
+    result = result.filter(
+      (d) =>
+        d.category === filters.category || d.category_id === filters.category
+    );
   }
   if (filters.featured) {
     result = result.filter((d) => d.is_featured);

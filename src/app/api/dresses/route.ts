@@ -6,11 +6,12 @@ import {
   withNormalizedDressCategory,
 } from "@/lib/dresses/category";
 import { assertSameKindMove } from "@/lib/categories/kind";
+import { resolveDressCategory } from "@/lib/categories/resolve-dress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
-import { dressPayloadSchema } from "@/lib/validations/dress";
-import { DRESS_CATEGORIES, type Dress } from "@/types";
+import { dressPayloadSchema, dressPayloadBaseSchema } from "@/lib/validations/dress";
+import type { Dress } from "@/types";
 
 function extractErrorMessage(error: unknown): string {
   if (error instanceof z.ZodError) {
@@ -57,7 +58,14 @@ function mapDressWriteError(error: unknown): { status: number; message: string }
   ) {
     return {
       status: 400,
-      message: `قيمة التصنيف مرفوضة من قاعدة البيانات. تأكدي أن constraint يقبل: ${DRESS_CATEGORIES.join(", ")}. نفّذي supabase/APPLY_NOUF_DRESSES_CATEGORY.sql ثم أعيدي المحاولة. التفاصيل: ${raw}`,
+      message: `قيمة التصنيف مرفوضة من قاعدة البيانات. نفّذي supabase/APPLY_DROP_CATEGORY_CHECK.sql ثم APPLY_PRODUCT_CATEGORY_ID.sql. التفاصيل: ${raw}`,
+    };
+  }
+
+  if (code === "23503" || /foreign key|category_id/i.test(raw)) {
+    return {
+      status: 400,
+      message: `التصنيف غير موجود أو غير صالح. التفاصيل: ${raw}`,
     };
   }
 
@@ -100,9 +108,9 @@ export async function POST(request: Request) {
     console.info("[dresses API] POST payload", {
       name_ar: json?.name_ar,
       category: json?.category,
+      category_id: json?.category_id,
       price: json?.price,
       imagesCount: Array.isArray(json?.images) ? json.images.length : 0,
-      allowedCategories: DRESS_CATEGORIES,
     });
 
     const parsed = dressPayloadSchema.safeParse(json);
@@ -119,8 +127,15 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data;
+    const resolved = await resolveDressCategory({
+      category_id: body.category_id,
+      category: body.category,
+    });
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.message }, { status: 400 });
+    }
 
-    const kindCheck = assertSameKindMove("dress", body.category);
+    const kindCheck = assertSameKindMove("dress", resolved.category);
     if (!kindCheck.ok) {
       return NextResponse.json({ error: kindCheck.message }, { status: 400 });
     }
@@ -136,7 +151,8 @@ export async function POST(request: Request) {
     const insertRow = {
       name_ar: body.name_ar,
       description_ar: body.description_ar ?? "",
-      category: body.category, // canonical: wedding | rental | custom_design | nouf_dresses
+      category: resolved.textKey,
+      category_id: resolved.category.id,
       price: body.price ?? null,
       rental_price: body.rental_price ?? null,
       size: body.size ?? null,
@@ -150,14 +166,43 @@ export async function POST(request: Request) {
 
     console.info("[dresses API] inserting", {
       category: insertRow.category,
+      category_id: insertRow.category_id,
       name_ar: insertRow.name_ar,
     });
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("dresses")
       .insert(insertRow)
       .select()
       .single();
+
+    // Graceful if category_id column not yet migrated
+    if (
+      error &&
+      /category_id|PGRST204|42703/i.test(`${error.message}${error.code}`)
+    ) {
+      const withoutFk = {
+        name_ar: insertRow.name_ar,
+        description_ar: insertRow.description_ar,
+        category: insertRow.category,
+        price: insertRow.price,
+        rental_price: insertRow.rental_price,
+        size: insertRow.size,
+        color: insertRow.color,
+        style: insertRow.style,
+        is_featured: insertRow.is_featured,
+        is_available: insertRow.is_available,
+        images: insertRow.images,
+        updated_at: insertRow.updated_at,
+      };
+      const retry = await supabase
+        .from("dresses")
+        .insert(withoutFk)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       const mapped = mapDressWriteError(error);
@@ -185,10 +230,11 @@ export async function PUT(request: Request) {
     console.info("[dresses API] PUT payload", {
       id,
       category: rest?.category,
+      category_id: rest?.category_id,
       name_ar: rest?.name_ar,
     });
 
-    const parsed = dressPayloadSchema.partial().safeParse(rest);
+    const parsed = dressPayloadBaseSchema.partial().safeParse(rest);
     if (!parsed.success) {
       const mapped = mapDressWriteError(parsed.error);
       console.error("[dresses API] Zod validation failed", parsed.error.issues);
@@ -198,11 +244,34 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (parsed.data.category) {
-      const kindCheck = assertSameKindMove("dress", parsed.data.category);
+    const update: Record<string, unknown> = {
+      ...parsed.data,
+      updated_at: new Date().toISOString(),
+    };
+
+    const touchingCategory =
+      parsed.data.category_id !== undefined ||
+      parsed.data.category !== undefined;
+    if (touchingCategory) {
+      if (!parsed.data.category_id && !parsed.data.category) {
+        return NextResponse.json(
+          { error: "التصنيف مطلوب" },
+          { status: 400 }
+        );
+      }
+      const resolved = await resolveDressCategory({
+        category_id: parsed.data.category_id,
+        category: parsed.data.category,
+      });
+      if (!resolved.ok) {
+        return NextResponse.json({ error: resolved.message }, { status: 400 });
+      }
+      const kindCheck = assertSameKindMove("dress", resolved.category);
       if (!kindCheck.ok) {
         return NextResponse.json({ error: kindCheck.message }, { status: 400 });
       }
+      update.category = resolved.textKey;
+      update.category_id = resolved.category.id;
     }
 
     if (!isSupabaseConfigured()) {
@@ -213,12 +282,28 @@ export async function PUT(request: Request) {
     }
 
     const supabase = await createPrivilegedClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("dresses")
-      .update({ ...parsed.data, updated_at: new Date().toISOString() })
+      .update(update)
       .eq("id", id)
       .select()
       .single();
+
+    if (
+      error &&
+      /category_id|PGRST204|42703/i.test(`${error.message}${error.code}`)
+    ) {
+      const withoutFk = { ...update };
+      delete withoutFk.category_id;
+      const retry = await supabase
+        .from("dresses")
+        .update(withoutFk)
+        .eq("id", id)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       const mapped = mapDressWriteError(error);

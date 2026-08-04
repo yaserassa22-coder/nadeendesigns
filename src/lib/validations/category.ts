@@ -19,6 +19,20 @@ const optionalLegacy = z
   .optional()
   .transform((v) => (v === "" || v === undefined ? null : v));
 
+const optionalSeoText = z
+  .union([z.string(), z.literal(""), z.null()])
+  .optional()
+  .transform((v) => (v === "" || v === undefined ? null : v));
+
+const productKindSchema = z
+  .union([
+    z.enum(["dress", "veil", "bridal_robe", "accessories_group"]),
+    z.literal(""),
+    z.null(),
+  ])
+  .optional()
+  .transform((v) => (v === "" || v === undefined ? null : v));
+
 /** Fields shared by create/update — no defaults (avoids wiping on partial PUT). */
 export const categoryFieldsSchema = z.object({
   name_ar: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل"),
@@ -37,6 +51,10 @@ export const categoryFieldsSchema = z.object({
   description_ar: z.string().optional(),
   href: optionalHref,
   legacy_key: optionalLegacy,
+  product_kind: productKindSchema,
+  seo_title_ar: optionalSeoText,
+  seo_description_ar: optionalSeoText,
+  seo_og_image_url: optionalUrl,
 });
 
 export const categoryCreateSchema = categoryFieldsSchema.extend({

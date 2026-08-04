@@ -12,6 +12,21 @@ import {
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
+function dressMatchesCategoryFilter(
+  dress: Dress,
+  filters: DressFilters
+): boolean {
+  if (filters.categoryId) {
+    if (dress.category_id === filters.categoryId) return true;
+    // Fall through to TEXT match if FK not backfilled yet
+  }
+  if (filters.category) {
+    const allowed = new Set(categoryQueryValues(filters.category));
+    return allowed.has(dress.category) || dress.category === filters.category;
+  }
+  return true;
+}
+
 export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
   let dresses: Dress[];
 
@@ -22,10 +37,11 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    // Storefront: hide soft-deleted + archived (graceful if columns missing)
     query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
 
-    if (filters?.category) {
+    if (filters?.categoryId) {
+      query = query.eq("category_id", filters.categoryId) as typeof query;
+    } else if (filters?.category) {
       const values = categoryQueryValues(filters.category);
       query =
         values.length > 1
@@ -38,7 +54,7 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
     if (filters?.size) query = query.eq("size", filters.size);
 
     let { data, error } = await query;
-    if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+    if (error && /is_deleted|archived_at|category_id|PGRST204|42703/i.test(error.message ?? "")) {
       let retry = supabase
         .from("dresses")
         .select("*")
@@ -65,12 +81,8 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
     dresses = normalizeDressList(SEED_DRESSES);
   }
 
-  // Strict client-side filter on canonical category (never mix wedding / nouf)
-  if (filters?.category) {
-    const allowed = new Set(categoryQueryValues(filters.category));
-    dresses = dresses.filter(
-      (d) => allowed.has(d.category) || d.category === filters.category
-    );
+  if (filters?.categoryId || filters?.category) {
+    dresses = dresses.filter((d) => dressMatchesCategoryFilter(d, filters));
   }
   if (filters?.featured) {
     dresses = dresses.filter((d) => d.is_featured);
@@ -108,12 +120,19 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
 }
 
 /**
- * Load dresses whose `category` matches any of the given keys
- * (slug and/or legacy_key for dynamic categories).
+ * Load dresses for a category by id and/or TEXT keys (slug / legacy_key).
+ * Prefer categoryId when available.
  */
 export async function getDressesByCategoryKeys(
-  keys: Array<string | null | undefined>
+  keys: Array<string | null | undefined>,
+  categoryId?: string | null
 ): Promise<Dress[]> {
+  if (categoryId) {
+    const byId = await getDresses({ categoryId });
+    if (byId.length > 0) return byId;
+    // Fall through to TEXT if FK not backfilled
+  }
+
   const unique = [
     ...new Set(
       keys
@@ -122,10 +141,10 @@ export async function getDressesByCategoryKeys(
         .flatMap((k) => categoryQueryValues(k))
     ),
   ];
-  if (unique.length === 0) return [];
+  if (unique.length === 0) return categoryId ? [] : [];
 
   if (unique.length === 1) {
-    return getDresses({ category: unique[0] });
+    return getDresses({ category: unique[0], categoryId: categoryId ?? undefined });
   }
 
   let dresses: Dress[];
@@ -156,7 +175,10 @@ export async function getDressesByCategoryKeys(
   }
 
   const allowed = new Set(unique);
-  return dresses.filter((d) => allowed.has(d.category));
+  return dresses.filter(
+    (d) =>
+      (categoryId && d.category_id === categoryId) || allowed.has(d.category)
+  );
 }
 
 export async function getDressById(id: string): Promise<Dress | null> {

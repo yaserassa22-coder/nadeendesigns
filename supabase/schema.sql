@@ -6,8 +6,10 @@ CREATE TABLE IF NOT EXISTS dresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name_ar TEXT NOT NULL,
   description_ar TEXT NOT NULL DEFAULT '',
-  -- TEXT slug / legacy_key; validated by app + dynamic categories table (no hardcoded CHECK)
+  -- TEXT slug / legacy_key; kept for read compatibility during transition
   category TEXT NOT NULL,
+  -- Preferred FK to dynamic categories (migration 027; FK added after categories table)
+  category_id UUID,
   price NUMERIC,
   rental_price NUMERIC,
   size TEXT,
@@ -67,10 +69,29 @@ CREATE TABLE IF NOT EXISTS categories (
   description_ar TEXT NOT NULL DEFAULT '',
   href TEXT,
   legacy_key TEXT,
+  -- dress | veil | bridal_robe | accessories_group (migration 027)
+  product_kind TEXT,
+  seo_title_ar TEXT,
+  seo_description_ar TEXT,
+  seo_og_image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT categories_no_self_parent CHECK (parent_id IS NULL OR parent_id <> id)
 );
+
+-- Link dresses to categories (after both tables exist)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'dresses_category_id_fkey'
+  ) THEN
+    ALTER TABLE dresses
+      ADD CONSTRAINT dresses_category_id_fkey
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_dresses_category_id ON dresses(category_id);
 
 -- Shop orders
 CREATE TABLE IF NOT EXISTS shop_orders (

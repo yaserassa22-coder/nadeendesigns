@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDressById, getDresses } from "@/lib/data/queries";
+import { getCategories, getCategoryById } from "@/lib/data/categories";
+import { resolveCategoryHref } from "@/lib/categories/href";
+import { findCategoryMatch } from "@/lib/dresses/category";
 import { featuredImage } from "@/lib/products/featured-image";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
@@ -9,7 +12,6 @@ import {
   categoryToServiceType,
   supportsPersonalization,
 } from "@/lib/personalization";
-import { DRESS_CATEGORY_HREFS, DRESS_CATEGORY_LABELS } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationForm } from "@/components/dresses/PersonalizationForm";
 import { RelatedProducts } from "@/components/dresses/RelatedProducts";
@@ -37,13 +39,34 @@ export default async function DressDetailPage({ params }: Props) {
   const dress = await getDressById(id);
   if (!dress) notFound();
 
+  const categories = await getCategories();
+  const category =
+    (dress.category_id
+      ? await getCategoryById(dress.category_id)
+      : null) ??
+    findCategoryMatch(categories, dress.category) ??
+    null;
+
+  const categoryLabel = category?.name_ar ?? dress.category;
+  const categoryHref = category
+    ? resolveCategoryHref(category)
+    : "/wedding-dresses";
+
   const price = dress.price ?? dress.rental_price;
   const isRental =
-    dress.category === "rental" || (!dress.price && dress.rental_price);
+    dress.category === "rental" ||
+    category?.legacy_key === "rental" ||
+    (!dress.price && !!dress.rental_price);
   const personalizationType = supportsPersonalization(dress.category)
     ? dress.category
     : null;
-  const related = (await getDresses({ category: dress.category }))
+  const related = (
+    await getDresses(
+      dress.category_id
+        ? { categoryId: dress.category_id }
+        : { category: dress.category }
+    )
+  )
     .filter((d) => d.id !== dress.id && d.is_available)
     .slice(0, 3);
 
@@ -51,7 +74,7 @@ export default async function DressDetailPage({ params }: Props) {
     <ProductDetailLayout
       images={dress.images}
       name={dress.name_ar}
-      categoryLabel={DRESS_CATEGORY_LABELS[dress.category]}
+      categoryLabel={categoryLabel}
       price={price}
       priceSuffix={isRental ? "/ إيجار" : undefined}
       description={dress.description_ar}
@@ -87,7 +110,7 @@ export default async function DressDetailPage({ params }: Props) {
                   احجزي موعدًا
                 </Button>
               </Link>
-              <Link href={DRESS_CATEGORY_HREFS[dress.category]}>
+              <Link href={categoryHref}>
                 <Button variant="outline" size="lg">
                   العودة للمجموعة
                 </Button>
@@ -95,7 +118,7 @@ export default async function DressDetailPage({ params }: Props) {
             </>
           )}
           {personalizationType && (
-            <Link href={DRESS_CATEGORY_HREFS[dress.category]}>
+            <Link href={categoryHref}>
               <Button variant="outline" size="lg">
                 العودة للمجموعة
               </Button>

@@ -1,12 +1,15 @@
 import { revalidatePath } from "next/cache";
 
 /**
- * Invalidate homepage + layout (nav/footer) after category mutations.
- * Also revalidates the category's public path when known.
+ * Invalidate homepage + layout (nav/footer) + category/search surfaces
+ * after category mutations.
  */
 export function revalidateCategoryPaths(paths: Array<string | null | undefined> = []) {
   revalidatePath("/", "layout");
   revalidatePath("/");
+  revalidatePath("/admin/categories");
+  revalidatePath("/admin/dresses");
+  revalidatePath("/admin/nouf-dresses");
 
   const seen = new Set<string>(["/", ""]);
   for (const raw of paths) {

@@ -1,3 +1,7 @@
+/**
+ * @deprecated Historical seeded dress keys only — prefer Category.id / product_kind.
+ * Kept for seed data, booking service_type bridges, and dual-read of TEXT category.
+ */
 export type DressCategory =
   | "wedding"
   | "rental"
@@ -14,11 +18,18 @@ export type {
   ShopOrderStatus,
 } from "@/types/shop";
 
-export type { Category, CategoryTreeNode } from "@/types/category";
+export type {
+  Category,
+  CategoryTreeNode,
+  CategoryProductKind,
+} from "@/types/category";
 export {
   SEED_CATEGORIES,
   buildCategoryTree,
   slugifyCategory,
+  resolveCategoryProductKind,
+  isAccessoriesGroupCategory,
+  isDressProductCategory,
 } from "@/types/category";
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
@@ -56,7 +67,13 @@ export interface Dress {
   id: string;
   name_ar: string;
   description_ar: string;
-  category: DressCategory;
+  /**
+   * Legacy TEXT (legacy_key / slug) — kept for transition reads.
+   * Prefer category_id for new writes and filtering.
+   */
+  category: string;
+  /** FK to categories.id (migration 027) */
+  category_id?: string | null;
   price: number | null;
   rental_price: number | null;
   size: string | null;
@@ -282,8 +299,10 @@ export interface SiteSettings {
 
 export interface DressFilters {
   search?: string;
-  /** Canonical DressCategory or dynamic category slug / legacy_key */
+  /** Dynamic category slug / legacy_key / TEXT category value */
   category?: string;
+  /** Preferred: filter by categories.id */
+  categoryId?: string;
   style?: string;
   color?: string;
   size?: string;
@@ -292,7 +311,10 @@ export interface DressFilters {
   featured?: boolean;
 }
 
-/** Dress categories only (veils & bridal robes use separate tables) */
+/**
+ * @deprecated Seeded dress keys only — UI must load categories from DB.
+ * Kept for seed/booking bridges and offline fallbacks.
+ */
 export const DRESS_CATEGORIES: DressCategory[] = [
   "wedding",
   "nouf_dresses",
@@ -300,6 +322,7 @@ export const DRESS_CATEGORIES: DressCategory[] = [
   "custom_design",
 ];
 
+/** @deprecated Prefer Category.name_ar from DB */
 export const DRESS_CATEGORY_LABELS: Record<DressCategory, string> = {
   wedding: "فساتين الزفاف",
   rental: "فساتين للإيجار",
@@ -307,6 +330,7 @@ export const DRESS_CATEGORY_LABELS: Record<DressCategory, string> = {
   nouf_dresses: "فساتين نوف",
 };
 
+/** @deprecated Prefer resolveCategoryHref from DB category */
 export const DRESS_CATEGORY_HREFS: Record<DressCategory, string> = {
   wedding: "/wedding-dresses",
   rental: "/rental-dresses",
@@ -315,8 +339,8 @@ export const DRESS_CATEGORY_HREFS: Record<DressCategory, string> = {
 };
 
 /**
- * Normalize dress category values.
- * Legacy: wedding_dress → wedding, nouf_dress → nouf_dresses
+ * Normalize known seeded dress category TEXT values.
+ * Returns null for unknown / dynamic slugs (use as-is via category_id).
  */
 export function normalizeDressCategory(
   value: string | null | undefined
@@ -330,13 +354,15 @@ export function normalizeDressCategory(
   return null;
 }
 
-/** Public shop nav entries beyond dress categories */
+/**
+ * @deprecated Offline nav fallback only — storefront uses buildStorefrontNav(DB).
+ */
 export const SHOP_NAV_LINKS = [
   { href: "/veils", label: "طرحة العروس" },
   { href: "/robes", label: "برنص العروس" },
 ] as const;
 
-/** Parent group for bridal accessories (veils + robes) */
+/** @deprecated Offline nav fallback only */
 export const ACCESSORIES_PARENT = {
   label: "اكسسوارات العروس",
   slug: "bridal-accessories",

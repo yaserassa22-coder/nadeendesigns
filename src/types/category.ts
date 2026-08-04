@@ -1,3 +1,9 @@
+export type CategoryProductKind =
+  | "dress"
+  | "veil"
+  | "bridal_robe"
+  | "accessories_group";
+
 export interface Category {
   id: string;
   name_ar: string;
@@ -8,10 +14,15 @@ export interface Category {
   icon_url: string | null;
   cover_image_url: string | null;
   description_ar: string;
-  /** Public path for Phase 1 static routes (optional) */
+  /** Public path for dedicated static routes (optional) */
   href: string | null;
-  /** Maps to dress enum / shop kind during migration */
+  /** Maps to historical TEXT category values during migration */
   legacy_key: string | null;
+  /** Product surface this category belongs to (migration 027) */
+  product_kind: CategoryProductKind | null;
+  seo_title_ar: string | null;
+  seo_description_ar: string | null;
+  seo_og_image_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +44,7 @@ const IDS = {
 
 const now = "2026-01-01T00:00:00.000Z";
 
+/** Offline / missing-table fallback only — not a product UX source of truth */
 export const SEED_CATEGORIES: Category[] = [
   {
     id: IDS.wedding,
@@ -46,6 +58,10 @@ export const SEED_CATEGORIES: Category[] = [
     description_ar: "",
     href: "/wedding-dresses",
     legacy_key: "wedding",
+    product_kind: "dress",
+    seo_title_ar: null,
+    seo_description_ar: null,
+    seo_og_image_url: null,
     created_at: now,
     updated_at: now,
   },
@@ -61,6 +77,10 @@ export const SEED_CATEGORIES: Category[] = [
     description_ar: "",
     href: "/rental-dresses",
     legacy_key: "rental",
+    product_kind: "dress",
+    seo_title_ar: null,
+    seo_description_ar: null,
+    seo_og_image_url: null,
     created_at: now,
     updated_at: now,
   },
@@ -76,6 +96,10 @@ export const SEED_CATEGORIES: Category[] = [
     description_ar: "",
     href: "/custom-design",
     legacy_key: "custom_design",
+    product_kind: "dress",
+    seo_title_ar: null,
+    seo_description_ar: null,
+    seo_og_image_url: null,
     created_at: now,
     updated_at: now,
   },
@@ -91,6 +115,10 @@ export const SEED_CATEGORIES: Category[] = [
     description_ar: "",
     href: "/nouf-dresses",
     legacy_key: "nouf_dresses",
+    product_kind: "dress",
+    seo_title_ar: null,
+    seo_description_ar: null,
+    seo_og_image_url: null,
     created_at: now,
     updated_at: now,
   },
@@ -106,6 +134,10 @@ export const SEED_CATEGORIES: Category[] = [
     description_ar: "طرحة العروس وبرنص العروس",
     href: null,
     legacy_key: "bridal_accessories",
+    product_kind: "accessories_group",
+    seo_title_ar: null,
+    seo_description_ar: null,
+    seo_og_image_url: null,
     created_at: now,
     updated_at: now,
   },
@@ -121,6 +153,10 @@ export const SEED_CATEGORIES: Category[] = [
     description_ar: "",
     href: "/veils",
     legacy_key: "veils",
+    product_kind: "veil",
+    seo_title_ar: null,
+    seo_description_ar: null,
+    seo_og_image_url: null,
     created_at: now,
     updated_at: now,
   },
@@ -136,6 +172,10 @@ export const SEED_CATEGORIES: Category[] = [
     description_ar: "",
     href: "/robes",
     legacy_key: "bridal_robes",
+    product_kind: "bridal_robe",
+    seo_title_ar: null,
+    seo_description_ar: null,
+    seo_og_image_url: null,
     created_at: now,
     updated_at: now,
   },
@@ -171,4 +211,39 @@ export function slugifyCategory(input: string): string {
     .replace(/[^a-z0-9\u0600-\u06FF-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/** Normalize optional product_kind from DB (missing column → infer from legacy_key). */
+export function resolveCategoryProductKind(
+  category: Pick<Category, "product_kind" | "legacy_key">
+): CategoryProductKind | null {
+  if (category.product_kind) return category.product_kind;
+  const key = category.legacy_key;
+  if (!key) return null;
+  if (
+    key === "wedding" ||
+    key === "rental" ||
+    key === "custom_design" ||
+    key === "nouf_dresses"
+  ) {
+    return "dress";
+  }
+  if (key === "veils" || key === "veil") return "veil";
+  if (key === "bridal_robes" || key === "bridal_cape") return "bridal_robe";
+  if (key === "bridal_accessories") return "accessories_group";
+  return null;
+}
+
+export function isAccessoriesGroupCategory(
+  category: Pick<Category, "product_kind" | "legacy_key">
+): boolean {
+  return resolveCategoryProductKind(category) === "accessories_group";
+}
+
+export function isDressProductCategory(
+  category: Pick<Category, "product_kind" | "legacy_key">
+): boolean {
+  const kind = resolveCategoryProductKind(category);
+  // New admin categories without kind default to dress for product assignment
+  return kind === "dress" || kind === null;
 }

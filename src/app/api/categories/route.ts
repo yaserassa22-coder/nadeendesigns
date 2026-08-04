@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/auth";
 import { resolveCategoryHref } from "@/lib/categories/href";
+import { countDressesForCategory } from "@/lib/categories/product-refs";
 import { revalidateCategoryPaths } from "@/lib/categories/revalidate";
 import { SEED_CATEGORIES } from "@/types/category";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,6 +40,11 @@ function mapCategoryError(error: unknown): { message: string; status: number } {
   };
 }
 
+function inferProductKind(): string {
+  // New Admin categories are dress sections by default (same as seeded dress roots).
+  return "dress";
+}
+
 export async function GET() {
   if (!isSupabaseConfigured()) {
     return NextResponse.json(SEED_CATEGORIES);
@@ -73,6 +79,8 @@ export async function POST(request: Request) {
     const href =
       parsed.href ??
       (parsed.slug ? resolveCategoryHref({ href: null, slug: parsed.slug }) : null);
+    const product_kind =
+      parsed.product_kind ?? inferProductKind();
     const body = {
       name_ar: parsed.name_ar,
       slug: parsed.slug,
@@ -84,14 +92,45 @@ export async function POST(request: Request) {
       description_ar: parsed.description_ar ?? "",
       href,
       legacy_key: parsed.legacy_key ?? null,
+      product_kind,
+      seo_title_ar: parsed.seo_title_ar ?? null,
+      seo_description_ar: parsed.seo_description_ar ?? null,
+      seo_og_image_url: parsed.seo_og_image_url ?? null,
       updated_at: new Date().toISOString(),
     };
     const supabase = await createPrivilegedClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("categories")
       .insert(body)
       .select()
       .single();
+
+    if (
+      error &&
+      /product_kind|seo_|PGRST204|42703/i.test(`${error.message}${error.code}`)
+    ) {
+      const legacyBody = {
+        name_ar: body.name_ar,
+        slug: body.slug,
+        parent_id: body.parent_id,
+        sort_order: body.sort_order,
+        is_visible: body.is_visible,
+        icon_url: body.icon_url,
+        cover_image_url: body.cover_image_url,
+        description_ar: body.description_ar,
+        href: body.href,
+        legacy_key: body.legacy_key,
+        updated_at: body.updated_at,
+      };
+      const retry = await supabase
+        .from("categories")
+        .insert(legacyBody)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
       const mapped = mapCategoryError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
@@ -137,12 +176,32 @@ export async function PUT(request: Request) {
       Object.entries(parsed).filter(([, v]) => v !== undefined)
     );
     const supabase = await createPrivilegedClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("categories")
       .update({ ...body, updated_at: new Date().toISOString() })
       .eq("id", id)
       .select()
       .single();
+
+    if (
+      error &&
+      /product_kind|seo_|PGRST204|42703/i.test(`${error.message}${error.code}`)
+    ) {
+      const cleaned = { ...body } as Record<string, unknown>;
+      delete cleaned.product_kind;
+      delete cleaned.seo_title_ar;
+      delete cleaned.seo_description_ar;
+      delete cleaned.seo_og_image_url;
+      const retry = await supabase
+        .from("categories")
+        .update({ ...cleaned, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
       const mapped = mapCategoryError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
@@ -183,6 +242,28 @@ export async function DELETE(request: Request) {
     searchParams.get("permanent") === "true";
 
   if (!permanent) {
+    const { data: catRow, error: catFetchError } = await supabase
+      .from("categories")
+      .select("id, legacy_key, slug, name_ar")
+      .eq("id", id)
+      .maybeSingle();
+    if (catFetchError) {
+      const mapped = mapCategoryError(catFetchError);
+      return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+    }
+    if (catRow) {
+      const productCount = await countDressesForCategory(catRow);
+      if (productCount > 0) {
+        return NextResponse.json(
+          {
+            error: `لا يمكن حذف التصنيف «${catRow.name_ar}» لأنه مرتبط بـ ${productCount} منتج. انقلي المنتجات إلى تصنيف آخر أولاً.`,
+            product_count: productCount,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const { count, error: childError } = await supabase
       .from("categories")
       .select("id", { count: "exact", head: true })
@@ -197,9 +278,11 @@ export async function DELETE(request: Request) {
       const mapped = mapCategoryError(childError);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
-    // Retry without is_deleted filter if column missing
     let childCount = count ?? 0;
-    if (childError && /is_deleted|PGRST204|42703/i.test(`${childError.message}${childError.code}`)) {
+    if (
+      childError &&
+      /is_deleted|PGRST204|42703/i.test(`${childError.message}${childError.code}`)
+    ) {
       const retry = await supabase
         .from("categories")
         .select("id", { count: "exact", head: true })

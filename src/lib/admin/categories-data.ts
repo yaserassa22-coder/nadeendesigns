@@ -3,6 +3,7 @@ import {
   filterLifecycleRows,
   isLifecycleSchemaError,
 } from "@/lib/admin/query-lifecycle";
+import { normalizeCategoryRow } from "@/lib/data/categories";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { isMissingTableError } from "@/lib/supabase/errors";
@@ -30,10 +31,15 @@ export async function getAdminCategories(): Promise<Category[]> {
         console.error("[getAdminCategories]", retry.error);
         return SEED_CATEGORIES;
       }
-      return (retry.data as Category[]) ?? SEED_CATEGORIES;
+      return ((retry.data as Category[]) ?? SEED_CATEGORIES).map(
+        normalizeCategoryRow
+      );
     }
     console.error("[getAdminCategories]", error);
     return SEED_CATEGORIES;
   }
-  return filterLifecycleRows((data as Category[]) ?? [], "all");
+  return filterLifecycleRows(
+    ((data as Category[]) ?? []).map(normalizeCategoryRow),
+    "all"
+  );
 }

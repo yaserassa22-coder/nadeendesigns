@@ -9,8 +9,9 @@ import { normalizeSiteSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
-import type { Booking, Dress, DressCategory, GalleryItem, SiteSettings } from "@/types";
-import { DRESS_CATEGORIES, DRESS_CATEGORY_LABELS } from "@/types";
+import type { Booking, Dress, GalleryItem, SiteSettings } from "@/types";
+import { getAdminCategories } from "@/lib/admin/categories-data";
+import { isDressProductCategory } from "@/types/category";
 
 export async function getAdminDresses(): Promise<Dress[]> {
   if (!isSupabaseConfigured()) return normalizeDressList(SEED_DRESSES);
@@ -142,18 +143,25 @@ export async function getAdminSettings(): Promise<SiteSettings> {
 }
 
 export async function getDashboardStats() {
-  const [dresses, gallery, bookingsResult] = await Promise.all([
+  const [dresses, gallery, bookingsResult, categories] = await Promise.all([
     getAdminDresses(),
     getAdminGallery(),
     getAdminBookings(),
+    getAdminCategories(),
   ]);
 
   const bookings = bookingsResult.bookings;
+  const dressCats = categories.filter((c) => isDressProductCategory(c));
 
-  const byCategory = DRESS_CATEGORIES.map((category) => ({
-    category,
-    label: DRESS_CATEGORY_LABELS[category],
-    count: dresses.filter((d) => d.category === category).length,
+  const byCategory = dressCats.map((cat) => ({
+    category: cat.legacy_key ?? cat.slug,
+    label: cat.name_ar,
+    count: dresses.filter(
+      (d) =>
+        d.category_id === cat.id ||
+        d.category === cat.legacy_key ||
+        d.category === cat.slug
+    ).length,
   }));
 
   return {
@@ -171,7 +179,11 @@ export async function getDashboardStats() {
 
 export function countDressesByCategory(
   dresses: Dress[],
-  category: DressCategory
+  categoryKey: string
 ) {
-  return dresses.filter((d) => d.category === category).length;
+  return dresses.filter(
+    (d) =>
+      d.category === categoryKey ||
+      d.category_id === categoryKey
+  ).length;
 }

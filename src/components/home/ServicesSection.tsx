@@ -130,9 +130,13 @@ export function ServicesSection({ categories }: ServicesSectionProps) {
   const visible = categories.filter((c) => c.is_visible !== false);
   const tree = buildCategoryTree(visible);
 
-  const dressRoots = tree.filter((n) => n.legacy_key !== "bridal_accessories");
+  const dressRoots = tree.filter(
+    (n) => n.product_kind !== "accessories_group" && n.legacy_key !== "bridal_accessories"
+  );
   const accessoriesRoot = tree.find(
-    (n) => n.legacy_key === "bridal_accessories"
+    (n) =>
+      n.product_kind === "accessories_group" ||
+      n.legacy_key === "bridal_accessories"
   );
   const accessoryChildren = accessoriesRoot?.children ?? [];
 

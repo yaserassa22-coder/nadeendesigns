@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { DressesManager } from "@/components/admin/DressesManager";
 import { getAdminDresses } from "@/lib/admin/data";
-import { DRESS_CATEGORIES, DRESS_CATEGORY_LABELS, type DressCategory } from "@/types";
+import { getAdminCategories } from "@/lib/admin/categories-data";
+import { isDressProductCategory } from "@/types/category";
 
 export const metadata: Metadata = {
   title: "إدارة المنتجات",
@@ -12,12 +13,26 @@ interface Props {
 }
 
 export default async function AdminDressesPage({ searchParams }: Props) {
-  const dresses = await getAdminDresses();
+  const [dresses, categories] = await Promise.all([
+    getAdminDresses(),
+    getAdminCategories(),
+  ]);
+  const dressCategories = categories.filter((c) => isDressProductCategory(c));
   const params = await searchParams;
   const initialCategory =
     params.category &&
-    DRESS_CATEGORIES.includes(params.category as DressCategory)
-      ? (params.category as DressCategory)
+    dressCategories.some(
+      (c) =>
+        c.id === params.category ||
+        c.legacy_key === params.category ||
+        c.slug === params.category
+    )
+      ? dressCategories.find(
+          (c) =>
+            c.id === params.category ||
+            c.legacy_key === params.category ||
+            c.slug === params.category
+        )!.id
       : "all";
 
   return (
@@ -26,11 +41,12 @@ export default async function AdminDressesPage({ searchParams }: Props) {
         <h1 className="text-3xl font-bold text-charcoal">إدارة المنتجات</h1>
         <p className="mt-2 text-muted">
           إدارة{" "}
-          {DRESS_CATEGORIES.map((c) => DRESS_CATEGORY_LABELS[c]).join(" · ")}
+          {dressCategories.map((c) => c.name_ar).join(" · ") || "التصنيفات الديناميكية"}
         </p>
       </div>
       <DressesManager
         initialDresses={dresses}
+        initialCategories={dressCategories}
         initialCategoryFilter={initialCategory}
       />
     </div>
