@@ -85,7 +85,9 @@ App toggles: Admin → Settings → Customer auth → Google enabled.
 - On Google/Apple sign-in, guest data merges into the customer (`converted_to_customer_id`).
 - On logout, a **new** guest session is minted so shopping continues.
 
-Apply SQL: `supabase/migrations/031_guest_customers.sql` or paste `APPLY_GUEST_CUSTOMERS.sql` / re-run `APPLY_ALL.sql` (section 34).
+Apply SQL: `supabase/migrations/031_guest_customers.sql` + `032_guest_storefront_rls.sql`, or paste `APPLY_GUEST_CUSTOMERS.sql` then `APPLY_GUEST_STOREFRONT_RLS.sql` / re-run `APPLY_ALL.sql` (sections 34–35).
+
+Guest cart APIs use the server anon key when `SUPABASE_SERVICE_ROLE_KEY` is unset; migration **032** adds RLS so `guest_customers` / `guest_carts` upserts succeed without the service role.
 
 ---
 

@@ -1,6 +1,8 @@
 -- Phase G: guest_customers — same as migrations/031_guest_customers.sql
 -- Standalone recovery script. Prefer APPLY_ALL.sql section 34 on fresh setups.
 -- Idempotent. Requires public.customers (APPLY_CUSTOMER_AUTH / 028).
+-- After this file, also apply APPLY_GUEST_STOREFRONT_RLS.sql (= 032 / APPLY_ALL §35)
+-- so guest cart works with the anon key (no SERVICE_ROLE required).
 
 CREATE TABLE IF NOT EXISTS guest_customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

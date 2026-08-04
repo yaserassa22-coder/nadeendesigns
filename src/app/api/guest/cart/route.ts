@@ -21,7 +21,7 @@ function guestSessionUnavailableResponse(
     {
       error:
         detail ||
-        "تعذر إنشاء جلسة الضيف. تحققي من ترحيل 031 وSUPABASE_SERVICE_ROLE_KEY.",
+        "تعذر إنشاء جلسة الضيف. طبّقي ترحيل 031 ثم 032 (APPLY_GUEST_STOREFRONT_RLS) أو APPLY_ALL قسم 35.",
     },
     { status: 503 }
   );
@@ -33,14 +33,14 @@ function mapCartWriteError(message: string): { status: number; error: string } {
     return {
       status: 503,
       error:
-        "جلسة الضيف غير محفوظة (FK guest_carts → guest_customers). أعيدي المحاولة أو طبّقي ترحيل 031.",
+        "جلسة الضيف غير محفوظة (FK guest_carts → guest_customers). أعيدي المحاولة أو طبّقي ترحيل 031/032.",
     };
   }
   if (/row-level security|RLS/i.test(message)) {
     return {
       status: 503,
       error:
-        "تم رفض كتابة سلة الضيف بسبب RLS. أضيفي SUPABASE_SERVICE_ROLE_KEY.",
+        "تم رفض كتابة سلة الضيف بسبب RLS. طبّقي ترحيل 032 / APPLY_GUEST_STOREFRONT_RLS.",
     };
   }
   return { status: 400, error: message };

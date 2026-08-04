@@ -166,8 +166,12 @@ export async function ensureGuestCustomer(params: {
       );
       return { guestId, created: true, row: null, persisted: false };
     }
-    // Typical when anon key is used without SERVICE_ROLE (RLS blocks write).
-    console.warn("[guest] ensureGuestCustomer", error.message);
+    // Typical before 032: anon key + admin-only RLS blocked writes.
+    console.warn(
+      "[guest] ensureGuestCustomer",
+      error.message,
+      "(apply 032 / APPLY_GUEST_STOREFRONT_RLS if RLS)"
+    );
     return { guestId, created: true, row: null, persisted: false };
   }
 

@@ -62,6 +62,8 @@
 --   33. Phase E3 WhatsApp OTP provider: APPLY_WHATSAPP_AUTH (= 030)
 --   34. Phase G guest customers: APPLY_GUEST_CUSTOMERS (= 031)
 --       guest_id cookie identity, guest carts, guest wishlist, recently viewed
+--   35. Phase G2 guest storefront RLS: APPLY_GUEST_STOREFRONT_RLS (= 032)
+--       anon-key upserts for guest_customers / guest_carts (no SERVICE_ROLE required)
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, settings) must already
 -- exist from the main schema / earlier project setup. This file applies
@@ -3028,7 +3030,7 @@ BEGIN
         DROP CONSTRAINT wishlist_items_customer_id_product_kind_product_id_key;
     END IF;
   END IF;
-END $;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_wishlist_customer_product
   ON wishlist_items (customer_id, product_kind, product_id)
@@ -3099,7 +3101,7 @@ BEGIN
   ) THEN
     ALTER TABLE customer_notifications ADD COLUMN IF NOT EXISTS guest_id TEXT;
   END IF;
-END $;
+END $$;
 
 ALTER TABLE guest_customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE guest_carts ENABLE ROW LEVEL SECURITY;
@@ -3134,6 +3136,199 @@ CREATE POLICY "Admin all recently_viewed" ON recently_viewed
         AND profiles.role IN ('admin', 'owner', 'staff')
     )
   );
+
+-- #############################################################################
+-- 35 — Phase G2 guest storefront RLS: APPLY_GUEST_STOREFRONT_RLS.sql (= 032)
+-- Anon-key path for guest cart/session durability (no SERVICE_ROLE required).
+-- Idempotent. Requires section 34 / guest_customers.
+-- #############################################################################
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'guest_customers'
+  ) THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = 'guest_customers_guest_id_uuid_check'
+    ) THEN
+      ALTER TABLE guest_customers
+        ADD CONSTRAINT guest_customers_guest_id_uuid_check
+        CHECK (
+          guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        );
+    END IF;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'guest_carts'
+  ) THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = 'guest_carts_guest_id_uuid_check'
+    ) THEN
+      ALTER TABLE guest_carts
+        ADD CONSTRAINT guest_carts_guest_id_uuid_check
+        CHECK (
+          guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        );
+    END IF;
+  END IF;
+END $$;
+
+ALTER TABLE guest_customers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Storefront select guest_customers" ON guest_customers;
+CREATE POLICY "Storefront select guest_customers" ON guest_customers
+  FOR SELECT
+  USING (
+    guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  );
+
+DROP POLICY IF EXISTS "Storefront insert guest_customers" ON guest_customers;
+CREATE POLICY "Storefront insert guest_customers" ON guest_customers
+  FOR INSERT
+  WITH CHECK (
+    guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    AND converted_to_customer_id IS NULL
+  );
+
+DROP POLICY IF EXISTS "Storefront update guest_customers" ON guest_customers;
+CREATE POLICY "Storefront update guest_customers" ON guest_customers
+  FOR UPDATE
+  USING (converted_to_customer_id IS NULL)
+  WITH CHECK (converted_to_customer_id IS NULL);
+
+ALTER TABLE guest_carts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Storefront select guest_carts" ON guest_carts;
+CREATE POLICY "Storefront select guest_carts" ON guest_carts
+  FOR SELECT
+  USING (
+    guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  );
+
+DROP POLICY IF EXISTS "Storefront insert guest_carts" ON guest_carts;
+CREATE POLICY "Storefront insert guest_carts" ON guest_carts
+  FOR INSERT
+  WITH CHECK (
+    guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    AND jsonb_typeof(items) = 'array'
+  );
+
+DROP POLICY IF EXISTS "Storefront update guest_carts" ON guest_carts;
+CREATE POLICY "Storefront update guest_carts" ON guest_carts
+  FOR UPDATE
+  USING (
+    guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  )
+  WITH CHECK (
+    guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    AND jsonb_typeof(items) = 'array'
+  );
+
+DROP POLICY IF EXISTS "Storefront delete guest_carts" ON guest_carts;
+CREATE POLICY "Storefront delete guest_carts" ON guest_carts
+  FOR DELETE
+  USING (
+    guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  );
+
+ALTER TABLE recently_viewed ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Storefront select recently_viewed guest" ON recently_viewed;
+CREATE POLICY "Storefront select recently_viewed guest" ON recently_viewed
+  FOR SELECT
+  USING (
+    guest_id IS NOT NULL
+    AND customer_id IS NULL
+    AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  );
+
+DROP POLICY IF EXISTS "Storefront insert recently_viewed guest" ON recently_viewed;
+CREATE POLICY "Storefront insert recently_viewed guest" ON recently_viewed
+  FOR INSERT
+  WITH CHECK (
+    guest_id IS NOT NULL
+    AND customer_id IS NULL
+    AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  );
+
+DROP POLICY IF EXISTS "Storefront update recently_viewed guest" ON recently_viewed;
+CREATE POLICY "Storefront update recently_viewed guest" ON recently_viewed
+  FOR UPDATE
+  USING (
+    guest_id IS NOT NULL
+    AND customer_id IS NULL
+    AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  )
+  WITH CHECK (
+    guest_id IS NOT NULL
+    AND customer_id IS NULL
+    AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  );
+
+DROP POLICY IF EXISTS "Storefront delete recently_viewed guest" ON recently_viewed;
+CREATE POLICY "Storefront delete recently_viewed guest" ON recently_viewed
+  FOR DELETE
+  USING (
+    guest_id IS NOT NULL
+    AND customer_id IS NULL
+    AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  );
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'wishlist_items'
+  ) THEN
+    ALTER TABLE wishlist_items ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "Storefront select wishlist guest" ON wishlist_items;
+    CREATE POLICY "Storefront select wishlist guest" ON wishlist_items
+      FOR SELECT
+      USING (
+        guest_id IS NOT NULL
+        AND customer_id IS NULL
+        AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      );
+
+    DROP POLICY IF EXISTS "Storefront insert wishlist guest" ON wishlist_items;
+    CREATE POLICY "Storefront insert wishlist guest" ON wishlist_items
+      FOR INSERT
+      WITH CHECK (
+        guest_id IS NOT NULL
+        AND customer_id IS NULL
+        AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      );
+
+    DROP POLICY IF EXISTS "Storefront update wishlist guest" ON wishlist_items;
+    CREATE POLICY "Storefront update wishlist guest" ON wishlist_items
+      FOR UPDATE
+      USING (
+        guest_id IS NOT NULL
+        AND customer_id IS NULL
+        AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      )
+      WITH CHECK (
+        guest_id IS NOT NULL
+        AND customer_id IS NULL
+        AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      );
+
+    DROP POLICY IF EXISTS "Storefront delete wishlist guest" ON wishlist_items;
+    CREATE POLICY "Storefront delete wishlist guest" ON wishlist_items
+      FOR DELETE
+      USING (
+        guest_id IS NOT NULL
+        AND customer_id IS NULL
+        AND guest_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      );
+  END IF;
+END $$;
 
 -- =============================================================================
 -- END APPLY_ALL.sql
