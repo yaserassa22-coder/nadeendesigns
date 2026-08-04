@@ -104,7 +104,7 @@ export function NotificationCenter({ className }: { className?: string }) {
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -left-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+          <span className="absolute top-0 end-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         )}

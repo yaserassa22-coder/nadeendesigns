@@ -17,6 +17,7 @@ export {
   markGuestConverted,
   guestCookieOptions,
   type GuestRow,
+  type EnsureGuestResult,
 } from "./session";
 export {
   mergeGuestIntoCustomer,

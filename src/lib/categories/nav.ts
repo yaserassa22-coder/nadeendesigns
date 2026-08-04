@@ -66,6 +66,7 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
     };
   }
 
+  // Caller should pass getStorefrontCategories() (visible + has products).
   const tree = buildCategoryTree(categories.filter((c) => c.is_visible));
   const primary: NavLink[] = [];
   let accessories: AccessoriesNav = { ...FALLBACK_ACCESSORIES, children: [] };

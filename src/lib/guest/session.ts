@@ -81,10 +81,21 @@ function deviceHint(ua: string | null): string | null {
   return `desktop:${s}`;
 }
 
+export type EnsureGuestResult = {
+  guestId: string;
+  created: boolean;
+  row: GuestRow | null;
+  /** True when guest_customers row exists (required FK parent for guest_carts). */
+  persisted: boolean;
+};
+
 /**
  * Ensure a guest_customers row exists for the cookie guest_id.
  * Creates a new cryptographically secure UUID when missing/invalid.
  * Updates last_seen on every call.
+ *
+ * guest_carts.guest_id REFERENCES guest_customers(guest_id) — callers must
+ * check `persisted` before writing dependent rows, or upserts return FK 400.
  */
 export async function ensureGuestCustomer(params: {
   guestId?: string | null;
@@ -93,17 +104,18 @@ export async function ensureGuestCustomer(params: {
   userAgent?: string | null;
   /** Force a brand-new guest session (e.g. after registered logout). */
   forceNew?: boolean;
-}): Promise<{ guestId: string; created: boolean; row: GuestRow | null }> {
+}): Promise<EnsureGuestResult> {
   const existing =
     !params.forceNew && isValidGuestId(params.guestId)
       ? params.guestId!.trim().toLowerCase()
       : null;
-  const guestId = existing ?? generateGuestId();
+  // Always lowercase so cookie + FK keys stay consistent.
+  const guestId = (existing ?? generateGuestId()).toLowerCase();
   const created = !existing;
   const now = new Date().toISOString();
 
   if (!isSupabaseConfigured()) {
-    return { guestId, created, row: null };
+    return { guestId, created, row: null, persisted: false };
   }
 
   const supabase = createAdminClient();
@@ -123,12 +135,12 @@ export async function ensureGuestCustomer(params: {
       .maybeSingle();
 
     if (!error && data) {
-      return { guestId, created: false, row: data as GuestRow };
+      return { guestId, created: false, row: data as GuestRow, persisted: true };
     }
 
-    // Cookie existed but row missing — recreate
+    // Cookie existed but row missing — recreate below
     if (error && isMissingTableError(error, "guest_customers")) {
-      return { guestId, created: true, row: null };
+      return { guestId, created: true, row: null, persisted: false };
     }
   }
 
@@ -152,13 +164,40 @@ export async function ensureGuestCustomer(params: {
       console.warn(
         "[guest] guest_customers missing — apply migration 031 / APPLY_GUEST_CUSTOMERS"
       );
-      return { guestId, created: true, row: null };
+      return { guestId, created: true, row: null, persisted: false };
     }
+    // Typical when anon key is used without SERVICE_ROLE (RLS blocks write).
     console.warn("[guest] ensureGuestCustomer", error.message);
-    return { guestId, created: true, row: null };
+    return { guestId, created: true, row: null, persisted: false };
   }
 
-  return { guestId, created: created || !existing, row: (data as GuestRow) ?? null };
+  if (!data) {
+    const { data: again, error: readError } = await supabase
+      .from("guest_customers")
+      .select("*")
+      .eq("guest_id", guestId)
+      .maybeSingle();
+    if (!readError && again) {
+      return {
+        guestId,
+        created: created || !existing,
+        row: again as GuestRow,
+        persisted: true,
+      };
+    }
+    console.warn(
+      "[guest] ensureGuestCustomer upsert returned no row",
+      readError?.message
+    );
+    return { guestId, created: true, row: null, persisted: false };
+  }
+
+  return {
+    guestId,
+    created: created || !existing,
+    row: data as GuestRow,
+    persisted: true,
+  };
 }
 
 export async function markGuestConverted(

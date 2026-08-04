@@ -75,18 +75,37 @@ function mergeCartLines(a: CartItem[], b: CartItem[]): CartItem[] {
   return out.slice(0, 50);
 }
 
+async function ensureGuestCookie(): Promise<void> {
+  const res = await fetch("/api/guest/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ language: "ar" }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    console.error(
+      "[cart] guest session failed",
+      res.status,
+      data.error ?? res.statusText
+    );
+  }
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [ready, setReady] = useState(false);
   const syncTimer = useRef<number | null>(null);
+  const syncGen = useRef(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void (async () => {
         const local = loadCart();
         setItems(local);
-        // Hydrate from durable guest cart if server has newer/extra lines
         try {
+          // Establish durable guest_id cookie before cart GET/PUT (Phase G).
+          await ensureGuestCookie();
           const res = await fetch("/api/guest/cart", {
             credentials: "same-origin",
             cache: "no-store",
@@ -97,9 +116,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               const merged = mergeCartLines(local, data.items as CartItem[]);
               setItems(merged);
             }
+          } else {
+            const data = (await res.json().catch(() => ({}))) as {
+              error?: string;
+            };
+            console.error(
+              "[cart] guest cart hydrate failed",
+              res.status,
+              data.error ?? res.statusText
+            );
           }
-        } catch {
-          /* ignore — localStorage still works */
+        } catch (err) {
+          console.error("[cart] guest cart hydrate error", err);
         }
         setReady(true);
       })();
@@ -112,17 +140,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(CART_KEY, JSON.stringify(items));
     } catch {
-      /* ignore */
+      /* ignore quota */
     }
-    // Debounced server sync for guest durability across devices/restarts
+    // Debounced server sync for guest durability across refresh/restart
     if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    const gen = ++syncGen.current;
     syncTimer.current = window.setTimeout(() => {
-      void fetch("/api/guest/cart", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ items }),
-      }).catch(() => undefined);
+      void (async () => {
+        try {
+          const res = await fetch("/api/guest/cart", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ items }),
+          });
+          if (gen !== syncGen.current) return;
+          if (!res.ok) {
+            const data = (await res.json().catch(() => ({}))) as {
+              error?: string;
+            };
+            // Do not suppress — surface for debugging while keeping local cart.
+            console.error(
+              "[cart] guest cart PUT failed",
+              res.status,
+              data.error ?? res.statusText
+            );
+          }
+        } catch (err) {
+          if (gen !== syncGen.current) return;
+          console.error("[cart] guest cart PUT error", err);
+        }
+      })();
     }, 600);
     return () => {
       if (syncTimer.current) window.clearTimeout(syncTimer.current);

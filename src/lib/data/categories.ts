@@ -8,6 +8,7 @@ import {
   filterLifecycleRows,
   isLifecycleSchemaError,
 } from "@/lib/admin/query-lifecycle";
+import { filterStorefrontCategories } from "@/lib/categories/storefront";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -82,6 +83,15 @@ export async function getCategories(): Promise<Category[]> {
 export async function getVisibleCategories(): Promise<Category[]> {
   const all = await getCategories();
   return all.filter((c) => c.is_visible !== false);
+}
+
+/**
+ * Storefront categories for Header / Footer / Homepage collections:
+ * visible (not draft) AND has at least one product.
+ */
+export async function getStorefrontCategories(): Promise<Category[]> {
+  const all = await getCategories();
+  return filterStorefrontCategories(all);
 }
 
 function normalizePublicPath(path: string): string {

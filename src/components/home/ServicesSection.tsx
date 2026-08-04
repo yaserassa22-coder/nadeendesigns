@@ -126,7 +126,7 @@ interface ServicesSectionProps {
 }
 
 export function ServicesSection({ categories }: ServicesSectionProps) {
-  // Only hide when is_visible is false — do not require products, images, or href.
+  // Caller (getStorefrontCategories) already applies is_visible + product-count.
   const visible = categories.filter((c) => c.is_visible !== false);
   const tree = buildCategoryTree(visible);
 

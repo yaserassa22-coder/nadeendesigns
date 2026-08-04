@@ -81,36 +81,45 @@ export function Header({
           : "bg-transparent py-5"
       )}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 md:px-8">
+      {/*
+        Desktop (≥lg): 3-column grid keeps the logo truly centered and isolates
+        side navs so category links can never overlap the brand (1024/1440).
+        Mobile: menu | centered logo | shrink-0 utilities (cart + notifications).
+      */}
+      <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 px-3 sm:gap-x-3 sm:px-4 md:px-8 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-4">
         <button
           type="button"
-          className="lg:hidden"
+          className="shrink-0 justify-self-start lg:hidden"
           onClick={() => setMobileOpen(true)}
           aria-label="فتح القائمة"
         >
           <Menu className="h-6 w-6 text-charcoal" />
         </button>
 
-        <nav className="hidden min-w-0 flex-1 items-center justify-start gap-x-2 lg:flex xl:gap-x-3">
+        <nav className="hidden min-w-0 items-center justify-start gap-x-1.5 overflow-hidden lg:flex xl:gap-x-3">
           {primaryLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="shrink-0 text-[13px] font-medium text-charcoal/80 transition-colors hover:text-gold xl:text-sm"
+              className="max-w-full truncate text-[12px] font-medium text-charcoal/80 transition-colors hover:text-gold xl:text-sm"
+              title={link.label}
             >
               {link.label}
             </Link>
           ))}
         </nav>
 
-        <Link href="/" className="group flex shrink-0 flex-col items-center px-2">
-          <span className="font-[family-name:var(--font-cormorant)] text-2xl font-semibold tracking-widest text-charcoal transition-colors group-hover:text-gold md:text-3xl">
+        <Link
+          href="/"
+          className="group col-start-2 flex min-w-0 flex-col items-center justify-self-center px-1 sm:px-2 lg:col-start-auto"
+        >
+          <span className="max-w-[9.5rem] truncate text-center font-[family-name:var(--font-cormorant)] text-xl font-semibold tracking-widest text-charcoal transition-colors group-hover:text-gold sm:max-w-none sm:text-2xl md:text-3xl">
             {SITE_NAME}
           </span>
           <span className="mt-0.5 h-px w-0 bg-gold transition-all duration-500 group-hover:w-full" />
         </Link>
 
-        <nav className="hidden flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2 lg:flex xl:gap-4">
+        <nav className="hidden min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-2 overflow-hidden lg:flex xl:gap-x-4">
           <div
             className="relative"
             onMouseEnter={() => setAccessoriesOpen(true)}
@@ -164,7 +173,7 @@ export function Header({
             >
               {link.label}
               {link.href === "/cart" && count > 0 && (
-                <span className="absolute -top-2 -end-3 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+                <span className="absolute -top-2 start-full ms-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
                   {count}
                 </span>
               )}
@@ -191,11 +200,12 @@ export function Header({
           <NotificationCenter />
         </nav>
 
-        <div className="flex items-center gap-1 lg:hidden">
+        {/* Mobile utilities: shrink-0 cluster — cart + notifications always in-flow */}
+        <div className="col-start-3 flex shrink-0 items-center justify-self-end gap-0.5 sm:gap-1 lg:hidden">
           {customer || user ? (
             <Link
               href="/account"
-              className="rounded-full p-2 text-charcoal hover:text-gold"
+              className="rounded-full p-1.5 text-charcoal hover:text-gold sm:p-2"
               aria-label="حسابي"
             >
               <User className="h-5 w-5" />
@@ -204,7 +214,7 @@ export function Header({
             <button
               type="button"
               onClick={() => openLogin()}
-              className="rounded-full p-2 text-charcoal hover:text-gold"
+              className="rounded-full p-1.5 text-charcoal hover:text-gold sm:p-2"
               aria-label="دخول"
             >
               <User className="h-5 w-5" />
@@ -213,12 +223,12 @@ export function Header({
           <NotificationCenter />
           <Link
             href="/cart"
-            className="relative rounded-full p-2 text-charcoal hover:text-gold"
+            className="relative rounded-full p-1.5 text-charcoal hover:text-gold sm:p-2"
             aria-label="السلة"
           >
             <ShoppingBag className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+              <span className="absolute top-0 end-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
                 {count}
               </span>
             )}

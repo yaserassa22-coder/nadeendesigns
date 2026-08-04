@@ -7,7 +7,7 @@ import {
   buildFooterNavLinks,
   buildStorefrontNav,
 } from "@/lib/categories/nav";
-import { getCategories } from "@/lib/data/categories";
+import { getStorefrontCategories } from "@/lib/data/categories";
 import { getSettings } from "@/lib/data/queries";
 
 export default async function SiteLayout({
@@ -15,7 +15,7 @@ export default async function SiteLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const [settings, categories] = await Promise.all([
     getSettings(),
-    getCategories(),
+    getStorefrontCategories(),
   ]);
   const nav = buildStorefrontNav(categories);
 

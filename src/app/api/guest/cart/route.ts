@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingTableError } from "@/lib/supabase/errors";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
   applyGuestCookie,
   ensureGuestCustomer,
@@ -9,6 +10,41 @@ import {
   readGuestIdFromRequest,
   takeGuestCartItems,
 } from "@/lib/guest";
+import { sanitizeGuestCartItems } from "@/lib/guest/cart-items";
+
+function guestSessionUnavailableResponse(
+  guestId: string,
+  requestUrl: string,
+  detail?: string
+) {
+  const res = NextResponse.json(
+    {
+      error:
+        detail ||
+        "تعذر إنشاء جلسة الضيف. تحققي من ترحيل 031 وSUPABASE_SERVICE_ROLE_KEY.",
+    },
+    { status: 503 }
+  );
+  return applyGuestCookie(res, guestId, requestUrl);
+}
+
+function mapCartWriteError(message: string): { status: number; error: string } {
+  if (/foreign key|violates foreign key/i.test(message)) {
+    return {
+      status: 503,
+      error:
+        "جلسة الضيف غير محفوظة (FK guest_carts → guest_customers). أعيدي المحاولة أو طبّقي ترحيل 031.",
+    };
+  }
+  if (/row-level security|RLS/i.test(message)) {
+    return {
+      status: 503,
+      error:
+        "تم رفض كتابة سلة الضيف بسبب RLS. أضيفي SUPABASE_SERVICE_ROLE_KEY.",
+    };
+  }
+  return { status: 400, error: message };
+}
 
 export async function GET(request: NextRequest) {
   const ip =
@@ -26,8 +62,29 @@ export async function GET(request: NextRequest) {
   });
 
   if (take) {
-    const items = await takeGuestCartItems(ensured.guestId);
+    const items = ensured.persisted
+      ? await takeGuestCartItems(ensured.guestId)
+      : [];
     const res = NextResponse.json({ items, guest_id: ensured.guestId });
+    return applyGuestCookie(res, ensured.guestId, request.url);
+  }
+
+  if (!isSupabaseConfigured()) {
+    const res = NextResponse.json({
+      items: [],
+      guest_id: ensured.guestId,
+      stub: true,
+    });
+    return applyGuestCookie(res, ensured.guestId, request.url);
+  }
+
+  if (!ensured.persisted) {
+    // Still set cookie so subsequent requests reuse the same guest_id.
+    const res = NextResponse.json({
+      items: [],
+      guest_id: ensured.guestId,
+      stub: true,
+    });
     return applyGuestCookie(res, ensured.guestId, request.url);
   }
 
@@ -43,7 +100,8 @@ export async function GET(request: NextRequest) {
     return applyGuestCookie(res, ensured.guestId, request.url);
   }
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    const res = NextResponse.json({ error: error.message }, { status: 400 });
+    return applyGuestCookie(res, ensured.guestId, request.url);
   }
 
   const items = Array.isArray(data?.items) ? data!.items : [];
@@ -72,10 +130,17 @@ export async function PUT(request: NextRequest) {
   if (!Array.isArray(body.items)) {
     return NextResponse.json({ error: "items مطلوب" }, { status: 400 });
   }
-  // Cap payload size
   if (body.items.length > 50) {
     return NextResponse.json(
       { error: "السلة كبيرة جداً" },
+      { status: 400 }
+    );
+  }
+
+  const items = sanitizeGuestCartItems(body.items);
+  if (body.items.length > 0 && items.length === 0) {
+    return NextResponse.json(
+      { error: "عناصر السلة غير صالحة" },
       { status: 400 }
     );
   }
@@ -86,12 +151,27 @@ export async function PUT(request: NextRequest) {
     userAgent: request.headers.get("user-agent"),
   });
 
+  if (!isSupabaseConfigured()) {
+    const res = NextResponse.json({
+      ok: true,
+      guest_id: ensured.guestId,
+      stub: true,
+    });
+    return applyGuestCookie(res, ensured.guestId, request.url);
+  }
+
+  // Root cause of prior PUT 400: upsert into guest_carts while guest_customers
+  // row was missing (ensureGuestCustomer swallowed RLS/write failures).
+  if (!ensured.persisted) {
+    return guestSessionUnavailableResponse(ensured.guestId, request.url);
+  }
+
   const now = new Date().toISOString();
   const supabase = createAdminClient();
   const { error } = await supabase.from("guest_carts").upsert(
     {
       guest_id: ensured.guestId,
-      items: body.items,
+      items,
       updated_at: now,
     },
     { onConflict: "guest_id" }
@@ -104,7 +184,12 @@ export async function PUT(request: NextRequest) {
         { status: 503 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    const mapped = mapCartWriteError(error.message);
+    const res = NextResponse.json(
+      { error: mapped.error },
+      { status: mapped.status }
+    );
+    return applyGuestCookie(res, ensured.guestId, request.url);
   }
 
   const res = NextResponse.json({ ok: true, guest_id: ensured.guestId });
