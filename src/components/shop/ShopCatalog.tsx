@@ -17,11 +17,14 @@ interface ShopCatalogItem {
   is_available: boolean;
   category?: string;
   size?: string | null;
+  /** When set (e.g. mixed Bridal Accessories), used instead of basePath/id */
+  href?: string;
 }
 
 interface ShopCatalogProps {
   items: ShopCatalogItem[];
-  basePath: "/veils" | "/robes";
+  /** Required unless every item provides its own href */
+  basePath?: "/veils" | "/robes";
   showCategoryFilter?: boolean;
   categoryOptions?: string[];
 }
@@ -50,7 +53,8 @@ export function ShopCatalog({
       if (!q) return true;
       return (
         item.name_ar.toLowerCase().includes(q) ||
-        (item.material?.toLowerCase().includes(q) ?? false)
+        (item.material?.toLowerCase().includes(q) ?? false) ||
+        (item.category?.toLowerCase().includes(q) ?? false)
       );
     });
   }, [items, search, color, category]);
@@ -99,7 +103,9 @@ export function ShopCatalog({
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((item, i) => {
-            const href = `${basePath}/${item.id}`;
+            const href =
+              item.href?.trim() ||
+              (basePath ? `${basePath}/${item.id}` : `/${item.id}`);
             return (
               <motion.article
                 key={item.id}

@@ -6,13 +6,16 @@ import { InstagramSection } from "@/components/home/InstagramSection";
 import { CTASection } from "@/components/home/CTASection";
 import { getStorefrontCategories } from "@/lib/data/categories";
 import { getFeaturedDresses, getSettings } from "@/lib/data/queries";
+import { getBridalAccessoriesProducts } from "@/lib/data/shop-queries";
 
 export default async function HomePage() {
-  const [featuredDresses, categories, settings] = await Promise.all([
-    getFeaturedDresses(3),
-    getStorefrontCategories(),
-    getSettings(),
-  ]);
+  const [featuredDresses, categories, settings, accessoryProducts] =
+    await Promise.all([
+      getFeaturedDresses(3),
+      getStorefrontCategories(),
+      getSettings(),
+      getBridalAccessoriesProducts(),
+    ]);
 
   return (
     <>
@@ -20,7 +23,10 @@ export default async function HomePage() {
       <FeaturedDresses dresses={featuredDresses} />
       <CustomDesignSection />
       {/* Category cards: src/components/home/ServicesSection.tsx */}
-      <ServicesSection categories={categories} />
+      <ServicesSection
+        categories={categories}
+        accessoryProducts={accessoryProducts}
+      />
       <InstagramSection />
       <CTASection />
     </>

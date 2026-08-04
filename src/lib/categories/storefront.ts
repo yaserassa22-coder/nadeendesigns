@@ -30,22 +30,24 @@ async function countDressRows(): Promise<CountRow[]> {
   return [];
 }
 
-/** Veils / robes: no category_id in schema — count rows (+ optional TEXT category). */
+/**
+ * Count active accessory rows.
+ * bridal_robes has no `category` TEXT column — always select `id`.
+ * veils may include optional TEXT category (style), but id is enough for counts.
+ */
 async function countAccessoryRows(
   table: "veils" | "bridal_robes"
 ): Promise<CountRow[]> {
   const supabase = createAdminClient();
-  let query = supabase.from(table).select("category");
+  // Prefer id-only: bridal_robes has no category column; selecting it zeros the count.
+  let query = supabase.from(table).select("id");
   query = query.eq("is_deleted", false) as typeof query;
   const { data, error } = await query;
-  if (!error && data) return data as CountRow[];
+  if (!error && data) return data.map(() => ({}));
 
-  const retry = await supabase.from(table).select("category");
-  if (!retry.error && retry.data) return retry.data as CountRow[];
-
-  const retry2 = await supabase.from(table).select("id");
-  if (!retry2.error && retry2.data) {
-    return retry2.data.map(() => ({}));
+  const retry = await supabase.from(table).select("id");
+  if (!retry.error && retry.data) {
+    return retry.data.map(() => ({}));
   }
   return [];
 }
@@ -67,6 +69,27 @@ function seedProductKeys(): {
     veilCount: SEED_VEILS.length,
     robeCount: SEED_BRIDAL_ROBES.length,
   };
+}
+
+function isVeilCategory(c: Category): boolean {
+  const kind = resolveCategoryProductKind(c);
+  if (kind === "veil") return true;
+  const slug = c.slug?.trim().toLowerCase();
+  const key = c.legacy_key?.trim().toLowerCase();
+  return slug === "veils" || key === "veils" || key === "veil";
+}
+
+function isBridalRobeCategory(c: Category): boolean {
+  const kind = resolveCategoryProductKind(c);
+  if (kind === "bridal_robe") return true;
+  const slug = c.slug?.trim().toLowerCase();
+  const key = c.legacy_key?.trim().toLowerCase();
+  return (
+    slug === "robes" ||
+    key === "bridal_robes" ||
+    key === "robes" ||
+    key === "bridal_robe"
+  );
 }
 
 /**
@@ -103,12 +126,6 @@ export async function filterStorefrontCategories(
     }
     veilCount = veils.length;
     robeCount = robes.length;
-    for (const row of veils) {
-      bump(byText, row.category?.trim().toLowerCase());
-    }
-    for (const row of robes) {
-      bump(byText, row.category?.trim().toLowerCase());
-    }
   }
 
   const hasProducts = (c: Category): boolean => {
@@ -118,9 +135,8 @@ export async function filterStorefrontCategories(
       .map((k) => k.trim().toLowerCase());
     if (keys.some((k) => (byText.get(k) ?? 0) > 0)) return true;
 
-    const kind = resolveCategoryProductKind(c);
-    if (kind === "veil") return veilCount > 0;
-    if (kind === "bridal_robe") return robeCount > 0;
+    if (isVeilCategory(c)) return veilCount > 0;
+    if (isBridalRobeCategory(c)) return robeCount > 0;
     return false;
   };
 
@@ -130,13 +146,14 @@ export async function filterStorefrontCategories(
     if (hasProducts(c)) leafOk.add(c.id);
   }
 
-  // Accessories parent stays if any visible child has products
+  // Accessories parent stays if any visible child has products,
+  // or if veils/robes tables have rows (child kind/slug mismatch safety net).
   for (const c of visible) {
     if (!isAccessoriesGroupCategory(c)) continue;
     const childHas = visible.some(
       (child) => child.parent_id === c.id && leafOk.has(child.id)
     );
-    if (childHas) leafOk.add(c.id);
+    if (childHas || veilCount + robeCount > 0) leafOk.add(c.id);
   }
 
   return visible.filter((c) => leafOk.has(c.id));

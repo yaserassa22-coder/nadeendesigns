@@ -9,6 +9,8 @@ import {
   getCategoryBySlug,
 } from "@/lib/data/categories";
 import { getDressesByCategoryKeys } from "@/lib/data/queries";
+import { getBridalAccessoriesProducts } from "@/lib/data/shop-queries";
+import { ShopCatalog } from "@/components/shop/ShopCatalog";
 import {
   buildCategoryTree,
   isAccessoriesGroupCategory,
@@ -142,30 +144,50 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
   redirectIfDedicated(category, slug);
 
   if (isAccessoriesGroupCategory(category)) {
-    const tree = buildCategoryTree(await getCategories());
+    const [allCategories, products] = await Promise.all([
+      getCategories(),
+      getBridalAccessoriesProducts(),
+    ]);
+    const tree = buildCategoryTree(allCategories);
     const node = tree.find((n) => n.id === category.id);
     const children = (node?.children ?? []).filter((c) => c.is_visible !== false);
     const description =
       category.description_ar?.trim() || "اختاري من اكسسوارات العروس";
+    const categoryOptions = [
+      ...new Set(products.map((p) => p.category).filter(Boolean)),
+    ];
 
     return (
       <>
         <CategoryJsonLd category={category} description={description} />
         <PageHero title={category.name_ar} description={description} />
-        <section className="py-16 md:py-24">
-          <div className="mx-auto grid max-w-3xl gap-4 px-4 md:px-8">
-            {children.length === 0 ? (
-              <p className="text-center text-muted">لا توجد تصنيفات فرعية حالياً</p>
-            ) : (
-              children.map((child) => (
+        {children.length > 0 && (
+          <section className="border-b border-beige-dark/60 py-8">
+            <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-3 px-4 md:px-8">
+              {children.map((child) => (
                 <Link
                   key={child.id}
                   href={resolveCategoryHref(child)}
-                  className="rounded-2xl border border-beige-dark bg-white px-6 py-5 text-lg font-medium text-charcoal transition-colors hover:border-gold hover:text-gold"
+                  className="rounded-full border border-beige-dark bg-white px-5 py-2 text-sm font-medium text-charcoal transition-colors hover:border-gold hover:text-gold"
                 >
                   {child.name_ar}
                 </Link>
-              ))
+              ))}
+            </div>
+          </section>
+        )}
+        <section className="py-16 md:py-24">
+          <div className="mx-auto max-w-7xl px-4 md:px-8">
+            {products.length === 0 ? (
+              <p className="py-16 text-center text-muted">
+                لا توجد منتجات في اكسسوارات العروس حالياً
+              </p>
+            ) : (
+              <ShopCatalog
+                items={products}
+                showCategoryFilter
+                categoryOptions={categoryOptions}
+              />
             )}
           </div>
         </section>
