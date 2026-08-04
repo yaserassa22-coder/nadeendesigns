@@ -1,5 +1,5 @@
 -- Phase E2: guest flag (idempotent) — same as migrations/029_customer_guest_flag.sql
--- Run after APPLY_CUSTOMER_AUTH.sql / 028 if needed standalone.
+-- Run AFTER APPLY_CUSTOMER_AUTH.sql / 028. Requires public.customers.
 
 DO $$
 BEGIN
@@ -22,11 +22,15 @@ BEGIN
   END IF;
 END $$;
 
+-- Link shop_orders.customer_id only when both shop_orders and customers exist
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'public' AND table_name = 'shop_orders'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'customers'
   ) THEN
     ALTER TABLE shop_orders
       ADD COLUMN IF NOT EXISTS customer_id UUID;

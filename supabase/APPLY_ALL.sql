@@ -59,6 +59,7 @@
 --   30. Product category_id FK + product_kind/SEO: APPLY_PRODUCT_CATEGORY_ID.sql (= 027)
 --       (repeated at end; this file never ADD ..._category_check / bookings_service_type_check)
 --   31. Phase E customer auth: APPLY_CUSTOMER_AUTH.sql (= 028)
+--       *** customers + related tables created HERE — MUST precede 029 ***
 --   32. Phase E2 guest flag: APPLY_CUSTOMER_GUEST.sql (= 029)
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, shop_orders base) must
@@ -2119,12 +2120,16 @@ FROM categories c
 WHERE d.category_id = c.id
   AND (d.category IS NULL OR btrim(d.category) = '');
 
-
 -- #############################################################################
--- 31 � Phase E customer auth: APPLY_CUSTOMER_AUTH.sql (= 028)
+-- 31 — Phase E customer auth: APPLY_CUSTOMER_AUTH.sql (= 028)
+-- Creates: customers, customer_addresses, otp_requests, customer_sessions,
+--          customer_devices, login_history, wishlist_items, customer_reviews,
+--          customer_messages, saved_designs, loyalty_coupons, loyalty_transactions
+-- MUST run before section 32 (guest). Safe to re-run (IF NOT EXISTS / DROP POLICY IF EXISTS).
 -- #############################################################################
 -- Phase E: Premium customer account & OTP authentication (idempotent)
--- Same as APPLY_CUSTOMER_AUTH.sql
+-- MUST run before APPLY_CUSTOMER_GUEST.sql / migrations/029_customer_guest_flag.sql.
+-- Same as migrations/028_customer_auth.sql
 
 -- =============================================================================
 -- customers — linked to auth.users when signed in; guest identity via phone/email
@@ -2165,7 +2170,7 @@ CREATE INDEX IF NOT EXISTS idx_customers_auth_user ON customers (auth_user_id);
 CREATE INDEX IF NOT EXISTS idx_customers_customer_key ON customers (customer_key);
 CREATE INDEX IF NOT EXISTS idx_customers_is_deleted ON customers (is_deleted);
 
-DO $
+DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'customers_referred_by_fkey'
@@ -2174,7 +2179,7 @@ BEGIN
       ADD CONSTRAINT customers_referred_by_fkey
       FOREIGN KEY (referred_by) REFERENCES customers(id) ON DELETE SET NULL;
   END IF;
-END $;
+END $$;
 
 -- =============================================================================
 -- customer_addresses
@@ -2200,7 +2205,7 @@ CREATE TABLE IF NOT EXISTS customer_addresses (
 CREATE INDEX IF NOT EXISTS idx_customer_addresses_customer
   ON customer_addresses (customer_id);
 
-DO $
+DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'customers_default_address_id_fkey'
@@ -2210,7 +2215,7 @@ BEGIN
       FOREIGN KEY (default_address_id) REFERENCES customer_addresses(id)
       ON DELETE SET NULL;
   END IF;
-END $;
+END $$;
 
 -- =============================================================================
 -- otp_requests — phone/email OTP with rate limits & expiry
@@ -2268,7 +2273,7 @@ CREATE TABLE IF NOT EXISTS customer_devices (
 CREATE INDEX IF NOT EXISTS idx_customer_devices_customer
   ON customer_devices (customer_id);
 
-DO $
+DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'customer_sessions_device_id_fkey'
@@ -2277,7 +2282,7 @@ BEGIN
       ADD CONSTRAINT customer_sessions_device_id_fkey
       FOREIGN KEY (device_id) REFERENCES customer_devices(id) ON DELETE SET NULL;
   END IF;
-END $;
+END $$;
 
 -- =============================================================================
 -- login_history
@@ -2400,7 +2405,7 @@ CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_customer
   ON loyalty_transactions (customer_id, created_at DESC);
 
 -- Optional link from guest orders → authenticated customer
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
@@ -2433,7 +2438,7 @@ BEGIN
     END IF;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON bookings (customer_id);
   END IF;
-END $;
+END $$;
 
 -- =============================================================================
 -- RLS
@@ -2638,8 +2643,13 @@ ON CONFLICT (key) DO NOTHING;
 
 
 -- #############################################################################
--- 32 - Phase E2 guest flag: APPLY_CUSTOMER_GUEST.sql (= 029)
+-- 32 — Phase E2 guest flag: APPLY_CUSTOMER_GUEST.sql (= 029)
+-- ALTERs customers.is_guest; FKs shop_orders.customer_id → customers(id)
+-- Requires section 31 / customers table. Standalone recovery: run AUTH then GUEST.
 -- #############################################################################
+-- Phase E2: guest flag (idempotent) — same as migrations/029_customer_guest_flag.sql
+-- Run AFTER APPLY_CUSTOMER_AUTH.sql / 028. Requires public.customers.
+
 DO $$
 BEGIN
   IF EXISTS (
@@ -2661,11 +2671,15 @@ BEGIN
   END IF;
 END $$;
 
+-- Link shop_orders.customer_id only when both shop_orders and customers exist
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'public' AND table_name = 'shop_orders'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'customers'
   ) THEN
     ALTER TABLE shop_orders
       ADD COLUMN IF NOT EXISTS customer_id UUID;
@@ -2681,6 +2695,7 @@ BEGIN
     CREATE INDEX IF NOT EXISTS idx_shop_orders_customer_id ON shop_orders (customer_id);
   END IF;
 END $$;
+
 
 -- =============================================================================
 -- END APPLY_ALL.sql

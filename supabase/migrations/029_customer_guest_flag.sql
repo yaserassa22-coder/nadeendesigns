@@ -1,5 +1,5 @@
 -- Phase E2: guest vs registered clarity + order linking helpers (idempotent)
--- Prefer this after 028_customer_auth.sql / APPLY_CUSTOMER_AUTH.sql
+-- MUST run after 028_customer_auth.sql / APPLY_CUSTOMER_AUTH.sql (creates customers)
 
 -- =============================================================================
 -- customers.is_guest — true for checkout-created guests; false once registered
@@ -27,11 +27,15 @@ BEGIN
 END $$;
 
 -- Ensure shop_orders.customer_id exists (also in 028; safe re-run)
+-- Guard: both shop_orders AND customers must exist before FK
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'public' AND table_name = 'shop_orders'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'customers'
   ) THEN
     ALTER TABLE shop_orders
       ADD COLUMN IF NOT EXISTS customer_id UUID;

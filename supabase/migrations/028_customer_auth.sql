@@ -1,5 +1,6 @@
 -- Phase E: Premium customer account & OTP authentication (idempotent)
--- Same as APPLY_CUSTOMER_AUTH.sql
+-- MUST run before APPLY_CUSTOMER_GUEST.sql / migrations/029_customer_guest_flag.sql.
+-- Same as migrations/028_customer_auth.sql
 
 -- =============================================================================
 -- customers — linked to auth.users when signed in; guest identity via phone/email
