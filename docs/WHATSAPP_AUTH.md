@@ -2,22 +2,42 @@
 
 Production customer login via **WhatsApp Business OTP**, with Google, Apple, and Guest kept.
 
+## Auth provider registry
+
+Customer login methods are **pluggable providers** under `src/lib/customer-auth/providers/`:
+
+| Module | Id | Capabilities |
+|--------|-----|--------------|
+| `WhatsAppAuthProvider` | `whatsapp` | otp |
+| `GoogleAuthProvider` | `google` | oauth |
+| `AppleAuthProvider` | `apple` | oauth |
+| `GuestAuthProvider` | `guest` | guest |
+| `EmailAuthProvider` | `email` | password (secondary) |
+
+- **Interface:** `AuthProvider` in `providers/types.ts`
+- **Registry:** `registerAuthProvider` / `getPublicAuthProviders` — LoginModal and `/api/auth/me` consume the catalog
+- **Shared (provider-agnostic):** `src/lib/customer-auth/session.ts` — session cookies, customer upsert, guest merge
+- **WhatsApp message delivery** stays in `src/lib/customer-auth/whatsapp/` (Meta / Twilio / 360dialog). The auth OTP provider calls into that; it does not own messaging credentials.
+
+Adding a future method (e.g. another OTP channel): implement `AuthProvider`, register in `providers/index.ts`, optionally add API routes referenced by `endpoints`. Do **not** change session/customer upsert, account, orders, appointments, or wishlist logic.
+
+`customers.provider` remains a string id for admin display only — core business features must not branch on it.
+
 ## Architecture
 
 ```
-LoginModal
-  → POST /api/auth/whatsapp/send-code
+LoginModal ← settings.providers (from /api/auth/me registry)
+  → OTP provider endpoints (WhatsAppAuthProvider)
       → hash OTP (SHA-256) → otp_requests
-      → WhatsAppProvider (meta | twilio | 360dialog)
-  → POST /api/auth/whatsapp/verify-code
-      → verify hash, invalidate OTP
-      → establishPhoneSession → Supabase Auth cookie
-      → customers upsert (provider=whatsapp) + guest merge
+      → WhatsApp message provider (meta | twilio | 360dialog)
+      → establishPhoneSession (shared) → customers.provider = provider id
+  → OAuth via /api/auth/oauth?provider=<id> → provider.startOAuth()
+  → Guest via GuestAuthProvider (client guest mode)
 ```
 
 Legacy routes `/api/auth/otp/request` and `/api/auth/otp/verify` delegate to the same WhatsApp handlers.
 
-Provider selection: `src/lib/customer-auth/whatsapp/`  
+Provider selection (messaging): `src/lib/customer-auth/whatsapp/`  
 OTP security helpers: `src/lib/customer-auth/otp.ts` + `otp-service.ts`
 
 ## Security defaults
@@ -103,18 +123,18 @@ NEXT_PUBLIC_APPLE_AUTH_ENABLED=true
 
 Adds on `customers`:
 
-- `provider` — `whatsapp` | `google` | `apple` | `guest` | `email`
+- `provider` — string id (`whatsapp` | `google` | `apple` | `guest` | `email` | future)
 - `merge_meta` — light guest→registered merge audit JSON
 - ensures `last_login_at`
 
 ## Guest merge
 
-On WhatsApp / OAuth / email login, `attachGuestOrdersToCustomer` links:
+On any registered login (OTP / OAuth / email), `attachGuestOrdersToCustomer` links:
 
 - orphan `shop_orders` + `bookings` by phone/email
 - wishlist + addresses from guest customer rows with the same contact
 
-Counts are stored in `customers.merge_meta` (admin customer detail shows them).
+Counts are stored in `customers.merge_meta` (admin customer detail shows them). Independent of which auth provider was used.
 
 ## API
 
@@ -122,5 +142,7 @@ Counts are stored in `customers.merge_meta` (admin customer detail shows them).
 |--------|------|---------|
 | POST | `/api/auth/whatsapp/send-code` | Create hashed OTP + send WhatsApp |
 | POST | `/api/auth/whatsapp/verify-code` | Verify → session → `/account` |
+| POST | `/api/auth/oauth` | Start OAuth for a registered provider id |
+| GET | `/api/auth/me` | Session + `settings.providers` catalog |
 | POST | `/api/auth/otp/request` | Deprecated alias → send-code |
 | POST | `/api/auth/otp/verify` | Deprecated alias → verify-code |

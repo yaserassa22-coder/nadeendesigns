@@ -563,7 +563,8 @@ export async function establishPhoneSession(params: {
 
   const admin = createAdminClient();
   const email = syntheticEmailFromPhone(params.e164);
-  const provider = params.provider || "whatsapp";
+  // Opaque string id from the calling AuthProvider — never switch on it here.
+  const provider = params.provider || "otp";
 
   const priorGuest = await getCustomerByPhoneOrEmail({ phone: params.e164 });
   const willMerge = Boolean(

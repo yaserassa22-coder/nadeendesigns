@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getSiteUrl } from "@/lib/notifications/config";
 import {
   getAuthEnvFlags,
   getCustomerAuthSettings,
 } from "@/lib/customer-auth/settings";
+import {
+  ensureAuthProvidersRegistered,
+  getAuthProvider,
+} from "@/lib/customer-auth/providers";
 
 /**
- * Returns OAuth start URL for Google/Apple via Supabase.
- * Client redirects to `url`. Buttons stay visible; disabled when not configured.
+ * Start OAuth for any registered oauth-capable auth provider.
+ * Provider-specific logic lives in the provider module — not here.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,54 +23,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    ensureAuthProvidersRegistered();
+
     const body = (await request.json().catch(() => ({}))) as {
-      provider?: "google" | "apple";
+      provider?: string;
       next?: string;
     };
-    const provider = body.provider;
-    if (provider !== "google" && provider !== "apple") {
+    const providerId = (body.provider || "").trim();
+    const authProvider = getAuthProvider(providerId);
+
+    if (!authProvider || !authProvider.capabilities.includes("oauth")) {
       return NextResponse.json({ error: "مزوّد غير مدعوم" }, { status: 400 });
+    }
+
+    if (!authProvider.startOAuth) {
+      return NextResponse.json(
+        { error: "هذا المزوّد لا يدعم OAuth" },
+        { status: 400 }
+      );
     }
 
     const settings = await getCustomerAuthSettings();
     const flags = getAuthEnvFlags();
 
-    if (provider === "google") {
-      if (!settings.google_enabled) {
-        return NextResponse.json(
-          { error: "تسجيل Google غير مفعّل", configured: false },
-          { status: 403 }
-        );
-      }
-      if (!flags.googleConfigured) {
-        return NextResponse.json(
-          {
-            error:
-              "Google غير مُعد. فعّلي المزود في Supabase وضعي NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true",
-            configured: false,
-          },
-          { status: 503 }
-        );
-      }
+    if (!authProvider.enabled(settings, flags)) {
+      return NextResponse.json(
+        {
+          error: `${authProvider.label.ar} غير مفعّل`,
+          configured: false,
+        },
+        { status: 403 }
+      );
     }
 
-    if (provider === "apple") {
-      if (!settings.apple_enabled) {
-        return NextResponse.json(
-          { error: "تسجيل Apple غير مفعّل", configured: false },
-          { status: 403 }
-        );
-      }
-      if (!flags.appleConfigured) {
-        return NextResponse.json(
-          {
-            error:
-              "Apple غير مُعد. فعّلي المزود في Supabase وضعي NEXT_PUBLIC_APPLE_AUTH_ENABLED=true",
-            configured: false,
-          },
-          { status: 503 }
-        );
-      }
+    if (!authProvider.ready(settings, flags)) {
+      return NextResponse.json(
+        {
+          error: `${authProvider.label.ar} غير مُعد. تحققي من إعدادات البيئة وSupabase.`,
+          configured: false,
+        },
+        { status: 503 }
+      );
     }
 
     const next =
@@ -76,28 +72,18 @@ export async function POST(request: NextRequest) {
         : "/account";
     const redirectTo = `${getSiteUrl()}/api/auth/callback?next=${encodeURIComponent(next)}`;
 
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (error || !data.url) {
+    const result = await authProvider.startOAuth({ next, redirectTo });
+    if (!result.ok) {
       return NextResponse.json(
         {
-          error:
-            error?.message ||
-            "تعذّر بدء تسجيل الدخول. تحققي من إعدادات OAuth في Supabase.",
-          configured: false,
+          error: result.error,
+          configured: result.configured ?? false,
         },
-        { status: 503 }
+        { status: result.status }
       );
     }
 
-    return NextResponse.json({ ok: true, url: data.url, configured: true });
+    return NextResponse.json({ ok: true, url: result.url, configured: true });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "خطأ غير متوقع" },

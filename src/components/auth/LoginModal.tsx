@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
@@ -18,8 +18,17 @@ import { SITE_NAME } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { PHONE_COUNTRIES, type CustomerAuthSettings } from "@/types/customer-auth";
+import type { AuthProviderPublic } from "@/lib/customer-auth/providers/types";
 
 const ACCENT = "#C9A14A";
+
+type SettingsWithProviders = CustomerAuthSettings & {
+  google_ready?: boolean;
+  apple_ready?: boolean;
+  otp_ready?: boolean;
+  email_ready?: boolean;
+  providers?: AuthProviderPublic[];
+};
 
 type Props = {
   open: boolean;
@@ -27,12 +36,7 @@ type Props = {
   onContinueAsGuest: () => void;
   onSuccess: () => void | Promise<void>;
   message?: string;
-  settings: (CustomerAuthSettings & {
-    google_ready?: boolean;
-    apple_ready?: boolean;
-    otp_ready?: boolean;
-    email_ready?: boolean;
-  }) | null;
+  settings: SettingsWithProviders | null;
   flags?: Record<string, boolean>;
 };
 
@@ -46,6 +50,24 @@ const ACCOUNT_BENEFITS = [
   { icon: Palette, label: "التصاميم المحفوظة" },
   { icon: Bell, label: "الإشعارات" },
 ] as const;
+
+/** Thin UI icons — new providers can omit and get a generic icon. */
+function providerIcon(id: string) {
+  switch (id) {
+    case "whatsapp":
+      return <FaWhatsapp className="h-5 w-5" />;
+    case "google":
+      return <FaGoogle className="h-4 w-4" />;
+    case "apple":
+      return <FaApple className="h-4 w-4" />;
+    case "guest":
+      return <UserRound className="h-5 w-5" style={{ color: ACCENT }} />;
+    case "email":
+      return <Mail className="h-4 w-4" />;
+    default:
+      return null;
+  }
+}
 
 export function LoginModal({
   open,
@@ -70,7 +92,30 @@ export function LoginModal({
   const [fullName, setFullName] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
   const [destinationHint, setDestinationHint] = useState<string | null>(null);
+  const [activeOtpProvider, setActiveOtpProvider] =
+    useState<AuthProviderPublic | null>(null);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const providers = useMemo(() => {
+    if (settings?.providers?.length) {
+      return [...settings.providers].sort((a, b) => a.order - b.order);
+    }
+    // Fallback when /api/auth/me has not yet returned the registry catalog
+    return buildLegacyProviders(settings);
+  }, [settings]);
+
+  const otpProviders = providers.filter(
+    (p) => p.enabled && p.capabilities.includes("otp")
+  );
+  const oauthProviders = providers.filter(
+    (p) => p.enabled && p.capabilities.includes("oauth")
+  );
+  const guestProvider = providers.find(
+    (p) => p.enabled && p.capabilities.includes("guest")
+  );
+  const emailProvider = providers.find(
+    (p) => p.enabled && p.capabilities.includes("password")
+  );
 
   function resetForm() {
     setStep("choice");
@@ -80,6 +125,7 @@ export function LoginModal({
     setRequestId(null);
     setDevCode(null);
     setDestinationHint(null);
+    setActiveOtpProvider(null);
     setLoading(false);
   }
 
@@ -112,20 +158,19 @@ export function LoginModal({
     };
   }, [open, handleClose]);
 
-  const guestEnabled = settings?.guest_checkout_enabled !== false;
-  const whatsappEnabled = settings?.otp_ready !== false;
-
-  async function requestOtp() {
+  async function requestOtp(provider = activeOtpProvider) {
+    const endpoints = provider?.endpoints;
+    const sendUrl = endpoints?.sendOtp || "/api/auth/whatsapp/send-code";
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/whatsapp/send-code", {
+      const res = await fetch(sendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dial, phone, remember }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز عبر واتساب");
+      if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
       setRequestId(data.request_id);
       setResendIn(data.resend_in ?? 60);
       setDevCode(data.dev_code ?? null);
@@ -142,10 +187,13 @@ export function LoginModal({
   async function verifyOtp(codeDigits?: string[]) {
     const code = (codeDigits ?? otp).join("");
     if (code.length !== 6) return;
+    const verifyUrl =
+      activeOtpProvider?.endpoints?.verifyOtp ||
+      "/api/auth/whatsapp/verify-code";
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/whatsapp/verify-code", {
+      const res = await fetch(verifyUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -189,20 +237,23 @@ export function LoginModal({
     }
   }
 
-  async function startOAuth(provider: "google" | "apple") {
+  async function startOAuth(providerId: string) {
+    const oauthUrl =
+      providers.find((p) => p.id === providerId)?.endpoints?.oauth ||
+      "/api/auth/oauth";
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/oauth", {
+      const res = await fetch(oauthUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, next: "/account" }),
+        body: JSON.stringify({ provider: providerId, next: "/account" }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
         throw new Error(data.error || "المزوّد غير مُعد حالياً");
       }
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذّر بدء تسجيل الدخول");
       setLoading(false);
@@ -210,10 +261,12 @@ export function LoginModal({
   }
 
   async function submitEmail() {
+    const passwordUrl =
+      emailProvider?.endpoints?.password || "/api/auth/email";
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/email", {
+      const res = await fetch(passwordUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -239,6 +292,8 @@ export function LoginModal({
       setLoading(false);
     }
   }
+
+  const otpLabel = activeOtpProvider?.label.ar || "واتساب";
 
   return (
     <AnimatePresence>
@@ -299,9 +354,9 @@ export function LoginModal({
                   {step === "choice"
                     ? "اختاري طريقة المتابعة — بأناقة وخصوصية."
                     : step === "phone"
-                      ? "أدخلي رقم واتساب لاستلام رمز التحقق."
+                      ? `أدخلي رقمك لاستلام رمز التحقق عبر ${otpLabel}.`
                       : step === "otp"
-                        ? "أدخلي الرمز الذي وصلَكِ على واتساب."
+                        ? `أدخلي الرمز الذي وصلَكِ عبر ${otpLabel}.`
                         : "البريد وكلمة المرور"}
                 </p>
               </div>
@@ -338,56 +393,54 @@ export function LoginModal({
                     ))}
                   </ul>
 
-                  {whatsappEnabled && (
+                  {otpProviders.map((p) => (
                     <button
+                      key={p.id}
                       type="button"
                       disabled={loading}
-                      onClick={() => setStep("phone")}
+                      onClick={() => {
+                        setActiveOtpProvider(p);
+                        setStep("phone");
+                      }}
                       className="flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
                       style={{ backgroundColor: ACCENT }}
                     >
-                      <FaWhatsapp className="h-5 w-5" />
-                      المتابعة مع واتساب
+                      {providerIcon(p.id)}
+                      {p.label.ar}
                     </button>
-                  )}
+                  ))}
 
-                  <OAuthButton
-                    label="المتابعة مع Google"
-                    icon={<FaGoogle className="h-4 w-4" />}
-                    ready={Boolean(settings?.google_ready)}
-                    enabled={settings?.google_enabled !== false}
-                    loading={loading}
-                    onClick={() => void startOAuth("google")}
-                    disabledHint="فعّلي Google في Supabase و NEXT_PUBLIC_GOOGLE_AUTH_ENABLED"
-                  />
-                  <OAuthButton
-                    label="المتابعة مع Apple"
-                    icon={<FaApple className="h-4 w-4" />}
-                    ready={Boolean(settings?.apple_ready)}
-                    enabled={settings?.apple_enabled !== false}
-                    loading={loading}
-                    onClick={() => void startOAuth("apple")}
-                    disabledHint="فعّلي Apple في Supabase و NEXT_PUBLIC_APPLE_AUTH_ENABLED"
-                  />
+                  {oauthProviders.map((p) => (
+                    <OAuthButton
+                      key={p.id}
+                      label={p.label.ar}
+                      icon={providerIcon(p.id)}
+                      ready={p.ready}
+                      enabled={p.enabled}
+                      loading={loading}
+                      onClick={() => void startOAuth(p.id)}
+                      disabledHint={`${p.label.ar} غير مُعد حالياً`}
+                    />
+                  ))}
 
-                  {guestEnabled && (
+                  {guestProvider && (
                     <button
                       type="button"
                       onClick={handleGuest}
                       className="flex w-full items-center justify-center gap-2 rounded-2xl border border-beige-dark bg-ivory/80 px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/40"
                     >
-                      <UserRound className="h-5 w-5" style={{ color: ACCENT }} />
-                      المتابعة كزائرة
+                      {providerIcon(guestProvider.id)}
+                      {guestProvider.label.ar}
                     </button>
                   )}
 
-                  {settings?.email_ready !== false && (
+                  {emailProvider && (
                     <button
                       type="button"
                       onClick={() => setStep("email")}
                       className="mt-1 w-full py-2 text-center text-xs text-muted underline-offset-4 hover:text-charcoal hover:underline"
                     >
-                      أو بالبريد وكلمة المرور
+                      أو {emailProvider.label.ar}
                     </button>
                   )}
                 </div>
@@ -396,7 +449,7 @@ export function LoginModal({
               {step === "phone" && (
                 <div className="space-y-4">
                   <label className="block text-sm text-muted">
-                    رقم واتساب
+                    رقم الهاتف
                   </label>
                   <div className="flex gap-2" dir="ltr">
                     <select
@@ -421,7 +474,7 @@ export function LoginModal({
                     />
                   </div>
                   <p className="text-xs text-muted">
-                    سنرسل رمز تحقق لمرة واحدة عبر واتساب — لا نشارك رقمكِ.
+                    سنرسل رمز تحقق لمرة واحدة عبر {otpLabel} — لا نشارك رقمكِ.
                   </p>
                   <label className="flex items-center gap-2 text-sm text-muted">
                     <input
@@ -448,7 +501,7 @@ export function LoginModal({
                       style={{ backgroundColor: ACCENT }}
                       onClick={() => void requestOtp()}
                     >
-                      <FaWhatsapp className="h-4 w-4" />
+                      {providerIcon(activeOtpProvider?.id || "whatsapp")}
                       إرسال الرمز
                     </Button>
                   </div>
@@ -516,7 +569,7 @@ export function LoginModal({
                     >
                       {resendIn > 0
                         ? `إعادة الإرسال بعد ${resendIn}ث`
-                        : "إعادة إرسال الرمز عبر واتساب"}
+                        : `إعادة إرسال الرمز عبر ${otpLabel}`}
                     </button>
                     <button
                       type="button"
@@ -612,6 +665,76 @@ export function LoginModal({
       )}
     </AnimatePresence>
   );
+}
+
+/** Fallback catalog when registry not yet loaded from /api/auth/me. */
+function buildLegacyProviders(
+  settings: SettingsWithProviders | null
+): AuthProviderPublic[] {
+  const list: AuthProviderPublic[] = [];
+  if (settings?.otp_ready !== false && settings?.otp_enabled !== false) {
+    list.push({
+      id: "whatsapp",
+      label: { ar: "المتابعة مع واتساب", en: "Continue with WhatsApp" },
+      capabilities: ["otp"],
+      order: 10,
+      primary: true,
+      enabled: true,
+      ready: true,
+      endpoints: {
+        sendOtp: "/api/auth/whatsapp/send-code",
+        verifyOtp: "/api/auth/whatsapp/verify-code",
+      },
+    });
+  }
+  if (settings?.google_enabled !== false) {
+    list.push({
+      id: "google",
+      label: { ar: "المتابعة مع Google", en: "Continue with Google" },
+      capabilities: ["oauth"],
+      order: 20,
+      primary: true,
+      enabled: true,
+      ready: Boolean(settings?.google_ready),
+      endpoints: { oauth: "/api/auth/oauth" },
+    });
+  }
+  if (settings?.apple_enabled !== false) {
+    list.push({
+      id: "apple",
+      label: { ar: "المتابعة مع Apple", en: "Continue with Apple" },
+      capabilities: ["oauth"],
+      order: 30,
+      primary: true,
+      enabled: true,
+      ready: Boolean(settings?.apple_ready),
+      endpoints: { oauth: "/api/auth/oauth" },
+    });
+  }
+  if (settings?.guest_checkout_enabled !== false) {
+    list.push({
+      id: "guest",
+      label: { ar: "المتابعة كزائرة", en: "Continue as guest" },
+      capabilities: ["guest"],
+      order: 40,
+      primary: true,
+      enabled: true,
+      ready: true,
+    });
+  }
+  if (settings?.email_ready !== false && settings?.email_password_enabled !== false) {
+    list.push({
+      id: "email",
+      label: { ar: "البريد وكلمة المرور", en: "Email and password" },
+      capabilities: ["password"],
+      order: 50,
+      primary: false,
+      enabled: true,
+      ready: true,
+      endpoints: { password: "/api/auth/email" },
+    });
+  }
+  return list;
 }
 
 function OAuthButton({

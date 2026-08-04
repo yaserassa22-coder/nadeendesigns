@@ -27,15 +27,8 @@ export const DEFAULT_CUSTOMER_AUTH_SETTINGS: CustomerAuthSettings = {
   remember_device_days: 30,
 };
 
-/** How the customer primarily authenticated (whatsapp / google / apple / guest / email). */
-export type CustomerAuthProvider =
-  | "whatsapp"
-  | "google"
-  | "apple"
-  | "guest"
-  | "email"
-  | "phone"
-  | "facebook";
+/** Opaque auth channel id stored on customers (admin display). Future providers = new string ids. */
+export type CustomerAuthProvider = string;
 
 export type CustomerProfile = {
   id: string;
@@ -94,14 +87,7 @@ export type WishlistItem = {
   created_at: string;
 };
 
-export type AuthProviderId =
-  | "whatsapp"
-  | "phone"
-  | "google"
-  | "apple"
-  | "email"
-  | "facebook"
-  | "guest";
+export type AuthProviderId = string;
 
 export const PHONE_COUNTRIES = [
   { code: "IL", dial: "+972", label: "إسرائيل (+972)", flag: "🇮🇱" },

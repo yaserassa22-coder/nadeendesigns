@@ -18,7 +18,10 @@ import {
   getCustomerByAuthUserId,
   recordCustomerSession,
   recordLoginHistory,
-} from "@/lib/customer-auth/customer";
+} from "@/lib/customer-auth/session";
+import { WhatsAppAuthProvider } from "@/lib/customer-auth/providers/whatsapp";
+
+const AUTH_PROVIDER_ID = WhatsAppAuthProvider.id;
 
 const PHONE_RATE_WINDOW_MS = 15 * 60 * 1000;
 const PHONE_RATE_MAX = 3;
@@ -322,7 +325,7 @@ export async function handleWhatsAppVerifyCode(
         .eq("id", otp.id);
 
       await recordLoginHistory({
-        method: "whatsapp",
+        method: AUTH_PROVIDER_ID,
         success: false,
         ip,
         userAgent: ua,
@@ -350,7 +353,7 @@ export async function handleWhatsAppVerifyCode(
     const session = await establishPhoneSession({
       e164,
       fullName: body.full_name,
-      provider: "whatsapp",
+      provider: AUTH_PROVIDER_ID,
     });
 
     if (!session.ok) {
@@ -362,12 +365,12 @@ export async function handleWhatsAppVerifyCode(
       await recordLoginHistory({
         customerId: customer.id,
         authUserId: session.userId,
-        method: "whatsapp",
+        method: AUTH_PROVIDER_ID,
         success: true,
         ip,
         userAgent: ua,
         meta: {
-          channel: otp.channel || "whatsapp",
+          channel: otp.channel || AUTH_PROVIDER_ID,
           merged: session.merged ?? false,
         },
       });
@@ -389,7 +392,7 @@ export async function handleWhatsAppVerifyCode(
             full_name: customer.full_name,
             phone: customer.phone,
             email: customer.email,
-            provider: customer.provider ?? "whatsapp",
+            provider: customer.provider ?? AUTH_PROVIDER_ID,
           }
         : null,
     });

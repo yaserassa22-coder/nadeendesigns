@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { CustomerAuthSettings, CustomerProfile } from "@/types/customer-auth";
+import type { AuthProviderPublic } from "@/lib/customer-auth/providers/types";
 import { LoginModal } from "@/components/auth/LoginModal";
 
 const GUEST_MODE_KEY = "nadeen_guest_mode";
@@ -23,6 +24,7 @@ type AuthMe = {
     apple_ready?: boolean;
     otp_ready?: boolean;
     email_ready?: boolean;
+    providers?: AuthProviderPublic[];
   };
   flags?: Record<string, boolean>;
 };

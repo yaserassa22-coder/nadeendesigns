@@ -10,6 +10,29 @@ import {
   isAdminUser,
 } from "@/lib/customer-auth/customer";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
+import {
+  ensureAuthProvidersRegistered,
+  getPublicAuthProviders,
+} from "@/lib/customer-auth/providers";
+
+function buildSettingsPayload(
+  settings: Awaited<ReturnType<typeof getCustomerAuthSettings>>,
+  flags: ReturnType<typeof getAuthEnvFlags>
+) {
+  ensureAuthProvidersRegistered();
+  const providers = getPublicAuthProviders(settings, flags);
+  const byId = Object.fromEntries(providers.map((p) => [p.id, p]));
+
+  return {
+    ...settings,
+    // Backward-compat ready flags for older clients
+    google_ready: byId.google?.ready ?? false,
+    apple_ready: byId.apple?.ready ?? false,
+    otp_ready: byId.whatsapp?.ready ?? false,
+    email_ready: byId.email?.ready ?? false,
+    providers,
+  };
+}
 
 export async function GET() {
   const settings = await getCustomerAuthSettings();
@@ -19,13 +42,12 @@ export async function GET() {
     return NextResponse.json({
       user: null,
       customer: null,
-      settings: {
-        ...settings,
-        google_ready: false,
-        apple_ready: false,
-        otp_ready: false,
-        email_ready: false,
-      },
+      settings: buildSettingsPayload(settings, {
+        ...flags,
+        supabaseConfigured: false,
+        googleConfigured: false,
+        appleConfigured: false,
+      }),
       flags,
     });
   }
@@ -35,13 +57,7 @@ export async function GET() {
     return NextResponse.json({
       user: null,
       customer: null,
-      settings: {
-        ...settings,
-        google_ready: settings.google_enabled && flags.googleConfigured,
-        apple_ready: settings.apple_enabled && flags.appleConfigured,
-        otp_ready: settings.otp_enabled,
-        email_ready: settings.email_password_enabled,
-      },
+      settings: buildSettingsPayload(settings, flags),
       flags,
     });
   }
@@ -57,13 +73,7 @@ export async function GET() {
     },
     customer,
     is_admin: admin,
-    settings: {
-      ...settings,
-      google_ready: settings.google_enabled && flags.googleConfigured,
-      apple_ready: settings.apple_enabled && flags.appleConfigured,
-      otp_ready: settings.otp_enabled,
-      email_ready: settings.email_password_enabled,
-    },
+    settings: buildSettingsPayload(settings, flags),
     flags,
   });
 }

@@ -40,12 +40,11 @@ export async function GET(request: NextRequest) {
   }
 
   const user = data.user;
-  const oauthProvider =
-    (user.app_metadata?.provider as string | undefined) || "oauth";
-  const mappedProvider =
-    oauthProvider === "google" || oauthProvider === "apple"
-      ? oauthProvider
-      : oauthProvider;
+  // Opaque provider id string for admin display — no business branching on it.
+  const providerId =
+    (user.app_metadata?.provider as string | undefined) ||
+    (user.user_metadata?.provider as string | undefined) ||
+    "oauth";
 
   const customer = await upsertCustomerForAuthUser({
     authUserId: user.id,
@@ -59,13 +58,13 @@ export async function GET(request: NextRequest) {
       (user.user_metadata?.avatar_url as string | undefined) ||
       (user.user_metadata?.picture as string | undefined) ||
       null,
-    provider: mappedProvider,
+    provider: providerId,
   });
 
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
   const ua = request.headers.get("user-agent");
-  const provider = mappedProvider;
+  const provider = providerId;
 
   if (customer) {
     await recordLoginHistory({
