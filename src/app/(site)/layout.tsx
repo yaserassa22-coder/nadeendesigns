@@ -22,7 +22,7 @@ export default async function SiteLayout({
   return (
     <CartProvider>
       <CustomerAuthProvider>
-        <Header primaryLinks={nav.primary} accessories={nav.accessories} />
+        <Header items={nav.items} />
         <main className="flex-1">{children}</main>
         <Footer
           settings={settings}

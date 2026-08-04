@@ -131,6 +131,9 @@ export async function POST(request: Request) {
       parent_id: parsed.parent_id ?? null,
       sort_order: parsed.sort_order ?? 0,
       is_visible: parsed.is_visible ?? true,
+      visible_in_navigation: parsed.visible_in_navigation ?? true,
+      show_on_homepage: parsed.show_on_homepage ?? true,
+      featured_collection: parsed.featured_collection ?? false,
       icon_url: parsed.icon_url ?? null,
       cover_image_url: parsed.cover_image_url ?? null,
       description_ar: parsed.description_ar ?? "",
@@ -151,7 +154,9 @@ export async function POST(request: Request) {
 
     if (
       error &&
-      /product_kind|seo_|PGRST204|42703/i.test(`${error.message}${error.code}`)
+      /product_kind|seo_|visible_in_navigation|show_on_homepage|featured_collection|PGRST204|42703/i.test(
+        `${error.message}${error.code}`
+      )
     ) {
       const legacyBody = {
         name_ar: body.name_ar,
@@ -235,13 +240,18 @@ export async function PUT(request: Request) {
 
     if (
       error &&
-      /product_kind|seo_|PGRST204|42703/i.test(`${error.message}${error.code}`)
+      /product_kind|seo_|visible_in_navigation|show_on_homepage|featured_collection|PGRST204|42703/i.test(
+        `${error.message}${error.code}`
+      )
     ) {
       const cleaned = { ...body } as Record<string, unknown>;
       delete cleaned.product_kind;
       delete cleaned.seo_title_ar;
       delete cleaned.seo_description_ar;
       delete cleaned.seo_og_image_url;
+      delete cleaned.visible_in_navigation;
+      delete cleaned.show_on_homepage;
+      delete cleaned.featured_collection;
       const retry = await supabase
         .from("categories")
         .update({ ...cleaned, updated_at: new Date().toISOString() })

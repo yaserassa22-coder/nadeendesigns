@@ -24,6 +24,9 @@ const emptyForm = {
   parent_id: "" as string,
   sort_order: "0",
   is_visible: true,
+  visible_in_navigation: true,
+  show_on_homepage: true,
+  featured_collection: false,
   icon_url: "" as string,
   cover_image_url: "" as string,
   description_ar: "",
@@ -80,6 +83,9 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
       parent_id: item.parent_id ?? "",
       sort_order: String(item.sort_order),
       is_visible: item.is_visible,
+      visible_in_navigation: item.visible_in_navigation !== false,
+      show_on_homepage: item.show_on_homepage !== false,
+      featured_collection: item.featured_collection === true,
       icon_url: item.icon_url ?? "",
       cover_image_url: item.cover_image_url ?? "",
       description_ar: item.description_ar ?? "",
@@ -117,6 +123,9 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         parent_id: form.parent_id || null,
         sort_order: Number(form.sort_order) || 0,
         is_visible: form.is_visible,
+        visible_in_navigation: form.visible_in_navigation,
+        show_on_homepage: form.show_on_homepage,
+        featured_collection: form.featured_collection,
         icon_url: form.icon_url || null,
         cover_image_url: form.cover_image_url || null,
         description_ar: form.description_ar,
@@ -371,15 +380,62 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                   { value: "accessories_group", label: "مجموعة اكسسوارات" },
                 ]}
               />
-              <label className="flex items-center gap-3 text-sm text-charcoal">
-                <input
-                  type="checkbox"
-                  checked={form.is_visible}
-                  onChange={(e) => setForm((p) => ({ ...p, is_visible: e.target.checked }))}
-                  className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
-                />
-                ظاهر في الموقع
-              </label>
+              <div className="space-y-3 rounded-xl border border-beige-dark/70 bg-beige/30 p-4">
+                <p className="text-sm font-medium text-charcoal">إعدادات العرض</p>
+                <label className="flex items-center gap-3 text-sm text-charcoal">
+                  <input
+                    type="checkbox"
+                    checked={form.is_visible}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, is_visible: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
+                  />
+                  منشور (ظاهر في الموقع)
+                </label>
+                <label className="flex items-center gap-3 text-sm text-charcoal">
+                  <input
+                    type="checkbox"
+                    checked={form.visible_in_navigation}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        visible_in_navigation: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
+                  />
+                  ظاهر في قائمة التنقل
+                </label>
+                <label className="flex items-center gap-3 text-sm text-charcoal">
+                  <input
+                    type="checkbox"
+                    checked={form.show_on_homepage}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        show_on_homepage: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
+                  />
+                  ظاهر في الصفحة الرئيسية
+                </label>
+                <label className="flex items-center gap-3 text-sm text-charcoal">
+                  <input
+                    type="checkbox"
+                    checked={form.featured_collection}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        featured_collection: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
+                  />
+                  مجموعة مميزة (تمييز في الرئيسية)
+                </label>
+              </div>
               <Textarea
                 label="الوصف"
                 rows={4}

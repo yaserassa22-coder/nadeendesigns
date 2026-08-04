@@ -7,8 +7,7 @@ import {
 } from "@/types";
 import {
   buildCategoryTree,
-  isAccessoriesGroupCategory,
-  isDressProductCategory,
+  isNavVisibleCategory,
   type Category,
   type CategoryTreeNode,
 } from "@/types/category";
@@ -16,31 +15,39 @@ import { resolveCategoryHref } from "@/lib/categories/href";
 
 export type NavLink = { href: string; label: string };
 
-export type AccessoriesNav = {
+/** Root nav entry — leaf link or parent with luxury dropdown children. */
+export type NavItem = {
+  id: string;
+  href: string;
   label: string;
   children: NavLink[];
 };
 
 export type StorefrontNav = {
-  primary: NavLink[];
-  accessories: AccessoriesNav;
-  /** Flat list of shop category links (with href) for footer */
+  /** Hierarchical header items (parents with children → dropdown). */
+  items: NavItem[];
+  /** Flat list of shop category links for footer */
   categoryLinks: NavLink[];
 };
 
 /** Offline fallback only when categories table is empty / unconfigured */
-const FALLBACK_PRIMARY: NavLink[] = DRESS_CATEGORIES.map((c) => ({
-  href: DRESS_CATEGORY_HREFS[c],
-  label: DRESS_CATEGORY_LABELS[c],
-}));
-
-const FALLBACK_ACCESSORIES: AccessoriesNav = {
-  label: ACCESSORIES_PARENT.label,
-  children: [...SHOP_NAV_LINKS],
-};
+const FALLBACK_ITEMS: NavItem[] = [
+  ...DRESS_CATEGORIES.map((c) => ({
+    id: `fallback-${c}`,
+    href: DRESS_CATEGORY_HREFS[c],
+    label: DRESS_CATEGORY_LABELS[c],
+    children: [] as NavLink[],
+  })),
+  {
+    id: "fallback-accessories",
+    href: ACCESSORIES_PARENT.children[0]?.href ?? "/veils",
+    label: ACCESSORIES_PARENT.label,
+    children: [...SHOP_NAV_LINKS],
+  },
+];
 
 function linkFromCategory(c: Category | CategoryTreeNode): NavLink | null {
-  if (c.is_visible === false) return null;
+  if (!isNavVisibleCategory(c)) return null;
   return { href: resolveCategoryHref(c), label: c.name_ar };
 }
 
@@ -56,69 +63,76 @@ function collectNestedLinks(
   }
 }
 
+function navChildrenFromNode(node: CategoryTreeNode): NavLink[] {
+  const children: NavLink[] = [];
+  for (const child of node.children) {
+    const link = linkFromCategory(child);
+    if (!link) continue;
+    if (child.children.length) {
+      // Nested grandchildren flatten into the parent dropdown (one luxury level).
+      children.push(link);
+      collectNestedLinks(child.children, children);
+    } else {
+      children.push(link);
+    }
+  }
+  return children;
+}
+
+function itemFromRoot(root: CategoryTreeNode): NavItem | null {
+  if (!isNavVisibleCategory(root)) return null;
+  const children = navChildrenFromNode(root);
+  return {
+    id: root.id,
+    href: resolveCategoryHref(root),
+    label: root.name_ar,
+    children,
+  };
+}
+
 /** Build header/footer nav from categories; falls back to static labels if empty. */
 export function buildStorefrontNav(categories: Category[]): StorefrontNav {
   if (!categories.length) {
     return {
-      primary: FALLBACK_PRIMARY,
-      accessories: FALLBACK_ACCESSORIES,
-      categoryLinks: [...FALLBACK_PRIMARY, ...FALLBACK_ACCESSORIES.children],
+      items: FALLBACK_ITEMS,
+      categoryLinks: FALLBACK_ITEMS.flatMap((item) =>
+        item.children.length
+          ? item.children
+          : [{ href: item.href, label: item.label }]
+      ),
     };
   }
 
-  // Caller should pass getStorefrontCategories() (visible DB categories).
-  const tree = buildCategoryTree(categories.filter((c) => c.is_visible));
-  const primary: NavLink[] = [];
-  let accessories: AccessoriesNav = { ...FALLBACK_ACCESSORIES, children: [] };
+  const navCategories = categories.filter(isNavVisibleCategory);
+  const tree = buildCategoryTree(navCategories);
+  const items: NavItem[] = [];
   const categoryLinks: NavLink[] = [];
-  let sawAccessoriesGroup = false;
 
   for (const root of tree) {
-    if (isAccessoriesGroupCategory(root)) {
-      sawAccessoriesGroup = true;
-      accessories = {
-        label: root.name_ar || FALLBACK_ACCESSORIES.label,
-        children: [],
-      };
-      collectNestedLinks(root.children, accessories.children);
-      for (const child of accessories.children) {
+    const item = itemFromRoot(root);
+    if (!item) continue;
+    items.push(item);
+    if (item.children.length) {
+      for (const child of item.children) {
         categoryLinks.push(child);
       }
-      continue;
-    }
-
-    const link = linkFromCategory(root);
-    if (link) {
-      // Dress sections + any new Admin root category (product_kind dress/null)
-      if (isDressProductCategory(root) || !root.parent_id) {
-        primary.push(link);
-      }
-      categoryLinks.push(link);
-      // Nested dress children also appear in flat footer links
-      collectNestedLinks(root.children, categoryLinks);
+    } else {
+      categoryLinks.push({ href: item.href, label: item.label });
     }
   }
 
-  // Offline / empty-DB fallback only — never overwrite a DB-built accessories group
-  // with hardcoded SHOP_NAV_LINKS when the group simply has no children yet.
-  if (!primary.length && !sawAccessoriesGroup) {
+  if (!items.length) {
     return {
-      primary: FALLBACK_PRIMARY,
-      accessories: FALLBACK_ACCESSORIES,
-      categoryLinks: [...FALLBACK_PRIMARY, ...FALLBACK_ACCESSORIES.children],
+      items: FALLBACK_ITEMS,
+      categoryLinks: FALLBACK_ITEMS.flatMap((item) =>
+        item.children.length
+          ? item.children
+          : [{ href: item.href, label: item.label }]
+      ),
     };
   }
 
-  if (!sawAccessoriesGroup && !accessories.children.length) {
-    accessories = FALLBACK_ACCESSORIES;
-    for (const child of accessories.children) {
-      if (!categoryLinks.some((l) => l.href === child.href)) {
-        categoryLinks.push(child);
-      }
-    }
-  }
-
-  return { primary, accessories, categoryLinks };
+  return { items, categoryLinks };
 }
 
 export function buildFooterNavLinks(categoryLinks: NavLink[]): NavLink[] {

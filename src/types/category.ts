@@ -10,7 +10,14 @@ export interface Category {
   slug: string;
   parent_id: string | null;
   sort_order: number;
+  /** Published on the storefront (existing column — preferred over a duplicate is_published). */
   is_visible: boolean;
+  /** Show in header / mobile nav (migration 033). */
+  visible_in_navigation: boolean;
+  /** Show in homepage collections section (migration 033). */
+  show_on_homepage: boolean;
+  /** Highlight within homepage collections (migration 033). */
+  featured_collection: boolean;
   icon_url: string | null;
   cover_image_url: string | null;
   description_ar: string;
@@ -53,6 +60,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: null,
     sort_order: 10,
     is_visible: true,
+    visible_in_navigation: true,
+    show_on_homepage: true,
+    featured_collection: false,
     icon_url: null,
     cover_image_url: null,
     description_ar: "",
@@ -72,6 +82,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: null,
     sort_order: 20,
     is_visible: true,
+    visible_in_navigation: true,
+    show_on_homepage: true,
+    featured_collection: false,
     icon_url: null,
     cover_image_url: null,
     description_ar: "",
@@ -91,6 +104,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: null,
     sort_order: 30,
     is_visible: true,
+    visible_in_navigation: true,
+    show_on_homepage: true,
+    featured_collection: false,
     icon_url: null,
     cover_image_url: null,
     description_ar: "",
@@ -110,6 +126,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: null,
     sort_order: 40,
     is_visible: true,
+    visible_in_navigation: true,
+    show_on_homepage: true,
+    featured_collection: false,
     icon_url: null,
     cover_image_url: null,
     description_ar: "",
@@ -129,6 +148,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: null,
     sort_order: 50,
     is_visible: true,
+    visible_in_navigation: true,
+    show_on_homepage: true,
+    featured_collection: false,
     icon_url: null,
     cover_image_url: null,
     description_ar: "طرحة العروس وبرنص العروس",
@@ -148,6 +170,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: IDS.accessories,
     sort_order: 10,
     is_visible: true,
+    visible_in_navigation: true,
+    show_on_homepage: true,
+    featured_collection: false,
     icon_url: null,
     cover_image_url: null,
     description_ar: "",
@@ -167,6 +192,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: IDS.accessories,
     sort_order: 20,
     is_visible: true,
+    visible_in_navigation: true,
+    show_on_homepage: true,
+    featured_collection: false,
     icon_url: null,
     cover_image_url: null,
     description_ar: "",
@@ -180,6 +208,29 @@ export const SEED_CATEGORIES: Category[] = [
     updated_at: now,
   },
 ];
+
+/** Published (not soft-hidden). */
+export function isPublishedCategory(
+  category: Pick<Category, "is_visible">
+): boolean {
+  return category.is_visible !== false;
+}
+
+/** Eligible for header / mobile navigation. */
+export function isNavVisibleCategory(
+  category: Pick<Category, "is_visible" | "visible_in_navigation">
+): boolean {
+  return (
+    isPublishedCategory(category) && category.visible_in_navigation !== false
+  );
+}
+
+/** Eligible for homepage collections section. */
+export function isHomepageCategory(
+  category: Pick<Category, "is_visible" | "show_on_homepage">
+): boolean {
+  return isPublishedCategory(category) && category.show_on_homepage !== false;
+}
 
 export function buildCategoryTree(categories: Category[]): CategoryTreeNode[] {
   const map = new Map<string, CategoryTreeNode>();

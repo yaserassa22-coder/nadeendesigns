@@ -19,13 +19,20 @@ import type { Category } from "@/types/category";
 import {
   buildCategoryTree,
   isAccessoriesGroupCategory,
+  isHomepageCategory,
 } from "@/types/category";
 import type { AccessoryShopItem } from "@/lib/data/shop-queries";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 
-const cardClassName =
-  "group flex h-full min-h-[200px] w-full flex-col overflow-hidden rounded-2xl border border-beige-dark bg-white transition-all hover:border-gold hover:shadow-lg hover:shadow-gold/10";
+function serviceCardClassName(featured: boolean) {
+  return [
+    "group flex h-full min-h-[200px] w-full flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:border-gold hover:shadow-lg hover:shadow-gold/10",
+    featured
+      ? "border-gold/70 ring-1 ring-gold/30"
+      : "border-beige-dark",
+  ].join(" ");
+}
 
 const ICON_BY_LEGACY: Record<string, LucideIcon> = {
   wedding: Crown,
@@ -83,15 +90,17 @@ function ServiceCard({
   description,
   Icon,
   coverImageUrl,
+  featured = false,
 }: {
   href: string;
   title: string;
   description: string;
   Icon: LucideIcon;
   coverImageUrl: string | null;
+  featured?: boolean;
 }) {
   return (
-    <Link href={href} className={cardClassName}>
+    <Link href={href} className={serviceCardClassName(featured)}>
       <div className="relative h-36 w-full overflow-hidden bg-gradient-to-br from-beige via-beige-dark/40 to-gold/20">
         {coverImageUrl ? (
           <Image
@@ -113,6 +122,11 @@ function ServiceCard({
         )}
       </div>
       <div className="flex flex-1 flex-col p-6">
+        {featured ? (
+          <p className="mb-2 text-[11px] font-medium tracking-[0.2em] text-gold uppercase">
+            مجموعة مميزة
+          </p>
+        ) : null}
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
           <Icon className="h-6 w-6" />
         </div>
@@ -137,8 +151,8 @@ export function ServicesSection({
   categories,
   accessoryProducts = [],
 }: ServicesSectionProps) {
-  // Caller (getStorefrontCategories) already applies is_visible from DB.
-  const visible = categories.filter((c) => c.is_visible !== false);
+  // Caller (getHomepageCategories) applies is_visible + show_on_homepage.
+  const visible = categories.filter(isHomepageCategory);
   const tree = buildCategoryTree(visible);
 
   const dressRoots = tree.filter((n) => !isAccessoriesGroupCategory(n));
@@ -173,6 +187,7 @@ export function ServicesSection({
                   description={description}
                   Icon={Icon}
                   coverImageUrl={cat.cover_image_url}
+                  featured={cat.featured_collection === true}
                 />
               </Reveal>
             );
@@ -226,7 +241,10 @@ export function ServicesSection({
                       delay={0.2 + i * 0.05}
                       className="h-full"
                     >
-                      <Link href={product.href} className={cardClassName}>
+                      <Link
+                        href={product.href}
+                        className={serviceCardClassName(false)}
+                      >
                         <div className="relative h-44 w-full overflow-hidden bg-gradient-to-br from-beige via-beige-dark/40 to-gold/20">
                           {cover ? (
                             <Image
@@ -288,6 +306,7 @@ export function ServicesSection({
                         description={description}
                         Icon={Icon}
                         coverImageUrl={cat.cover_image_url}
+                        featured={cat.featured_collection === true}
                       />
                     </Reveal>
                   );

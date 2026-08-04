@@ -1,5 +1,6 @@
 import {
   SEED_CATEGORIES,
+  isHomepageCategory,
   resolveCategoryProductKind,
   type Category,
   type CategoryProductKind,
@@ -16,6 +17,10 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 export function normalizeCategoryRow(row: Category): Category {
   return {
     ...row,
+    // Pre-033 DBs omit these — treat as enabled so existing catalogs keep working.
+    visible_in_navigation: row.visible_in_navigation !== false,
+    show_on_homepage: row.show_on_homepage !== false,
+    featured_collection: row.featured_collection === true,
     product_kind:
       (row.product_kind as CategoryProductKind | null) ??
       resolveCategoryProductKind(row),
@@ -85,12 +90,25 @@ export async function getVisibleCategories(): Promise<Category[]> {
 }
 
 /**
- * Storefront categories for Header / Footer / Homepage collections:
- * all visible (is_visible) non-deleted categories from the DB.
+ * Storefront categories for Header / Footer / Homepage:
+ * all published (is_visible) non-deleted categories from the DB.
+ * Nav/homepage further filter via visible_in_navigation / show_on_homepage.
  * Empty collections are allowed so Admin-created categories appear immediately.
  */
 export async function getStorefrontCategories(): Promise<Category[]> {
   return getVisibleCategories();
+}
+
+/** Homepage collections section — published + show_on_homepage. */
+export async function getHomepageCategories(): Promise<Category[]> {
+  const all = await getVisibleCategories();
+  return all
+    .filter(isHomepageCategory)
+    .sort((a, b) => {
+      const feat = Number(b.featured_collection) - Number(a.featured_collection);
+      if (feat !== 0) return feat;
+      return a.sort_order - b.sort_order || a.name_ar.localeCompare(b.name_ar, "ar");
+    });
 }
 
 function normalizePublicPath(path: string): string {

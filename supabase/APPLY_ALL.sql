@@ -64,6 +64,8 @@
 --       guest_id cookie identity, guest carts, guest wishlist, recently viewed
 --   35. Phase G2 guest storefront RLS: APPLY_GUEST_STOREFRONT_RLS (= 032)
 --       anon-key upserts for guest_customers / guest_carts (no SERVICE_ROLE required)
+--   36. Sprint N1 luxury nav settings: APPLY_CATEGORY_NAVIGATION (= 033)
+--       visible_in_navigation / show_on_homepage / featured_collection
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, settings) must already
 -- exist from the main schema / earlier project setup. This file applies
@@ -3329,6 +3331,42 @@ BEGIN
       );
   END IF;
 END $$;
+
+-- =============================================================================
+-- 36 ? Sprint N1: category navigation settings (= 033 / APPLY_CATEGORY_NAVIGATION)
+-- Published = is_visible. Adds nav / homepage / featured flags.
+-- =============================================================================
+
+ALTER TABLE categories
+  ADD COLUMN IF NOT EXISTS visible_in_navigation BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE categories
+  ADD COLUMN IF NOT EXISTS show_on_homepage BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE categories
+  ADD COLUMN IF NOT EXISTS featured_collection BOOLEAN NOT NULL DEFAULT false;
+
+UPDATE categories
+SET
+  visible_in_navigation = true,
+  show_on_homepage = true
+WHERE is_visible = true
+  AND (
+    visible_in_navigation IS DISTINCT FROM true
+    OR show_on_homepage IS DISTINCT FROM true
+  );
+
+CREATE INDEX IF NOT EXISTS idx_categories_visible_in_navigation
+  ON categories (visible_in_navigation)
+  WHERE visible_in_navigation = true;
+
+CREATE INDEX IF NOT EXISTS idx_categories_show_on_homepage
+  ON categories (show_on_homepage)
+  WHERE show_on_homepage = true;
+
+CREATE INDEX IF NOT EXISTS idx_categories_featured_collection
+  ON categories (featured_collection)
+  WHERE featured_collection = true;
 
 -- =============================================================================
 -- END APPLY_ALL.sql
