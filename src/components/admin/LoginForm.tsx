@@ -7,19 +7,28 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SITE_NAME } from "@/lib/constants";
 
+function loginErrorMessage(code: string | null): string {
+  if (code === "config") {
+    return "Supabase غير مُعد. تحققي من متغيرات البيئة.";
+  }
+  if (code === "admin_only") {
+    return "هذا الحساب ليس لديه صلاحيات الإدارة. سجّلي دخول بحساب الإدارة.";
+  }
+  return "";
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/admin";
-  const configError = searchParams.get("error") === "config";
+  const redirectParam = searchParams.get("redirect") || "/admin";
+  const redirect =
+    redirectParam.startsWith("/admin") && !redirectParam.startsWith("//")
+      ? redirectParam
+      : "/admin";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(
-    configError
-      ? "Supabase غير مُعد. تحققي من متغيرات البيئة."
-      : ""
-  );
+  const [error, setError] = useState(loginErrorMessage(searchParams.get("error")));
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -39,6 +48,18 @@ export function LoginForm() {
         password,
       });
       if (authError) throw authError;
+
+      // Confirm profiles.role before entering the dashboard (shared Auth with customers)
+      const me = await fetch("/api/admin/me", { credentials: "same-origin" });
+      if (!me.ok) {
+        await supabase.auth.signOut();
+        throw new Error(
+          me.status === 403
+            ? "هذا الحساب ليس لديه صلاحيات الإدارة (profiles.role)."
+            : "تعذّر التحقق من صلاحيات الإدارة."
+        );
+      }
+
       router.push(redirect);
       router.refresh();
     } catch (err) {

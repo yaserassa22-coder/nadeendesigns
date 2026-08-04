@@ -8,30 +8,50 @@ import {
   referralCodeFromId,
   syntheticEmailFromPhone,
 } from "@/lib/customer-auth/otp";
+import { isAdminRole } from "@/lib/auth/roles";
 import type { CustomerProfile } from "@/types/customer-auth";
 
-const ADMIN_ROLES = new Set(["admin", "owner", "manager", "staff"]);
+export { isAdminRole, ADMIN_ROLES } from "@/lib/auth/roles";
 
+/**
+ * Read profiles.role for a user.
+ * Prefer service role (bypasses RLS). Fall back to the cookie-authenticated
+ * server client — never a bare anon client without a session (RLS would
+ * hide the row and falsely treat admins as non-admin).
+ */
 export async function getProfileRole(
   userId: string
 ): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;
   try {
-    const supabase = createAdminClient();
-    const { data } = await supabase
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) {
+        console.warn("[getProfileRole] service", error.message);
+        return null;
+      }
+      return (data?.role as string | null) ?? null;
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", userId)
       .maybeSingle();
+    if (error) {
+      console.warn("[getProfileRole] session", error.message);
+      return null;
+    }
     return (data?.role as string | null) ?? null;
   } catch {
     return null;
   }
-}
-
-export function isAdminRole(role?: string | null): boolean {
-  if (!role) return false;
-  return ADMIN_ROLES.has(role.toLowerCase());
 }
 
 /** True when the authenticated user has an admin profile row. */

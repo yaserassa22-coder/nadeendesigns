@@ -18,7 +18,7 @@ export default async function AdminDashboardLayout({
 
   const role = await getProfileRole(user.id);
   if (!isAdminRole(role)) {
-    redirect("/?error=admin_only");
+    redirect("/admin/login?error=admin_only");
   }
 
   return (

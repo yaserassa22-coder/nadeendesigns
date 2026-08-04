@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getProfileRole, isAdminRole } from "@/lib/customer-auth/customer";
+import { isAdminRole } from "@/lib/auth/roles";
+import { getProfileRole } from "@/lib/customer-auth/customer";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 /**
