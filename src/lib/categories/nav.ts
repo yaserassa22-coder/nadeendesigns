@@ -15,65 +15,83 @@ import { resolveCategoryHref } from "@/lib/categories/href";
 
 export type NavLink = { href: string; label: string };
 
-/** Root nav entry — leaf link or parent with luxury dropdown children. */
+/** Child entry for luxury mega / accordion panels — DB fields only, no invented copy. */
+export type NavChild = {
+  id: string;
+  href: string;
+  label: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  featured: boolean;
+};
+
+export type NavItemKind = "category" | "static" | "more";
+
+/** Root nav entry — leaf link, parent with mega children, or overflow "More". */
 export type NavItem = {
   id: string;
   href: string;
   label: string;
-  children: NavLink[];
+  children: NavChild[];
+  kind: NavItemKind;
+  description: string | null;
+  coverImageUrl: string | null;
+  featured: boolean;
+  /** When kind === "more", overflow parents retained for nested panels. */
+  overflowItems?: NavItem[];
 };
 
 export type StorefrontNav = {
-  /** Hierarchical header items (parents with children → dropdown). */
+  /** Capped header bar items (≤ MAX_TOP_LEVEL), including optional المزيد. */
   items: NavItem[];
   /** Flat list of shop category links for footer */
   categoryLinks: NavLink[];
 };
 
-/** Offline fallback only when categories table is empty / unconfigured */
-const FALLBACK_ITEMS: NavItem[] = [
-  ...DRESS_CATEGORIES.map((c) => ({
-    id: `fallback-${c}`,
-    href: DRESS_CATEGORY_HREFS[c],
-    label: DRESS_CATEGORY_LABELS[c],
-    children: [] as NavLink[],
-  })),
-  {
-    id: "fallback-accessories",
-    href: ACCESSORIES_PARENT.children[0]?.href ?? "/veils",
-    label: ACCESSORIES_PARENT.label,
-    children: [...SHOP_NAV_LINKS],
-  },
-];
+/** Max top-level slots in the desktop bar (including Home / static / المزيد). */
+export const MAX_TOP_LEVEL_NAV = 7;
 
-function linkFromCategory(c: Category | CategoryTreeNode): NavLink | null {
-  if (!isNavVisibleCategory(c)) return null;
-  return { href: resolveCategoryHref(c), label: c.name_ar };
+function shortDescription(text: string | null | undefined): string | null {
+  const t = text?.trim() ?? "";
+  if (!t) return null;
+  if (t.length <= 90) return t;
+  return `${t.slice(0, 87).trimEnd()}…`;
 }
 
-/** Flatten nested category tree into nav links (unlimited practical depth). */
-function collectNestedLinks(
+function childFromNode(node: CategoryTreeNode): NavChild | null {
+  if (!isNavVisibleCategory(node)) return null;
+  return {
+    id: node.id,
+    href: resolveCategoryHref(node),
+    label: node.name_ar,
+    description: shortDescription(node.description_ar),
+    coverImageUrl: node.cover_image_url?.trim() || null,
+    featured: node.featured_collection === true,
+  };
+}
+
+/** Flatten nested category tree into nav children (one luxury mega level). */
+function collectNestedChildren(
   nodes: CategoryTreeNode[],
-  into: NavLink[]
+  into: NavChild[]
 ): void {
   for (const node of nodes) {
-    const link = linkFromCategory(node);
-    if (link) into.push(link);
-    if (node.children.length) collectNestedLinks(node.children, into);
+    const child = childFromNode(node);
+    if (child) into.push(child);
+    if (node.children.length) collectNestedChildren(node.children, into);
   }
 }
 
-function navChildrenFromNode(node: CategoryTreeNode): NavLink[] {
-  const children: NavLink[] = [];
-  for (const child of node.children) {
-    const link = linkFromCategory(child);
-    if (!link) continue;
-    if (child.children.length) {
-      // Nested grandchildren flatten into the parent dropdown (one luxury level).
-      children.push(link);
-      collectNestedLinks(child.children, children);
+function navChildrenFromNode(node: CategoryTreeNode): NavChild[] {
+  const children: NavChild[] = [];
+  for (const childNode of node.children) {
+    const child = childFromNode(childNode);
+    if (!child) continue;
+    if (childNode.children.length) {
+      children.push(child);
+      collectNestedChildren(childNode.children, children);
     } else {
-      children.push(link);
+      children.push(child);
     }
   }
   return children;
@@ -81,58 +99,185 @@ function navChildrenFromNode(node: CategoryTreeNode): NavLink[] {
 
 function itemFromRoot(root: CategoryTreeNode): NavItem | null {
   if (!isNavVisibleCategory(root)) return null;
-  const children = navChildrenFromNode(root);
   return {
     id: root.id,
     href: resolveCategoryHref(root),
     label: root.name_ar,
-    children,
+    children: navChildrenFromNode(root),
+    kind: "category",
+    description: shortDescription(root.description_ar),
+    coverImageUrl: root.cover_image_url?.trim() || null,
+    featured: root.featured_collection === true,
+  };
+}
+
+function staticItem(id: string, href: string, label: string): NavItem {
+  return {
+    id,
+    href,
+    label,
+    children: [],
+    kind: "static",
+    description: null,
+    coverImageUrl: null,
+    featured: false,
+  };
+}
+
+/** Site pages mixed into the bar — labels are page names, not category names. */
+const STATIC_SITE_LINKS: NavItem[] = [
+  staticItem("nav-home", "/", "الرئيسية"),
+  staticItem("nav-gallery", "/gallery", "معرض الصور"),
+  staticItem("nav-about", "/about", "من نحن"),
+  staticItem("nav-contact", "/contact", "اتصل بنا"),
+];
+
+/** Offline fallback only when categories table is empty / unconfigured */
+const FALLBACK_CATEGORY_ITEMS: NavItem[] = [
+  ...DRESS_CATEGORIES.map((c) =>
+    staticItem(`fallback-${c}`, DRESS_CATEGORY_HREFS[c], DRESS_CATEGORY_LABELS[c])
+  ).map((item) => ({ ...item, kind: "category" as const })),
+  {
+    id: "fallback-accessories",
+    href: ACCESSORIES_PARENT.children[0]?.href ?? "/veils",
+    label: ACCESSORIES_PARENT.label,
+    children: SHOP_NAV_LINKS.map((link, i) => ({
+      id: `fallback-acc-${i}`,
+      href: link.href,
+      label: link.label,
+      description: null,
+      coverImageUrl: null,
+      featured: false,
+    })),
+    kind: "category",
+    description: null,
+    coverImageUrl: null,
+    featured: false,
+  },
+];
+
+function dedupeByHref(items: NavItem[]): NavItem[] {
+  const seen = new Set<string>();
+  const out: NavItem[] = [];
+  for (const item of items) {
+    if (seen.has(item.href)) continue;
+    seen.add(item.href);
+    out.push(item);
+  }
+  return out;
+}
+
+/**
+ * Cap the top bar at MAX_TOP_LEVEL_NAV.
+ * Priority: Home → category parents (sort_order) → other static pages.
+ * Overflow category parents collapse into an elegant "المزيد" item.
+ */
+export function capTopLevelNav(
+  categoryItems: NavItem[],
+  max = MAX_TOP_LEVEL_NAV
+): NavItem[] {
+  const home = STATIC_SITE_LINKS[0]!;
+  const staticRest = STATIC_SITE_LINKS.slice(1);
+  const categoryHrefs = new Set(categoryItems.map((c) => c.href));
+  const staticExtras = staticRest.filter((s) => !categoryHrefs.has(s.href));
+
+  const unlimited = dedupeByHref([home, ...categoryItems, ...staticExtras]);
+  if (unlimited.length <= max) return unlimited;
+
+  // Reserve Home + optional المزيد; prefer keeping categories in the bar.
+  const reserveMore = 1;
+  const preferredStaticCount = Math.min(2, staticExtras.length);
+  const categoryBudget = Math.max(
+    1,
+    max - 1 - reserveMore - preferredStaticCount
+  );
+
+  const primaryCategories = categoryItems.slice(0, categoryBudget);
+  const overflowCategories = categoryItems.slice(categoryBudget);
+
+  let bar = dedupeByHref([home, ...primaryCategories]);
+
+  if (overflowCategories.length) {
+    bar.push({
+      id: "nav-more",
+      href: overflowCategories[0]!.href,
+      label: "المزيد",
+      children: overflowCategories.flatMap((item) =>
+        item.children.length
+          ? item.children
+          : [
+              {
+                id: item.id,
+                href: item.href,
+                label: item.label,
+                description: item.description,
+                coverImageUrl: item.coverImageUrl,
+                featured: item.featured,
+              },
+            ]
+      ),
+      kind: "more",
+      description: null,
+      coverImageUrl: null,
+      featured: false,
+      overflowItems: overflowCategories,
+    });
+  }
+
+  for (const s of staticExtras) {
+    if (bar.length >= max) break;
+    if (bar.some((b) => b.href === s.href)) continue;
+    bar.push(s);
+  }
+
+  // If still over (edge case), trim trailing statics only.
+  if (bar.length > max) {
+    bar = bar.slice(0, max);
+  }
+
+  return bar;
+}
+
+function fallbackNav(): StorefrontNav {
+  const items = capTopLevelNav(FALLBACK_CATEGORY_ITEMS);
+  return {
+    items,
+    categoryLinks: FALLBACK_CATEGORY_ITEMS.flatMap((item) =>
+      item.children.length
+        ? item.children.map((c) => ({ href: c.href, label: c.label }))
+        : [{ href: item.href, label: item.label }]
+    ),
   };
 }
 
 /** Build header/footer nav from categories; falls back to static labels if empty. */
 export function buildStorefrontNav(categories: Category[]): StorefrontNav {
-  if (!categories.length) {
-    return {
-      items: FALLBACK_ITEMS,
-      categoryLinks: FALLBACK_ITEMS.flatMap((item) =>
-        item.children.length
-          ? item.children
-          : [{ href: item.href, label: item.label }]
-      ),
-    };
-  }
+  if (!categories.length) return fallbackNav();
 
   const navCategories = categories.filter(isNavVisibleCategory);
   const tree = buildCategoryTree(navCategories);
-  const items: NavItem[] = [];
+  const categoryItems: NavItem[] = [];
   const categoryLinks: NavLink[] = [];
 
   for (const root of tree) {
     const item = itemFromRoot(root);
     if (!item) continue;
-    items.push(item);
+    categoryItems.push(item);
     if (item.children.length) {
       for (const child of item.children) {
-        categoryLinks.push(child);
+        categoryLinks.push({ href: child.href, label: child.label });
       }
     } else {
       categoryLinks.push({ href: item.href, label: item.label });
     }
   }
 
-  if (!items.length) {
-    return {
-      items: FALLBACK_ITEMS,
-      categoryLinks: FALLBACK_ITEMS.flatMap((item) =>
-        item.children.length
-          ? item.children
-          : [{ href: item.href, label: item.label }]
-      ),
-    };
-  }
+  if (!categoryItems.length) return fallbackNav();
 
-  return { items, categoryLinks };
+  return {
+    items: capTopLevelNav(categoryItems),
+    categoryLinks,
+  };
 }
 
 export function buildFooterNavLinks(categoryLinks: NavLink[]): NavLink[] {
