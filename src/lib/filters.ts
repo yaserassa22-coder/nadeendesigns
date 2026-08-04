@@ -1,4 +1,5 @@
 import { normalizeDressColor } from "@/lib/colors";
+import { categoryQueryValues } from "@/lib/dresses/category";
 import { normalizeDressStyle } from "@/lib/styles";
 import type { Dress, DressFilters } from "@/types";
 
@@ -8,13 +9,21 @@ export function filterDressesClient(
 ): Dress[] {
   let result = [...dresses];
 
-  if (filters.categoryId) {
-    result = result.filter((d) => d.category_id === filters.categoryId);
-  } else if (filters.category) {
-    result = result.filter(
-      (d) =>
-        d.category === filters.category || d.category_id === filters.category
-    );
+  if (filters.categoryId || filters.category) {
+    const allowed = filters.category
+      ? new Set(categoryQueryValues(filters.category))
+      : null;
+    result = result.filter((d) => {
+      const idMatch = Boolean(
+        filters.categoryId && d.category_id === filters.categoryId
+      );
+      const textMatch = Boolean(
+        allowed && (allowed.has(d.category) || d.category === filters.category)
+      );
+      if (filters.categoryId && filters.category) return idMatch || textMatch;
+      if (filters.categoryId) return idMatch;
+      return textMatch;
+    });
   }
   if (filters.featured) {
     result = result.filter((d) => d.is_featured);

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { DressCatalog, PageHero } from "@/components/dresses/DressCatalog";
-import { getDresses } from "@/lib/data/queries";
+import { getCategoryBySlug } from "@/lib/data/categories";
+import {
+  getDresses,
+  getDressesForCategory,
+} from "@/lib/data/queries";
 
 export const metadata: Metadata = {
   title: "فساتين نوف",
@@ -9,20 +13,25 @@ export const metadata: Metadata = {
 };
 
 export default async function NoufDressesPage() {
-  const dresses = await getDresses({ category: "nouf_dresses" });
+  const category = await getCategoryBySlug("nouf-dresses");
+  const dresses = category
+    ? await getDressesForCategory(category)
+    : await getDresses({ category: "nouf_dresses" });
 
   return (
     <>
       <PageHero
-        title="فساتين نوف"
-        description="اكتشفي مجموعة فساتين نوف الحصرية، بتصاميم تجمع بين الأناقة، الفخامة، والتفاصيل الراقية لتمنحكِ إطلالة استثنائية."
+        title={category?.name_ar || "فساتين نوف"}
+        description={
+          category?.description_ar?.trim() ||
+          "اكتشفي مجموعة فساتين نوف الحصرية، بتصاميم تجمع بين الأناقة، الفخامة، والتفاصيل الراقية لتمنحكِ إطلالة استثنائية."
+        }
       />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <DressCatalog
             dresses={dresses}
-            category="nouf_dresses"
-            title="فساتين نوف"
+            title={category?.name_ar || "فساتين نوف"}
             description=""
           />
         </div>

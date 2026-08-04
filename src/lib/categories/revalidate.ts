@@ -18,5 +18,14 @@ export function revalidateCategoryPaths(paths: Array<string | null | undefined> 
     if (seen.has(path)) continue;
     seen.add(path);
     revalidatePath(path);
+    // Alias route /category/<slug>
+    const slug = path.replace(/^\//, "");
+    if (slug && !path.startsWith("/category/")) {
+      const alias = `/category/${slug}`;
+      if (!seen.has(alias)) {
+        seen.add(alias);
+        revalidatePath(alias);
+      }
+    }
   }
 }

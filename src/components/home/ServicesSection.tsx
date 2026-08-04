@@ -16,7 +16,10 @@ import {
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { resolveCategoryHref } from "@/lib/categories/href";
 import type { Category } from "@/types/category";
-import { buildCategoryTree } from "@/types/category";
+import {
+  buildCategoryTree,
+  isAccessoriesGroupCategory,
+} from "@/types/category";
 import type { AccessoryShopItem } from "@/lib/data/shop-queries";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
@@ -138,16 +141,8 @@ export function ServicesSection({
   const visible = categories.filter((c) => c.is_visible !== false);
   const tree = buildCategoryTree(visible);
 
-  const dressRoots = tree.filter(
-    (n) =>
-      n.product_kind !== "accessories_group" &&
-      n.legacy_key !== "bridal_accessories"
-  );
-  const accessoriesRoot = tree.find(
-    (n) =>
-      n.product_kind === "accessories_group" ||
-      n.legacy_key === "bridal_accessories"
-  );
+  const dressRoots = tree.filter((n) => !isAccessoriesGroupCategory(n));
+  const accessoriesRoot = tree.find((n) => isAccessoriesGroupCategory(n));
   const accessoryChildren = accessoriesRoot?.children ?? [];
   const showAccessories =
     Boolean(accessoriesRoot) &&

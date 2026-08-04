@@ -8,7 +8,7 @@ import {
   getCategories,
   getCategoryBySlug,
 } from "@/lib/data/categories";
-import { getDressesByCategoryKeys } from "@/lib/data/queries";
+import { getDressesForCategory } from "@/lib/data/queries";
 import { getBridalAccessoriesProducts } from "@/lib/data/shop-queries";
 import { ShopCatalog } from "@/components/shop/ShopCatalog";
 import {
@@ -195,10 +195,7 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
     );
   }
 
-  const dresses = await getDressesByCategoryKeys(
-    [category.slug, category.legacy_key],
-    category.id
-  );
+  const dresses = await getDressesForCategory(category);
 
   const description =
     category.description_ar?.trim() ||

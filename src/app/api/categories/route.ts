@@ -12,7 +12,9 @@ import {
 } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import { normalizeCategoryRow } from "@/lib/data/categories";
 import { categoryCreateSchema, categoryUpdateSchema } from "@/lib/validations/category";
+import type { Category } from "@/types/category";
 
 function missingCategoriesMessage() {
   return "جدول التصنيفات غير موجود. نفّذي supabase/APPLY_CATEGORIES.sql في SQL Editor ثم أعيدي المحاولة.";
@@ -71,7 +73,9 @@ export async function GET() {
     }
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
-  return NextResponse.json(data ?? []);
+  return NextResponse.json(
+    ((data as Category[]) ?? []).map(normalizeCategoryRow)
+  );
 }
 
 export async function POST(request: Request) {
@@ -145,8 +149,14 @@ export async function POST(request: Request) {
       const mapped = mapCategoryError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
-    revalidateCategoryPaths([data?.href, data?.slug ? `/${data.slug}` : null]);
-    return NextResponse.json(data);
+    revalidateCategoryPaths([
+      data?.href,
+      data?.slug ? `/${data.slug}` : null,
+      data?.slug ? `/category/${data.slug}` : null,
+    ]);
+    return NextResponse.json(
+      data ? normalizeCategoryRow(data as Category) : data
+    );
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json(
@@ -216,8 +226,14 @@ export async function PUT(request: Request) {
       const mapped = mapCategoryError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
-    revalidateCategoryPaths([data?.href, data?.slug ? `/${data.slug}` : null]);
-    return NextResponse.json(data);
+    revalidateCategoryPaths([
+      data?.href,
+      data?.slug ? `/${data.slug}` : null,
+      data?.slug ? `/category/${data.slug}` : null,
+    ]);
+    return NextResponse.json(
+      data ? normalizeCategoryRow(data as Category) : data
+    );
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json(

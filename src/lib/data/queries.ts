@@ -16,14 +16,18 @@ function dressMatchesCategoryFilter(
   dress: Dress,
   filters: DressFilters
 ): boolean {
-  if (filters.categoryId) {
-    if (dress.category_id === filters.categoryId) return true;
-    // Fall through to TEXT match if FK not backfilled yet
-  }
+  const idMatch = Boolean(
+    filters.categoryId && dress.category_id === filters.categoryId
+  );
   if (filters.category) {
     const allowed = new Set(categoryQueryValues(filters.category));
-    return allowed.has(dress.category) || dress.category === filters.category;
+    const textMatch =
+      allowed.has(dress.category) || dress.category === filters.category;
+    // Union: category_id OR TEXT (partial FK backfill must not hide rows)
+    if (filters.categoryId) return idMatch || textMatch;
+    return textMatch;
   }
+  if (filters.categoryId) return idMatch;
   return true;
 }
 
@@ -117,6 +121,20 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
   }
 
   return dresses;
+}
+
+/**
+ * Load dresses for a resolved Category row (id + slug + legacy_key union).
+ */
+export async function getDressesForCategory(category: {
+  id: string;
+  slug: string;
+  legacy_key?: string | null;
+}): Promise<Dress[]> {
+  return getDressesByCategoryKeys(
+    [category.slug, category.legacy_key],
+    category.id
+  );
 }
 
 /**
