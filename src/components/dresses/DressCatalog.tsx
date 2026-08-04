@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import type { Dress, DressCategory } from "@/types";
+import type { Dress } from "@/types";
 import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
 import { filterDressesClient } from "@/lib/filters";
 import { DressCard } from "./DressCard";
@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
 
 interface DressCatalogProps {
   dresses: Dress[];
-  category?: DressCategory;
+  /** Canonical or dynamic category key; omit when dresses are pre-filtered */
+  category?: string;
   title: string;
   description: string;
 }

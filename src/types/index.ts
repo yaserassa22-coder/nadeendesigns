@@ -282,7 +282,8 @@ export interface SiteSettings {
 
 export interface DressFilters {
   search?: string;
-  category?: DressCategory;
+  /** Canonical DressCategory or dynamic category slug / legacy_key */
+  category?: string;
   style?: string;
   color?: string;
   size?: string;

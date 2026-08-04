@@ -67,7 +67,10 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
 
   // Strict client-side filter on canonical category (never mix wedding / nouf)
   if (filters?.category) {
-    dresses = dresses.filter((d) => d.category === filters.category);
+    const allowed = new Set(categoryQueryValues(filters.category));
+    dresses = dresses.filter(
+      (d) => allowed.has(d.category) || d.category === filters.category
+    );
   }
   if (filters?.featured) {
     dresses = dresses.filter((d) => d.is_featured);
@@ -102,6 +105,58 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
   }
 
   return dresses;
+}
+
+/**
+ * Load dresses whose `category` matches any of the given keys
+ * (slug and/or legacy_key for dynamic categories).
+ */
+export async function getDressesByCategoryKeys(
+  keys: Array<string | null | undefined>
+): Promise<Dress[]> {
+  const unique = [
+    ...new Set(
+      keys
+        .map((k) => k?.trim())
+        .filter((k): k is string => Boolean(k))
+        .flatMap((k) => categoryQueryValues(k))
+    ),
+  ];
+  if (unique.length === 0) return [];
+
+  if (unique.length === 1) {
+    return getDresses({ category: unique[0] });
+  }
+
+  let dresses: Dress[];
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    let query = supabase
+      .from("dresses")
+      .select("*")
+      .in("category", unique)
+      .order("created_at", { ascending: false });
+    query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+
+    let { data, error } = await query;
+    if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+      const retry = await supabase
+        .from("dresses")
+        .select("*")
+        .in("category", unique)
+        .order("created_at", { ascending: false });
+      data = retry.data;
+      error = retry.error;
+    }
+    dresses = error
+      ? normalizeDressList(SEED_DRESSES)
+      : normalizeDressList(data as Dress[]);
+  } else {
+    dresses = normalizeDressList(SEED_DRESSES);
+  }
+
+  const allowed = new Set(unique);
+  return dresses.filter((d) => allowed.has(d.category));
 }
 
 export async function getDressById(id: string): Promise<Dress | null> {

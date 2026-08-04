@@ -1,6 +1,10 @@
 import type { Category } from "@/types/category";
 
-/** Public path for a category: prefer stored href, else `/{slug}`. */
+/**
+ * Public path for a category.
+ * Prefer stored href (seeded/legacy dedicated routes); else `/{slug}`
+ * which is served by the dynamic `(site)/[slug]` category page.
+ */
 export function resolveCategoryHref(
   category: Pick<Category, "href" | "slug">
 ): string {

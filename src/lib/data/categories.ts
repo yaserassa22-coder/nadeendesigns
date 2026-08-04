@@ -62,3 +62,33 @@ export async function getVisibleCategories(): Promise<Category[]> {
   const all = await getCategories();
   return all.filter((c) => c.is_visible !== false);
 }
+
+function normalizePublicPath(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) return "";
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+/**
+ * Resolve a storefront category by public slug or href path segment.
+ * Matches Admin-created rows (slug only) and seeded rows (slug + href).
+ */
+export async function getCategoryBySlug(
+  slugOrPath: string
+): Promise<Category | null> {
+  const raw = slugOrPath.trim();
+  if (!raw) return null;
+  const path = normalizePublicPath(raw);
+  const slug = path.replace(/^\//, "").toLowerCase();
+  if (!slug) return null;
+
+  const all = await getCategories();
+  const match = all.find((c) => {
+    if (c.slug?.trim().toLowerCase() === slug) return true;
+    if (c.legacy_key?.trim().toLowerCase() === slug) return true;
+    const href = c.href?.trim();
+    if (!href) return false;
+    return normalizePublicPath(href).toLowerCase() === path.toLowerCase();
+  });
+  return match ?? null;
+}

@@ -8,7 +8,7 @@ import {
 export { normalizeDressCategory };
 
 /** DB values to query for a canonical category (includes legacy aliases). */
-export function categoryQueryValues(target: DressCategory): string[] {
+export function categoryQueryValues(target: string): string[] {
   if (target === "wedding") return ["wedding", "wedding_dress"];
   if (target === "nouf_dresses") return ["nouf_dresses", "nouf_dress"];
   return [target];
@@ -21,8 +21,12 @@ export function isDressCategory(value: string): value is DressCategory {
 export function withNormalizedDressCategory<T extends { category: string }>(
   dress: T
 ): T & { category: DressCategory } {
-  const category = normalizeDressCategory(dress.category) ?? "wedding";
-  return { ...dress, category };
+  const normalized = normalizeDressCategory(dress.category);
+  if (normalized) return { ...dress, category: normalized };
+  // Dynamic categories store free-text slug / legacy_key on dresses.category
+  const raw = dress.category?.trim();
+  if (raw) return { ...dress, category: raw as DressCategory };
+  return { ...dress, category: "wedding" };
 }
 
 export function normalizeDressList(dresses: Dress[]): Dress[] {
