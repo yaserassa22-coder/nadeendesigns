@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, X } from "lucide-react";
 import type { Dress } from "@/types";
 import type { Category } from "@/types/category";
-import { isDressProductCategory } from "@/types/category";
+import { selectDressAssignableCategories } from "@/types/category";
 import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
@@ -115,11 +115,20 @@ export function DressesManager({
   const [categories, setCategories] = useState(initialCategories);
   const [search, setSearch] = useState("");
 
+  // Sync when server props refresh after category create / router.refresh().
+  const [categoriesProp, setCategoriesProp] = useState(initialCategories);
+  if (initialCategories !== categoriesProp) {
+    setCategoriesProp(initialCategories);
+    setCategories(initialCategories);
+  }
+  const [dressesProp, setDressesProp] = useState(initialDresses);
+  if (initialDresses !== dressesProp) {
+    setDressesProp(initialDresses);
+    setDresses(initialDresses);
+  }
+
   const dressCategories = useMemo(
-    () =>
-      categories.filter(
-        (c) => isDressProductCategory(c) && c.is_visible !== false
-      ),
+    () => selectDressAssignableCategories(categories),
     [categories]
   );
 
@@ -154,16 +163,42 @@ export function DressesManager({
   const [error, setError] = useState("");
   const [visibility, setVisibility] = useState<ListVisibility>("active");
 
-  const refetchCategories = useCallback(async () => {
+  const refetchCategories = useCallback(async (): Promise<Category[]> => {
+    const current = (): Promise<Category[]> =>
+      new Promise((resolve) => {
+        setCategories((prev) => {
+          resolve(prev);
+          return prev;
+        });
+      });
     try {
-      const res = await fetch("/api/categories");
-      if (!res.ok) return;
+      const res = await fetch("/api/categories", { cache: "no-store" });
+      if (!res.ok) return current();
       const data = (await res.json()) as Category[];
-      if (Array.isArray(data)) setCategories(data);
+      if (Array.isArray(data)) {
+        setCategories(data);
+        return data;
+      }
     } catch {
       /* keep current */
     }
+    return current();
   }, []);
+
+  // Live list on mount + when returning to the tab (no rebuild/restart).
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void refetchCategories();
+    }, 0);
+    const onFocus = () => {
+      void refetchCategories();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [refetchCategories]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -204,22 +239,22 @@ export function DressesManager({
     dressCategories,
   ]);
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setEditing(null);
+    setError("");
+    const fresh = selectDressAssignableCategories(await refetchCategories());
     const defaultCategory =
       resolvedLockId ??
-      (categoryFilter !== "all" ? categoryFilter : dressCategories[0]?.id ?? "");
+      (categoryFilter !== "all" ? categoryFilter : fresh[0]?.id ?? "");
     setForm(emptyForm(defaultCategory));
-    setError("");
-    void refetchCategories();
     setOpen(true);
   };
 
-  const openEdit = (dress: Dress) => {
+  const openEdit = async (dress: Dress) => {
     setEditing(dress);
-    setForm(toForm(dress, dressCategories));
     setError("");
-    void refetchCategories();
+    const fresh = selectDressAssignableCategories(await refetchCategories());
+    setForm(toForm(dress, fresh));
     setOpen(true);
   };
 

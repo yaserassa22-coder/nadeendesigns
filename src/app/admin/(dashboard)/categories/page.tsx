@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "إدارة التصنيفات",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminCategoriesPage() {
   const categories = await getAdminCategories();
 

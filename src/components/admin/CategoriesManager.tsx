@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
@@ -33,7 +34,13 @@ const emptyForm = {
 };
 
 export function CategoriesManager({ initialCategories }: CategoriesManagerProps) {
+  const router = useRouter();
   const [categories, setCategories] = useState(initialCategories);
+  const [categoriesProp, setCategoriesProp] = useState(initialCategories);
+  if (initialCategories !== categoriesProp) {
+    setCategoriesProp(initialCategories);
+    setCategories(initialCategories);
+  }
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -133,6 +140,8 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
       }
       setOpen(false);
       reset();
+      // Refresh RSC payloads so Admin → Products Create sees the new category.
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "حدث خطأ");
     } finally {

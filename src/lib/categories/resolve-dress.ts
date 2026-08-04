@@ -4,7 +4,10 @@ import {
   findCategoryMatch,
 } from "@/lib/dresses/category";
 import type { Category } from "@/types/category";
-import { isDressProductCategory } from "@/types/category";
+import {
+  isDressProductCategory,
+  selectDressAssignableCategories,
+} from "@/types/category";
 
 /**
  * Resolve a category for dress assignment from category_id and/or TEXT key.
@@ -53,10 +56,12 @@ export async function resolveDressCategory(input: {
   };
 }
 
-/** Dress-kind categories for admin selectors (all visible non-deleted from DB). */
+/**
+ * Dress-kind categories for admin product selectors.
+ * Uses DB categories (non-deleted via getCategories) including null product_kind.
+ * Hidden (is_visible=false) rows stay assignable in admin.
+ */
 export async function getDressAssignableCategories(): Promise<Category[]> {
   const all = await getCategories();
-  return all.filter(
-    (c) => isDressProductCategory(c) && c.is_visible !== false
-  );
+  return selectDressAssignableCategories(all);
 }

@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import { DressesManager } from "@/components/admin/DressesManager";
 import { getAdminDresses } from "@/lib/admin/data";
 import { getAdminCategories } from "@/lib/admin/categories-data";
-import { isDressProductCategory } from "@/types/category";
+import { selectDressAssignableCategories } from "@/types/category";
 
 export const metadata: Metadata = {
   title: "إدارة المنتجات",
 };
+
+/** Always load fresh categories for product Create/Edit selectors. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface Props {
   searchParams: Promise<{ category?: string }>;
@@ -17,9 +21,9 @@ export default async function AdminDressesPage({ searchParams }: Props) {
     getAdminDresses(),
     getAdminCategories(),
   ]);
-  const dressCategories = categories.filter(
-    (c) => isDressProductCategory(c) && c.is_visible !== false
-  );
+  // Pass full DB list; DressesManager filters dress-assignable (incl. null kind).
+  // Do not pre-filter is_visible — admin must assign to hidden categories too.
+  const dressCategories = selectDressAssignableCategories(categories);
   const params = await searchParams;
   const initialCategory =
     params.category &&
@@ -48,7 +52,7 @@ export default async function AdminDressesPage({ searchParams }: Props) {
       </div>
       <DressesManager
         initialDresses={dresses}
-        initialCategories={dressCategories}
+        initialCategories={categories}
         initialCategoryFilter={initialCategory}
       />
     </div>

@@ -16,6 +16,19 @@ import { normalizeCategoryRow } from "@/lib/data/categories";
 import { categoryCreateSchema, categoryUpdateSchema } from "@/lib/validations/category";
 import type { Category } from "@/types/category";
 
+/** Never serve a cached category list to admin product selectors. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function noStoreJson(data: unknown, init?: { status?: number }) {
+  return NextResponse.json(data, {
+    status: init?.status,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
+}
+
 function missingCategoriesMessage() {
   return "جدول التصنيفات غير موجود. نفّذي supabase/APPLY_CATEGORIES.sql في SQL Editor ثم أعيدي المحاولة.";
 }
@@ -49,7 +62,7 @@ function inferProductKind(): string {
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(SEED_CATEGORIES);
+    return noStoreJson(SEED_CATEGORIES);
   }
   const supabase = createAdminClient();
   let query = supabase
@@ -69,11 +82,14 @@ export async function GET() {
   if (error) {
     if (isMissingTableError(error, "categories")) {
       console.warn("[categories API] table missing — returning seed data");
-      return NextResponse.json(SEED_CATEGORIES);
+      return noStoreJson(SEED_CATEGORIES);
     }
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+    return noStoreJson(
+      { error: getErrorMessage(error) },
+      { status: 500 }
+    );
   }
-  return NextResponse.json(
+  return noStoreJson(
     ((data as Category[]) ?? []).map(normalizeCategoryRow)
   );
 }

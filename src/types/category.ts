@@ -247,3 +247,13 @@ export function isDressProductCategory(
   // New admin categories without kind default to dress for product assignment
   return kind === "dress" || kind === null;
 }
+
+/**
+ * Admin product selectors: dress-kind rows including null/empty product_kind.
+ * Does NOT filter is_visible — admins must assign products to hidden categories too.
+ */
+export function selectDressAssignableCategories(
+  categories: readonly Category[]
+): Category[] {
+  return categories.filter((c) => isDressProductCategory(c));
+}

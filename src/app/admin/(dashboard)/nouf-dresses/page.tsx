@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: "فساتين نوف",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminNoufDressesPage() {
   const [dresses, categories] = await Promise.all([
     getAdminDresses(),
