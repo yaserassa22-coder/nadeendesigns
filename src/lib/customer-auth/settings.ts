@@ -103,6 +103,24 @@ export async function saveCustomerAuthSettings(
 
 /** Public flags for login modal (no secrets). */
 export function getAuthEnvFlags() {
+  const metaConfigured = Boolean(
+    process.env.WHATSAPP_META_TOKEN?.trim() &&
+      process.env.WHATSAPP_META_PHONE_NUMBER_ID?.trim()
+  );
+  const twilioWaConfigured = Boolean(
+    process.env.TWILIO_ACCOUNT_SID?.trim() &&
+      process.env.TWILIO_AUTH_TOKEN?.trim() &&
+      process.env.TWILIO_WHATSAPP_FROM?.trim()
+  );
+  const dialog360Configured = Boolean(
+    process.env.WHATSAPP_360DIALOG_API_KEY?.trim()
+  );
+  const smsOnlyConfigured = Boolean(
+    process.env.TWILIO_ACCOUNT_SID?.trim() &&
+      process.env.TWILIO_AUTH_TOKEN?.trim() &&
+      process.env.TWILIO_SMS_FROM?.trim()
+  );
+
   return {
     supabaseConfigured: isSupabaseConfigured(),
     googleConfigured: Boolean(
@@ -113,12 +131,17 @@ export function getAuthEnvFlags() {
       process.env.NEXT_PUBLIC_APPLE_AUTH_ENABLED === "true" ||
         process.env.SUPABASE_AUTH_EXTERNAL_APPLE_ENABLED === "true"
     ),
-    smsConfigured: Boolean(
-      process.env.TWILIO_ACCOUNT_SID?.trim() &&
-        process.env.TWILIO_AUTH_TOKEN?.trim() &&
-        (process.env.TWILIO_SMS_FROM?.trim() ||
-          process.env.TWILIO_WHATSAPP_FROM?.trim())
-    ),
+    /** WhatsApp OTP delivery ready (Meta / Twilio WA / 360dialog). */
+    whatsappConfigured:
+      metaConfigured || twilioWaConfigured || dialog360Configured,
+    whatsappProvider:
+      process.env.WHATSAPP_PROVIDER?.trim().toLowerCase() || "auto",
+    /** @deprecated Use whatsappConfigured — kept for older admin UI */
+    smsConfigured:
+      metaConfigured ||
+      twilioWaConfigured ||
+      dialog360Configured ||
+      smsOnlyConfigured,
     emailConfigured: Boolean(
       process.env.RESEND_API_KEY?.trim() &&
         process.env.RESEND_FROM_EMAIL?.trim()

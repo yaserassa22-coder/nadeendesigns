@@ -118,11 +118,23 @@ export default function AdminCustomerDetailPage() {
           <Row label="هاتف" value={String(data.customer?.phone || data.overlay?.phone || "—")} />
           <Row label="بريد" value={String(data.customer?.email || data.overlay?.email || "—")} />
           <Row
+            label="مزوّد الدخول"
+            value={String(data.customer?.provider || "—")}
+          />
+          <Row
             label="نوع العميلة"
             value={
               data.customer?.auth_user_id || data.customer?.is_guest === false
                 ? "Registered"
                 : "Guest"
+            }
+          />
+          <Row
+            label="آخر دخول"
+            value={
+              data.stats.last_login
+                ? new Date(data.stats.last_login).toLocaleString("ar")
+                : "—"
             }
           />
           <Row label="عدد مرات الدخول" value={String(data.stats.login_count ?? data.customer?.login_count ?? 0)} />
@@ -132,6 +144,17 @@ export default function AdminCustomerDetailPage() {
           <Row label="إحالة" value={String(data.customer?.referral_code ?? "—")} />
         </dl>
       </Section>
+
+      {Boolean(data.customer?.merge_meta) && (
+        <Section title="دمج حساب الضيف">
+          <pre
+            className="max-h-48 overflow-auto rounded-xl bg-beige/40 p-3 text-xs text-charcoal"
+            dir="ltr"
+          >
+            {JSON.stringify(data.customer?.merge_meta, null, 2)}
+          </pre>
+        </Section>
+      )}
 
       <Section title={`الطلبات (${data.orders.length})`}>
         <ul className="space-y-2 text-sm">

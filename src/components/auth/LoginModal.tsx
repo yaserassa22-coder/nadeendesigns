@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
-  Smartphone,
   Mail,
   Package,
   Truck,
@@ -12,10 +11,9 @@ import {
   Heart,
   Palette,
   Bell,
-  UserPlus,
   UserRound,
 } from "lucide-react";
-import { FaGoogle, FaApple, FaFacebookF } from "react-icons/fa";
+import { FaGoogle, FaApple, FaWhatsapp } from "react-icons/fa";
 import { SITE_NAME } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -38,7 +36,7 @@ type Props = {
   flags?: Record<string, boolean>;
 };
 
-type Step = "choice" | "methods" | "phone" | "otp" | "email";
+type Step = "choice" | "phone" | "otp" | "email";
 
 const ACCOUNT_BENEFITS = [
   { icon: Package, label: "تتبع الطلبات" },
@@ -71,6 +69,7 @@ export function LoginModal({
   const [emailMode, setEmailMode] = useState<"signin" | "signup">("signin");
   const [fullName, setFullName] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [destinationHint, setDestinationHint] = useState<string | null>(null);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   function resetForm() {
@@ -80,6 +79,7 @@ export function LoginModal({
     setError(null);
     setRequestId(null);
     setDevCode(null);
+    setDestinationHint(null);
     setLoading(false);
   }
 
@@ -113,21 +113,23 @@ export function LoginModal({
   }, [open, handleClose]);
 
   const guestEnabled = settings?.guest_checkout_enabled !== false;
+  const whatsappEnabled = settings?.otp_ready !== false;
 
   async function requestOtp() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/otp/request", {
+      const res = await fetch("/api/auth/whatsapp/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dial, phone, remember }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
+      if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز عبر واتساب");
       setRequestId(data.request_id);
       setResendIn(data.resend_in ?? 60);
       setDevCode(data.dev_code ?? null);
+      setDestinationHint(data.destination_hint ?? null);
       setStep("otp");
       setTimeout(() => inputsRef.current[0]?.focus(), 80);
     } catch (e) {
@@ -143,7 +145,7 @@ export function LoginModal({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/otp/verify", {
+      const res = await fetch("/api/auth/whatsapp/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,6 +160,9 @@ export function LoginModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "رمز غير صحيح");
       await onSuccess();
+      if (typeof window !== "undefined") {
+        window.location.assign(data.redirect || "/account");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "فشل التحقق");
       setOtp(["", "", "", "", "", ""]);
@@ -225,6 +230,9 @@ export function LoginModal({
         return;
       }
       await onSuccess();
+      if (typeof window !== "undefined") {
+        window.location.assign("/account");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "فشل");
     } finally {
@@ -285,10 +293,16 @@ export function LoginModal({
                   id="login-title"
                   className="mt-3 font-[family-name:var(--font-amiri)] text-2xl text-charcoal"
                 >
-                  مرحباً بك في NadEEN Designs
+                  مرحباً بكِ في NadEEN Designs
                 </h2>
                 <p className="mt-2 text-sm text-muted">
-                  اختاري كيف تودين المتابعة.
+                  {step === "choice"
+                    ? "اختاري طريقة المتابعة — بأناقة وخصوصية."
+                    : step === "phone"
+                      ? "أدخلي رقم واتساب لاستلام رمز التحقق."
+                      : step === "otp"
+                        ? "أدخلي الرمز الذي وصلَكِ على واتساب."
+                        : "البريد وكلمة المرور"}
                 </p>
               </div>
 
@@ -311,67 +325,30 @@ export function LoginModal({
               )}
 
               {step === "choice" && (
-                <div className="space-y-4">
-                  <button
-                    type="button"
-                    onClick={() => setStep("methods")}
-                    className="w-full rounded-2xl border border-transparent px-5 py-4 text-start text-white shadow-md transition hover:brightness-105"
-                    style={{ backgroundColor: ACCENT }}
-                  >
-                    <span className="flex items-center gap-2 font-semibold">
-                      <UserPlus className="h-5 w-5" />
-                      تسجيل الدخول / إنشاء حساب
-                    </span>
-                    <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-white/90">
-                      {ACCOUNT_BENEFITS.map(({ icon: Icon, label }) => (
-                        <li key={label} className="flex items-center gap-1.5">
-                          <Icon className="h-3.5 w-3.5 shrink-0 opacity-90" />
-                          {label}
-                        </li>
-                      ))}
-                    </ul>
-                  </button>
+                <div className="space-y-3">
+                  <ul className="mb-4 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-muted">
+                    {ACCOUNT_BENEFITS.map(({ icon: Icon, label }) => (
+                      <li key={label} className="flex items-center gap-1.5">
+                        <Icon
+                          className="h-3.5 w-3.5 shrink-0"
+                          style={{ color: ACCENT }}
+                        />
+                        {label}
+                      </li>
+                    ))}
+                  </ul>
 
-                  {guestEnabled && (
+                  {whatsappEnabled && (
                     <button
                       type="button"
-                      onClick={handleGuest}
-                      className="w-full rounded-2xl border border-beige-dark bg-ivory/80 px-5 py-4 text-start transition hover:border-[color:#C9A14A] hover:bg-beige/40"
-                    >
-                      <span className="flex items-center gap-2 font-semibold text-charcoal">
-                        <UserRound className="h-5 w-5" style={{ color: ACCENT }} />
-                        المتابعة كزائرة
-                      </span>
-                      <p className="mt-2 text-xs leading-relaxed text-muted">
-                        يمكنكِ التصفح والسلة والشراء وحجز المواعيد. لن تُحفظ
-                        الأمنيات أو التصاميم أو لوحة الحساب أو سجل الطلبات عبر
-                        الأجهزة.
-                      </p>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {step === "methods" && (
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep("choice")}
-                    className="mb-1 text-sm text-muted hover:underline"
-                  >
-                    ← رجوع
-                  </button>
-
-                  {(settings?.otp_ready !== false) && (
-                    <Button
-                      type="button"
-                      className="w-full justify-center gap-2"
-                      style={{ backgroundColor: ACCENT }}
+                      disabled={loading}
                       onClick={() => setStep("phone")}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
+                      style={{ backgroundColor: ACCENT }}
                     >
-                      <Smartphone className="h-4 w-4" />
-                      المتابعة بالهاتف
-                    </Button>
+                      <FaWhatsapp className="h-5 w-5" />
+                      المتابعة مع واتساب
+                    </button>
                   )}
 
                   <OAuthButton
@@ -393,34 +370,24 @@ export function LoginModal({
                     disabledHint="فعّلي Apple في Supabase و NEXT_PUBLIC_APPLE_AUTH_ENABLED"
                   />
 
-                  <button
-                    type="button"
-                    disabled
-                    title="قريباً"
-                    className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-beige-dark bg-beige/40 px-4 py-3 text-sm text-muted opacity-60"
-                  >
-                    <FaFacebookF className="h-4 w-4" />
-                    Facebook — قريباً
-                  </button>
+                  {guestEnabled && (
+                    <button
+                      type="button"
+                      onClick={handleGuest}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-beige-dark bg-ivory/80 px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/40"
+                    >
+                      <UserRound className="h-5 w-5" style={{ color: ACCENT }} />
+                      المتابعة كزائرة
+                    </button>
+                  )}
 
                   {settings?.email_ready !== false && (
                     <button
                       type="button"
                       onClick={() => setStep("email")}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-beige-dark px-4 py-3 text-sm text-charcoal transition hover:border-[color:var(--gold)] hover:bg-beige/50"
+                      className="mt-1 w-full py-2 text-center text-xs text-muted underline-offset-4 hover:text-charcoal hover:underline"
                     >
-                      <Mail className="h-4 w-4" style={{ color: ACCENT }} />
-                      البريد وكلمة المرور
-                    </button>
-                  )}
-
-                  {guestEnabled && (
-                    <button
-                      type="button"
-                      onClick={handleGuest}
-                      className="mt-2 w-full py-2 text-sm text-muted underline-offset-4 hover:text-charcoal hover:underline"
-                    >
-                      المتابعة كزائرة
+                      أو بالبريد وكلمة المرور
                     </button>
                   )}
                 </div>
@@ -428,7 +395,9 @@ export function LoginModal({
 
               {step === "phone" && (
                 <div className="space-y-4">
-                  <label className="block text-sm text-muted">رقم الهاتف</label>
+                  <label className="block text-sm text-muted">
+                    رقم واتساب
+                  </label>
                   <div className="flex gap-2" dir="ltr">
                     <select
                       value={dial}
@@ -451,6 +420,9 @@ export function LoginModal({
                       autoFocus
                     />
                   </div>
+                  <p className="text-xs text-muted">
+                    سنرسل رمز تحقق لمرة واحدة عبر واتساب — لا نشارك رقمكِ.
+                  </p>
                   <label className="flex items-center gap-2 text-sm text-muted">
                     <input
                       type="checkbox"
@@ -465,17 +437,18 @@ export function LoginModal({
                       type="button"
                       variant="outline"
                       className="flex-1"
-                      onClick={() => setStep("methods")}
+                      onClick={() => setStep("choice")}
                     >
                       رجوع
                     </Button>
                     <Button
                       type="button"
-                      className="flex-1"
+                      className="flex-1 gap-2"
                       loading={loading}
                       style={{ backgroundColor: ACCENT }}
                       onClick={() => void requestOtp()}
                     >
+                      <FaWhatsapp className="h-4 w-4" />
                       إرسال الرمز
                     </Button>
                   </div>
@@ -486,10 +459,20 @@ export function LoginModal({
                 <div className="space-y-4">
                   <p className="text-center text-sm text-muted">
                     أدخلي الرمز المكوّن من 6 أرقام
+                    {destinationHint ? (
+                      <>
+                        {" "}
+                        المرسل إلى{" "}
+                        <span dir="ltr" className="text-charcoal">
+                          {destinationHint}
+                        </span>
+                      </>
+                    ) : null}
                   </p>
                   {devCode && (
                     <p className="rounded-xl bg-beige px-3 py-2 text-center text-xs text-muted">
-                      وضع التطوير — الرمز: <strong dir="ltr">{devCode}</strong>
+                      وضع التطوير — الرمز:{" "}
+                      <strong dir="ltr">{devCode}</strong>
                     </p>
                   )}
                   <div className="flex justify-center gap-2" dir="ltr">
@@ -518,7 +501,7 @@ export function LoginModal({
                       style={{ backgroundColor: ACCENT }}
                       onClick={() => void verifyOtp()}
                     >
-                      تأكيد
+                      تأكيد والدخول
                     </Button>
                     <button
                       type="button"
@@ -533,7 +516,7 @@ export function LoginModal({
                     >
                       {resendIn > 0
                         ? `إعادة الإرسال بعد ${resendIn}ث`
-                        : "إعادة إرسال الرمز"}
+                        : "إعادة إرسال الرمز عبر واتساب"}
                     </button>
                     <button
                       type="button"
@@ -548,6 +531,13 @@ export function LoginModal({
 
               {step === "email" && (
                 <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep("choice")}
+                    className="mb-1 text-sm text-muted hover:underline"
+                  >
+                    ← رجوع
+                  </button>
                   <div className="flex gap-2 rounded-xl bg-beige/60 p-1 text-sm">
                     <button
                       type="button"
@@ -599,7 +589,7 @@ export function LoginModal({
                       type="button"
                       variant="outline"
                       className="flex-1"
-                      onClick={() => setStep("methods")}
+                      onClick={() => setStep("choice")}
                     >
                       رجوع
                     </Button>
@@ -610,6 +600,7 @@ export function LoginModal({
                       style={{ backgroundColor: ACCENT }}
                       onClick={() => void submitEmail()}
                     >
+                      <Mail className="me-1 h-4 w-4" />
                       {emailMode === "signup" ? "إنشاء حساب" : "دخول"}
                     </Button>
                   </div>
@@ -648,7 +639,7 @@ function OAuthButton({
       title={!ready || !enabled ? disabledHint : undefined}
       onClick={onClick}
       className={cn(
-        "flex w-full items-center justify-center gap-2 rounded-xl border border-beige-dark bg-white px-4 py-3 text-sm text-charcoal transition",
+        "flex w-full items-center justify-center gap-2 rounded-2xl border border-beige-dark bg-white px-4 py-3.5 text-sm font-medium text-charcoal transition",
         disabled
           ? "cursor-not-allowed opacity-50"
           : "hover:border-[color:#C9A14A] hover:bg-beige/40"

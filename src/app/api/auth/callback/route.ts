@@ -40,6 +40,13 @@ export async function GET(request: NextRequest) {
   }
 
   const user = data.user;
+  const oauthProvider =
+    (user.app_metadata?.provider as string | undefined) || "oauth";
+  const mappedProvider =
+    oauthProvider === "google" || oauthProvider === "apple"
+      ? oauthProvider
+      : oauthProvider;
+
   const customer = await upsertCustomerForAuthUser({
     authUserId: user.id,
     email: user.email,
@@ -52,13 +59,13 @@ export async function GET(request: NextRequest) {
       (user.user_metadata?.avatar_url as string | undefined) ||
       (user.user_metadata?.picture as string | undefined) ||
       null,
+    provider: mappedProvider,
   });
 
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
   const ua = request.headers.get("user-agent");
-  const provider =
-    (user.app_metadata?.provider as string | undefined) || "oauth";
+  const provider = mappedProvider;
 
   if (customer) {
     await recordLoginHistory({

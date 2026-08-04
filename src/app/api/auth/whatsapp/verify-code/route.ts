@@ -1,10 +1,7 @@
 import { NextRequest } from "next/server";
 import { handleWhatsAppVerifyCode } from "@/lib/customer-auth/otp-service";
 
-/**
- * @deprecated Prefer POST /api/auth/whatsapp/verify-code
- * Legacy phone OTP verify — same WhatsApp OTP session flow.
- */
+/** POST /api/auth/whatsapp/verify-code — verify OTP, sign in / create customer, session cookie */
 export async function POST(request: NextRequest) {
   return handleWhatsAppVerifyCode(request);
 }

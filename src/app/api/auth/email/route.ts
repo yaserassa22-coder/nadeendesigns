@@ -68,10 +68,11 @@ export async function POST(request: NextRequest) {
           authUserId: data.user.id,
           email,
           fullName: body.full_name,
+          provider: "email",
         });
         await recordLoginHistory({
           authUserId: data.user.id,
-          method: "email_signup",
+          method: "email",
           success: true,
           ip,
           userAgent: ua,
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
         authUserId: data.user.id,
         email,
         fullName: body.full_name,
+        provider: "email",
       });
       await recordLoginHistory({
         authUserId: data.user.id,

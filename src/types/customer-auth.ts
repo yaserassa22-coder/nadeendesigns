@@ -27,11 +27,23 @@ export const DEFAULT_CUSTOMER_AUTH_SETTINGS: CustomerAuthSettings = {
   remember_device_days: 30,
 };
 
+/** How the customer primarily authenticated (whatsapp / google / apple / guest / email). */
+export type CustomerAuthProvider =
+  | "whatsapp"
+  | "google"
+  | "apple"
+  | "guest"
+  | "email"
+  | "phone"
+  | "facebook";
+
 export type CustomerProfile = {
   id: string;
   auth_user_id: string | null;
   /** True for checkout-created guests; false once registered / linked to auth */
   is_guest?: boolean;
+  /** Auth channel: whatsapp | google | apple | guest | email */
+  provider?: CustomerAuthProvider | string | null;
   customer_key: string | null;
   full_name: string;
   phone: string | null;
@@ -47,6 +59,8 @@ export type CustomerProfile = {
   referral_code: string | null;
   last_login_at: string | null;
   login_count: number;
+  /** Light audit of guest→registered merges (orders/bookings/wishlist counts). */
+  merge_meta?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 };
@@ -80,7 +94,14 @@ export type WishlistItem = {
   created_at: string;
 };
 
-export type AuthProviderId = "phone" | "google" | "apple" | "email" | "facebook" | "guest";
+export type AuthProviderId =
+  | "whatsapp"
+  | "phone"
+  | "google"
+  | "apple"
+  | "email"
+  | "facebook"
+  | "guest";
 
 export const PHONE_COUNTRIES = [
   { code: "IL", dial: "+972", label: "إسرائيل (+972)", flag: "🇮🇱" },

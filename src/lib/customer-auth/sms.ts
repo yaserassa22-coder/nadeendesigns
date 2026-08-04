@@ -1,7 +1,7 @@
 import { normalizeWhatsAppTo } from "@/lib/notifications/whatsapp";
-import { sendWhatsApp } from "@/lib/notifications/whatsapp";
 import { sendEmail } from "@/lib/notifications/email";
 import { isResendConfigured } from "@/lib/notifications/config";
+import { sendWhatsAppOtp } from "@/lib/customer-auth/whatsapp";
 
 export function isSmsConfigured(): boolean {
   return Boolean(
@@ -11,7 +11,7 @@ export function isSmsConfigured(): boolean {
   );
 }
 
-/** Send OTP via Twilio SMS when TWILIO_SMS_FROM is set. */
+/** Send OTP via Twilio SMS when TWILIO_SMS_FROM is set (legacy fallback). */
 export async function sendOtpSms(params: {
   to: string;
   code: string;
@@ -66,7 +66,8 @@ export async function sendOtpSms(params: {
 }
 
 /**
- * Deliver OTP: prefer SMS → WhatsApp → (dev) return code in response when NODE_ENV=development.
+ * Deliver OTP: WhatsApp Business first (Meta/Twilio/360dialog) → SMS → dev.
+ * Prefer /api/auth/whatsapp/send-code which uses WhatsApp-only path.
  */
 export async function deliverPhoneOtp(params: {
   to: string;
@@ -75,16 +76,16 @@ export async function deliverPhoneOtp(params: {
   | { ok: true; channel: "sms" | "whatsapp" | "dev" }
   | { ok: false; error: string }
 > {
+  const wa = await sendWhatsAppOtp({ toE164: params.to, code: params.code });
+  if (wa.ok) return { ok: true, channel: "whatsapp" };
+
   const sms = await sendOtpSms(params);
   if (sms.ok) return sms;
 
-  const wa = await sendWhatsApp({
-    to: params.to,
-    body: `رمز التحقق من NadEEN Designs: ${params.code}\nصالح لمدة محدودة.`,
-  });
-  if (wa.ok) return { ok: true, channel: "whatsapp" };
-
-  if (process.env.NODE_ENV === "development" || process.env.OTP_DEV_EXPOSE === "true") {
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.OTP_DEV_EXPOSE === "true"
+  ) {
     console.info(`[OTP DEV] ${params.to} → ${params.code}`);
     return { ok: true, channel: "dev" };
   }
@@ -92,9 +93,9 @@ export async function deliverPhoneOtp(params: {
   return {
     ok: false,
     error:
-      sms.error ||
       wa.error ||
-      "تعذّر إرسال رمز التحقق. تأكدي من إعداد Twilio SMS أو واتساب.",
+      sms.error ||
+      "تعذّر إرسال رمز التحقق. تأكدي من إعداد واتساب (Meta/Twilio).",
   };
 }
 
@@ -103,7 +104,10 @@ export async function deliverEmailOtp(params: {
   code: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!isResendConfigured()) {
-    if (process.env.NODE_ENV === "development" || process.env.OTP_DEV_EXPOSE === "true") {
+    if (
+      process.env.NODE_ENV === "development" ||
+      process.env.OTP_DEV_EXPOSE === "true"
+    ) {
       console.info(`[OTP DEV EMAIL] ${params.to} → ${params.code}`);
       return { ok: true };
     }

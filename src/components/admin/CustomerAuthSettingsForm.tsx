@@ -9,7 +9,7 @@ export function CustomerAuthSettingsForm() {
   const [settings, setSettings] = useState<CustomerAuthSettings>(
     DEFAULT_CUSTOMER_AUTH_SETTINGS
   );
-  const [flags, setFlags] = useState<Record<string, boolean>>({});
+  const [flags, setFlags] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export function CustomerAuthSettingsForm() {
   }
 
   const toggles: { key: keyof CustomerAuthSettings; label: string }[] = [
-    { key: "otp_enabled", label: "تفعيل OTP بالهاتف" },
+    { key: "otp_enabled", label: "تفعيل واتساب OTP" },
     { key: "google_enabled", label: "تفعيل Google" },
     { key: "apple_enabled", label: "تفعيل Apple" },
     { key: "email_password_enabled", label: "تفعيل البريد وكلمة المرور" },
@@ -152,7 +152,8 @@ export function CustomerAuthSettingsForm() {
           <li>
             Apple flag: {flags.appleConfigured ? "✓" : "✗"} (NEXT_PUBLIC_APPLE_AUTH_ENABLED)
           </li>
-          <li>SMS / واتساب OTP: {flags.smsConfigured ? "✓" : "✗"}</li>
+          <li>واتساب OTP: {flags.whatsappConfigured || flags.smsConfigured ? "✓" : "✗"}</li>
+          <li>مزوّد واتساب: {String(flags.whatsappProvider || "auto")}</li>
           <li>Resend: {flags.emailConfigured ? "✓" : "✗"}</li>
         </ul>
       </div>

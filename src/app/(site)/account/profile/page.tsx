@@ -67,6 +67,22 @@ export default function AccountProfilePage() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 rounded-2xl border border-beige-dark bg-white p-5 sm:grid-cols-2">
+        <div className="sm:col-span-2 flex flex-wrap gap-3 text-sm">
+          <span className="rounded-full border border-beige-dark bg-beige/50 px-3 py-1 text-muted">
+            مزوّد الدخول:{" "}
+            <strong className="text-charcoal">
+              {customer?.provider || "—"}
+            </strong>
+          </span>
+          {customer?.last_login_at && (
+            <span className="rounded-full border border-beige-dark bg-beige/50 px-3 py-1 text-muted">
+              آخر دخول:{" "}
+              <strong className="text-charcoal" dir="ltr">
+                {new Date(customer.last_login_at).toLocaleString("ar")}
+              </strong>
+            </span>
+          )}
+        </div>
         {(
           [
             ["full_name", "الاسم"],

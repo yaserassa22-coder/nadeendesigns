@@ -105,38 +105,115 @@ export async function getCustomerByPhoneOrEmail(params: {
   return null;
 }
 
+export type GuestMergeSummary = {
+  orders: number;
+  bookings: number;
+  wishlist: number;
+  addresses: number;
+  guest_rows_linked: number;
+};
+
 /**
- * Attach historical guest shop_orders (null customer_id) matching phone/email
- * to a customer row after registration.
+ * Attach historical guest shop_orders / bookings (null customer_id) matching
+ * phone/email, and merge orphan guest wishlist/addresses into the registered row.
  */
 export async function attachGuestOrdersToCustomer(params: {
   customerId: string;
   phone?: string | null;
   email?: string | null;
-}) {
-  if (!isSupabaseConfigured()) return;
+}): Promise<GuestMergeSummary> {
+  const summary: GuestMergeSummary = {
+    orders: 0,
+    bookings: 0,
+    wishlist: 0,
+    addresses: 0,
+    guest_rows_linked: 0,
+  };
+  if (!isSupabaseConfigured()) return summary;
   try {
     const supabase = createAdminClient();
     const phone = params.phone?.trim();
     const email = params.email?.trim();
 
     if (phone) {
-      await supabase
+      const { data: orders } = await supabase
         .from("shop_orders")
         .update({ customer_id: params.customerId })
         .is("customer_id", null)
-        .eq("phone", phone);
+        .eq("phone", phone)
+        .select("id");
+      summary.orders += orders?.length ?? 0;
+
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .update({ customer_id: params.customerId })
+        .is("customer_id", null)
+        .eq("phone", phone)
+        .select("id");
+      summary.bookings += bookings?.length ?? 0;
     }
     if (email) {
-      await supabase
+      const { data: orders } = await supabase
         .from("shop_orders")
         .update({ customer_id: params.customerId })
         .is("customer_id", null)
-        .ilike("email", email);
+        .ilike("email", email)
+        .select("id");
+      summary.orders += orders?.length ?? 0;
+
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .update({ customer_id: params.customerId })
+        .is("customer_id", null)
+        .ilike("email", email)
+        .select("id");
+      summary.bookings += bookings?.length ?? 0;
+    }
+
+    // Merge wishlist / addresses from other guest customer rows with same contact
+    const orphanIds: string[] = [];
+    if (phone) {
+      const { data } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("phone", phone)
+        .neq("id", params.customerId)
+        .is("auth_user_id", null);
+      for (const r of data ?? []) orphanIds.push(String(r.id));
+    }
+    if (email) {
+      const { data } = await supabase
+        .from("customers")
+        .select("id")
+        .ilike("email", email)
+        .neq("id", params.customerId)
+        .is("auth_user_id", null);
+      for (const r of data ?? []) {
+        const id = String(r.id);
+        if (!orphanIds.includes(id)) orphanIds.push(id);
+      }
+    }
+
+    summary.guest_rows_linked = orphanIds.length;
+    for (const orphanId of orphanIds) {
+      const { data: wish } = await supabase
+        .from("wishlist_items")
+        .update({ customer_id: params.customerId })
+        .eq("customer_id", orphanId)
+        .select("id");
+      summary.wishlist += wish?.length ?? 0;
+
+      const { data: addrs } = await supabase
+        .from("customer_addresses")
+        .update({ customer_id: params.customerId })
+        .eq("customer_id", orphanId)
+        .select("id");
+      summary.addresses += addrs?.length ?? 0;
     }
   } catch {
     // non-fatal — soft phone/email match still works on account orders API
   }
+  return summary;
 }
 
 /**
@@ -194,6 +271,7 @@ export async function ensureCustomerForCheckout(params: {
       id,
       auth_user_id: null,
       is_guest: true,
+      provider: "guest",
       customer_key: key,
       full_name: params.fullName.trim() || "",
       phone,
@@ -242,6 +320,7 @@ export async function upsertCustomerForAuthUser(params: {
   email?: string | null;
   fullName?: string | null;
   photoUrl?: string | null;
+  provider?: string | null;
 }): Promise<CustomerProfile | null> {
   if (!isSupabaseConfigured()) return null;
   const supabase = createAdminClient();
@@ -256,68 +335,108 @@ export async function upsertCustomerForAuthUser(params: {
     customerKeyFromContact(phone, email) ??
     existing?.customer_key ??
     `u:${params.authUserId}`;
+  const provider =
+    params.provider?.trim() || existing?.provider || null;
 
   const now = new Date().toISOString();
 
-  if (existing) {
-    const { data, error } = await supabase
-      .from("customers")
-      .update({
-        phone: phone ?? existing.phone,
-        email: email ?? existing.email,
-        full_name: params.fullName?.trim() || existing.full_name,
-        photo_url: params.photoUrl ?? existing.photo_url,
-        customer_key: key,
-        is_guest: false,
-        last_login_at: now,
-        login_count: (existing.login_count ?? 0) + 1,
-        updated_at: now,
-      })
-      .eq("id", existing.id)
-      .select("*")
-      .single();
-    const profile = (error ? existing : data) as CustomerProfile;
-    await attachGuestOrdersToCustomer({
+  async function applyMergeAndMeta(
+    profile: CustomerProfile,
+    wasGuestLink: boolean
+  ): Promise<CustomerProfile> {
+    const merge = await attachGuestOrdersToCustomer({
       customerId: profile.id,
       phone: profile.phone,
       email: profile.email,
     });
-    return profile;
+    const hadMerge =
+      wasGuestLink ||
+      merge.orders > 0 ||
+      merge.bookings > 0 ||
+      merge.wishlist > 0 ||
+      merge.addresses > 0 ||
+      merge.guest_rows_linked > 0;
+    if (!hadMerge) return profile;
+
+    const merge_meta = {
+      ...(typeof profile.merge_meta === "object" && profile.merge_meta
+        ? profile.merge_meta
+        : {}),
+      last_merge_at: now,
+      last_merge: merge,
+      history: [
+        ...((Array.isArray(
+          (profile.merge_meta as { history?: unknown })?.history
+        )
+          ? (profile.merge_meta as { history: unknown[] }).history
+          : []) as unknown[]),
+        { at: now, ...merge, linked_guest: wasGuestLink },
+      ].slice(-20),
+    };
+
+    const { data } = await supabase
+      .from("customers")
+      .update({ merge_meta, updated_at: now })
+      .eq("id", profile.id)
+      .select("*")
+      .single();
+    return (data as CustomerProfile) || { ...profile, merge_meta };
+  }
+
+  if (existing) {
+    const patch: Record<string, unknown> = {
+      phone: phone ?? existing.phone,
+      email: email ?? existing.email,
+      full_name: params.fullName?.trim() || existing.full_name,
+      photo_url: params.photoUrl ?? existing.photo_url,
+      customer_key: key,
+      is_guest: false,
+      last_login_at: now,
+      login_count: (existing.login_count ?? 0) + 1,
+      updated_at: now,
+    };
+    if (provider) patch.provider = provider;
+
+    const { data, error } = await supabase
+      .from("customers")
+      .update(patch)
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    const profile = (error ? existing : data) as CustomerProfile;
+    return applyMergeAndMeta(profile, false);
   }
 
   // Link by phone/email if guest row exists
   const byContact = await getCustomerByPhoneOrEmail({ phone, email });
   if (byContact) {
+    const patch: Record<string, unknown> = {
+      auth_user_id: params.authUserId,
+      phone: phone ?? byContact.phone,
+      email: email ?? byContact.email,
+      full_name: params.fullName?.trim() || byContact.full_name,
+      photo_url: params.photoUrl ?? byContact.photo_url,
+      customer_key: key,
+      is_guest: false,
+      last_login_at: now,
+      login_count: (byContact.login_count ?? 0) + 1,
+      updated_at: now,
+    };
+    if (provider) patch.provider = provider;
+
     const { data, error } = await supabase
       .from("customers")
-      .update({
-        auth_user_id: params.authUserId,
-        phone: phone ?? byContact.phone,
-        email: email ?? byContact.email,
-        full_name: params.fullName?.trim() || byContact.full_name,
-        photo_url: params.photoUrl ?? byContact.photo_url,
-        customer_key: key,
-        is_guest: false,
-        last_login_at: now,
-        login_count: (byContact.login_count ?? 0) + 1,
-        updated_at: now,
-      })
+      .update(patch)
       .eq("id", byContact.id)
       .select("*")
       .single();
     if (!error && data) {
-      const profile = data as CustomerProfile;
-      await attachGuestOrdersToCustomer({
-        customerId: profile.id,
-        phone: profile.phone,
-        email: profile.email,
-      });
-      return profile;
+      return applyMergeAndMeta(data as CustomerProfile, true);
     }
   }
 
   const id = crypto.randomUUID();
-  const row = {
+  const row: Record<string, unknown> = {
     id,
     auth_user_id: params.authUserId,
     is_guest: false,
@@ -333,6 +452,7 @@ export async function upsertCustomerForAuthUser(params: {
     created_at: now,
     updated_at: now,
   };
+  if (provider) row.provider = provider;
 
   const { data, error } = await supabase
     .from("customers")
@@ -342,35 +462,30 @@ export async function upsertCustomerForAuthUser(params: {
 
   if (error) {
     if (isMissingTableError(error, "customers")) return null;
-    // Retry without is_guest if migration 029 not applied yet
-    if (/is_guest|PGRST204|42703/i.test(error.message)) {
-      const { is_guest: _g, ...withoutGuest } = row;
+    // Retry without optional columns if migrations not applied yet
+    if (/is_guest|provider|merge_meta|PGRST204|42703/i.test(error.message)) {
+      const {
+        is_guest: _g,
+        provider: _p,
+        merge_meta: _m,
+        ...withoutOptional
+      } = row;
       void _g;
+      void _p;
+      void _m;
       const retry = await supabase
         .from("customers")
-        .insert(withoutGuest)
+        .insert(withoutOptional)
         .select("*")
         .single();
       if (!retry.error && retry.data) {
-        const profile = retry.data as CustomerProfile;
-        await attachGuestOrdersToCustomer({
-          customerId: profile.id,
-          phone: profile.phone,
-          email: profile.email,
-        });
-        return profile;
+        return applyMergeAndMeta(retry.data as CustomerProfile, false);
       }
     }
     console.error("upsertCustomerForAuthUser", error.message);
     return null;
   }
-  const profile = data as CustomerProfile;
-  await attachGuestOrdersToCustomer({
-    customerId: profile.id,
-    phone: profile.phone,
-    email: profile.email,
-  });
-  return profile;
+  return applyMergeAndMeta(data as CustomerProfile, false);
 }
 
 export async function requireCustomerApi(): Promise<
@@ -431,19 +546,29 @@ export async function requireCustomerApi(): Promise<
 }
 
 /**
- * Create or find auth user for phone OTP, then establish a cookie session
- * via magic-link token exchange (server-side).
+ * Create or find auth user for WhatsApp/phone OTP, then establish a cookie
+ * session via magic-link token exchange (server-side).
  */
 export async function establishPhoneSession(params: {
   e164: string;
   fullName?: string;
-}): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+  provider?: string;
+}): Promise<
+  | { ok: true; userId: string; merged: boolean }
+  | { ok: false; error: string }
+> {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "Supabase غير مُعد" };
   }
 
   const admin = createAdminClient();
   const email = syntheticEmailFromPhone(params.e164);
+  const provider = params.provider || "whatsapp";
+
+  const priorGuest = await getCustomerByPhoneOrEmail({ phone: params.e164 });
+  const willMerge = Boolean(
+    priorGuest && (!priorGuest.auth_user_id || priorGuest.is_guest)
+  );
 
   const link = await admin.auth.admin.generateLink({
     type: "magiclink",
@@ -453,6 +578,7 @@ export async function establishPhoneSession(params: {
         is_customer: true,
         full_name: params.fullName || "",
         phone: params.e164,
+        provider,
       },
     },
   });
@@ -474,10 +600,12 @@ export async function establishPhoneSession(params: {
   await admin.auth.admin.updateUserById(userId, {
     phone: params.e164,
     phone_confirm: true,
+    app_metadata: { provider },
     user_metadata: {
       is_customer: true,
       full_name: params.fullName || "",
       phone: params.e164,
+      provider,
     },
   });
 
@@ -495,9 +623,10 @@ export async function establishPhoneSession(params: {
     authUserId: userId,
     phone: params.e164,
     fullName: params.fullName,
+    provider,
   });
 
-  return { ok: true, userId };
+  return { ok: true, userId, merged: willMerge };
 }
 
 export async function recordLoginHistory(params: {
