@@ -38,11 +38,19 @@ SET
   updated_at = now()
 WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%';
 
-UPDATE gallery_items
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'gallery_items'
+  ) THEN
+    UPDATE gallery_items
 SET
   title_ar = REPLACE(title_ar, 'برنس', 'برنص'),
   category = REPLACE(category, 'برنس', 'برنص')
 WHERE title_ar LIKE '%برنس%' OR category LIKE '%برنس%';
+  END IF;
+END $$;
 
 -- Shop order line items (JSONB)
 UPDATE shop_orders

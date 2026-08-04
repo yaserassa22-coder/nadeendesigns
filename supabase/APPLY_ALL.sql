@@ -1,30 +1,29 @@
 -- =============================================================================
--- APPLY_ALL.sql — Master idempotent setup for NadEEN Designs
--- Run in Supabase → SQL Editor → New query → paste entire file → Run
--- Safe to run multiple times (IF NOT EXISTS / ON CONFLICT / REPLACE where used).
+-- APPLY_ALL.sql — SINGLE-FILE master setup for NadEEN Designs
+--
+-- ONE FILE. Run once or repeatedly. No other APPLY_*.sql required.
+-- Paste this entire file into Supabase → SQL Editor → Run.
+-- Safe on fresh DB and existing DB (IF NOT EXISTS / DROP POLICY IF EXISTS /
+-- ON CONFLICT / ADD COLUMN IF NOT EXISTS / guarded DO $$ blocks).
+--
+-- Standalone APPLY_*.sql files in this folder are optional single-purpose
+-- recovery scripts only. This file already inlines all of them in order.
+-- Do NOT \i / include other files — everything below is self-contained.
 --
 -- ⚠ CRITICAL — dresses_category_check (and veils/bridal_robes category CHECKs):
 --   NEVER re-ADD a hardcoded CHECK (category IN (...)). Categories are dynamic
 --   (categories table + app validation). Re-adding fails with:
 --     check constraint "dresses_category_check" ... is violated by some row
 --   when existing products use free/dynamic slugs. This file only DROPs those
---   constraints (early + end). If you still see that error, you are running a
---   STALE paste — re-copy this file from the repo, or run APPLY_DROP_CATEGORY_CHECK.sql.
+--   constraints (early + end) and never recreates them.
 --
 -- ⚠ CRITICAL — bookings_service_type_check:
 --   NEVER re-ADD a hardcoded CHECK (service_type IN (...)). The allowed list grew
 --   over time (nouf_dress / nouf_dresses, etc.); early incomplete ADD fails with:
 --     check constraint "bookings_service_type_check" ... is violated by some row
 --   Validation is app-level (Zod). This file only DROPs the constraint (early + end).
---   Unblock live DB: run APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK.sql (= 026).
 --
--- If checkout only fails with shipping schema mismatch (shipping_cost /
--- address columns missing while shipping_regions already exists), prefer the
--- smaller targeted file instead:
---   supabase/APPLY_MISSING_MIGRATIONS.sql
--- (= M5 APPLY_SHOP_SHIPPING + M9 APPLY_SHIPPING_REGIONS + M10 APPLY_SMART_SHIPPING)
---
--- EXECUTION ORDER (documented):
+-- INLINED ORDER (migrations 001–029 + APPLY_* overlays):
 --   00. Early drop of obsolete category + bookings_service_type CHECKs
 --       (same as 025 / 026; before any legacy)
 --   01. migrations/001_add_custom_design_category.sql
@@ -33,7 +32,7 @@
 --   04. migrations/004_normalize_dress_colors_ar.sql
 --   05. migrations/005_booking_personalization.sql
 --   06. migrations/006_booking_gift_options.sql
---   07. migrations/007_veils_bridal_robes_orders.sql  (+ APPLY_SHOP_CHECKOUT extras if any)
+--   07. migrations/007_veils_bridal_robes_orders.sql  (+ APPLY_SHOP_CHECKOUT)
 --   08. migrations/008_add_nouf_dress_category.sql
 --   09. migrations/009_ensure_shop_tables_and_rls.sql
 --   10. migrations/010_nouf_dresses_independent_category.sql
@@ -42,29 +41,28 @@
 --   13. migrations/013_booking_city.sql
 --   14. migrations/014_booking_region.sql
 --   15. migrations/015_bookings_form_sync.sql
---   16. APPLY_BOOKINGS_COMPLETE.sql / APPLY_BOOKINGS_FIX / APPLY_BOOKINGS_ADMIN_RLS
---   17. APPLY_NOTIFICATIONS.sql (workflow statuses + notification_logs)
---   18. M2: APPLY_CATEGORIES.sql (= 016)
---   19. M1 spelling: APPLY_CATEGORIES_BERNUS_SPELLING.sql + APPLY_RENAME_TO_BERNUS.sql
---   20. M5: APPLY_SHOP_SHIPPING.sql (= 017)
---   21. M6: APPLY_CUSTOMER_NOTIFICATIONS.sql (= 018)
---   22. Notify prefs: APPLY_NOTIFICATION_PREFERENCES.sql (= 019)
---   23. M9: APPLY_SHIPPING_REGIONS.sql (= 020)  — creates shipping_regions
---   24. M10: APPLY_SMART_SHIPPING.sql (= 021) — pending fees / tracking / estimates
---   25. Soft delete / archive / audit: APPLY_SOFT_DELETE_ARCHIVE.sql (= 022)
---   26. Reports schedules: APPLY_REPORTS.sql (= 023) — future-ready; no cron runner
---   27. Smart appointments: APPLY_SMART_APPOINTMENTS.sql (= 024)
---   28. Drop obsolete dresses_category_check: APPLY_DROP_CATEGORY_CHECK.sql (= 025)
---   29. Drop obsolete bookings_service_type_check: APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK.sql (= 026)
---   30. Product category_id FK + product_kind/SEO: APPLY_PRODUCT_CATEGORY_ID.sql (= 027)
---       (repeated at end; this file never ADD ..._category_check / bookings_service_type_check)
---   31. Phase E customer auth: APPLY_CUSTOMER_AUTH.sql (= 028)
---       *** customers + related tables created HERE — MUST precede 029 ***
---   32. Phase E2 guest flag: APPLY_CUSTOMER_GUEST.sql (= 029)
+--   16. APPLY_BOOKINGS_COMPLETE / APPLY_BOOKINGS_FIX / APPLY_BOOKINGS_ADMIN_RLS
+--   17. APPLY_NOTIFICATIONS (workflow statuses + notification_logs)
+--   18. M2: APPLY_CATEGORIES (= 016)
+--   19. M1 spelling: APPLY_CATEGORIES_BERNUS_SPELLING + APPLY_RENAME_TO_BERNUS
+--   20. M5: APPLY_SHOP_SHIPPING (= 017)
+--   21. M6: APPLY_CUSTOMER_NOTIFICATIONS (= 018)
+--   22. Notify prefs: APPLY_NOTIFICATION_PREFERENCES (= 019)
+--   23. M9: APPLY_SHIPPING_REGIONS (= 020)  — creates shipping_regions
+--   24. M10: APPLY_SMART_SHIPPING (= 021) — pending fees / tracking / estimates
+--   25. Soft delete / archive / audit: APPLY_SOFT_DELETE_ARCHIVE (= 022)
+--   26. Reports schedules: APPLY_REPORTS (= 023)
+--   27. Smart appointments: APPLY_SMART_APPOINTMENTS (= 024)
+--   28. Drop obsolete dresses_category_check: APPLY_DROP_CATEGORY_CHECK (= 025)
+--   29. Drop obsolete bookings_service_type_check: APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK (= 026)
+--   30. Product category_id FK + product_kind/SEO: APPLY_PRODUCT_CATEGORY_ID (= 027)
+--   31. Phase E customer auth: APPLY_CUSTOMER_AUTH (= 028)
+--       *** customers + related tables created HERE — precedes 029 ***
+--   32. Phase E2 guest flag: APPLY_CUSTOMER_GUEST (= 029)
 --
--- Prerequisite: core tables (dresses, bookings, profiles, shop_orders base) must
--- already exist from the main schema / earlier project setup. This file applies
--- incremental migrations on top.
+-- Prerequisite: core tables (dresses, bookings, profiles, settings) must already
+-- exist from the main schema / earlier project setup. This file applies
+-- incremental migrations on top (and creates shop/customer tables if missing).
 --
 -- NOTE: dresses.category is TEXT (slug / legacy_key). Hardcoded CHECK constraints
 -- are obsolete after dynamic categories (016). APPLY_ALL drops the constraint and
@@ -72,7 +70,6 @@
 -- NOTE: bookings.service_type is TEXT; hardcoded service_type CHECK is obsolete
 -- (app Zod validation). APPLY_ALL drops it and never recreates it.
 -- =============================================================================
-
 
 -- #############################################################################
 -- 00 — Early drop obsolete category CHECKs (idempotent; preserves all rows)
@@ -156,7 +153,7 @@ END $$;
 -- #############################################################################
 
 -- Add custom_design and keep robes (برنص عروس)
--- Prefer running 002_booking_delivery_and_service_types.sql for full update
+-- Delivery/service-type updates continue in section 002 below (inlined).
 -- Hardcoded dresses_category_check removed: categories are dynamic (see 016 / 025).
 -- Do NOT ADD CONSTRAINT dresses_category_check here (or anywhere in this file).
 
@@ -239,6 +236,205 @@ UPDATE dresses SET style = 'تصميم مخصص' WHERE style IN ('custom', 'Cust
 -- Migration 004 — Normalize dress colors (AR)
 -- Source: supabase/migrations/004_normalize_dress_colors_ar.sql
 -- #############################################################################
+
+
+-- Normalize legacy color values to Arabic options
+UPDATE dresses SET color = 'أوف وايت' WHERE color IN ('Off White', 'off white', 'off-white', 'OffWhite');
+UPDATE dresses SET color = 'أبيض' WHERE color IN ('white', 'White');
+UPDATE dresses SET color = 'عاجي' WHERE color IN ('ivory', 'Ivory');
+UPDATE dresses SET color = 'كريمي' WHERE color IN ('cream', 'Cream');
+UPDATE dresses SET color = 'بيج' WHERE color IN ('beige', 'Beige');
+UPDATE dresses SET color = 'شامبين' WHERE color IN ('champagne', 'Champagne', 'شampagne');
+UPDATE dresses SET color = 'ذهبي' WHERE color IN ('gold', 'Gold', 'golden');
+UPDATE dresses SET color = 'فضي' WHERE color IN ('silver', 'Silver');
+UPDATE dresses SET color = 'وردي فاتح' WHERE color IN ('blush', 'Blush');
+UPDATE dresses SET color = 'وردي' WHERE color IN ('pink', 'Pink');
+UPDATE dresses SET color = 'موف' WHERE color IN ('mauve', 'Mauve');
+UPDATE dresses SET color = 'بنفسجي' WHERE color IN ('purple', 'Purple');
+UPDATE dresses SET color = 'أزرق سماوي' WHERE color IN ('sky blue', 'Sky Blue');
+UPDATE dresses SET color = 'أزرق ملكي' WHERE color IN ('royal blue', 'Royal Blue');
+UPDATE dresses SET color = 'كحلي' WHERE color IN ('navy', 'Navy');
+UPDATE dresses SET color = 'أخضر زمردي' WHERE color IN ('emerald', 'Emerald');
+UPDATE dresses SET color = 'أخضر زيتوني' WHERE color IN ('olive', 'Olive');
+UPDATE dresses SET color = 'أحمر' WHERE color IN ('red', 'Red');
+UPDATE dresses SET color = 'خمري' WHERE color IN ('burgundy', 'Burgundy');
+UPDATE dresses SET color = 'بني' WHERE color IN ('brown', 'Brown');
+UPDATE dresses SET color = 'أسود' WHERE color IN ('black', 'Black');
+UPDATE dresses SET color = 'رمادي' WHERE color IN ('gray', 'grey', 'Gray', 'Grey');
+
+
+
+-- #############################################################################
+-- Migration 005 — Booking personalization
+-- Source: supabase/migrations/005_booking_personalization.sql
+-- #############################################################################
+
+-- Structured personalization for veils & bridal robes (برنص عروس)
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS personalization JSONB;
+
+COMMENT ON COLUMN bookings.personalization IS
+  'Optional veil/robe embroidery personalization payload';
+
+
+
+-- #############################################################################
+-- Migration 006 — Booking gift options
+-- Source: supabase/migrations/006_booking_gift_options.sql
+-- #############################################################################
+
+-- Optional premium gift wrapping & gift card for veils / bridal robes
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS gift_options JSONB;
+
+COMMENT ON COLUMN bookings.gift_options IS
+  'Optional gift wrapping and gift card payload for veils/robes';
+
+
+
+-- #############################################################################
+-- Migration 007 — Veils, bridal robes, shop_orders (+ APPLY_SHOP_CHECKOUT)
+-- Source: supabase/migrations/007_veils_bridal_robes_orders.sql
+-- Reinforced again in section 009 (IF NOT EXISTS — safe duplicate).
+-- #############################################################################
+
+-- Separate product tables for veils & bridal robes + shop orders
+
+CREATE TABLE IF NOT EXISTS veils (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_ar TEXT NOT NULL,
+  description_ar TEXT NOT NULL DEFAULT '',
+  price NUMERIC NOT NULL DEFAULT 0,
+  images JSONB DEFAULT '[]'::jsonb,
+  category TEXT NOT NULL DEFAULT 'classic',
+  color TEXT,
+  material TEXT,
+  stock_quantity INT NOT NULL DEFAULT 0,
+  is_available BOOLEAN DEFAULT true,
+  is_featured BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS bridal_robes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_ar TEXT NOT NULL,
+  description_ar TEXT NOT NULL DEFAULT '',
+  price NUMERIC NOT NULL DEFAULT 0,
+  images JSONB DEFAULT '[]'::jsonb,
+  color TEXT,
+  size TEXT,
+  material TEXT,
+  stock_quantity INT NOT NULL DEFAULT 0,
+  is_featured BOOLEAN DEFAULT false,
+  is_available BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS shop_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT,
+  notes TEXT,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  gift_options JSONB,
+  total NUMERIC NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN (
+      'pending',
+      'under_review',
+      'confirmed',
+      'awaiting_payment',
+      'payment_received',
+      'in_production',
+      'ready_for_pickup',
+      'shipped',
+      'delivered',
+      'cancelled',
+      'completed'
+    )),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Migrate existing dresses rows into dedicated tables
+INSERT INTO veils (
+  id, name_ar, description_ar, price, images, category, color, material,
+  stock_quantity, is_available, is_featured, created_at, updated_at
+)
+SELECT
+  id,
+  name_ar,
+  description_ar,
+  COALESCE(price, rental_price, 0),
+  images,
+  COALESCE(NULLIF(style, ''), 'classic'),
+  color,
+  NULL,
+  CASE WHEN is_available THEN 5 ELSE 0 END,
+  is_available,
+  is_featured,
+  created_at,
+  updated_at
+FROM dresses
+WHERE category = 'veils'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO bridal_robes (
+  id, name_ar, description_ar, price, images, color, size, material,
+  stock_quantity, is_featured, is_available, created_at, updated_at
+)
+SELECT
+  id,
+  name_ar,
+  description_ar,
+  COALESCE(price, rental_price, 0),
+  images,
+  color,
+  size,
+  COALESCE(NULLIF(style, ''), NULL),
+  CASE WHEN is_available THEN 5 ELSE 0 END,
+  is_featured,
+  is_available,
+  created_at,
+  updated_at
+FROM dresses
+WHERE category = 'robes'
+ON CONFLICT (id) DO NOTHING;
+
+DELETE FROM dresses WHERE category IN ('veils', 'robes');
+
+-- Drop obsolete category CHECK (do not recreate — dynamic categories; see 016 / 025)
+ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
+
+ALTER TABLE veils ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bridal_robes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shop_orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read veils" ON veils;
+CREATE POLICY "Public read veils" ON veils FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read bridal_robes" ON bridal_robes;
+CREATE POLICY "Public read bridal_robes" ON bridal_robes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public insert shop_orders" ON shop_orders;
+CREATE POLICY "Public insert shop_orders" ON shop_orders FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Admin all veils" ON veils;
+CREATE POLICY "Admin all veils" ON veils FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+DROP POLICY IF EXISTS "Admin all bridal_robes" ON bridal_robes;
+CREATE POLICY "Admin all bridal_robes" ON bridal_robes FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+DROP POLICY IF EXISTS "Admin all shop_orders" ON shop_orders;
+CREATE POLICY "Admin all shop_orders" ON shop_orders FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+CREATE INDEX IF NOT EXISTS idx_veils_featured ON veils(is_featured);
+CREATE INDEX IF NOT EXISTS idx_bridal_robes_featured ON bridal_robes(is_featured);
+CREATE INDEX IF NOT EXISTS idx_shop_orders_status ON shop_orders(status);
 
 -- #############################################################################
 -- Migration 008 — Nouf dress category
@@ -1027,11 +1223,19 @@ SET
   updated_at = now()
 WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%';
 
-UPDATE gallery_items
-SET
-  title_ar = REPLACE(title_ar, 'برنس', 'برنص'),
-  category = REPLACE(category, 'برنس', 'برنص')
-WHERE title_ar LIKE '%برنس%' OR category LIKE '%برنس%';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'gallery_items'
+  ) THEN
+    UPDATE gallery_items
+    SET
+      title_ar = REPLACE(title_ar, 'برنس', 'برنص'),
+      category = REPLACE(category, 'برنس', 'برنص')
+    WHERE title_ar LIKE '%برنس%' OR category LIKE '%برنس%';
+  END IF;
+END $$;
 
 -- Shop order line items (JSONB)
 UPDATE shop_orders
@@ -1109,6 +1313,8 @@ ALTER TABLE shop_orders
 
 ALTER TABLE shop_orders
   ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC NOT NULL DEFAULT 0;
+COMMENT ON COLUMN shop_orders.shipping_cost IS
+  'Courier fee snapshot at checkout (DB column name is shipping_cost, not shipping_fee).';
 
 DROP POLICY IF EXISTS "Public read shop_orders by id" ON shop_orders;
 CREATE POLICY "Public read shop_orders by id" ON shop_orders
@@ -1460,13 +1666,9 @@ ON CONFLICT (id) DO UPDATE SET
 -- Same as migrations/021_smart_shipping.sql, but SELF-CONTAINED:
 -- creates shipping_regions if missing (does not assume M9 was applied).
 --
--- Recommended full order for a database that already has shop_orders:
---   1) APPLY_SHOP_SHIPPING.sql          (M5 base address/cost columns)
---   2) APPLY_SHIPPING_REGIONS.sql       (M9 table + seeds + delivery_method)
---   3) APPLY_SMART_SHIPPING.sql         (this file – M10 columns)
---
--- If you only run THIS file: the table is created empty (no region seeds).
--- Prefer running APPLY_SHIPPING_REGIONS.sql first for seeds + M9 order columns.
+-- In APPLY_ALL this block runs AFTER section M10 only after M5+M9 above.
+-- Standalone APPLY_SMART_SHIPPING.sql may create an empty shipping_regions
+-- table if run alone; APPLY_ALL already seeded regions in M9.
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -1945,6 +2147,9 @@ VALUES (
   now()
 )
 ON CONFLICT (key) DO NOTHING;
+COMMENT ON TABLE consultants IS 'Smart appointments consultants (Phase D)';
+COMMENT ON TABLE waiting_list IS 'Appointment waiting list when slots unavailable';
+COMMENT ON TABLE special_days IS 'Blocked / holiday days for appointment availability';
 
 
 -- #############################################################################
@@ -2128,7 +2333,7 @@ WHERE d.category_id = c.id
 -- MUST run before section 32 (guest). Safe to re-run (IF NOT EXISTS / DROP POLICY IF EXISTS).
 -- #############################################################################
 -- Phase E: Premium customer account & OTP authentication (idempotent)
--- MUST run before APPLY_CUSTOMER_GUEST.sql / migrations/029_customer_guest_flag.sql.
+-- MUST precede section 32 (guest flag / 029) — both inlined in this file.
 -- Same as migrations/028_customer_auth.sql
 
 -- =============================================================================
@@ -2645,10 +2850,10 @@ ON CONFLICT (key) DO NOTHING;
 -- #############################################################################
 -- 32 — Phase E2 guest flag: APPLY_CUSTOMER_GUEST.sql (= 029)
 -- ALTERs customers.is_guest; FKs shop_orders.customer_id → customers(id)
--- Requires section 31 / customers table. Standalone recovery: run AUTH then GUEST.
+-- Requires section 31 / customers table (inlined above). No separate APPLY_* needed.
 -- #############################################################################
 -- Phase E2: guest flag (idempotent) — same as migrations/029_customer_guest_flag.sql
--- Run AFTER APPLY_CUSTOMER_AUTH.sql / 028. Requires public.customers.
+-- Runs AFTER section 31 (028) in this file. Requires public.customers.
 
 DO $$
 BEGIN
