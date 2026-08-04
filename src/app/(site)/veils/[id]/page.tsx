@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
 import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
+import { WishlistButton } from "@/components/auth/WishlistButton";
 import { Button } from "@/components/ui/Button";
 import { getVeilById, getVeils } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
@@ -69,11 +70,20 @@ export default async function VeilDetailPage({ params }: Props) {
         </>
       }
       actions={
-        <Link href="/veils">
-          <Button variant="outline" size="lg">
-            العودة لطرحة العروس
-          </Button>
-        </Link>
+        <>
+          <WishlistButton
+            productKind="veil"
+            productId={veil.id}
+            productSlug={veil.id}
+            productTitle={veil.name_ar}
+            productImageUrl={featuredImage(veil.images)}
+          />
+          <Link href="/veils">
+            <Button variant="outline" size="lg">
+              العودة لطرحة العروس
+            </Button>
+          </Link>
+        </>
       }
       below={
         inStock ? (

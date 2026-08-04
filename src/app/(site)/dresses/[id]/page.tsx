@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { PersonalizationForm } from "@/components/dresses/PersonalizationForm";
 import { RelatedProducts } from "@/components/dresses/RelatedProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
+import { WishlistButton } from "@/components/auth/WishlistButton";
 import { Calendar, Ruler, Palette } from "lucide-react";
 
 interface Props {
@@ -102,6 +103,13 @@ export default async function DressDetailPage({ params }: Props) {
       }
       actions={
         <>
+          <WishlistButton
+            productKind="dress"
+            productId={dress.id}
+            productSlug={dress.id}
+            productTitle={dress.name_ar}
+            productImageUrl={featuredImage(dress.images)}
+          />
           {!personalizationType && (
             <>
               <Link href={`/booking?dress=${dress.id}`}>

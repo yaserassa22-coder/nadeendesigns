@@ -11,6 +11,7 @@ import {
   orderToShippingDisplay,
   ShippingDetailsBlock,
 } from "@/components/shop/ShippingDetailsBlock";
+import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { Button } from "@/components/ui/Button";
 import { featuredImage } from "@/lib/products/featured-image";
 import { formatDate, formatPrice } from "@/lib/utils";
@@ -23,6 +24,7 @@ import {
 
 const ORDER_CACHE_KEY = "nadeen_last_order";
 const JUST_PLACED_KEY = "nadeen_order_just_placed";
+const ACCENT = "#C9A14A";
 
 function normalizeStatus(status: ShopOrderStatus): ShopOrderStatus {
   return status === "completed" ? "delivered" : status;
@@ -60,11 +62,14 @@ function clearJustPlacedFlag(id: string) {
 export default function CustomerOrderPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
+  const { user, customer, openLogin } = useCustomerAuth();
   const [order, setOrder] = useState<ShopOrder | null>(null);
   const [error, setError] = useState("");
   const [refreshWarning, setRefreshWarning] = useState("");
   const [justPlaced, setJustPlaced] = useState(false);
+  const [linkPromptDismissed, setLinkPromptDismissed] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
+  const isLoggedIn = Boolean(user || customer);
 
   useEffect(() => {
     if (!id) return;
@@ -195,6 +200,45 @@ export default function CustomerOrderPage() {
               <p className="mt-1">
                 شكرًا لكِ. سنوافيكِ بالتحديثات عبر الإشعارات والبريد عند التأكيد.
               </p>
+            </div>
+          )}
+          {justPlaced && !isLoggedIn && !linkPromptDismissed && (
+            <div
+              className="rounded-2xl border p-5 text-sm text-charcoal"
+              style={{
+                borderColor: `${ACCENT}55`,
+                background: `${ACCENT}10`,
+              }}
+            >
+              <p className="font-semibold">
+                أنشئي حساباً لربط هذا الطلب وتتبعه بسهولة
+              </p>
+              <p className="mt-1 text-muted">
+                عند التسجيل بنفس رقم الهاتف أو البريد، نربط طلباتكِ السابقة
+                بحسابكِ تلقائياً متى أمكن.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  style={{ backgroundColor: ACCENT }}
+                  onClick={() =>
+                    openLogin({
+                      redirect: "/account/orders",
+                      message:
+                        "أنشئي حساباً لربط طلبكِ وتتبع الشحن من لوحة حسابكِ.",
+                    })
+                  }
+                >
+                  إنشاء حساب
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLinkPromptDismissed(true)}
+                >
+                  لاحقاً
+                </Button>
+              </div>
             </div>
           )}
           {refreshWarning && (

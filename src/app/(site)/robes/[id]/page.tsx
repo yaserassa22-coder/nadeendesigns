@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
 import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
+import { WishlistButton } from "@/components/auth/WishlistButton";
 import { Button } from "@/components/ui/Button";
 import { getBridalRobeById, getBridalRobes } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
@@ -74,11 +75,20 @@ export default async function RobeDetailPage({ params }: Props) {
         </>
       }
       actions={
-        <Link href="/robes">
-          <Button variant="outline" size="lg">
-            العودة لبرنص العروس
-          </Button>
-        </Link>
+        <>
+          <WishlistButton
+            productKind="bridal_robe"
+            productId={robe.id}
+            productSlug={robe.id}
+            productTitle={robe.name_ar}
+            productImageUrl={featuredImage(robe.images)}
+          />
+          <Link href="/robes">
+            <Button variant="outline" size="lg">
+              العودة لبرنص العروس
+            </Button>
+          </Link>
+        </>
       }
       below={
         inStock ? (

@@ -35,6 +35,11 @@ import { isValidCheckoutPhone, isValidPersonName } from "@/lib/phone";
 import { normalizeSiteSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
+  ensureCustomerForCheckout,
+} from "@/lib/customer-auth/customer";
+import { getCustomerAuthSettings } from "@/lib/customer-auth/settings";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
+import {
   ORDER_WORKFLOW_ACTIONS,
   SHOP_ORDER_STATUSES,
   type DeliveryMethod,
@@ -293,10 +298,32 @@ export async function POST(request: Request) {
       siteSettings,
     });
 
-    const row = buildShopOrderRow(body, resolved);
+    // Soft-enforce guest checkout setting when no session
+    const authUser = await getAuthenticatedUser().catch(() => null);
+    if (!authUser) {
+      const authSettings = await getCustomerAuthSettings();
+      if (authSettings.guest_checkout_enabled === false) {
+        return NextResponse.json(
+          { error: "يلزم تسجيل الدخول لإتمام الطلب حالياً." },
+          { status: 401 }
+        );
+      }
+    }
+
+    const customerId = await ensureCustomerForCheckout({
+      fullName: body.name,
+      phone: body.phone,
+      email: body.email ?? null,
+      authUserId: authUser?.id ?? null,
+    });
+
+    const row = buildShopOrderRow(body, resolved, undefined, {
+      customer_id: customerId,
+    });
 
     console.info("[orders API] resolved shipping for insert", {
       id: row.id,
+      customer_id: row.customer_id,
       delivery_method: row.delivery_method,
       shipping_cost: row.shipping_cost,
       shipping_fee_pending: row.shipping_fee_pending,

@@ -254,7 +254,8 @@ export function resolveDeliveryShipping(input: {
 export function buildShopOrderRow(
   body: CheckoutOrderBody,
   resolved: ResolvedDeliveryShipping,
-  ids?: { id?: string; created_at?: string }
+  ids?: { id?: string; created_at?: string },
+  extra?: { customer_id?: string | null }
 ): ShopOrder {
   const id = ids?.id ?? crypto.randomUUID();
   const created_at = ids?.created_at ?? new Date().toISOString();
@@ -285,6 +286,7 @@ export function buildShopOrderRow(
     total: resolved.computedTotal,
     status: "pending",
     created_at,
+    customer_id: extra?.customer_id ?? null,
     shipping_required: resolved.needsShipping,
     delivery_method: resolved.needsShipping ? resolved.deliveryMethod : null,
     shipping_full_name: ship?.full_name?.trim() || null,
@@ -360,7 +362,12 @@ export function buildProgressiveInsertPayloads(row: ShopOrder): InsertPayload[] 
     carrier_code: row.carrier_code,
     notify_whatsapp: row.notify_whatsapp ?? true,
     notify_email: row.notify_email ?? true,
+    ...(row.customer_id ? { customer_id: row.customer_id } : {}),
   };
+
+  const customerPatch = row.customer_id
+    ? { customer_id: row.customer_id }
+    : {};
 
   const shippingTiers: InsertPayload[] = [
     insertFull,
@@ -368,14 +375,16 @@ export function buildProgressiveInsertPayloads(row: ShopOrder): InsertPayload[] 
       ...withShippingM9,
       notify_whatsapp: row.notify_whatsapp ?? true,
       notify_email: row.notify_email ?? true,
+      ...customerPatch,
     },
-    withShippingM9,
+    { ...withShippingM9, ...customerPatch },
     {
       ...withShippingLegacy,
       notify_whatsapp: row.notify_whatsapp ?? true,
       notify_email: row.notify_email ?? true,
+      ...customerPatch,
     },
-    withShippingLegacy,
+    { ...withShippingLegacy, ...customerPatch },
   ];
 
   // Explicit delivery/pickup: never fall back to core-only (silent data loss).

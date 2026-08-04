@@ -12,6 +12,7 @@ import {
   RegionAutocomplete,
   type RegionSelection,
 } from "@/components/shop/RegionAutocomplete";
+import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import {
@@ -36,6 +37,8 @@ import {
 import { normalizeSiteSettings } from "@/lib/settings";
 import type { SiteSettings } from "@/types";
 import type { ShippingRegion, ShopOrder } from "@/types/shop";
+
+const ACCENT = "#C9A14A";
 
 type ShippingForm = {
   full_name: string;
@@ -66,6 +69,14 @@ const emptyShipping = (): ShippingForm => ({
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, needsShipping, clearCart } = useCart();
+  const {
+    user,
+    customer,
+    guestMode,
+    settings: authSettings,
+    openLogin,
+    continueAsGuest,
+  } = useCustomerAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -88,6 +99,9 @@ export default function CheckoutPage() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  const isLoggedIn = Boolean(user || customer);
+  const guestCheckoutEnabled = authSettings?.guest_checkout_enabled !== false;
 
   useEffect(() => {
     let cancelled = false;
@@ -201,7 +215,7 @@ export default function CheckoutPage() {
     }));
   };
 
-  const submit = async () => {
+  const placeOrder = async () => {
     setError("");
     if (items.length === 0) {
       setError("السلة فارغة");
@@ -362,6 +376,39 @@ export default function CheckoutPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const submit = async () => {
+    setError("");
+    // Soft auth prompt only after basic contact fields look ready
+    if (!isLoggedIn) {
+      if (!guestCheckoutEnabled) {
+        openLogin({
+          redirect: "/checkout",
+          message: "يلزم تسجيل الدخول لإتمام الطلب حالياً.",
+        });
+        return;
+      }
+      if (!guestMode) {
+        const shippingName = normalizePersonName(shipping.full_name);
+        const shippingPhone = shipping.phone.trim();
+        const contactName =
+          normalizePersonName(name) ||
+          (deliveryMethod === "delivery" ? shippingName : "");
+        const contactPhone =
+          phone.trim() || (deliveryMethod === "delivery" ? shippingPhone : "");
+        if (
+          !isValidPersonName(contactName) ||
+          !isValidCheckoutPhone(contactPhone)
+        ) {
+          setError("الاسم ورقم الهاتف مطلوبان");
+          return;
+        }
+        setAuthPromptOpen(true);
+        return;
+      }
+    }
+    await placeOrder();
   };
 
   const shippingFeeLabel = !settingsLoaded
@@ -708,6 +755,63 @@ export default function CheckoutPage() {
           </form>
         </div>
       </section>
+
+      {authPromptOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center"
+          dir="rtl"
+        >
+          <button
+            type="button"
+            aria-label="إغلاق"
+            className="absolute inset-0 bg-charcoal/40 backdrop-blur-sm"
+            onClick={() => setAuthPromptOpen(false)}
+          />
+          <div className="relative z-10 m-4 w-full max-w-md rounded-3xl border border-[#e7dfd3] bg-white p-6 shadow-[0_24px_80px_rgba(44,36,25,0.18)]">
+            <div
+              className="mb-4 h-1 w-full rounded-full"
+              style={{
+                background: `linear-gradient(90deg, ${ACCENT}, #d4bc8e, ${ACCENT})`,
+              }}
+            />
+            <h3 className="font-[family-name:var(--font-amiri)] text-xl text-charcoal">
+              هل ترغبين بإنشاء حساب لحفظ طلباتك وتتبع الشحن بسهولة؟
+            </h3>
+            <p className="mt-2 text-sm text-muted">
+              يمكنكِ المتابعة كزائرة دون تسجيل — أو إنشاء حساب لربط الطلبات.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                className="flex-1"
+                style={{ backgroundColor: ACCENT }}
+                onClick={() => {
+                  setAuthPromptOpen(false);
+                  openLogin({
+                    redirect: "/checkout",
+                    message:
+                      "أنشئي حساباً لحفظ طلباتك وتتبع الشحن بسهولة.",
+                  });
+                }}
+              >
+                إنشاء حساب
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setAuthPromptOpen(false);
+                  continueAsGuest();
+                  void placeOrder();
+                }}
+              >
+                المتابعة كزائرة
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

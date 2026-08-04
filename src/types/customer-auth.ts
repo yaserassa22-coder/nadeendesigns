@@ -30,6 +30,8 @@ export const DEFAULT_CUSTOMER_AUTH_SETTINGS: CustomerAuthSettings = {
 export type CustomerProfile = {
   id: string;
   auth_user_id: string | null;
+  /** True for checkout-created guests; false once registered / linked to auth */
+  is_guest?: boolean;
   customer_key: string | null;
   full_name: string;
   phone: string | null;
@@ -48,6 +50,8 @@ export type CustomerProfile = {
   created_at: string;
   updated_at: string;
 };
+
+export type CustomerTypeLabel = "registered" | "guest";
 
 export type CustomerAddress = {
   id: string;

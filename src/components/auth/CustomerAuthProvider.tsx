@@ -12,6 +12,8 @@ import {
 import type { CustomerAuthSettings, CustomerProfile } from "@/types/customer-auth";
 import { LoginModal } from "@/components/auth/LoginModal";
 
+const GUEST_MODE_KEY = "nadeen_guest_mode";
+
 type AuthMe = {
   user: { id: string; email?: string | null; phone?: string | null } | null;
   customer: CustomerProfile | null;
@@ -25,32 +27,67 @@ type AuthMe = {
   flags?: Record<string, boolean>;
 };
 
+export type OpenLoginOptions = {
+  redirect?: string;
+  /** Contextual message shown in the auth modal (e.g. wishlist gate) */
+  message?: string;
+};
+
 type AuthContextValue = {
   loading: boolean;
   user: AuthMe["user"];
   customer: CustomerProfile | null;
   settings: AuthMe["settings"] | null;
   flags: Record<string, boolean>;
+  /** Explicit guest browsing/checkout mode (no forced login) */
+  guestMode: boolean;
   refresh: () => Promise<void>;
-  openLogin: (opts?: { redirect?: string }) => void;
+  openLogin: (opts?: OpenLoginOptions) => void;
   closeLogin: () => void;
+  continueAsGuest: () => void;
+  clearGuestMode: () => void;
   logout: (allDevices?: boolean) => Promise<void>;
   loginOpen: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function readGuestMode(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(GUEST_MODE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeGuestMode(value: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    if (value) window.localStorage.setItem(GUEST_MODE_KEY, "1");
+    else window.localStorage.removeItem(GUEST_MODE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<AuthMe | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [redirectAfter, setRedirectAfter] = useState<string | undefined>();
+  const [loginMessage, setLoginMessage] = useState<string | undefined>();
+  const [guestMode, setGuestMode] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
       const data = (await res.json()) as AuthMe;
       setMe(data);
+      if (data.user || data.customer) {
+        writeGuestMode(false);
+        setGuestMode(false);
+      }
     } catch {
       setMe(null);
     } finally {
@@ -60,6 +97,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      setGuestMode(readGuestMode());
       void refresh();
     }, 0);
     return () => window.clearTimeout(timer);
@@ -81,18 +119,39 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const openLogin = useCallback((opts?: { redirect?: string }) => {
+  const openLogin = useCallback((opts?: OpenLoginOptions) => {
     setRedirectAfter(opts?.redirect);
+    setLoginMessage(opts?.message);
     setLoginOpen(true);
   }, []);
 
-  const closeLogin = useCallback(() => setLoginOpen(false), []);
+  const continueAsGuest = useCallback(() => {
+    writeGuestMode(true);
+    setGuestMode(true);
+    setLoginMessage(undefined);
+    setLoginOpen(false);
+  }, []);
+
+  const clearGuestMode = useCallback(() => {
+    writeGuestMode(false);
+    setGuestMode(false);
+  }, []);
+
+  const closeLogin = useCallback(() => {
+    // Closing without signing in enters guest mode so we never force login
+    writeGuestMode(true);
+    setGuestMode(true);
+    setLoginMessage(undefined);
+    setLoginOpen(false);
+  }, []);
 
   const logout = useCallback(
     async (allDevices = false) => {
       await fetch(`/api/auth/logout${allDevices ? "?all=1" : ""}`, {
         method: "POST",
       });
+      writeGuestMode(false);
+      setGuestMode(false);
       await refresh();
       if (typeof window !== "undefined" && window.location.pathname.startsWith("/account")) {
         window.location.href = "/";
@@ -108,13 +167,27 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       customer: me?.customer ?? null,
       settings: me?.settings ?? null,
       flags: me?.flags ?? {},
+      guestMode,
       refresh,
       openLogin,
       closeLogin,
+      continueAsGuest,
+      clearGuestMode,
       logout,
       loginOpen,
     }),
-    [loading, me, refresh, openLogin, closeLogin, logout, loginOpen]
+    [
+      loading,
+      me,
+      guestMode,
+      refresh,
+      openLogin,
+      closeLogin,
+      continueAsGuest,
+      clearGuestMode,
+      logout,
+      loginOpen,
+    ]
   );
 
   return (
@@ -123,12 +196,16 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       <LoginModal
         open={loginOpen}
         onClose={closeLogin}
+        onContinueAsGuest={continueAsGuest}
+        message={loginMessage}
         onSuccess={async () => {
+          writeGuestMode(false);
+          setGuestMode(false);
+          setLoginMessage(undefined);
           await refresh();
           setLoginOpen(false);
-          if (redirectAfter) {
-            window.location.href = redirectAfter;
-          }
+          const next = redirectAfter || "/account";
+          window.location.href = next;
         }}
         settings={me?.settings ?? null}
         flags={me?.flags ?? {}}

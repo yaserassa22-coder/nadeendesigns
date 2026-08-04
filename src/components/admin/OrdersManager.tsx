@@ -444,6 +444,19 @@ export function OrdersManager({
                           <p className="text-xs text-gold" dir="ltr">
                             {orderNumber(order.id)}
                           </p>
+                          <p className="mt-1">
+                            <span
+                              className={
+                                order.customer_type === "registered"
+                                  ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-800"
+                                  : "inline-flex rounded-full border border-beige-dark bg-beige/60 px-2 py-0.5 text-[10px] text-muted"
+                              }
+                            >
+                              {order.customer_type === "registered"
+                                ? "Registered"
+                                : "Guest"}
+                            </span>
+                          </p>
                           <p className="text-xs text-muted" dir="ltr">
                             {order.phone}
                           </p>
@@ -766,6 +779,14 @@ export function OrdersManager({
                                   معلومات العميلة
                                 </h3>
                                 <dl className="mt-2 space-y-1 text-sm">
+                                  <div>
+                                    <dt className="inline text-muted">نوع العميلة: </dt>
+                                    <dd className="inline">
+                                      {order.customer_type === "registered"
+                                        ? "Registered"
+                                        : "Guest"}
+                                    </dd>
+                                  </div>
                                   <div>
                                     <dt className="inline text-muted">الاسم: </dt>
                                     <dd className="inline">{order.name}</dd>

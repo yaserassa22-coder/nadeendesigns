@@ -105,6 +105,137 @@ export async function getCustomerByPhoneOrEmail(params: {
   return null;
 }
 
+/**
+ * Attach historical guest shop_orders (null customer_id) matching phone/email
+ * to a customer row after registration.
+ */
+export async function attachGuestOrdersToCustomer(params: {
+  customerId: string;
+  phone?: string | null;
+  email?: string | null;
+}) {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const supabase = createAdminClient();
+    const phone = params.phone?.trim();
+    const email = params.email?.trim();
+
+    if (phone) {
+      await supabase
+        .from("shop_orders")
+        .update({ customer_id: params.customerId })
+        .is("customer_id", null)
+        .eq("phone", phone);
+    }
+    if (email) {
+      await supabase
+        .from("shop_orders")
+        .update({ customer_id: params.customerId })
+        .is("customer_id", null)
+        .ilike("email", email);
+    }
+  } catch {
+    // non-fatal — soft phone/email match still works on account orders API
+  }
+}
+
+/**
+ * Ensure a customers row for checkout (guest or registered).
+ * Returns customer id for shop_orders.customer_id.
+ */
+export async function ensureCustomerForCheckout(params: {
+  fullName: string;
+  phone: string;
+  email?: string | null;
+  authUserId?: string | null;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  if (params.authUserId) {
+    const registered = await upsertCustomerForAuthUser({
+      authUserId: params.authUserId,
+      phone: params.phone,
+      email: params.email,
+      fullName: params.fullName,
+    });
+    return registered?.id ?? null;
+  }
+
+  const supabase = createAdminClient();
+  const phone = params.phone.trim();
+  const email = params.email?.trim() || null;
+  const existing = await getCustomerByPhoneOrEmail({ phone, email });
+  const now = new Date().toISOString();
+  const key = customerKeyFromContact(phone, email);
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("customers")
+      .update({
+        full_name: params.fullName.trim() || existing.full_name,
+        phone: phone || existing.phone,
+        email: email || existing.email,
+        customer_key: key ?? existing.customer_key,
+        // Keep registered status if they already have auth
+        is_guest: existing.auth_user_id ? false : true,
+        updated_at: now,
+      })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+    if (!error && data) return data.id as string;
+    return existing.id;
+  }
+
+  const id = crypto.randomUUID();
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({
+      id,
+      auth_user_id: null,
+      is_guest: true,
+      customer_key: key,
+      full_name: params.fullName.trim() || "",
+      phone,
+      email,
+      preferred_language: "ar",
+      referral_code: referralCodeFromId(id),
+      login_count: 0,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (isMissingTableError(error, "customers")) return null;
+    // is_guest column may be missing pre-029 — retry without it
+    if (/is_guest|PGRST204|42703/i.test(error.message)) {
+      const retry = await supabase
+        .from("customers")
+        .insert({
+          id,
+          auth_user_id: null,
+          customer_key: key,
+          full_name: params.fullName.trim() || "",
+          phone,
+          email,
+          preferred_language: "ar",
+          referral_code: referralCodeFromId(id),
+          login_count: 0,
+          created_at: now,
+          updated_at: now,
+        })
+        .select("id")
+        .single();
+      if (!retry.error && retry.data) return retry.data.id as string;
+    }
+    console.warn("ensureCustomerForCheckout", error.message);
+    return null;
+  }
+  return data?.id as string;
+}
+
 export async function upsertCustomerForAuthUser(params: {
   authUserId: string;
   phone?: string | null;
@@ -137,6 +268,7 @@ export async function upsertCustomerForAuthUser(params: {
         full_name: params.fullName?.trim() || existing.full_name,
         photo_url: params.photoUrl ?? existing.photo_url,
         customer_key: key,
+        is_guest: false,
         last_login_at: now,
         login_count: (existing.login_count ?? 0) + 1,
         updated_at: now,
@@ -144,8 +276,13 @@ export async function upsertCustomerForAuthUser(params: {
       .eq("id", existing.id)
       .select("*")
       .single();
-    if (error) return existing;
-    return data as CustomerProfile;
+    const profile = (error ? existing : data) as CustomerProfile;
+    await attachGuestOrdersToCustomer({
+      customerId: profile.id,
+      phone: profile.phone,
+      email: profile.email,
+    });
+    return profile;
   }
 
   // Link by phone/email if guest row exists
@@ -160,6 +297,7 @@ export async function upsertCustomerForAuthUser(params: {
         full_name: params.fullName?.trim() || byContact.full_name,
         photo_url: params.photoUrl ?? byContact.photo_url,
         customer_key: key,
+        is_guest: false,
         last_login_at: now,
         login_count: (byContact.login_count ?? 0) + 1,
         updated_at: now,
@@ -167,13 +305,22 @@ export async function upsertCustomerForAuthUser(params: {
       .eq("id", byContact.id)
       .select("*")
       .single();
-    if (!error && data) return data as CustomerProfile;
+    if (!error && data) {
+      const profile = data as CustomerProfile;
+      await attachGuestOrdersToCustomer({
+        customerId: profile.id,
+        phone: profile.phone,
+        email: profile.email,
+      });
+      return profile;
+    }
   }
 
   const id = crypto.randomUUID();
   const row = {
     id,
     auth_user_id: params.authUserId,
+    is_guest: false,
     customer_key: key,
     full_name: params.fullName?.trim() || "",
     phone,
@@ -195,10 +342,35 @@ export async function upsertCustomerForAuthUser(params: {
 
   if (error) {
     if (isMissingTableError(error, "customers")) return null;
+    // Retry without is_guest if migration 029 not applied yet
+    if (/is_guest|PGRST204|42703/i.test(error.message)) {
+      const { is_guest: _g, ...withoutGuest } = row;
+      void _g;
+      const retry = await supabase
+        .from("customers")
+        .insert(withoutGuest)
+        .select("*")
+        .single();
+      if (!retry.error && retry.data) {
+        const profile = retry.data as CustomerProfile;
+        await attachGuestOrdersToCustomer({
+          customerId: profile.id,
+          phone: profile.phone,
+          email: profile.email,
+        });
+        return profile;
+      }
+    }
     console.error("upsertCustomerForAuthUser", error.message);
     return null;
   }
-  return data as CustomerProfile;
+  const profile = data as CustomerProfile;
+  await attachGuestOrdersToCustomer({
+    customerId: profile.id,
+    phone: profile.phone,
+    email: profile.email,
+  });
+  return profile;
 }
 
 export async function requireCustomerApi(): Promise<

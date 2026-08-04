@@ -88,10 +88,47 @@ export async function getAdminOrders(): Promise<AdminOrdersResult> {
       >,
       "all"
     ) as ShopOrder[];
+
+    // Enrich Customer Type: Registered | Guest
+    const customerIds = [
+      ...new Set(
+        orders
+          .map((o) => o.customer_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    const typeById = new Map<string, "registered" | "guest">();
+    if (customerIds.length > 0) {
+      try {
+        const admin = createAdminClient();
+        const { data: customers } = await admin
+          .from("customers")
+          .select("id, auth_user_id, is_guest")
+          .in("id", customerIds);
+        for (const c of customers ?? []) {
+          const registered =
+            Boolean(c.auth_user_id) || c.is_guest === false;
+          typeById.set(
+            c.id as string,
+            registered ? "registered" : "guest"
+          );
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
+
+    const enriched = orders.map((o) => ({
+      ...o,
+      customer_type: o.customer_id
+        ? typeById.get(o.customer_id) ?? "guest"
+        : ("guest" as const),
+    }));
+
     return {
-      orders,
+      orders: enriched,
       error: null,
-      count: typeof count === "number" ? count : orders.length,
+      count: typeof count === "number" ? count : enriched.length,
     };
   } catch (e) {
     const message =

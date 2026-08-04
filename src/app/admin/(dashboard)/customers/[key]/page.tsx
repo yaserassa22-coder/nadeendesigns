@@ -76,6 +76,20 @@ export default function AdminCustomerDetailPage() {
           <p className="text-xs text-muted" dir="ltr">
             {data.customer_key}
           </p>
+          <p className="mt-2">
+            <span
+              className={
+                data.customer?.auth_user_id || data.customer?.is_guest === false
+                  ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-800"
+                  : "inline-flex rounded-full border border-beige-dark bg-beige/60 px-3 py-1 text-xs text-muted"
+              }
+            >
+              نوع العميلة:{" "}
+              {data.customer?.auth_user_id || data.customer?.is_guest === false
+                ? "Registered"
+                : "Guest"}
+            </span>
+          </p>
         </div>
         <Button variant="outline" onClick={() => window.location.reload()}>
           تحديث
@@ -103,6 +117,15 @@ export default function AdminCustomerDetailPage() {
         <dl className="grid gap-2 text-sm sm:grid-cols-2">
           <Row label="هاتف" value={String(data.customer?.phone || data.overlay?.phone || "—")} />
           <Row label="بريد" value={String(data.customer?.email || data.overlay?.email || "—")} />
+          <Row
+            label="نوع العميلة"
+            value={
+              data.customer?.auth_user_id || data.customer?.is_guest === false
+                ? "Registered"
+                : "Guest"
+            }
+          />
+          <Row label="عدد مرات الدخول" value={String(data.stats.login_count ?? data.customer?.login_count ?? 0)} />
           <Row label="نقاط (ولاء)" value={String(data.customer?.reward_points ?? 0)} />
           <Row label="VIP" value={String(data.customer?.vip_tier ?? "standard")} />
           <Row label="رصيد متجر" value={String(data.customer?.store_credit ?? 0)} />

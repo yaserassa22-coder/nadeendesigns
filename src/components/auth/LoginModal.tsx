@@ -2,7 +2,19 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Smartphone, Mail } from "lucide-react";
+import {
+  X,
+  Smartphone,
+  Mail,
+  Package,
+  Truck,
+  Calendar,
+  Heart,
+  Palette,
+  Bell,
+  UserPlus,
+  UserRound,
+} from "lucide-react";
 import { FaGoogle, FaApple, FaFacebookF } from "react-icons/fa";
 import { SITE_NAME } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
@@ -14,25 +26,38 @@ const ACCENT = "#C9A14A";
 type Props = {
   open: boolean;
   onClose: () => void;
+  onContinueAsGuest: () => void;
   onSuccess: () => void | Promise<void>;
+  message?: string;
   settings: (CustomerAuthSettings & {
     google_ready?: boolean;
     apple_ready?: boolean;
     otp_ready?: boolean;
     email_ready?: boolean;
   }) | null;
-  flags: Record<string, boolean>;
+  flags?: Record<string, boolean>;
 };
 
-type Step = "methods" | "phone" | "otp" | "email";
+type Step = "choice" | "methods" | "phone" | "otp" | "email";
+
+const ACCOUNT_BENEFITS = [
+  { icon: Package, label: "تتبع الطلبات" },
+  { icon: Truck, label: "الشحن والتوصيل" },
+  { icon: Calendar, label: "المواعيد" },
+  { icon: Heart, label: "قائمة الأمنيات" },
+  { icon: Palette, label: "التصاميم المحفوظة" },
+  { icon: Bell, label: "الإشعارات" },
+] as const;
 
 export function LoginModal({
   open,
   onClose,
+  onContinueAsGuest,
   onSuccess,
+  message,
   settings,
-}: Omit<Props, "flags"> & { flags?: Record<string, boolean> }) {
-  const [step, setStep] = useState<Step>("methods");
+}: Props) {
+  const [step, setStep] = useState<Step>("choice");
   const [dial, setDial] = useState("+972");
   const [phone, setPhone] = useState("");
   const [requestId, setRequestId] = useState<string | null>(null);
@@ -49,7 +74,7 @@ export function LoginModal({
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   function resetForm() {
-    setStep("methods");
+    setStep("choice");
     setPhone("");
     setOtp(["", "", "", "", "", ""]);
     setError(null);
@@ -62,6 +87,11 @@ export function LoginModal({
     resetForm();
     onClose();
   }, [onClose]);
+
+  const handleGuest = useCallback(() => {
+    resetForm();
+    onContinueAsGuest();
+  }, [onContinueAsGuest]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -226,7 +256,7 @@ export function LoginModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="relative z-10 m-3 w-full max-w-md overflow-hidden rounded-3xl border border-[#e7dfd3] bg-white shadow-[0_24px_80px_rgba(44,36,25,0.18)]"
+            className="relative z-10 m-3 max-h-[92vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-3xl border border-[#e7dfd3] bg-white shadow-[0_24px_80px_rgba(44,36,25,0.18)]"
           >
             <div
               className="h-1.5 w-full"
@@ -244,7 +274,7 @@ export function LoginModal({
                 <X className="h-5 w-5" />
               </button>
 
-              <div className="mb-6 text-center">
+              <div className="mb-5 text-center">
                 <p
                   className="font-[family-name:var(--font-cormorant)] text-2xl tracking-[0.2em] sm:text-3xl"
                   style={{ color: ACCENT }}
@@ -255,12 +285,24 @@ export function LoginModal({
                   id="login-title"
                   className="mt-3 font-[family-name:var(--font-amiri)] text-2xl text-charcoal"
                 >
-                  Welcome to NadEEN Designs
+                  مرحباً بك في NadEEN Designs
                 </h2>
                 <p className="mt-2 text-sm text-muted">
-                  Sign in to manage your bridal journey.
+                  اختاري كيف تودين المتابعة.
                 </p>
               </div>
+
+              {message && (
+                <div
+                  className="mb-4 rounded-2xl border px-4 py-3 text-sm text-charcoal"
+                  style={{
+                    borderColor: `${ACCENT}55`,
+                    background: `${ACCENT}12`,
+                  }}
+                >
+                  {message}
+                </div>
+              )}
 
               {error && (
                 <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -268,8 +310,58 @@ export function LoginModal({
                 </div>
               )}
 
+              {step === "choice" && (
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setStep("methods")}
+                    className="w-full rounded-2xl border border-transparent px-5 py-4 text-start text-white shadow-md transition hover:brightness-105"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <UserPlus className="h-5 w-5" />
+                      تسجيل الدخول / إنشاء حساب
+                    </span>
+                    <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-white/90">
+                      {ACCOUNT_BENEFITS.map(({ icon: Icon, label }) => (
+                        <li key={label} className="flex items-center gap-1.5">
+                          <Icon className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                          {label}
+                        </li>
+                      ))}
+                    </ul>
+                  </button>
+
+                  {guestEnabled && (
+                    <button
+                      type="button"
+                      onClick={handleGuest}
+                      className="w-full rounded-2xl border border-beige-dark bg-ivory/80 px-5 py-4 text-start transition hover:border-[color:#C9A14A] hover:bg-beige/40"
+                    >
+                      <span className="flex items-center gap-2 font-semibold text-charcoal">
+                        <UserRound className="h-5 w-5" style={{ color: ACCENT }} />
+                        المتابعة كزائرة
+                      </span>
+                      <p className="mt-2 text-xs leading-relaxed text-muted">
+                        يمكنكِ التصفح والسلة والشراء وحجز المواعيد. لن تُحفظ
+                        الأمنيات أو التصاميم أو لوحة الحساب أو سجل الطلبات عبر
+                        الأجهزة.
+                      </p>
+                    </button>
+                  )}
+                </div>
+              )}
+
               {step === "methods" && (
                 <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep("choice")}
+                    className="mb-1 text-sm text-muted hover:underline"
+                  >
+                    ← رجوع
+                  </button>
+
                   {(settings?.otp_ready !== false) && (
                     <Button
                       type="button"
@@ -325,7 +417,7 @@ export function LoginModal({
                   {guestEnabled && (
                     <button
                       type="button"
-                      onClick={handleClose}
+                      onClick={handleGuest}
                       className="mt-2 w-full py-2 text-sm text-muted underline-offset-4 hover:text-charcoal hover:underline"
                     >
                       المتابعة كزائرة

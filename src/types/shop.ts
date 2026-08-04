@@ -226,6 +226,10 @@ export interface ShopOrder {
   total: number;
   status: ShopOrderStatus;
   created_at: string;
+  /** Linked customers.id when guest or registered identity is known */
+  customer_id?: string | null;
+  /** Admin enrichment: Registered | Guest */
+  customer_type?: "registered" | "guest" | null;
   /** Accessory delivery — null/false on legacy orders */
   shipping_required?: boolean;
   /** pickup | delivery — null on legacy / non-shipping orders */
