@@ -9,7 +9,7 @@ export const GuestAuthProvider: AuthProvider = {
   id: "guest",
   label: { ar: "المتابعة كزائرة", en: "Continue as guest" },
   capabilities: ["guest"],
-  order: 40,
+  order: 30,
   primary: true,
 
   enabled(settings) {

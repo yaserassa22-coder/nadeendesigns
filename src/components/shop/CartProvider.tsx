@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { GiftOptions, ProductPersonalization } from "@/types/customization";
@@ -53,14 +54,55 @@ function loadCart(): CartItem[] {
   }
 }
 
+function mergeCartLines(a: CartItem[], b: CartItem[]): CartItem[] {
+  const out = [...a];
+  for (const item of b) {
+    const existing = out.find(
+      (i) =>
+        i.product_id === item.product_id &&
+        i.product_type === item.product_type &&
+        JSON.stringify(i.personalization) ===
+          JSON.stringify(item.personalization ?? null) &&
+        JSON.stringify(i.gift_options) ===
+          JSON.stringify(item.gift_options ?? null)
+    );
+    if (existing) {
+      existing.quantity = Math.min(20, existing.quantity + item.quantity);
+    } else {
+      out.push(item);
+    }
+  }
+  return out.slice(0, 50);
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [ready, setReady] = useState(false);
+  const syncTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setItems(loadCart());
-      setReady(true);
+      void (async () => {
+        const local = loadCart();
+        setItems(local);
+        // Hydrate from durable guest cart if server has newer/extra lines
+        try {
+          const res = await fetch("/api/guest/cart", {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { items?: CartItem[] };
+            if (Array.isArray(data.items) && data.items.length) {
+              const merged = mergeCartLines(local, data.items as CartItem[]);
+              setItems(merged);
+            }
+          }
+        } catch {
+          /* ignore — localStorage still works */
+        }
+        setReady(true);
+      })();
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -72,6 +114,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* ignore */
     }
+    // Debounced server sync for guest durability across devices/restarts
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(() => {
+      void fetch("/api/guest/cart", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ items }),
+      }).catch(() => undefined);
+    }, 600);
+    return () => {
+      if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    };
   }, [items, ready]);
 
   const addItem = useCallback((input: AddToCartInput) => {

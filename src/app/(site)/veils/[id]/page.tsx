@@ -5,6 +5,7 @@ import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
 import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
 import { WishlistButton } from "@/components/auth/WishlistButton";
+import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getVeilById, getVeils } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
@@ -45,6 +46,14 @@ export default async function VeilDetailPage({ params }: Props) {
   const inStock = veil.is_available && veil.stock_quantity > 0;
 
   return (
+    <>
+    <TrackRecentlyViewed
+      productKind="veil"
+      productId={veil.id}
+      productSlug={veil.id}
+      productTitle={veil.name_ar}
+      productImageUrl={featuredImage(veil.images)}
+    />
     <ProductDetailLayout
       images={veil.images}
       name={veil.name_ar}
@@ -98,5 +107,6 @@ export default async function VeilDetailPage({ params }: Props) {
       }
       related={<RelatedShopProducts items={related} />}
     />
+    </>
   );
 }

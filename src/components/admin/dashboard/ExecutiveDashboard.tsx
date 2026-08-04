@@ -476,6 +476,38 @@ export function ExecutiveDashboard({ initialData }: Props) {
               <span className="text-muted">متوسط قيمة الطلب</span>
               <span dir="ltr">{formatPrice(customers.aov)}</span>
             </li>
+            {customers.totalGuests != null && (
+              <>
+                <li className="flex justify-between border-t border-beige-dark pt-3">
+                  <span className="text-muted">إجمالي الضيوف</span>
+                  <span>{customers.totalGuests}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-muted">ضيوف عائدون</span>
+                  <span>{customers.returningGuests ?? 0}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-muted">عملاء مسجّلون</span>
+                  <span>{customers.registeredCustomers ?? 0}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-muted">تحويل ضيف %</span>
+                  <span>{customers.guestConversionRate ?? 0}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-muted">سلال ضيوف مهجورة</span>
+                  <span>{customers.abandonedGuestCarts ?? 0}</span>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/guests"
+                    className="text-xs text-gold hover:underline"
+                  >
+                    إدارة الضيوف →
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
         </Panel>
       </div>

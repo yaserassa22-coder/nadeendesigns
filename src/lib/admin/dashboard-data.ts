@@ -566,6 +566,59 @@ export async function getDashboardAnalytics(input: {
     },
   };
 
+  // Phase G guest KPIs (non-fatal if tables missing)
+  try {
+    if (isSupabaseConfigured()) {
+    const supabase = createAdminClient();
+    const [
+      { count: totalGuests },
+      { count: convertedGuests },
+      { count: registeredCustomers },
+      { count: abandonedCarts },
+      { data: guestRows },
+    ] = await Promise.all([
+      supabase
+        .from("guest_customers")
+        .select("*", { count: "exact", head: true }),
+      supabase
+        .from("guest_customers")
+        .select("*", { count: "exact", head: true })
+        .not("converted_to_customer_id", "is", null),
+      supabase
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("is_guest", false),
+      supabase
+        .from("guest_carts")
+        .select("*", { count: "exact", head: true })
+        .not("items", "eq", "[]"),
+      supabase
+        .from("guest_customers")
+        .select("created_at, last_seen")
+        .limit(5000),
+    ]);
+    let returningGuests = 0;
+    for (const g of guestRows ?? []) {
+      const created = new Date(g.created_at as string).getTime();
+      const seen = new Date(g.last_seen as string).getTime();
+      if (seen - created > 86_400_000) returningGuests += 1;
+    }
+    const total = totalGuests ?? 0;
+    const conv = convertedGuests ?? 0;
+    data.customers = {
+      ...data.customers,
+      totalGuests: total,
+      returningGuests,
+      registeredCustomers: registeredCustomers ?? 0,
+      guestConversionRate:
+        total > 0 ? Math.round((conv / total) * 1000) / 10 : 0,
+      abandonedGuestCarts: abandonedCarts ?? 0,
+    };
+    }
+  } catch {
+    /* guest tables optional until 031 */
+  }
+
   // Serialize dates for JSON
   const serializable: DashboardPayload = {
     ...data,

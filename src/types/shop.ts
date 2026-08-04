@@ -228,6 +228,8 @@ export interface ShopOrder {
   created_at: string;
   /** Linked customers.id when guest or registered identity is known */
   customer_id?: string | null;
+  /** Phase G anonymous guest cookie id */
+  guest_id?: string | null;
   /** Admin enrichment: Registered | Guest */
   customer_type?: "registered" | "guest" | null;
   /** Accessory delivery — null/false on legacy orders */

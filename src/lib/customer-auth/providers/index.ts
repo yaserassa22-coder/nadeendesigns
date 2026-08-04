@@ -28,6 +28,7 @@ export {
   listAuthProvidersByCapability,
   getPublicAuthProviders,
   getPrimaryPublicProviders,
+  getComingSoonPublicProviders,
 } from "./registry";
 
 export type {

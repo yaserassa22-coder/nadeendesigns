@@ -115,6 +115,12 @@ export type CustomerAnalytics = {
   ordersPerCustomer: number;
   aov: number;
   totalDistinct: number;
+  /** Phase G guest KPIs (optional until guest_customers exists) */
+  totalGuests?: number;
+  returningGuests?: number;
+  registeredCustomers?: number;
+  guestConversionRate?: number;
+  abandonedGuestCarts?: number;
 };
 
 export type DashboardCharts = {

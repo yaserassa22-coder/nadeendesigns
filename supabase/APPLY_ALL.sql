@@ -1,29 +1,29 @@
 -- =============================================================================
--- APPLY_ALL.sql — SINGLE-FILE master setup for NadEEN Designs
+-- APPLY_ALL.sql ? SINGLE-FILE master setup for NadEEN Designs
 --
 -- ONE FILE. Run once or repeatedly. No other APPLY_*.sql required.
--- Paste this entire file into Supabase → SQL Editor → Run.
+-- Paste this entire file into Supabase ? SQL Editor ? Run.
 -- Safe on fresh DB and existing DB (IF NOT EXISTS / DROP POLICY IF EXISTS /
 -- ON CONFLICT / ADD COLUMN IF NOT EXISTS / guarded DO $$ blocks).
 --
 -- Standalone APPLY_*.sql files in this folder are optional single-purpose
 -- recovery scripts only. This file already inlines all of them in order.
--- Do NOT \i / include other files — everything below is self-contained.
+-- Do NOT \i / include other files ? everything below is self-contained.
 --
--- ⚠ CRITICAL — dresses_category_check (and veils/bridal_robes category CHECKs):
+-- ? CRITICAL ? dresses_category_check (and veils/bridal_robes category CHECKs):
 --   NEVER re-ADD a hardcoded CHECK (category IN (...)). Categories are dynamic
 --   (categories table + app validation). Re-adding fails with:
 --     check constraint "dresses_category_check" ... is violated by some row
 --   when existing products use free/dynamic slugs. This file only DROPs those
 --   constraints (early + end) and never recreates them.
 --
--- ⚠ CRITICAL — bookings_service_type_check:
+-- ? CRITICAL ? bookings_service_type_check:
 --   NEVER re-ADD a hardcoded CHECK (service_type IN (...)). The allowed list grew
 --   over time (nouf_dress / nouf_dresses, etc.); early incomplete ADD fails with:
 --     check constraint "bookings_service_type_check" ... is violated by some row
 --   Validation is app-level (Zod). This file only DROPs the constraint (early + end).
 --
--- INLINED ORDER (migrations 001–029 + APPLY_* overlays):
+-- INLINED ORDER (migrations 001?029 + APPLY_* overlays):
 --   00. Early drop of obsolete category + bookings_service_type CHECKs
 --       (same as 025 / 026; before any legacy)
 --   01. migrations/001_add_custom_design_category.sql
@@ -48,8 +48,8 @@
 --   20. M5: APPLY_SHOP_SHIPPING (= 017)
 --   21. M6: APPLY_CUSTOMER_NOTIFICATIONS (= 018)
 --   22. Notify prefs: APPLY_NOTIFICATION_PREFERENCES (= 019)
---   23. M9: APPLY_SHIPPING_REGIONS (= 020)  — creates shipping_regions
---   24. M10: APPLY_SMART_SHIPPING (= 021) — pending fees / tracking / estimates
+--   23. M9: APPLY_SHIPPING_REGIONS (= 020)  ? creates shipping_regions
+--   24. M10: APPLY_SMART_SHIPPING (= 021) ? pending fees / tracking / estimates
 --   25. Soft delete / archive / audit: APPLY_SOFT_DELETE_ARCHIVE (= 022)
 --   26. Reports schedules: APPLY_REPORTS (= 023)
 --   27. Smart appointments: APPLY_SMART_APPOINTMENTS (= 024)
@@ -57,9 +57,11 @@
 --   29. Drop obsolete bookings_service_type_check: APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK (= 026)
 --   30. Product category_id FK + product_kind/SEO: APPLY_PRODUCT_CATEGORY_ID (= 027)
 --   31. Phase E customer auth: APPLY_CUSTOMER_AUTH (= 028)
---       *** customers + related tables created HERE — precedes 029 ***
+--       *** customers + related tables created HERE ? precedes 029 ***
 --   32. Phase E2 guest flag: APPLY_CUSTOMER_GUEST (= 029)
 --   33. Phase E3 WhatsApp OTP provider: APPLY_WHATSAPP_AUTH (= 030)
+--   34. Phase G guest customers: APPLY_GUEST_CUSTOMERS (= 031)
+--       guest_id cookie identity, guest carts, guest wishlist, recently viewed
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, settings) must already
 -- exist from the main schema / earlier project setup. This file applies
@@ -67,13 +69,13 @@
 --
 -- NOTE: dresses.category is TEXT (slug / legacy_key). Hardcoded CHECK constraints
 -- are obsolete after dynamic categories (016). APPLY_ALL drops the constraint and
--- never recreates it — existing product rows are preserved.
+-- never recreates it ? existing product rows are preserved.
 -- NOTE: bookings.service_type is TEXT; hardcoded service_type CHECK is obsolete
 -- (app Zod validation). APPLY_ALL drops it and never recreates it.
 -- =============================================================================
 
 -- #############################################################################
--- 00 — Early drop obsolete category CHECKs (idempotent; preserves all rows)
+-- 00 ? Early drop obsolete category CHECKs (idempotent; preserves all rows)
 -- Same logic as migrations/025_drop_dresses_category_check.sql
 -- Run first so later UPDATEs never hit a leftover live-DB CHECK.
 -- #############################################################################
@@ -116,7 +118,7 @@ END $$;
 
 
 -- #############################################################################
--- 00b — Early drop obsolete bookings_service_type_check
+-- 00b ? Early drop obsolete bookings_service_type_check
 -- Same logic as migrations/026_drop_bookings_service_type_check.sql
 -- #############################################################################
 
@@ -149,11 +151,11 @@ END $$;
 
 
 -- #############################################################################
--- Migration 001 — Custom design category
+-- Migration 001 ? Custom design category
 -- Source: supabase/migrations/001_add_custom_design_category.sql
 -- #############################################################################
 
--- Add custom_design and keep robes (برنص عروس)
+-- Add custom_design and keep robes (???? ????)
 -- Delivery/service-type updates continue in section 002 below (inlined).
 -- Hardcoded dresses_category_check removed: categories are dynamic (see 016 / 025).
 -- Do NOT ADD CONSTRAINT dresses_category_check here (or anywhere in this file).
@@ -163,17 +165,17 @@ ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
 
 -- #############################################################################
--- Migration 002 — Booking delivery & service types
+-- Migration 002 ? Booking delivery & service types
 -- Source: supabase/migrations/002_booking_delivery_and_service_types.sql
 -- #############################################################################
 
 -- Categories + booking delivery fields + expanded service types
 -- Safe to run on existing databases
 
--- 1) Dress categories — drop obsolete CHECK only (do not recreate hardcoded list)
+-- 1) Dress categories ? drop obsolete CHECK only (do not recreate hardcoded list)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
--- 2) Booking service_type — drop obsolete CHECK only (app Zod validates; see 026).
+-- 2) Booking service_type ? drop obsolete CHECK only (app Zod validates; see 026).
 -- Do NOT ADD CONSTRAINT bookings_service_type_check here (or anywhere in this file).
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 
@@ -209,68 +211,68 @@ CREATE INDEX IF NOT EXISTS idx_bookings_delivery ON bookings(delivery_required);
 
 
 -- #############################################################################
--- Migration 003 — Normalize dress styles (AR)
+-- Migration 003 ? Normalize dress styles (AR)
 -- Source: supabase/migrations/003_normalize_dress_styles_ar.sql
 -- #############################################################################
 
 -- Normalize legacy style values to Arabic options
-UPDATE dresses SET style = 'ملكي' WHERE style IN ('Classic Luxury', 'royal', 'Royal');
-UPDATE dresses SET style = 'كلاسيكي' WHERE style IN ('classic', 'Classic', 'vintage', 'Vintage', 'فintage');
-UPDATE dresses SET style = 'عصري' WHERE style IN ('modern', 'Modern', 'حديث');
-UPDATE dresses SET style = 'فاخر' WHERE style IN ('luxury', 'Luxury');
-UPDATE dresses SET style = 'ناعم' WHERE style IN ('soft', 'Soft');
-UPDATE dresses SET style = 'بسيط' WHERE style IN ('simple', 'Simple');
-UPDATE dresses SET style = 'أميري' WHERE style IN ('أميرة', 'princess', 'Princess');
-UPDATE dresses SET style = 'حورية البحر' WHERE style IN ('mermaid', 'Mermaid', 'مermaid');
-UPDATE dresses SET style = 'قصة A (قصة حرف A)' WHERE style IN ('A-Line', 'A Line', 'a-line');
-UPDATE dresses SET style = 'منفوش' WHERE style IN ('ballgown', 'Ballgown');
-UPDATE dresses SET style = 'مستقيم' WHERE style IN ('sheath', 'Sheath');
-UPDATE dresses SET style = 'بوهيمي' WHERE style IN ('بوهو', 'boho', 'Boho', 'Bohemian');
-UPDATE dresses SET style = 'دانتيل فاخر' WHERE style IN ('lace', 'Lace');
-UPDATE dresses SET style = 'ساتان فاخر' WHERE style IN ('satin', 'Satin');
-UPDATE dresses SET style = 'تول فاخر' WHERE style IN ('tulle', 'Tulle');
-UPDATE dresses SET style = 'تصميم مخصص' WHERE style IN ('custom', 'Custom');
+UPDATE dresses SET style = '????' WHERE style IN ('Classic Luxury', 'royal', 'Royal');
+UPDATE dresses SET style = '???????' WHERE style IN ('classic', 'Classic', 'vintage', 'Vintage', '?intage');
+UPDATE dresses SET style = '????' WHERE style IN ('modern', 'Modern', '????');
+UPDATE dresses SET style = '????' WHERE style IN ('luxury', 'Luxury');
+UPDATE dresses SET style = '????' WHERE style IN ('soft', 'Soft');
+UPDATE dresses SET style = '????' WHERE style IN ('simple', 'Simple');
+UPDATE dresses SET style = '?????' WHERE style IN ('?????', 'princess', 'Princess');
+UPDATE dresses SET style = '????? ?????' WHERE style IN ('mermaid', 'Mermaid', '?ermaid');
+UPDATE dresses SET style = '??? A (??? ??? A)' WHERE style IN ('A-Line', 'A Line', 'a-line');
+UPDATE dresses SET style = '?????' WHERE style IN ('ballgown', 'Ballgown');
+UPDATE dresses SET style = '??????' WHERE style IN ('sheath', 'Sheath');
+UPDATE dresses SET style = '??????' WHERE style IN ('????', 'boho', 'Boho', 'Bohemian');
+UPDATE dresses SET style = '?????? ????' WHERE style IN ('lace', 'Lace');
+UPDATE dresses SET style = '????? ????' WHERE style IN ('satin', 'Satin');
+UPDATE dresses SET style = '??? ????' WHERE style IN ('tulle', 'Tulle');
+UPDATE dresses SET style = '????? ????' WHERE style IN ('custom', 'Custom');
 
 
 
 -- #############################################################################
--- Migration 004 — Normalize dress colors (AR)
+-- Migration 004 ? Normalize dress colors (AR)
 -- Source: supabase/migrations/004_normalize_dress_colors_ar.sql
 -- #############################################################################
 
 
 -- Normalize legacy color values to Arabic options
-UPDATE dresses SET color = 'أوف وايت' WHERE color IN ('Off White', 'off white', 'off-white', 'OffWhite');
-UPDATE dresses SET color = 'أبيض' WHERE color IN ('white', 'White');
-UPDATE dresses SET color = 'عاجي' WHERE color IN ('ivory', 'Ivory');
-UPDATE dresses SET color = 'كريمي' WHERE color IN ('cream', 'Cream');
-UPDATE dresses SET color = 'بيج' WHERE color IN ('beige', 'Beige');
-UPDATE dresses SET color = 'شامبين' WHERE color IN ('champagne', 'Champagne', 'شampagne');
-UPDATE dresses SET color = 'ذهبي' WHERE color IN ('gold', 'Gold', 'golden');
-UPDATE dresses SET color = 'فضي' WHERE color IN ('silver', 'Silver');
-UPDATE dresses SET color = 'وردي فاتح' WHERE color IN ('blush', 'Blush');
-UPDATE dresses SET color = 'وردي' WHERE color IN ('pink', 'Pink');
-UPDATE dresses SET color = 'موف' WHERE color IN ('mauve', 'Mauve');
-UPDATE dresses SET color = 'بنفسجي' WHERE color IN ('purple', 'Purple');
-UPDATE dresses SET color = 'أزرق سماوي' WHERE color IN ('sky blue', 'Sky Blue');
-UPDATE dresses SET color = 'أزرق ملكي' WHERE color IN ('royal blue', 'Royal Blue');
-UPDATE dresses SET color = 'كحلي' WHERE color IN ('navy', 'Navy');
-UPDATE dresses SET color = 'أخضر زمردي' WHERE color IN ('emerald', 'Emerald');
-UPDATE dresses SET color = 'أخضر زيتوني' WHERE color IN ('olive', 'Olive');
-UPDATE dresses SET color = 'أحمر' WHERE color IN ('red', 'Red');
-UPDATE dresses SET color = 'خمري' WHERE color IN ('burgundy', 'Burgundy');
-UPDATE dresses SET color = 'بني' WHERE color IN ('brown', 'Brown');
-UPDATE dresses SET color = 'أسود' WHERE color IN ('black', 'Black');
-UPDATE dresses SET color = 'رمادي' WHERE color IN ('gray', 'grey', 'Gray', 'Grey');
+UPDATE dresses SET color = '??? ????' WHERE color IN ('Off White', 'off white', 'off-white', 'OffWhite');
+UPDATE dresses SET color = '????' WHERE color IN ('white', 'White');
+UPDATE dresses SET color = '????' WHERE color IN ('ivory', 'Ivory');
+UPDATE dresses SET color = '?????' WHERE color IN ('cream', 'Cream');
+UPDATE dresses SET color = '???' WHERE color IN ('beige', 'Beige');
+UPDATE dresses SET color = '??????' WHERE color IN ('champagne', 'Champagne', '?ampagne');
+UPDATE dresses SET color = '????' WHERE color IN ('gold', 'Gold', 'golden');
+UPDATE dresses SET color = '???' WHERE color IN ('silver', 'Silver');
+UPDATE dresses SET color = '???? ????' WHERE color IN ('blush', 'Blush');
+UPDATE dresses SET color = '????' WHERE color IN ('pink', 'Pink');
+UPDATE dresses SET color = '???' WHERE color IN ('mauve', 'Mauve');
+UPDATE dresses SET color = '??????' WHERE color IN ('purple', 'Purple');
+UPDATE dresses SET color = '???? ?????' WHERE color IN ('sky blue', 'Sky Blue');
+UPDATE dresses SET color = '???? ????' WHERE color IN ('royal blue', 'Royal Blue');
+UPDATE dresses SET color = '????' WHERE color IN ('navy', 'Navy');
+UPDATE dresses SET color = '???? ?????' WHERE color IN ('emerald', 'Emerald');
+UPDATE dresses SET color = '???? ??????' WHERE color IN ('olive', 'Olive');
+UPDATE dresses SET color = '????' WHERE color IN ('red', 'Red');
+UPDATE dresses SET color = '????' WHERE color IN ('burgundy', 'Burgundy');
+UPDATE dresses SET color = '???' WHERE color IN ('brown', 'Brown');
+UPDATE dresses SET color = '????' WHERE color IN ('black', 'Black');
+UPDATE dresses SET color = '?????' WHERE color IN ('gray', 'grey', 'Gray', 'Grey');
 
 
 
 -- #############################################################################
--- Migration 005 — Booking personalization
+-- Migration 005 ? Booking personalization
 -- Source: supabase/migrations/005_booking_personalization.sql
 -- #############################################################################
 
--- Structured personalization for veils & bridal robes (برنص عروس)
+-- Structured personalization for veils & bridal robes (???? ????)
 ALTER TABLE bookings
   ADD COLUMN IF NOT EXISTS personalization JSONB;
 
@@ -280,7 +282,7 @@ COMMENT ON COLUMN bookings.personalization IS
 
 
 -- #############################################################################
--- Migration 006 — Booking gift options
+-- Migration 006 ? Booking gift options
 -- Source: supabase/migrations/006_booking_gift_options.sql
 -- #############################################################################
 
@@ -294,9 +296,9 @@ COMMENT ON COLUMN bookings.gift_options IS
 
 
 -- #############################################################################
--- Migration 007 — Veils, bridal robes, shop_orders (+ APPLY_SHOP_CHECKOUT)
+-- Migration 007 ? Veils, bridal robes, shop_orders (+ APPLY_SHOP_CHECKOUT)
 -- Source: supabase/migrations/007_veils_bridal_robes_orders.sql
--- Reinforced again in section 009 (IF NOT EXISTS — safe duplicate).
+-- Reinforced again in section 009 (IF NOT EXISTS ? safe duplicate).
 -- #############################################################################
 
 -- Separate product tables for veils & bridal robes + shop orders
@@ -406,7 +408,7 @@ ON CONFLICT (id) DO NOTHING;
 
 DELETE FROM dresses WHERE category IN ('veils', 'robes');
 
--- Drop obsolete category CHECK (do not recreate — dynamic categories; see 016 / 025)
+-- Drop obsolete category CHECK (do not recreate ? dynamic categories; see 016 / 025)
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
 ALTER TABLE veils ENABLE ROW LEVEL SECURITY;
@@ -438,7 +440,7 @@ CREATE INDEX IF NOT EXISTS idx_bridal_robes_featured ON bridal_robes(is_featured
 CREATE INDEX IF NOT EXISTS idx_shop_orders_status ON shop_orders(status);
 
 -- #############################################################################
--- Migration 008 — Nouf dress category
+-- Migration 008 ? Nouf dress category
 -- Source: supabase/migrations/008_add_nouf_dress_category.sql
 -- #############################################################################
 
@@ -446,13 +448,13 @@ CREATE INDEX IF NOT EXISTS idx_shop_orders_status ON shop_orders(status);
 -- CHECK dropped permanently (dynamic categories); keep booking service_type widen.
 ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_category_check;
 
--- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
+-- Booking service_type CHECK obsolete (app Zod; see 026) ? drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 
 
 
 -- #############################################################################
--- Migration 009 — Ensure shop tables & RLS
+-- Migration 009 ? Ensure shop tables & RLS
 -- Source: supabase/migrations/009_ensure_shop_tables_and_rls.sql
 -- #############################################################################
 
@@ -562,11 +564,11 @@ CREATE INDEX IF NOT EXISTS idx_shop_orders_created ON shop_orders(created_at DES
 
 
 -- #############################################################################
--- Migration 010 — Nouf dresses independent category
+-- Migration 010 ? Nouf dresses independent category
 -- Source: supabase/migrations/010_nouf_dresses_independent_category.sql
 -- #############################################################################
 
--- Independent category: فساتين نوف (nouf_dresses)
+-- Independent category: ?????? ??? (nouf_dresses)
 -- Wedding dresses stay as: wedding
 -- Safe to run multiple times.
 
@@ -579,18 +581,18 @@ SET category = 'nouf_dresses',
 WHERE category IN ('wedding', 'wedding_dress', 'nouf_dress')
   AND (
     category = 'nouf_dress'
-    OR name_ar ILIKE '%نوف%'
+    OR name_ar ILIKE '%???%'
     OR name_ar ILIKE '%nouf%'
-    OR description_ar ILIKE '%نوف%'
+    OR description_ar ILIKE '%???%'
   );
 
--- Normalize any remaining wedding_dress → wedding
+-- Normalize any remaining wedding_dress ? wedding
 UPDATE dresses
 SET category = 'wedding',
     updated_at = now()
 WHERE category = 'wedding_dress';
 
--- Ensure nouf_dress (singular legacy) → nouf_dresses
+-- Ensure nouf_dress (singular legacy) ? nouf_dresses
 UPDATE dresses
 SET category = 'nouf_dresses',
     updated_at = now()
@@ -598,7 +600,7 @@ WHERE category = 'nouf_dress';
 
 -- Do NOT recreate dresses_category_check (dynamic categories; see migration 025)
 
--- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
+-- Booking service_type CHECK obsolete (app Zod; see 026) ? drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 
 UPDATE bookings
@@ -608,7 +610,7 @@ WHERE service_type = 'nouf_dress';
 
 
 -- #############################################################################
--- APPLY_NOUF_DRESSES_CATEGORY — Nouf category overlay
+-- APPLY_NOUF_DRESSES_CATEGORY ? Nouf category overlay
 -- Source: supabase/APPLY_NOUF_DRESSES_CATEGORY.sql
 -- #############################################################################
 
@@ -625,9 +627,9 @@ SET category = 'nouf_dresses',
 WHERE category IN ('wedding', 'wedding_dress', 'nouf_dress')
   AND (
     category = 'nouf_dress'
-    OR name_ar ILIKE '%نوف%'
+    OR name_ar ILIKE '%???%'
     OR name_ar ILIKE '%nouf%'
-    OR description_ar ILIKE '%نوف%'
+    OR description_ar ILIKE '%???%'
   );
 
 UPDATE dresses
@@ -640,7 +642,7 @@ SET category = 'nouf_dresses',
     updated_at = now()
 WHERE category = 'nouf_dress';
 
--- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
+-- Booking service_type CHECK obsolete (app Zod; see 026) ? drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 
 UPDATE bookings
@@ -650,18 +652,18 @@ WHERE service_type = 'nouf_dress';
 
 
 -- #############################################################################
--- Migration 011 — Order notifications
+-- Migration 011 ? Order notifications
 -- Source: supabase/migrations/011_order_notifications.sql
 -- #############################################################################
 
 -- Expand shop order statuses + notification_logs
 -- Safe to run multiple times.
--- NOTE: Do NOT re-ADD an incomplete status list here — live DBs may already have
+-- NOTE: Do NOT re-ADD an incomplete status list here ? live DBs may already have
 -- awaiting_payment / payment_received (full list applied in migration 012 below).
 
 ALTER TABLE shop_orders DROP CONSTRAINT IF EXISTS shop_orders_status_check;
 
--- Normalize legacy completed → delivered
+-- Normalize legacy completed ? delivered
 UPDATE shop_orders SET status = 'delivered' WHERE status = 'completed';
 
 CREATE TABLE IF NOT EXISTS notification_logs (
@@ -696,7 +698,7 @@ CREATE POLICY "Admin all notification_logs" ON notification_logs FOR ALL USING (
 
 
 -- #############################################################################
--- Migration 012 — Order workflow notifications
+-- Migration 012 ? Order workflow notifications
 -- Source: supabase/migrations/012_order_workflow_notifications.sql
 -- #############################################################################
 
@@ -762,12 +764,12 @@ CREATE POLICY "Admin all notification_logs" ON notification_logs FOR ALL USING (
 
 
 -- #############################################################################
--- APPLY_NOTIFICATIONS — Workflow statuses + notification_logs
+-- APPLY_NOTIFICATIONS ? Workflow statuses + notification_logs
 -- Source: supabase/APPLY_NOTIFICATIONS.sql
 -- #############################################################################
 
 -- =============================================================================
--- RUN IN SUPABASE → SQL Editor
+-- RUN IN SUPABASE ? SQL Editor
 -- Full order workflow statuses + notification_logs
 -- Safe to run multiple times.
 -- =============================================================================
@@ -835,7 +837,7 @@ CREATE POLICY "Admin all notification_logs" ON notification_logs FOR ALL USING (
 
 
 -- #############################################################################
--- Migration 013 — Booking city
+-- Migration 013 ? Booking city
 -- Source: supabase/migrations/013_booking_city.sql
 -- #############################################################################
 
@@ -846,7 +848,7 @@ COMMENT ON COLUMN bookings.city IS 'Customer city (required on booking form)';
 
 
 -- #############################################################################
--- Migration 014 — Booking region
+-- Migration 014 ? Booking region
 -- Source: supabase/migrations/014_booking_region.sql
 -- #############################################################################
 
@@ -860,7 +862,7 @@ COMMENT ON COLUMN bookings.city IS 'Customer city';
 
 
 -- #############################################################################
--- Migration 015 — Bookings form sync
+-- Migration 015 ? Bookings form sync
 -- Source: supabase/migrations/015_bookings_form_sync.sql
 -- #############################################################################
 
@@ -888,7 +890,7 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS gift_options JSONB;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
--- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
+-- Booking service_type CHECK obsolete (app Zod; see 026) ? drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
@@ -912,12 +914,12 @@ NOTIFY pgrst, 'reload schema';
 
 
 -- #############################################################################
--- APPLY_BOOKINGS_COMPLETE — Full bookings column sync
+-- APPLY_BOOKINGS_COMPLETE ? Full bookings column sync
 -- Source: supabase/APPLY_BOOKINGS_COMPLETE.sql
 -- #############################################################################
 
 -- =============================================================================
--- RUN ONCE IN SUPABASE → SQL Editor
+-- RUN ONCE IN SUPABASE ? SQL Editor
 -- Syncs bookings table with every field submitted by the booking form / API.
 -- Safe to run multiple times (IF NOT EXISTS).
 -- =============================================================================
@@ -1005,12 +1007,12 @@ NOTIFY pgrst, 'reload schema';
 
 
 -- #############################################################################
--- APPLY_BOOKINGS_FIX — Bookings fixes
+-- APPLY_BOOKINGS_FIX ? Bookings fixes
 -- Source: supabase/APPLY_BOOKINGS_FIX.sql
 -- #############################################################################
 
 -- =============================================================================
--- RUN IN SUPABASE → SQL Editor
+-- RUN IN SUPABASE ? SQL Editor
 -- Booking form fixes: city column + service_type constraint
 -- Safe to run multiple times.
 -- =============================================================================
@@ -1018,7 +1020,7 @@ NOTIFY pgrst, 'reload schema';
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS region TEXT;
 
--- Booking service_type CHECK obsolete (app Zod; see 026) — drop only, never re-ADD.
+-- Booking service_type CHECK obsolete (app Zod; see 026) ? drop only, never re-ADD.
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_service_type_check;
 
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_delivery_status_check;
@@ -1037,12 +1039,12 @@ COMMENT ON COLUMN bookings.city IS 'Customer city (required on booking form)';
 
 
 -- #############################################################################
--- APPLY_BOOKINGS_ADMIN_RLS — Bookings admin RLS
+-- APPLY_BOOKINGS_ADMIN_RLS ? Bookings admin RLS
 -- Source: supabase/APPLY_BOOKINGS_ADMIN_RLS.sql
 -- #############################################################################
 
 -- =============================================================================
--- RUN IN SUPABASE → SQL Editor (does NOT change table columns)
+-- RUN IN SUPABASE ? SQL Editor (does NOT change table columns)
 -- Ensures authenticated admins can SELECT / UPDATE / DELETE all bookings.
 -- Public INSERT remains allowed for the booking form.
 -- =============================================================================
@@ -1091,7 +1093,7 @@ NOTIFY pgrst, 'reload schema';
 
 
 -- #############################################################################
--- M2 / Migration 016 — Dynamic categories
+-- M2 / Migration 016 ? Dynamic categories
 -- Source: supabase/APPLY_CATEGORIES.sql
 -- #############################################################################
 
@@ -1138,39 +1140,39 @@ CREATE POLICY "Admin all categories" ON categories
 
 INSERT INTO categories (id, name_ar, slug, parent_id, sort_order, is_visible, description_ar, href, legacy_key)
 VALUES
-  ('a1000000-0000-4000-8000-000000000001', 'فساتين الزفاف', 'wedding-dresses', NULL, 10, true, '', '/wedding-dresses', 'wedding'),
-  ('a1000000-0000-4000-8000-000000000002', 'فساتين للإيجار', 'rental-dresses', NULL, 20, true, '', '/rental-dresses', 'rental'),
-  ('a1000000-0000-4000-8000-000000000003', 'تصميم فستان خاص', 'custom-design', NULL, 30, true, '', '/custom-design', 'custom_design'),
-  ('a1000000-0000-4000-8000-000000000004', 'فساتين نوف', 'nouf-dresses', NULL, 40, true, '', '/nouf-dresses', 'nouf_dresses'),
-  ('a1000000-0000-4000-8000-000000000005', 'اكسسوارات العروس', 'bridal-accessories', NULL, 50, true, 'طرحة العروس وبرنص العروس', NULL, 'bridal_accessories'),
-  ('a1000000-0000-4000-8000-000000000006', 'طرحة العروس', 'veils', 'a1000000-0000-4000-8000-000000000005', 10, true, '', '/veils', 'veils'),
-  ('a1000000-0000-4000-8000-000000000007', 'برنص العروس', 'robes', 'a1000000-0000-4000-8000-000000000005', 20, true, '', '/robes', 'bridal_robes')
+  ('a1000000-0000-4000-8000-000000000001', '?????? ??????', 'wedding-dresses', NULL, 10, true, '', '/wedding-dresses', 'wedding'),
+  ('a1000000-0000-4000-8000-000000000002', '?????? ???????', 'rental-dresses', NULL, 20, true, '', '/rental-dresses', 'rental'),
+  ('a1000000-0000-4000-8000-000000000003', '????? ????? ???', 'custom-design', NULL, 30, true, '', '/custom-design', 'custom_design'),
+  ('a1000000-0000-4000-8000-000000000004', '?????? ???', 'nouf-dresses', NULL, 40, true, '', '/nouf-dresses', 'nouf_dresses'),
+  ('a1000000-0000-4000-8000-000000000005', '????????? ??????', 'bridal-accessories', NULL, 50, true, '???? ?????? ????? ??????', NULL, 'bridal_accessories'),
+  ('a1000000-0000-4000-8000-000000000006', '???? ??????', 'veils', 'a1000000-0000-4000-8000-000000000005', 10, true, '', '/veils', 'veils'),
+  ('a1000000-0000-4000-8000-000000000007', '???? ??????', 'robes', 'a1000000-0000-4000-8000-000000000005', 20, true, '', '/robes', 'bridal_robes')
 ON CONFLICT (slug) DO NOTHING;
 
 
 
 -- #############################################################################
--- M1 — Categories برنص spelling fix
+-- M1 ? Categories ???? spelling fix
 -- Source: supabase/APPLY_CATEGORIES_BERNUS_SPELLING.sql
 -- #############################################################################
 
--- Fix category labels to official spelling: برنص العروس
+-- Fix category labels to official spelling: ???? ??????
 -- Safe / idempotent.
 
 UPDATE categories
 SET
-  name_ar = REPLACE(name_ar, 'برنس', 'برنص'),
-  description_ar = REPLACE(description_ar, 'برنس', 'برنص'),
+  name_ar = REPLACE(name_ar, '????', '????'),
+  description_ar = REPLACE(description_ar, '????', '????'),
   updated_at = now()
-WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%';
+WHERE name_ar LIKE '%????%' OR description_ar LIKE '%????%';
 
--- Optional: product text (already mostly برنص in live data)
+-- Optional: product text (already mostly ???? in live data)
 UPDATE bridal_robes
 SET
-  name_ar = REPLACE(name_ar, 'برنس', 'برنص'),
-  description_ar = REPLACE(description_ar, 'برنس', 'برنص'),
+  name_ar = REPLACE(name_ar, '????', '????'),
+  description_ar = REPLACE(description_ar, '????', '????'),
   updated_at = now()
-WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%';
+WHERE name_ar LIKE '%????%' OR description_ar LIKE '%????%';
 
 SELECT slug, name_ar, description_ar
 FROM categories
@@ -1180,49 +1182,49 @@ ORDER BY slug;
 
 
 -- #############################################################################
--- M1 — Rename برنس → برنص across catalog
+-- M1 ? Rename ???? ? ???? across catalog
 -- Source: supabase/APPLY_RENAME_TO_BERNUS.sql
 -- #############################################################################
 
--- Official naming: برنص العروس (not برنس العروس)
+-- Official naming: ???? ?????? (not ???? ??????)
 -- Run in Supabase SQL Editor. Idempotent via REPLACE.
 
 -- Product catalog
 UPDATE bridal_robes
 SET
-  name_ar = REPLACE(name_ar, 'برنس', 'برنص'),
-  description_ar = REPLACE(description_ar, 'برنس', 'برنص'),
-  color = CASE WHEN color IS NULL THEN NULL ELSE REPLACE(color, 'برنس', 'برنص') END,
-  material = CASE WHEN material IS NULL THEN NULL ELSE REPLACE(material, 'برنس', 'برنص') END,
-  size = CASE WHEN size IS NULL THEN NULL ELSE REPLACE(size, 'برنس', 'برنص') END,
+  name_ar = REPLACE(name_ar, '????', '????'),
+  description_ar = REPLACE(description_ar, '????', '????'),
+  color = CASE WHEN color IS NULL THEN NULL ELSE REPLACE(color, '????', '????') END,
+  material = CASE WHEN material IS NULL THEN NULL ELSE REPLACE(material, '????', '????') END,
+  size = CASE WHEN size IS NULL THEN NULL ELSE REPLACE(size, '????', '????') END,
   updated_at = now()
 WHERE
-  name_ar LIKE '%برنس%'
-  OR description_ar LIKE '%برنس%'
-  OR COALESCE(color, '') LIKE '%برنس%'
-  OR COALESCE(material, '') LIKE '%برنس%'
-  OR COALESCE(size, '') LIKE '%برنس%';
+  name_ar LIKE '%????%'
+  OR description_ar LIKE '%????%'
+  OR COALESCE(color, '') LIKE '%????%'
+  OR COALESCE(material, '') LIKE '%????%'
+  OR COALESCE(size, '') LIKE '%????%';
 
 UPDATE veils
 SET
-  name_ar = REPLACE(name_ar, 'برنس', 'برنص'),
-  description_ar = REPLACE(description_ar, 'برنس', 'برنص'),
+  name_ar = REPLACE(name_ar, '????', '????'),
+  description_ar = REPLACE(description_ar, '????', '????'),
   updated_at = now()
-WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%';
+WHERE name_ar LIKE '%????%' OR description_ar LIKE '%????%';
 
 UPDATE dresses
 SET
-  name_ar = REPLACE(name_ar, 'برنس', 'برنص'),
-  description_ar = REPLACE(description_ar, 'برنس', 'برنص'),
+  name_ar = REPLACE(name_ar, '????', '????'),
+  description_ar = REPLACE(description_ar, '????', '????'),
   updated_at = now()
-WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%';
+WHERE name_ar LIKE '%????%' OR description_ar LIKE '%????%';
 
 UPDATE categories
 SET
-  name_ar = REPLACE(name_ar, 'برنس', 'برنص'),
-  description_ar = REPLACE(description_ar, 'برنس', 'برنص'),
+  name_ar = REPLACE(name_ar, '????', '????'),
+  description_ar = REPLACE(description_ar, '????', '????'),
   updated_at = now()
-WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%';
+WHERE name_ar LIKE '%????%' OR description_ar LIKE '%????%';
 
 DO $$
 BEGIN
@@ -1232,56 +1234,56 @@ BEGIN
   ) THEN
     UPDATE gallery_items
     SET
-      title_ar = REPLACE(title_ar, 'برنس', 'برنص'),
-      category = REPLACE(category, 'برنس', 'برنص')
-    WHERE title_ar LIKE '%برنس%' OR category LIKE '%برنس%';
+      title_ar = REPLACE(title_ar, '????', '????'),
+      category = REPLACE(category, '????', '????')
+    WHERE title_ar LIKE '%????%' OR category LIKE '%????%';
   END IF;
 END $$;
 
 -- Shop order line items (JSONB)
 UPDATE shop_orders
-SET items = REPLACE(items::text, 'برنس', 'برنص')::jsonb
-WHERE items::text LIKE '%برنس%';
+SET items = REPLACE(items::text, '????', '????')::jsonb
+WHERE items::text LIKE '%????%';
 
 UPDATE shop_orders
-SET notes = REPLACE(notes, 'برنس', 'برنص')
-WHERE notes LIKE '%برنس%';
+SET notes = REPLACE(notes, '????', '????')
+WHERE notes LIKE '%????%';
 
 -- Bookings free text / JSON
 UPDATE bookings
-SET notes = REPLACE(notes, 'برنس', 'برنص')
-WHERE notes LIKE '%برنس%';
+SET notes = REPLACE(notes, '????', '????')
+WHERE notes LIKE '%????%';
 
 UPDATE bookings
-SET personalization = REPLACE(personalization::text, 'برنس', 'برنص')::jsonb
-WHERE personalization IS NOT NULL AND personalization::text LIKE '%برنس%';
+SET personalization = REPLACE(personalization::text, '????', '????')::jsonb
+WHERE personalization IS NOT NULL AND personalization::text LIKE '%????%';
 
 UPDATE bookings
-SET gift_options = REPLACE(gift_options::text, 'برنس', 'برنص')::jsonb
-WHERE gift_options IS NOT NULL AND gift_options::text LIKE '%برنس%';
+SET gift_options = REPLACE(gift_options::text, '????', '????')::jsonb
+WHERE gift_options IS NOT NULL AND gift_options::text LIKE '%????%';
 
 -- Settings JSON blob (if any Arabic copy stored there)
 UPDATE settings
-SET value = REPLACE(value::text, 'برنس', 'برنص')::jsonb
-WHERE value::text LIKE '%برنس%';
+SET value = REPLACE(value::text, '????', '????')::jsonb
+WHERE value::text LIKE '%????%';
 
 -- Verification
 SELECT 'bridal_robes' AS src, COUNT(*) AS still_has_wrong
 FROM bridal_robes
-WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%'
+WHERE name_ar LIKE '%????%' OR description_ar LIKE '%????%'
 UNION ALL
 SELECT 'categories', COUNT(*)
 FROM categories
-WHERE name_ar LIKE '%برنس%' OR description_ar LIKE '%برنس%'
+WHERE name_ar LIKE '%????%' OR description_ar LIKE '%????%'
 UNION ALL
 SELECT 'shop_orders', COUNT(*)
 FROM shop_orders
-WHERE items::text LIKE '%برنس%' OR COALESCE(notes, '') LIKE '%برنس%';
+WHERE items::text LIKE '%????%' OR COALESCE(notes, '') LIKE '%????%';
 
 
 
 -- #############################################################################
--- M5 / Migration 017 — Shop order shipping columns
+-- M5 / Migration 017 ? Shop order shipping columns
 -- Source: supabase/APPLY_SHOP_SHIPPING.sql
 -- #############################################################################
 
@@ -1324,7 +1326,7 @@ CREATE POLICY "Public read shop_orders by id" ON shop_orders
 
 
 -- #############################################################################
--- M6 / Migration 018 — Customer in-app notifications
+-- M6 / Migration 018 ? Customer in-app notifications
 -- Source: supabase/APPLY_CUSTOMER_NOTIFICATIONS.sql
 -- #############################################################################
 
@@ -1374,12 +1376,12 @@ CREATE POLICY "Public insert customer_notifications" ON customer_notifications
 
 
 -- #############################################################################
--- Notify prefs / Migration 019 — Notification channel preferences
+-- Notify prefs / Migration 019 ? Notification channel preferences
 -- Source: supabase/APPLY_NOTIFICATION_PREFERENCES.sql
 -- #############################################################################
 
 -- =============================================================================
--- REQUIRED: Run in Supabase → SQL Editor → New query → Run
+-- REQUIRED: Run in Supabase ? SQL Editor ? New query ? Run
 -- Adds notification channel preferences to shop_orders and bookings.
 -- Same as migrations/019_notification_channel_preferences.sql
 -- Safe to run multiple times.
@@ -1411,7 +1413,7 @@ NOTIFY pgrst, 'reload schema';
 
 
 -- #############################################################################
--- M9 / Migration 020 — Shipping regions + delivery method (CREATES shipping_regions)
+-- M9 / Migration 020 ? Shipping regions + delivery method (CREATES shipping_regions)
 -- Source: supabase/APPLY_SHIPPING_REGIONS.sql
 -- #############################################################################
 
@@ -1533,121 +1535,121 @@ AND NOT EXISTS (
 
 INSERT INTO shipping_regions (id, name_ar, name_en, shipping_fee, is_active, sort_order, meta)
 VALUES
-  -- Top-level groups (inactive — organizational only)
-  ('c1000000-0000-4000-8000-000000000001', 'الجنوب', 'South', 0, false, 10,
+  -- Top-level groups (inactive ? organizational only)
+  ('c1000000-0000-4000-8000-000000000001', '??????', 'South', 0, false, 10,
    '{"kind":"group","group_key":"south"}'::jsonb),
-  ('c1000000-0000-4000-8000-000000000002', 'المركز', 'Center', 0, false, 20,
+  ('c1000000-0000-4000-8000-000000000002', '??????', 'Center', 0, false, 20,
    '{"kind":"group","group_key":"center"}'::jsonb),
-  ('c1000000-0000-4000-8000-000000000003', 'المثلث', 'Triangle', 0, false, 30,
+  ('c1000000-0000-4000-8000-000000000003', '??????', 'Triangle', 0, false, 30,
    '{"kind":"group","group_key":"triangle"}'::jsonb),
-  ('c1000000-0000-4000-8000-000000000004', 'الشمال', 'North', 0, false, 40,
+  ('c1000000-0000-4000-8000-000000000004', '??????', 'North', 0, false, 40,
    '{"kind":"group","group_key":"north"}'::jsonb),
 
-  -- الجنوب
-  ('c2000000-0000-4000-8000-000000000001', 'رهط', 'Rahat', 45, true, 100,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000002', 'تل السبع', 'Tel Sheva', 45, true, 110,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000003', 'حورة', 'Hura', 45, true, 120,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000004', 'اللقية', 'Lakiya', 45, true, 130,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000005', 'شقيب السلام', 'Segev Shalom', 45, true, 140,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000006', 'كسيفة', 'Kuseife', 45, true, 150,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000007', 'عرعرة النقب', 'Arara BaNegev', 45, true, 160,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000008', 'بئر السبع', 'Beer Sheva', 45, true, 170,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000009', 'وادي النعم', 'Wadi al-Naam', 45, true, 180,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000010', 'أبو تلول', 'Abu Tulul', 45, true, 190,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
-  ('c2000000-0000-4000-8000-000000000011', 'ترابين', 'Tarabin', 45, true, 200,
-   '{"kind":"city","group_key":"south","group_ar":"الجنوب"}'::jsonb),
+  -- ??????
+  ('c2000000-0000-4000-8000-000000000001', '???', 'Rahat', 45, true, 100,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000002', '?? ?????', 'Tel Sheva', 45, true, 110,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000003', '????', 'Hura', 45, true, 120,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000004', '??????', 'Lakiya', 45, true, 130,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000005', '???? ??????', 'Segev Shalom', 45, true, 140,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000006', '?????', 'Kuseife', 45, true, 150,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000007', '????? ?????', 'Arara BaNegev', 45, true, 160,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000008', '??? ?????', 'Beer Sheva', 45, true, 170,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000009', '???? ?????', 'Wadi al-Naam', 45, true, 180,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000010', '??? ????', 'Abu Tulul', 45, true, 190,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
+  ('c2000000-0000-4000-8000-000000000011', '??????', 'Tarabin', 45, true, 200,
+   '{"kind":"city","group_key":"south","group_ar":"??????"}'::jsonb),
 
-  -- المركز
-  ('c3000000-0000-4000-8000-000000000001', 'تل أبيب', 'Tel Aviv', 40, true, 300,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000002', 'يافا', 'Jaffa', 40, true, 310,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000003', 'اللد', 'Lod', 40, true, 320,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000004', 'الرملة', 'Ramla', 40, true, 330,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000005', 'نتانيا', 'Netanya', 40, true, 340,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000006', 'هرتسليا', 'Herzliya', 40, true, 350,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000007', 'ريشون لتسيون', 'Rishon LeZion', 40, true, 360,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000008', 'حولون', 'Holon', 40, true, 370,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000009', 'بات يام', 'Bat Yam', 40, true, 380,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000010', 'رمات غان', 'Ramat Gan', 40, true, 390,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000011', 'بيتح تكفا', 'Petah Tikva', 40, true, 400,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000012', 'كفار سابا', 'Kfar Saba', 40, true, 410,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
-  ('c3000000-0000-4000-8000-000000000013', 'رענانا', 'Ra''anana', 40, true, 420,
-   '{"kind":"city","group_key":"center","group_ar":"المركز"}'::jsonb),
+  -- ??????
+  ('c3000000-0000-4000-8000-000000000001', '?? ????', 'Tel Aviv', 40, true, 300,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000002', '????', 'Jaffa', 40, true, 310,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000003', '????', 'Lod', 40, true, 320,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000004', '??????', 'Ramla', 40, true, 330,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000005', '??????', 'Netanya', 40, true, 340,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000006', '???????', 'Herzliya', 40, true, 350,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000007', '????? ??????', 'Rishon LeZion', 40, true, 360,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000008', '?????', 'Holon', 40, true, 370,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000009', '??? ???', 'Bat Yam', 40, true, 380,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000010', '???? ???', 'Ramat Gan', 40, true, 390,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000011', '???? ????', 'Petah Tikva', 40, true, 400,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000012', '???? ????', 'Kfar Saba', 40, true, 410,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
+  ('c3000000-0000-4000-8000-000000000013', '??????', 'Ra''anana', 40, true, 420,
+   '{"kind":"city","group_key":"center","group_ar":"??????"}'::jsonb),
 
-  -- المثلث
-  ('c4000000-0000-4000-8000-000000000001', 'أم الفحم', 'Umm al-Fahm', 40, true, 500,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000002', 'الطيبة', 'Tayibe', 40, true, 510,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000003', 'الطيرة', 'Tira', 40, true, 520,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000004', 'باقة الغربية', 'Baqa al-Gharbiyye', 40, true, 530,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000005', 'كفر قاسم', 'Kafr Qasim', 40, true, 540,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000006', 'كفر قرع', 'Kafr Qara', 40, true, 550,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000007', 'جلجولية', 'Jaljulia', 40, true, 560,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000008', 'قلنسوة', 'Qalansawe', 40, true, 570,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000009', 'زيمر', 'Zemer', 40, true, 580,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000010', 'عارة', 'Ara', 40, true, 590,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
-  ('c4000000-0000-4000-8000-000000000011', 'عرعرة', 'Arara', 40, true, 600,
-   '{"kind":"city","group_key":"triangle","group_ar":"المثلث"}'::jsonb),
+  -- ??????
+  ('c4000000-0000-4000-8000-000000000001', '?? ?????', 'Umm al-Fahm', 40, true, 500,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000002', '??????', 'Tayibe', 40, true, 510,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000003', '??????', 'Tira', 40, true, 520,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000004', '???? ???????', 'Baqa al-Gharbiyye', 40, true, 530,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000005', '??? ????', 'Kafr Qasim', 40, true, 540,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000006', '??? ???', 'Kafr Qara', 40, true, 550,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000007', '???????', 'Jaljulia', 40, true, 560,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000008', '??????', 'Qalansawe', 40, true, 570,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000009', '????', 'Zemer', 40, true, 580,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000010', '????', 'Ara', 40, true, 590,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
+  ('c4000000-0000-4000-8000-000000000011', '?????', 'Arara', 40, true, 600,
+   '{"kind":"city","group_key":"triangle","group_ar":"??????"}'::jsonb),
 
-  -- الشمال
-  ('c5000000-0000-4000-8000-000000000001', 'الناصرة', 'Nazareth', 45, true, 700,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000002', 'شفاعمرو', 'Shefa-Amr', 45, true, 710,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000003', 'سخنين', 'Sakhnin', 45, true, 720,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000004', 'عكا', 'Acre', 45, true, 730,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000005', 'طبريا', 'Tiberias', 45, true, 740,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000006', 'صفد', 'Safed', 45, true, 750,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000007', 'حيفا', 'Haifa', 45, true, 760,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000008', 'طمرة', 'Tamra', 45, true, 770,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000009', 'مجد الكروم', 'Majd al-Krum', 45, true, 780,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000010', 'كفر كنا', 'Kafr Kanna', 45, true, 790,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000011', 'عيلبون', 'Eilabun', 45, true, 800,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000012', 'دير حنا', 'Deir Hanna', 45, true, 810,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000013', 'عرابة', 'Arraba', 45, true, 820,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb),
-  ('c5000000-0000-4000-8000-000000000014', 'نحف', 'Nahf', 45, true, 830,
-   '{"kind":"city","group_key":"north","group_ar":"الشمال"}'::jsonb)
+  -- ??????
+  ('c5000000-0000-4000-8000-000000000001', '???????', 'Nazareth', 45, true, 700,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000002', '???????', 'Shefa-Amr', 45, true, 710,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000003', '?????', 'Sakhnin', 45, true, 720,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000004', '???', 'Acre', 45, true, 730,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000005', '?????', 'Tiberias', 45, true, 740,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000006', '???', 'Safed', 45, true, 750,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000007', '????', 'Haifa', 45, true, 760,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000008', '????', 'Tamra', 45, true, 770,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000009', '??? ??????', 'Majd al-Krum', 45, true, 780,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000010', '??? ???', 'Kafr Kanna', 45, true, 790,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000011', '??????', 'Eilabun', 45, true, 800,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000012', '??? ???', 'Deir Hanna', 45, true, 810,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000013', '?????', 'Arraba', 45, true, 820,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb),
+  ('c5000000-0000-4000-8000-000000000014', '???', 'Nahf', 45, true, 830,
+   '{"kind":"city","group_key":"north","group_ar":"??????"}'::jsonb)
 ON CONFLICT (id) DO UPDATE SET
   name_ar = EXCLUDED.name_ar,
   name_en = EXCLUDED.name_en,
@@ -1658,12 +1660,12 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = now();
 
 -- #############################################################################
--- M10 / Migration 021 — Smart shipping (pending fees, tracking, estimates)
+-- M10 / Migration 021 ? Smart shipping (pending fees, tracking, estimates)
 -- Source: supabase/APPLY_SMART_SHIPPING.sql
 -- #############################################################################
 
 -- =============================================================================
--- Milestone 10 – Smart shipping (idempotent)
+-- Milestone 10 ? Smart shipping (idempotent)
 -- Same as migrations/021_smart_shipping.sql, but SELF-CONTAINED:
 -- creates shipping_regions if missing (does not assume M9 was applied).
 --
@@ -1803,7 +1805,7 @@ NOTIFY pgrst, 'reload schema';
 
 
 -- #############################################################################
--- Migration 022 — Soft delete / archive / audit
+-- Migration 022 ? Soft delete / archive / audit
 -- Source: supabase/migrations/022_soft_delete_archive_audit.sql
 -- Same as: supabase/APPLY_SOFT_DELETE_ARCHIVE.sql
 -- #############################################################################
@@ -1924,7 +1926,7 @@ CREATE POLICY "Admin all customer_admin_state" ON customer_admin_state
 
 
 -- #############################################################################
--- Migration 023 — Report schedules (future-ready; no cron runner)
+-- Migration 023 ? Report schedules (future-ready; no cron runner)
 -- Source: supabase/migrations/023_report_schedules.sql / APPLY_REPORTS.sql
 -- #############################################################################
 
@@ -1977,11 +1979,11 @@ CREATE POLICY "Admin all report_schedules" ON report_schedules
   );
 
 COMMENT ON TABLE report_schedules IS
-  'Scheduled report email jobs. Future-ready: no cron/runner yet — CRUD + API only; do not auto-send until a schedule runner is deployed.';
+  'Scheduled report email jobs. Future-ready: no cron/runner yet ? CRUD + API only; do not auto-send until a schedule runner is deployed.';
 
 
 -- #############################################################################
--- Migration 024 — Smart appointments
+-- Migration 024 ? Smart appointments
 -- Source: supabase/migrations/024_smart_appointments.sql
 --         supabase/APPLY_SMART_APPOINTMENTS.sql
 -- #############################################################################
@@ -2015,9 +2017,9 @@ CREATE POLICY "Admin all consultants" ON consultants
 INSERT INTO consultants (name_ar, active, sort_order)
 SELECT v.name_ar, true, v.sort_order
 FROM (VALUES
-  ('نادين', 0),
-  ('سارة', 1),
-  ('ريم', 2)
+  ('?????', 0),
+  ('????', 1),
+  ('???', 2)
 ) AS v(name_ar, sort_order)
 WHERE NOT EXISTS (
   SELECT 1 FROM consultants c WHERE c.name_ar = v.name_ar
@@ -2154,7 +2156,7 @@ COMMENT ON TABLE special_days IS 'Blocked / holiday days for appointment availab
 
 
 -- #############################################################################
--- Migration 025 — Drop obsolete dresses_category_check
+-- Migration 025 ? Drop obsolete dresses_category_check
 -- Source: supabase/migrations/025_drop_dresses_category_check.sql
 --         supabase/APPLY_DROP_CATEGORY_CHECK.sql
 -- Must run late so no earlier legacy block can leave a hardcoded CHECK in place.
@@ -2198,7 +2200,7 @@ END $$;
 
 
 -- #############################################################################
--- Migration 026 — Drop obsolete bookings_service_type_check
+-- Migration 026 ? Drop obsolete bookings_service_type_check
 -- Source: supabase/migrations/026_drop_bookings_service_type_check.sql
 --         supabase/APPLY_DROP_BOOKINGS_SERVICE_TYPE_CHECK.sql
 -- Must run last so no earlier legacy block can leave a hardcoded CHECK in place.
@@ -2233,7 +2235,7 @@ END $$;
 
 
 -- #############################################################################
--- Migration 027 — Product category_id FK + category product_kind / SEO
+-- Migration 027 ? Product category_id FK + category product_kind / SEO
 -- Source: supabase/migrations/027_product_category_id.sql
 --         supabase/APPLY_PRODUCT_CATEGORY_ID.sql
 -- #############################################################################
@@ -2327,18 +2329,18 @@ WHERE d.category_id = c.id
   AND (d.category IS NULL OR btrim(d.category) = '');
 
 -- #############################################################################
--- 31 — Phase E customer auth: APPLY_CUSTOMER_AUTH.sql (= 028)
+-- 31 ? Phase E customer auth: APPLY_CUSTOMER_AUTH.sql (= 028)
 -- Creates: customers, customer_addresses, otp_requests, customer_sessions,
 --          customer_devices, login_history, wishlist_items, customer_reviews,
 --          customer_messages, saved_designs, loyalty_coupons, loyalty_transactions
 -- MUST run before section 32 (guest). Safe to re-run (IF NOT EXISTS / DROP POLICY IF EXISTS).
 -- #############################################################################
 -- Phase E: Premium customer account & OTP authentication (idempotent)
--- MUST precede section 32 (guest flag / 029) — both inlined in this file.
+-- MUST precede section 32 (guest flag / 029) ? both inlined in this file.
 -- Same as migrations/028_customer_auth.sql
 
 -- =============================================================================
--- customers — linked to auth.users when signed in; guest identity via phone/email
+-- customers ? linked to auth.users when signed in; guest identity via phone/email
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2393,7 +2395,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS customer_addresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  label TEXT NOT NULL DEFAULT 'المنزل',
+  label TEXT NOT NULL DEFAULT '??????',
   full_name TEXT NOT NULL DEFAULT '',
   phone TEXT,
   city TEXT,
@@ -2424,7 +2426,7 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- otp_requests — phone/email OTP with rate limits & expiry
+-- otp_requests ? phone/email OTP with rate limits & expiry
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS otp_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2446,7 +2448,7 @@ CREATE INDEX IF NOT EXISTS idx_otp_requests_expires
   ON otp_requests (expires_at);
 
 -- =============================================================================
--- customer_sessions / customer_devices — remember device + logout-all
+-- customer_sessions / customer_devices ? remember device + logout-all
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS customer_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2550,7 +2552,7 @@ CREATE INDEX IF NOT EXISTS idx_customer_reviews_customer
   ON customer_reviews (customer_id, created_at DESC);
 
 -- =============================================================================
--- customer_messages — basic boutique thread (attachments future-ready)
+-- customer_messages ? basic boutique thread (attachments future-ready)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS customer_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2571,7 +2573,7 @@ CREATE INDEX IF NOT EXISTS idx_customer_messages_customer
 CREATE TABLE IF NOT EXISTS saved_designs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  title TEXT NOT NULL DEFAULT 'تصميم محفوظ',
+  title TEXT NOT NULL DEFAULT '????? ?????',
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
   preview_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -2610,7 +2612,7 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
 CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_customer
   ON loyalty_transactions (customer_id, created_at DESC);
 
--- Optional link from guest orders → authenticated customer
+-- Optional link from guest orders ? authenticated customer
 DO $$
 BEGIN
   IF EXISTS (
@@ -2694,7 +2696,7 @@ CREATE POLICY "Customer own addresses" ON customer_addresses
     )
   );
 
--- OTP: service-role only (no public policies) — admin can read for support
+-- OTP: service-role only (no public policies) ? admin can read for support
 DROP POLICY IF EXISTS "Admin read otp_requests" ON otp_requests;
 CREATE POLICY "Admin read otp_requests" ON otp_requests
   FOR SELECT USING (
@@ -2849,11 +2851,11 @@ ON CONFLICT (key) DO NOTHING;
 
 
 -- #############################################################################
--- 32 — Phase E2 guest flag: APPLY_CUSTOMER_GUEST.sql (= 029)
--- ALTERs customers.is_guest; FKs shop_orders.customer_id → customers(id)
+-- 32 ? Phase E2 guest flag: APPLY_CUSTOMER_GUEST.sql (= 029)
+-- ALTERs customers.is_guest; FKs shop_orders.customer_id ? customers(id)
 -- Requires section 31 / customers table (inlined above). No separate APPLY_* needed.
 -- #############################################################################
--- Phase E2: guest flag (idempotent) — same as migrations/029_customer_guest_flag.sql
+-- Phase E2: guest flag (idempotent) ? same as migrations/029_customer_guest_flag.sql
 -- Runs AFTER section 31 (028) in this file. Requires public.customers.
 
 DO $$
@@ -2945,6 +2947,193 @@ BEGIN
       ON customers (last_login_at DESC NULLS LAST);
   END IF;
 END $$;
+
+
+-- #############################################################################
+-- 34 — Phase G guest customers: APPLY_GUEST_CUSTOMERS.sql (= 031)
+-- guest_customers, guest_carts, recently_viewed, wishlist guest_id,
+-- guest_id on orders/bookings/designs. Idempotent. Requires customers (31).
+-- #############################################################################
+
+CREATE TABLE IF NOT EXISTS guest_customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  guest_id TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen TIMESTAMPTZ NOT NULL DEFAULT now(),
+  language TEXT DEFAULT 'ar',
+  country TEXT,
+  device TEXT,
+  converted_to_customer_id UUID REFERENCES customers(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_guest_customers_last_seen
+  ON guest_customers (last_seen DESC);
+
+CREATE INDEX IF NOT EXISTS idx_guest_customers_converted
+  ON guest_customers (converted_to_customer_id)
+  WHERE converted_to_customer_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS guest_carts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  guest_id TEXT NOT NULL UNIQUE REFERENCES guest_customers(guest_id) ON DELETE CASCADE,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_guest_carts_updated
+  ON guest_carts (updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS recently_viewed (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  guest_id TEXT,
+  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  product_kind TEXT NOT NULL DEFAULT 'dress',
+  product_id UUID NOT NULL,
+  product_slug TEXT,
+  product_title TEXT,
+  product_image_url TEXT,
+  viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT recently_viewed_owner_check CHECK (
+    (guest_id IS NOT NULL AND customer_id IS NULL)
+    OR (guest_id IS NULL AND customer_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_recently_viewed_guest
+  ON recently_viewed (guest_id, viewed_at DESC)
+  WHERE guest_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_recently_viewed_customer
+  ON recently_viewed (customer_id, viewed_at DESC)
+  WHERE customer_id IS NOT NULL;
+
+DO $
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'wishlist_items'
+  ) THEN
+    ALTER TABLE wishlist_items
+      ALTER COLUMN customer_id DROP NOT NULL;
+
+    ALTER TABLE wishlist_items
+      ADD COLUMN IF NOT EXISTS guest_id TEXT;
+
+    IF EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = 'wishlist_items_customer_id_product_kind_product_id_key'
+    ) THEN
+      ALTER TABLE wishlist_items
+        DROP CONSTRAINT wishlist_items_customer_id_product_kind_product_id_key;
+    END IF;
+  END IF;
+END $;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wishlist_customer_product
+  ON wishlist_items (customer_id, product_kind, product_id)
+  WHERE customer_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wishlist_guest_product
+  ON wishlist_items (guest_id, product_kind, product_id)
+  WHERE guest_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_wishlist_items_guest
+  ON wishlist_items (guest_id, created_at DESC)
+  WHERE guest_id IS NOT NULL;
+
+DO $
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'shop_orders'
+  ) THEN
+    ALTER TABLE shop_orders ADD COLUMN IF NOT EXISTS guest_id TEXT;
+    CREATE INDEX IF NOT EXISTS idx_shop_orders_guest_id
+      ON shop_orders (guest_id) WHERE guest_id IS NOT NULL;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'bookings'
+  ) THEN
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_id TEXT;
+    CREATE INDEX IF NOT EXISTS idx_bookings_guest_id
+      ON bookings (guest_id) WHERE guest_id IS NOT NULL;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'saved_designs'
+  ) THEN
+    ALTER TABLE saved_designs
+      ALTER COLUMN customer_id DROP NOT NULL;
+    ALTER TABLE saved_designs ADD COLUMN IF NOT EXISTS guest_id TEXT;
+    CREATE INDEX IF NOT EXISTS idx_saved_designs_guest
+      ON saved_designs (guest_id, updated_at DESC)
+      WHERE guest_id IS NOT NULL;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'customer_addresses'
+  ) THEN
+    ALTER TABLE customer_addresses ADD COLUMN IF NOT EXISTS guest_id TEXT;
+    CREATE INDEX IF NOT EXISTS idx_customer_addresses_guest
+      ON customer_addresses (guest_id)
+      WHERE guest_id IS NOT NULL;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'customer_reviews'
+  ) THEN
+    ALTER TABLE customer_reviews
+      ALTER COLUMN customer_id DROP NOT NULL;
+    ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS guest_id TEXT;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'customer_notifications'
+  ) THEN
+    ALTER TABLE customer_notifications ADD COLUMN IF NOT EXISTS guest_id TEXT;
+  END IF;
+END $;
+
+ALTER TABLE guest_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE guest_carts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recently_viewed ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin all guest_customers" ON guest_customers;
+CREATE POLICY "Admin all guest_customers" ON guest_customers
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin', 'owner', 'staff')
+    )
+  );
+
+DROP POLICY IF EXISTS "Admin all guest_carts" ON guest_carts;
+CREATE POLICY "Admin all guest_carts" ON guest_carts
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin', 'owner', 'staff')
+    )
+  );
+
+DROP POLICY IF EXISTS "Admin all recently_viewed" ON recently_viewed;
+CREATE POLICY "Admin all recently_viewed" ON recently_viewed
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin', 'owner', 'staff')
+    )
+  );
 
 -- =============================================================================
 -- END APPLY_ALL.sql

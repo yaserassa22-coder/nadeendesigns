@@ -7,6 +7,7 @@ import {
   upsertCustomerForAuthUser,
 } from "@/lib/customer-auth/customer";
 import { getSiteUrl } from "@/lib/notifications/config";
+import { readGuestIdFromRequest } from "@/lib/guest";
 
 /** Email + password sign-in / sign-up (optional path). */
 export async function POST(request: NextRequest) {
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
     const ua = request.headers.get("user-agent");
     const mode = body.mode === "signup" ? "signup" : "signin";
+    const guestId = readGuestIdFromRequest(request);
 
     if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({
@@ -69,6 +71,7 @@ export async function POST(request: NextRequest) {
           email,
           fullName: body.full_name,
           provider: "email",
+          guestId,
         });
         await recordLoginHistory({
           authUserId: data.user.id,
@@ -111,6 +114,7 @@ export async function POST(request: NextRequest) {
         email,
         fullName: body.full_name,
         provider: "email",
+        guestId,
       });
       await recordLoginHistory({
         authUserId: data.user.id,

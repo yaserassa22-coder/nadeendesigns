@@ -7,9 +7,14 @@ import {
   recordLoginHistory,
   upsertCustomerForAuthUser,
 } from "@/lib/customer-auth/customer";
+import {
+  applyGuestCookie,
+  readGuestIdFromRequest,
+} from "@/lib/guest";
 
 /**
  * OAuth / magic-link callback — exchanges code for session cookies.
+ * Merges guest_id cookie data into the registered customer.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -46,6 +51,8 @@ export async function GET(request: NextRequest) {
     (user.user_metadata?.provider as string | undefined) ||
     "oauth";
 
+  const guestId = readGuestIdFromRequest(request);
+
   const customer = await upsertCustomerForAuthUser({
     authUserId: user.id,
     email: user.email,
@@ -59,6 +66,7 @@ export async function GET(request: NextRequest) {
       (user.user_metadata?.picture as string | undefined) ||
       null,
     provider: providerId,
+    guestId,
   });
 
   const ip =
@@ -87,6 +95,13 @@ export async function GET(request: NextRequest) {
   const safeNext =
     next.startsWith("/") && !next.startsWith("//") ? next : "/account";
   const site = getSiteUrl();
-  const redirectTo = site ? `${site}${safeNext}` : new URL(safeNext, origin).toString();
-  return NextResponse.redirect(redirectTo);
+  const redirectTo = site
+    ? `${site}${safeNext}`
+    : new URL(safeNext, origin).toString();
+  const response = NextResponse.redirect(redirectTo);
+  // Keep guest cookie until client cart take; do not clear yet
+  if (guestId) {
+    applyGuestCookie(response, guestId, request.url);
+  }
+  return response;
 }

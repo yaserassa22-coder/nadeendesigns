@@ -45,8 +45,16 @@ export function getPrimaryPublicProviders(
   flags: AuthEnvFlags
 ): AuthProviderPublic[] {
   return getPublicAuthProviders(settings, flags).filter(
-    (p) => p.primary && p.enabled
+    (p) => p.primary && p.enabled && !p.comingSoon
   );
+}
+
+/** Reserved future slots (e.g. WhatsApp “قريباً”) for the login modal. */
+export function getComingSoonPublicProviders(
+  settings: CustomerAuthSettings,
+  flags: AuthEnvFlags
+): AuthProviderPublic[] {
+  return getPublicAuthProviders(settings, flags).filter((p) => p.comingSoon);
 }
 
 export function clearAuthProviderRegistry(): void {

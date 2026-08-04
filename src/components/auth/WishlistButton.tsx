@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Heart } from "lucide-react";
-import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { cn } from "@/lib/utils";
 
 const ACCENT = "#C9A14A";
@@ -24,28 +23,21 @@ export function WishlistButton({
   productImageUrl,
   className,
 }: Props) {
-  const { user, customer, openLogin } = useCustomerAuth();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
 
   async function handleClick() {
     setHint(null);
-    if (!user && !customer) {
-      setHint("يلزم حساب لحفظ الأمنيات.");
-      openLogin({
-        message:
-          "لحفظ القطع في قائمة الأمنيات تحتاجين إلى حساب. سجّلي الدخول أو أنشئي حساباً للمتابعة.",
-        redirect: typeof window !== "undefined" ? window.location.pathname : undefined,
-      });
-      return;
-    }
-
     setSaving(true);
+    // Optimistic UI — guests and registered customers share the same API
+    setSaved(true);
+    setHint("❤️ تمت الإضافة إلى قائمة الأمنيات");
     try {
-      const res = await fetch("/api/account/wishlist", {
+      const res = await fetch("/api/guest/wishlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
           product_kind: productKind,
           product_id: productId,
@@ -56,10 +48,15 @@ export function WishlistButton({
       });
       const data = await res.json();
       if (!res.ok) {
+        setSaved(false);
         throw new Error(data.error || "تعذّر الحفظ");
       }
-      setSaved(true);
-      setHint("أُضيفت إلى قائمة الأمنيات");
+      setHint(
+        data.message || "❤️ تمت الإضافة إلى قائمة الأمنيات"
+      );
+      if (data.tip) {
+        window.setTimeout(() => setHint(data.tip), 2200);
+      }
     } catch (e) {
       setHint(e instanceof Error ? e.message : "تعذّر الحفظ");
     } finally {
@@ -75,7 +72,7 @@ export function WishlistButton({
         disabled={saving}
         aria-label="أضيفي إلى قائمة الأمنيات"
         className={cn(
-          "inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm transition",
+          "inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm transition",
           saved
             ? "border-[color:#C9A14A] bg-[color:#C9A14A]/10 text-charcoal"
             : "border-beige-dark bg-white text-charcoal hover:border-[color:#C9A14A]"

@@ -3,11 +3,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { requireCustomerApi } from "@/lib/customer-auth/customer";
+import {
+  applyGuestCookie,
+  ensureGuestCustomer,
+} from "@/lib/guest";
 
-/** Sign out current session, or all devices when ?all=1 */
+/** Sign out current session, or all devices when ?all=1.
+ *  Always mint a fresh guest session so shopping continues. */
 export async function POST(request: NextRequest) {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ ok: true });
+    const guest = await ensureGuestCustomer({
+      forceNew: true,
+      userAgent: request.headers.get("user-agent"),
+    });
+    const res = NextResponse.json({ ok: true, guest_id: guest.guestId });
+    return applyGuestCookie(res, guest.guestId, request.url);
   }
 
   const all = new URL(request.url).searchParams.get("all") === "1";
@@ -22,7 +32,6 @@ export async function POST(request: NextRequest) {
         .eq("customer_id", auth.customer.id)
         .is("revoked_at", null);
 
-      // Invalidate Supabase refresh tokens for this user
       if (auth.user) {
         await admin.auth.admin.signOut(auth.user.id, "global");
       }
@@ -33,5 +42,11 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient();
   await supabase.auth.signOut();
-  return NextResponse.json({ ok: true });
+
+  const guest = await ensureGuestCustomer({
+    forceNew: true,
+    userAgent: request.headers.get("user-agent"),
+  });
+  const res = NextResponse.json({ ok: true, guest_id: guest.guestId });
+  return applyGuestCookie(res, guest.guestId, request.url);
 }

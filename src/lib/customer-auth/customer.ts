@@ -10,6 +10,10 @@ import {
 } from "@/lib/customer-auth/otp";
 import { isAdminRole } from "@/lib/auth/roles";
 import type { CustomerProfile } from "@/types/customer-auth";
+import {
+  mergeGuestIntoCustomer,
+  type GuestMergeDetail,
+} from "@/lib/guest/merge";
 
 export { isAdminRole, ADMIN_ROLES } from "@/lib/auth/roles";
 
@@ -111,6 +115,7 @@ export type GuestMergeSummary = {
   wishlist: number;
   addresses: number;
   guest_rows_linked: number;
+  guest_session?: GuestMergeDetail | null;
 };
 
 /**
@@ -128,6 +133,7 @@ export async function attachGuestOrdersToCustomer(params: {
     wishlist: 0,
     addresses: 0,
     guest_rows_linked: 0,
+    guest_session: null,
   };
   if (!isSupabaseConfigured()) return summary;
   try {
@@ -321,6 +327,8 @@ export async function upsertCustomerForAuthUser(params: {
   fullName?: string | null;
   photoUrl?: string | null;
   provider?: string | null;
+  /** Phase G guest cookie — merge wishlist/cart/orders keyed by guest_id */
+  guestId?: string | null;
 }): Promise<CustomerProfile | null> {
   if (!isSupabaseConfigured()) return null;
   const supabase = createAdminClient();
@@ -349,13 +357,28 @@ export async function upsertCustomerForAuthUser(params: {
       phone: profile.phone,
       email: profile.email,
     });
+
+    let guest_session: GuestMergeDetail | null = null;
+    if (params.guestId) {
+      guest_session = await mergeGuestIntoCustomer({
+        guestId: params.guestId,
+        customerId: profile.id,
+      });
+      merge.wishlist += guest_session.wishlist;
+      merge.orders += guest_session.orders;
+      merge.bookings += guest_session.bookings;
+      merge.addresses += guest_session.addresses;
+      merge.guest_session = guest_session;
+    }
+
     const hadMerge =
       wasGuestLink ||
       merge.orders > 0 ||
       merge.bookings > 0 ||
       merge.wishlist > 0 ||
       merge.addresses > 0 ||
-      merge.guest_rows_linked > 0;
+      merge.guest_rows_linked > 0 ||
+      Boolean(guest_session);
     if (!hadMerge) return profile;
 
     const merge_meta = {

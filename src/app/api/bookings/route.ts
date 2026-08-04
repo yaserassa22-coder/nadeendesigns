@@ -1,4 +1,4 @@
-import { NextResponse, after } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,6 +29,10 @@ import { canForceAppointmentOverride } from "@/lib/admin/permissions";
 import { getAdminActorRole } from "@/lib/admin/reports-data";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { notifyFirstWaitingCustomer } from "@/lib/admin/waiting-list-notify";
+import {
+  ensureGuestCustomer,
+  readGuestIdFromRequest,
+} from "@/lib/guest";
 
 type BookingRow = ReturnType<typeof buildInsertPayload> & { id?: string };
 
@@ -130,7 +134,7 @@ function lifecycleUpdates(
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let rawBody: unknown = null;
 
   try {
@@ -239,17 +243,26 @@ export async function POST(request: Request) {
         );
       }
 
-      const insertFull = { id: bookingId, ...row };
+      const insertFull = {
+        id: bookingId,
+        ...row,
+        guest_id: (
+          await ensureGuestCustomer({
+            guestId: readGuestIdFromRequest(request),
+            userAgent: request.headers.get("user-agent"),
+          })
+        ).guestId,
+      };
       let { error } = await supabase.from("bookings").insert(insertFull);
 
       if (
         error &&
-        /notify_|booking_source|consultant_id|duration_minutes|buffer_|is_vip|column .* does not exist/i.test(
+        /guest_id|notify_|booking_source|consultant_id|duration_minutes|buffer_|is_vip|column .* does not exist/i.test(
           getErrorMessage(error)
         )
       ) {
         console.warn(
-          "[bookings API] smart columns missing — inserting core fields. Run APPLY_SMART_APPOINTMENTS.sql"
+          "[bookings API] smart/guest columns missing — inserting core fields. Run APPLY_SMART_APPOINTMENTS.sql / 031"
         );
         const core = {
           name: row.name,

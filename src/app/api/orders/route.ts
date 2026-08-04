@@ -1,4 +1,4 @@
-import { NextResponse, after } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,6 +39,10 @@ import {
 } from "@/lib/customer-auth/customer";
 import { getCustomerAuthSettings } from "@/lib/customer-auth/settings";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
+import {
+  ensureGuestCustomer,
+  readGuestIdFromRequest,
+} from "@/lib/guest";
 import {
   ORDER_WORKFLOW_ACTIONS,
   SHOP_ORDER_STATUSES,
@@ -175,7 +179,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const json = await request.json();
     console.info("[orders API] incoming checkout payload", {
@@ -317,8 +321,15 @@ export async function POST(request: Request) {
       authUserId: authUser?.id ?? null,
     });
 
+    const guestCookie = readGuestIdFromRequest(request);
+    const guestEnsured = await ensureGuestCustomer({
+      guestId: guestCookie,
+      userAgent: request.headers.get("user-agent"),
+    });
+
     const row = buildShopOrderRow(body, resolved, undefined, {
       customer_id: customerId,
+      guest_id: authUser ? null : guestEnsured.guestId,
     });
 
     console.info("[orders API] resolved shipping for insert", {

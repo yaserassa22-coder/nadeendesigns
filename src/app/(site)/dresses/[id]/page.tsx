@@ -17,6 +17,7 @@ import { PersonalizationForm } from "@/components/dresses/PersonalizationForm";
 import { RelatedProducts } from "@/components/dresses/RelatedProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
 import { WishlistButton } from "@/components/auth/WishlistButton";
+import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Calendar, Ruler, Palette } from "lucide-react";
 
 interface Props {
@@ -72,6 +73,14 @@ export default async function DressDetailPage({ params }: Props) {
     .slice(0, 3);
 
   return (
+    <>
+    <TrackRecentlyViewed
+      productKind="dress"
+      productId={dress.id}
+      productSlug={dress.id}
+      productTitle={dress.name_ar}
+      productImageUrl={featuredImage(dress.images)}
+    />
     <ProductDetailLayout
       images={dress.images}
       name={dress.name_ar}
@@ -155,5 +164,6 @@ export default async function DressDetailPage({ params }: Props) {
       }
       related={<RelatedProducts dresses={related} />}
     />
+    </>
   );
 }

@@ -255,7 +255,7 @@ export function buildShopOrderRow(
   body: CheckoutOrderBody,
   resolved: ResolvedDeliveryShipping,
   ids?: { id?: string; created_at?: string },
-  extra?: { customer_id?: string | null }
+  extra?: { customer_id?: string | null; guest_id?: string | null }
 ): ShopOrder {
   const id = ids?.id ?? crypto.randomUUID();
   const created_at = ids?.created_at ?? new Date().toISOString();
@@ -287,6 +287,7 @@ export function buildShopOrderRow(
     status: "pending",
     created_at,
     customer_id: extra?.customer_id ?? null,
+    guest_id: extra?.guest_id ?? null,
     shipping_required: resolved.needsShipping,
     delivery_method: resolved.needsShipping ? resolved.deliveryMethod : null,
     shipping_full_name: ship?.full_name?.trim() || null,
@@ -363,11 +364,13 @@ export function buildProgressiveInsertPayloads(row: ShopOrder): InsertPayload[] 
     notify_whatsapp: row.notify_whatsapp ?? true,
     notify_email: row.notify_email ?? true,
     ...(row.customer_id ? { customer_id: row.customer_id } : {}),
+    ...(row.guest_id ? { guest_id: row.guest_id } : {}),
   };
 
-  const customerPatch = row.customer_id
-    ? { customer_id: row.customer_id }
-    : {};
+  const customerPatch = {
+    ...(row.customer_id ? { customer_id: row.customer_id } : {}),
+    ...(row.guest_id ? { guest_id: row.guest_id } : {}),
+  };
 
   const shippingTiers: InsertPayload[] = [
     insertFull,

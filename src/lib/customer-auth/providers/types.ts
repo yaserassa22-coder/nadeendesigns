@@ -25,10 +25,12 @@ export type AuthProviderPublic = {
   label: LocalizedLabel;
   capabilities: AuthCapability[];
   order: number;
-  /** Primary UX providers (Google / Apple / Guest / WhatsApp). */
+  /** Primary UX providers (Google / Apple / Guest; WhatsApp reserved). */
   primary: boolean;
   enabled: boolean;
   ready: boolean;
+  /** Reserved slot in login UI — not an active login method yet. */
+  comingSoon?: boolean;
   endpoints?: {
     sendOtp?: string;
     verifyOtp?: string;
@@ -52,6 +54,8 @@ export type AuthProvider = {
   capabilities: readonly AuthCapability[];
   order: number;
   primary: boolean;
+  /** Future provider — show “قريباً” in UI, do not enable login. */
+  comingSoon?: boolean;
   endpoints?: AuthProviderPublic["endpoints"];
 
   /** Settings + env gate (product toggle). */
@@ -78,7 +82,8 @@ export function toPublicProvider(
   settings: CustomerAuthSettings,
   flags: AuthEnvFlags
 ): AuthProviderPublic {
-  const enabled = provider.enabled(settings, flags);
+  const comingSoon = Boolean(provider.comingSoon);
+  const enabled = comingSoon ? false : provider.enabled(settings, flags);
   return {
     id: provider.id,
     label: provider.label,
@@ -87,6 +92,7 @@ export function toPublicProvider(
     primary: provider.primary,
     enabled,
     ready: enabled && provider.ready(settings, flags),
+    comingSoon,
     endpoints: provider.endpoints,
   };
 }

@@ -22,6 +22,7 @@ const LINKS = [
   { href: "/admin/appointments/analytics", label: "📈 تحليلات المواعيد" },
   { href: "/admin/orders", label: "🛒 الطلبات" },
   { href: "/admin/customers", label: "👥 العملاء" },
+  { href: "/admin/guests", label: "🕊️ ضيوف المتجر" },
   { href: "/admin/shipping", label: "🚚 إعدادات الشحن" },
   { href: "/admin/notifications", label: "🔔 الإشعارات" },
   { href: "/admin/messages", label: "💬 الرسائل" },

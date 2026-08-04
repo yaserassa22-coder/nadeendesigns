@@ -31,7 +31,7 @@ type AuthMe = {
 
 export type OpenLoginOptions = {
   redirect?: string;
-  /** Contextual message shown in the auth modal (e.g. wishlist gate) */
+  /** Contextual message shown in the auth modal */
   message?: string;
 };
 
@@ -43,7 +43,9 @@ type AuthContextValue = {
   flags: Record<string, boolean>;
   /** Explicit guest browsing/checkout mode (no forced login) */
   guestMode: boolean;
+  guestId: string | null;
   refresh: () => Promise<void>;
+  ensureGuestSession: (opts?: { forceNew?: boolean }) => Promise<string | null>;
   openLogin: (opts?: OpenLoginOptions) => void;
   closeLogin: () => void;
   continueAsGuest: () => void;
@@ -80,6 +82,32 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [redirectAfter, setRedirectAfter] = useState<string | undefined>();
   const [loginMessage, setLoginMessage] = useState<string | undefined>();
   const [guestMode, setGuestMode] = useState(false);
+  const [guestId, setGuestId] = useState<string | null>(null);
+
+  const ensureGuestSession = useCallback(
+    async (opts?: { forceNew?: boolean }) => {
+      try {
+        const res = await fetch("/api/guest/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            language: "ar",
+            force_new: Boolean(opts?.forceNew),
+          }),
+        });
+        const data = (await res.json()) as { guest_id?: string };
+        if (data.guest_id) {
+          setGuestId(data.guest_id);
+          return data.guest_id;
+        }
+      } catch {
+        /* non-fatal */
+      }
+      return null;
+    },
+    []
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -100,10 +128,14 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setGuestMode(readGuestMode());
-      void refresh();
+      void (async () => {
+        await refresh();
+        // Always ensure guest cookie on first visit (even if later logging in)
+        await ensureGuestSession();
+      })();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [refresh]);
+  }, [refresh, ensureGuestSession]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -132,7 +164,8 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     setGuestMode(true);
     setLoginMessage(undefined);
     setLoginOpen(false);
-  }, []);
+    void ensureGuestSession();
+  }, [ensureGuestSession]);
 
   const clearGuestMode = useCallback(() => {
     writeGuestMode(false);
@@ -140,26 +173,29 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const closeLogin = useCallback(() => {
-    // Closing without signing in enters guest mode so we never force login
     writeGuestMode(true);
     setGuestMode(true);
     setLoginMessage(undefined);
     setLoginOpen(false);
-  }, []);
+    void ensureGuestSession();
+  }, [ensureGuestSession]);
 
   const logout = useCallback(
     async (allDevices = false) => {
       await fetch(`/api/auth/logout${allDevices ? "?all=1" : ""}`, {
         method: "POST",
+        credentials: "same-origin",
       });
-      writeGuestMode(false);
-      setGuestMode(false);
+      writeGuestMode(true);
+      setGuestMode(true);
+      // New guest session so shopping continues after registered logout
+      await ensureGuestSession({ forceNew: true });
       await refresh();
       if (typeof window !== "undefined" && window.location.pathname.startsWith("/account")) {
         window.location.href = "/";
       }
     },
-    [refresh]
+    [refresh, ensureGuestSession]
   );
 
   const value = useMemo<AuthContextValue>(
@@ -170,7 +206,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       settings: me?.settings ?? null,
       flags: me?.flags ?? {},
       guestMode,
+      guestId,
       refresh,
+      ensureGuestSession,
       openLogin,
       closeLogin,
       continueAsGuest,
@@ -182,7 +220,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       loading,
       me,
       guestMode,
+      guestId,
       refresh,
+      ensureGuestSession,
       openLogin,
       closeLogin,
       continueAsGuest,
@@ -204,6 +244,23 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           writeGuestMode(false);
           setGuestMode(false);
           setLoginMessage(undefined);
+          // Pull guest cart into localStorage before navigating
+          try {
+            const cartRes = await fetch("/api/guest/cart?take=1", {
+              credentials: "same-origin",
+            });
+            const cartData = (await cartRes.json()) as { items?: unknown[] };
+            if (Array.isArray(cartData.items) && cartData.items.length) {
+              const key = "nadeen_shop_cart";
+              const existing = JSON.parse(
+                window.localStorage.getItem(key) || "[]"
+              ) as unknown[];
+              const merged = [...cartData.items, ...existing].slice(0, 50);
+              window.localStorage.setItem(key, JSON.stringify(merged));
+            }
+          } catch {
+            /* ignore */
+          }
           await refresh();
           setLoginOpen(false);
           const next = redirectAfter || "/account";

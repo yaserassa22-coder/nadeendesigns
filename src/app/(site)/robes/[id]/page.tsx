@@ -5,6 +5,7 @@ import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
 import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
 import { WishlistButton } from "@/components/auth/WishlistButton";
+import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getBridalRobeById, getBridalRobes } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
@@ -45,6 +46,14 @@ export default async function RobeDetailPage({ params }: Props) {
   const inStock = robe.is_available && robe.stock_quantity > 0;
 
   return (
+    <>
+    <TrackRecentlyViewed
+      productKind="bridal_robe"
+      productId={robe.id}
+      productSlug={robe.id}
+      productTitle={robe.name_ar}
+      productImageUrl={featuredImage(robe.images)}
+    />
     <ProductDetailLayout
       images={robe.images}
       name={robe.name_ar}
@@ -103,5 +112,6 @@ export default async function RobeDetailPage({ params }: Props) {
       }
       related={<RelatedShopProducts items={related} />}
     />
+    </>
   );
 }
