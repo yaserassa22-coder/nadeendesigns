@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { getProfileRole, isAdminRole } from "@/lib/customer-auth/customer";
 
 export default async function AdminDashboardLayout({
   children,
@@ -13,6 +14,11 @@ export default async function AdminDashboardLayout({
   const user = await getAuthenticatedUser();
   if (!user) {
     redirect("/admin/login");
+  }
+
+  const role = await getProfileRole(user.id);
+  if (!isAdminRole(role)) {
+    redirect("/?error=admin_only");
   }
 
   return (

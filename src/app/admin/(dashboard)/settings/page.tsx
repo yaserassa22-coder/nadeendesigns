@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SettingsForm } from "@/components/admin/SettingsForm";
+import { CustomerAuthSettingsForm } from "@/components/admin/CustomerAuthSettingsForm";
 import { getAdminSettings } from "@/lib/admin/data";
 import { isCloudinaryConfigured } from "@/lib/supabase/env";
 
@@ -31,6 +32,7 @@ export default async function AdminSettingsPage() {
       )}
 
       <SettingsForm initialSettings={settings} />
+      <CustomerAuthSettingsForm />
     </div>
   );
 }

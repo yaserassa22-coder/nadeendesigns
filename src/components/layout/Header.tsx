@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronDown, Menu, ShoppingBag, X } from "lucide-react";
+import { ChevronDown, Menu, ShoppingBag, User, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SITE_NAME } from "@/lib/constants";
 import type { AccessoriesNav, NavLink } from "@/lib/categories/nav";
@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/shop/CartProvider";
 import { NotificationCenter } from "@/components/layout/NotificationCenter";
+import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 
 const FALLBACK_PRIMARY: NavLink[] = DRESS_CATEGORIES.map((c) => ({
   href: DRESS_CATEGORY_HREFS[c],
@@ -47,6 +48,7 @@ export function Header({
   const [scrolled, setScrolled] = useState(false);
   const [accessoriesOpen, setAccessoriesOpen] = useState(false);
   const { count } = useCart();
+  const { customer, user, openLogin } = useCustomerAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -168,10 +170,46 @@ export function Header({
               )}
             </Link>
           ))}
+          {customer || user ? (
+            <Link
+              href="/account"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+            >
+              <User className="h-4 w-4" />
+              حسابي
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openLogin()}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-charcoal/80 transition-colors hover:text-gold"
+            >
+              <User className="h-4 w-4" />
+              دخول
+            </button>
+          )}
           <NotificationCenter />
         </nav>
 
         <div className="flex items-center gap-1 lg:hidden">
+          {customer || user ? (
+            <Link
+              href="/account"
+              className="rounded-full p-2 text-charcoal hover:text-gold"
+              aria-label="حسابي"
+            >
+              <User className="h-5 w-5" />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openLogin()}
+              className="rounded-full p-2 text-charcoal hover:text-gold"
+              aria-label="دخول"
+            >
+              <User className="h-5 w-5" />
+            </button>
+          )}
           <NotificationCenter />
           <Link
             href="/cart"
@@ -249,6 +287,26 @@ export function Header({
                 {link.href === "/cart" && count > 0 ? ` (${count})` : ""}
               </Link>
             ))}
+            {customer || user ? (
+              <Link
+                href="/account"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
+              >
+                حسابي
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileOpen(false);
+                  openLogin();
+                }}
+                className="rounded-xl px-4 py-3 text-start text-lg font-medium text-charcoal hover:bg-beige"
+              >
+                دخول
+              </button>
+            )}
           </nav>
         </motion.div>
       )}

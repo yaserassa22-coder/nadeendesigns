@@ -147,31 +147,39 @@ export function CustomersOverlayManager() {
                       {row.email || "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <RowLifecycleActions
-                        module="customers"
-                        id={row.customer_key}
-                        archived={Boolean(row.archived_at)}
-                        onChanged={async (kind) => {
-                          if (kind === "soft_delete") {
-                            setRows((prev) =>
-                              prev.filter(
-                                (r) => r.customer_key !== row.customer_key
-                              )
-                            );
-                            return;
-                          }
-                          // Ensure overlay row exists when archiving a derived key
-                          if (kind === "archive") {
-                            await postLifecycle({
-                              action: "archive",
-                              module: "customers",
-                              id: row.customer_key,
-                            });
-                          }
-                          await load();
-                        }}
-                        onError={(msg) => alert(msg)}
-                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <a
+                          href={`/admin/customers/${encodeURIComponent(row.customer_key)}`}
+                          className="rounded-lg border border-beige-dark px-2.5 py-1 text-xs hover:border-gold hover:text-gold"
+                        >
+                          ملف العميل
+                        </a>
+                        <RowLifecycleActions
+                          module="customers"
+                          id={row.customer_key}
+                          archived={Boolean(row.archived_at)}
+                          onChanged={async (kind) => {
+                            if (kind === "soft_delete") {
+                              setRows((prev) =>
+                                prev.filter(
+                                  (r) => r.customer_key !== row.customer_key
+                                )
+                              );
+                              return;
+                            }
+                            // Ensure overlay row exists when archiving a derived key
+                            if (kind === "archive") {
+                              await postLifecycle({
+                                action: "archive",
+                                module: "customers",
+                                id: row.customer_key,
+                              });
+                            }
+                            await load();
+                          }}
+                          onError={(msg) => alert(msg)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))
