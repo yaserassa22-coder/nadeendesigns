@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/auth";
 import { resolveCategoryHref } from "@/lib/categories/href";
+import { getCategoryProductCounts } from "@/lib/categories/product-counts";
 import { countDressesForCategory } from "@/lib/categories/product-refs";
 import { revalidateCategoryPaths } from "@/lib/categories/revalidate";
 import { SEED_CATEGORIES } from "@/types/category";
@@ -15,6 +16,8 @@ import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import { normalizeCategoryRow } from "@/lib/data/categories";
 import { categoryCreateSchema, categoryUpdateSchema } from "@/lib/validations/category";
 import type { Category } from "@/types/category";
+
+export type CategoryWithCount = Category & { product_count?: number };
 
 /** Never serve a cached category list to admin product selectors. */
 export const dynamic = "force-dynamic";
@@ -60,9 +63,21 @@ function inferProductKind(): string {
   return "dress";
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const countsParam = new URL(request.url).searchParams.get("counts");
+  const includeCounts = countsParam === "1" || countsParam === "true";
+
+  const withOptionalCounts = async (rows: Category[]) => {
+    if (!includeCounts) return rows;
+    const counts = await getCategoryProductCounts(rows);
+    return rows.map((c) => ({
+      ...c,
+      product_count: counts[c.id] ?? 0,
+    })) satisfies CategoryWithCount[];
+  };
+
   if (!isSupabaseConfigured()) {
-    return noStoreJson(SEED_CATEGORIES);
+    return noStoreJson(await withOptionalCounts(SEED_CATEGORIES));
   }
   const supabase = createAdminClient();
   let query = supabase
@@ -82,16 +97,15 @@ export async function GET() {
   if (error) {
     if (isMissingTableError(error, "categories")) {
       console.warn("[categories API] table missing — returning seed data");
-      return noStoreJson(SEED_CATEGORIES);
+      return noStoreJson(await withOptionalCounts(SEED_CATEGORIES));
     }
     return noStoreJson(
       { error: getErrorMessage(error) },
       { status: 500 }
     );
   }
-  return noStoreJson(
-    ((data as Category[]) ?? []).map(normalizeCategoryRow)
-  );
+  const normalized = ((data as Category[]) ?? []).map(normalizeCategoryRow);
+  return noStoreJson(await withOptionalCounts(normalized));
 }
 
 export async function POST(request: Request) {

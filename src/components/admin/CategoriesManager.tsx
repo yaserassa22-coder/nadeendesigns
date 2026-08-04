@@ -9,6 +9,7 @@ import {
   slugifyCategory,
   type Category,
 } from "@/types/category";
+import { notifyAdminCategoriesChanged } from "@/lib/admin/category-events";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
@@ -142,6 +143,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
       reset();
       // Refresh RSC payloads so Admin → Products Create sees the new category.
       router.refresh();
+      notifyAdminCategoriesChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
@@ -161,6 +163,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
       return;
     }
     setCategories((prev) => prev.map((c) => (c.id === item.id ? data : c)));
+    notifyAdminCategoriesChanged();
   };
 
   const remove = async (item: Category) => {
@@ -172,6 +175,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
       return;
     }
     setCategories((prev) => prev.filter((c) => c.id !== item.id));
+    notifyAdminCategoriesChanged();
   };
 
   const renderRows = (

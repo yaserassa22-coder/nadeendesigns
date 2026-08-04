@@ -1,7 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Pencil, Plus, X } from "lucide-react";
 import type { Dress } from "@/types";
 import type { Category } from "@/types/category";
@@ -104,13 +111,18 @@ interface DressesManagerProps {
   lockedCategory?: string;
 }
 
-export function DressesManager({
+function DressesManagerInner({
   initialDresses,
   initialCategories,
   initialCategoryFilter = "all",
   lockedCategoryId,
   lockedCategory,
 }: DressesManagerProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get("category");
+
   const [dresses, setDresses] = useState(initialDresses);
   const [categories, setCategories] = useState(initialCategories);
   const [search, setSearch] = useState("");
@@ -145,9 +157,33 @@ export function DressesManager({
     );
   }, [lockedCategoryId, lockedCategory, dressCategories]);
 
-  const [categoryFilter, setCategoryFilter] = useState<string | "all">(
-    resolvedLockId ?? initialCategoryFilter
-  );
+  const categoryFilter: string | "all" = useMemo(() => {
+    if (resolvedLockId) return resolvedLockId;
+    if (categoryParam) {
+      const match = dressCategories.find(
+        (c) =>
+          c.id === categoryParam ||
+          c.slug === categoryParam ||
+          c.legacy_key === categoryParam
+      );
+      return match?.id ?? "all";
+    }
+    return initialCategoryFilter;
+  }, [
+    resolvedLockId,
+    categoryParam,
+    dressCategories,
+    initialCategoryFilter,
+  ]);
+
+  const setCategoryFilterAndUrl = (value: string | "all") => {
+    if (resolvedLockId) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") params.delete("category");
+    else params.set("category", value);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
   const [availabilityFilter, setAvailabilityFilter] = useState<
     "all" | "yes" | "no"
   >("all");
@@ -164,16 +200,16 @@ export function DressesManager({
   const [visibility, setVisibility] = useState<ListVisibility>("active");
 
   const refetchCategories = useCallback(async (): Promise<Category[]> => {
-    const current = (): Promise<Category[]> =>
-      new Promise((resolve) => {
-        setCategories((prev) => {
-          resolve(prev);
-          return prev;
-        });
-      });
     try {
       const res = await fetch("/api/categories", { cache: "no-store" });
-      if (!res.ok) return current();
+      if (!res.ok) {
+        return await new Promise<Category[]>((resolve) => {
+          setCategories((prev) => {
+            resolve(prev);
+            return prev;
+          });
+        });
+      }
       const data = (await res.json()) as Category[];
       if (Array.isArray(data)) {
         setCategories(data);
@@ -182,8 +218,13 @@ export function DressesManager({
     } catch {
       /* keep current */
     }
-    return current();
-  }, []);
+    return await new Promise<Category[]>((resolve) => {
+      setCategories((prev) => {
+        resolve(prev);
+        return prev;
+      });
+    });
+  }, [setCategories]);
 
   // Live list on mount + when returning to the tab (no rebuild/restart).
   useEffect(() => {
@@ -349,7 +390,7 @@ export function DressesManager({
               label="تصفية حسب التصنيف"
               value={categoryFilter}
               onChange={(e) =>
-                setCategoryFilter(e.target.value as string | "all")
+                setCategoryFilterAndUrl(e.target.value as string | "all")
               }
               options={[
                 { value: "all", label: "كل التصنيفات" },
@@ -672,5 +713,19 @@ export function DressesManager({
         </div>
       )}
     </div>
+  );
+}
+
+export function DressesManager(props: DressesManagerProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-beige-dark bg-white p-8 text-sm text-muted">
+          جاري تحميل المنتجات…
+        </div>
+      }
+    >
+      <DressesManagerInner {...props} />
+    </Suspense>
   );
 }
