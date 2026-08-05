@@ -56,22 +56,21 @@ export async function POST(request: Request) {
 
   const d = parsed.data;
   const supabase = createAdminClient();
-  const { data: row, error } = await supabase
-    .from("waiting_list")
-    .insert({
-      name: d.name,
-      phone: d.phone,
-      email: d.email?.trim() ? d.email.trim() : null,
-      preferred_date: d.preferred_date || null,
-      preferred_time: d.preferred_time || null,
-      consultant_id: d.consultant_id || null,
-      notes: d.notes?.trim() || null,
-      status: "waiting",
-      notify_whatsapp: d.notify_whatsapp ?? true,
-      notify_email: d.notify_email ?? true,
-    })
-    .select("id")
-    .single();
+  // Anon fallback has INSERT-only RLS — never chain .select() (needs SELECT).
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("waiting_list").insert({
+    id,
+    name: d.name,
+    phone: d.phone,
+    email: d.email?.trim() ? d.email.trim() : null,
+    preferred_date: d.preferred_date || null,
+    preferred_time: d.preferred_time || null,
+    consultant_id: d.consultant_id || null,
+    notes: d.notes?.trim() || null,
+    status: "waiting",
+    notify_whatsapp: d.notify_whatsapp ?? true,
+    notify_email: d.notify_email ?? true,
+  });
 
   if (error) {
     if (isMissingTableError(error, "waiting_list")) {
@@ -79,14 +78,24 @@ export async function POST(request: Request) {
         {
           error:
             "قائمة الانتظار غير مفعّلة. نفّذي supabase/APPLY_SMART_APPOINTMENTS.sql",
+          ...(process.env.NODE_ENV !== "production"
+            ? { detail: error.message, code: error.code }
+            : {}),
         },
         { status: 503 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error("[waiting-list API] insert failed", error);
+    return NextResponse.json(
+      {
+        error: error.message || "تعذّر الانضمام لقائمة الانتظار",
+        ...(process.env.NODE_ENV !== "production"
+          ? { detail: error.message, code: error.code }
+          : {}),
+      },
+      { status: 400 }
+    );
   }
-
-  const id = row?.id ?? crypto.randomUUID();
   try {
     after(() =>
       onWaitlistJoined({

@@ -21,6 +21,7 @@ type ContactFormData = z.infer<typeof contactSchema>;
 export function ContactForm() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [devDetail, setDevDetail] = useState("");
 
   const {
     register,
@@ -33,15 +34,27 @@ export function ContactForm() {
 
   const onSubmit = async (data: ContactFormData) => {
     setError("");
+    setDevDetail("");
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        detail?: string;
+        code?: string;
+        message?: string;
+        success?: boolean;
+      };
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "حدث خطأ");
+        if (process.env.NODE_ENV !== "production" && payload.detail) {
+          setDevDetail(
+            [payload.code, payload.detail].filter(Boolean).join(" — ")
+          );
+        }
+        throw new Error(payload.error ?? "حدث خطأ");
       }
       setSuccess(true);
       reset();
@@ -54,8 +67,10 @@ export function ContactForm() {
     return (
       <div className="rounded-2xl border border-gold/30 bg-gold/5 p-8 text-center">
         <CheckCircle className="mx-auto h-12 w-12 text-gold" />
-        <h3 className="mt-4 text-xl font-semibold">تم إرسال رسالتك!</h3>
-        <p className="mt-2 text-muted">سنرد عليكِ في أقرب وقت</p>
+        <h3 className="mt-4 text-xl font-semibold">
+          تم إرسال رسالتكِ بنجاح
+        </h3>
+        <p className="mt-2 text-muted">سنتواصل معكِ في أقرب وقت</p>
         <Button className="mt-6" onClick={() => setSuccess(false)}>
           إرسال رسالة أخرى
         </Button>
@@ -79,11 +94,7 @@ export function ContactForm() {
           dir="ltr"
         />
       </div>
-      <Input
-        label="رقم الهاتف"
-        {...register("phone")}
-        dir="ltr"
-      />
+      <Input label="رقم الهاتف" {...register("phone")} dir="ltr" />
       <Input
         label="الموضوع *"
         {...register("subject")}
@@ -95,9 +106,16 @@ export function ContactForm() {
         error={errors.message?.message}
         rows={5}
       />
-      {error && (
-        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
-      )}
+      {error ? (
+        <div className="space-y-1 rounded-xl bg-red-50 p-3 text-sm text-red-600">
+          <p>{error}</p>
+          {devDetail ? (
+            <p className="font-mono text-xs text-red-800/80" dir="ltr">
+              {devDetail}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <Button type="submit" size="lg" loading={isSubmitting}>
         <Send className="h-4 w-4" />
         إرسال الرسالة

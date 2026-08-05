@@ -250,6 +250,9 @@ DROP POLICY IF EXISTS "Public read settings" ON settings;
 CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 
 -- Public insert for bookings & contact
+-- NOTE: contact_messages has INSERT for anon, NOT public SELECT (privacy).
+-- Server routes must insert WITHOUT .select() when using the anon key fallback,
+-- or use SUPABASE_SERVICE_ROLE_KEY. Do not add public SELECT on contact_messages.
 DROP POLICY IF EXISTS "Public insert bookings" ON bookings;
 CREATE POLICY "Public insert bookings" ON bookings FOR INSERT WITH CHECK (true);
 DROP POLICY IF EXISTS "Public insert contact" ON contact_messages;
