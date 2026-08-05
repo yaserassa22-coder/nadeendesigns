@@ -9,6 +9,7 @@ import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getVeilById, getVeils } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
+import { shopStockAvailability } from "@/lib/products/storefront-availability";
 import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
 
 interface Props {
@@ -46,7 +47,10 @@ export default async function VeilDetailPage({ params }: Props) {
       is_featured: v.is_featured,
     }));
 
-  const inStock = veil.is_available && veil.stock_quantity > 0;
+  const stock = shopStockAvailability({
+    isAvailable: veil.is_available,
+    stockQuantity: veil.stock_quantity,
+  });
   const experience = await resolveStorefrontProductExperience({
     productId: veil.id,
     productType: veil.product_type ?? "bridal_accessory",
@@ -57,94 +61,77 @@ export default async function VeilDetailPage({ params }: Props) {
     experience_config: veil.experience_config,
   });
 
+  const wishlistProps = {
+    variant: "icon" as const,
+    productKind: "veil" as const,
+    productId: veil.id,
+    productSlug: veil.id,
+    productTitle: veil.name_ar,
+    productImageUrl: featuredImage(veil.images),
+  };
+
   return (
     <>
-    <TrackRecentlyViewed
-      productKind="veil"
-      productId={veil.id}
-      productSlug={veil.id}
-      productTitle={veil.name_ar}
-      productImageUrl={featuredImage(veil.images)}
-    />
-    <ProductDetailLayout
-      images={veil.images}
-      name={veil.name_ar}
-      categoryLabel={`طرحة العروس · ${veil.category}`}
-      price={veil.price}
-      description={veil.description_ar}
-      available={inStock}
-      shippingNote="الشحن والتوصيل يُحدَّدان عند إتمام الطلب"
-      availabilityLabel={
-        inStock
-          ? `متوفر · ${veil.stock_quantity} قطعة`
-          : "غير متوفر حالياً"
-      }
-      meta={
-        <>
-          {veil.color && (
-            <span className="rounded-full bg-beige px-4 py-2 text-sm">
-              {veil.color}
-            </span>
-          )}
-          {veil.material && (
-            <span className="rounded-full bg-beige px-4 py-2 text-sm">
-              {veil.material}
-            </span>
-          )}
-        </>
-      }
-      actions={
-        inStock ? (
-          <ShopCustomizeAndBuy
-            flush
-            productType="veil"
-            productId={veil.id}
-            nameAr={veil.name_ar}
-            price={veil.price}
-            image={featuredImage(veil.images)}
-            extraServices={experience.extraServices}
-            experienceConfig={experience.experienceConfig}
-            sections={experience.sections}
-            wishlist={
-              <WishlistButton
-                variant="icon"
-                productKind="veil"
-                productId={veil.id}
-                productSlug={veil.id}
-                productTitle={veil.name_ar}
-                productImageUrl={featuredImage(veil.images)}
-              />
-            }
-          />
-        ) : (
+      <TrackRecentlyViewed
+        productKind="veil"
+        productId={veil.id}
+        productSlug={veil.id}
+        productTitle={veil.name_ar}
+        productImageUrl={featuredImage(veil.images)}
+      />
+      <ProductDetailLayout
+        images={veil.images}
+        name={veil.name_ar}
+        categoryLabel={`طرحة العروس · ${veil.category}`}
+        price={veil.price}
+        description={veil.description_ar}
+        available={stock.available}
+        availabilityLabel={stock.label}
+        isFeatured={veil.is_featured}
+        galleryWishlist={<WishlistButton {...wishlistProps} />}
+        meta={
           <>
-            <WishlistButton
-              variant="icon"
-              productKind="veil"
+            {veil.color && (
+              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+                {veil.color}
+              </span>
+            )}
+            {veil.material && (
+              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+                {veil.material}
+              </span>
+            )}
+          </>
+        }
+        actions={
+          stock.available ? (
+            <ShopCustomizeAndBuy
+              flush
+              productType="veil"
               productId={veil.id}
-              productSlug={veil.id}
-              productTitle={veil.name_ar}
-              productImageUrl={featuredImage(veil.images)}
+              nameAr={veil.name_ar}
+              price={veil.price}
+              image={featuredImage(veil.images)}
+              extraServices={experience.extraServices}
+              experienceConfig={experience.experienceConfig}
+              sections={experience.sections}
+              wishlist={<WishlistButton {...wishlistProps} />}
             />
+          ) : (
+            <WishlistButton {...wishlistProps} />
+          )
+        }
+        below={
+          <div className="mt-8">
             <Link href="/veils" className="inline-block">
               <Button variant="ghost" size="md">
                 العودة لطرحة العروس
               </Button>
             </Link>
-          </>
-        )
-      }
-      below={
-        inStock ? (
-          <Link href="/veils" className="mt-6 inline-block">
-            <Button variant="ghost" size="md">
-              العودة لطرحة العروس
-            </Button>
-          </Link>
-        ) : null
-      }
-      related={<RelatedShopProducts items={related} />}
-    />
+          </div>
+        }
+        related={<RelatedShopProducts items={related} />}
+      />
     </>
   );
 }

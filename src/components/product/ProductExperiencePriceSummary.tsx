@@ -49,6 +49,7 @@ export function ProductExperiencePriceSummary({
         "rounded-[var(--xp-card-radius)] border border-gold/30 bg-gradient-to-b from-gold/[0.07] to-white/90 p-4 shadow-[var(--xp-shadow)] md:p-5",
         className
       )}
+      aria-live="polite"
     >
       <h3 className="mb-3 font-[family-name:var(--font-cormorant)] text-lg tracking-wide text-charcoal">
         ملخص السعر
@@ -56,14 +57,22 @@ export function ProductExperiencePriceSummary({
       <ul className="space-y-2.5 text-sm text-charcoal">
         <li className="flex justify-between gap-3">
           <span className="text-muted">سعر المنتج</span>
-          <span className="tabular-nums" dir="ltr">
+          <span
+            key={`base-${baseUnitPrice}`}
+            className="tabular-nums xp-fade-in"
+            dir="ltr"
+          >
             {formatPrice(baseUnitPrice)}
           </span>
         </li>
         {personalizationFee > 0 ? (
           <li className="flex justify-between gap-3">
             <span className="text-muted">التخصيص</span>
-            <span className="tabular-nums" dir="ltr">
+            <span
+              key={`pers-${personalizationFee}`}
+              className="tabular-nums xp-fade-in"
+              dir="ltr"
+            >
               {formatPrice(personalizationFee)}
             </span>
           </li>
@@ -71,7 +80,11 @@ export function ProductExperiencePriceSummary({
         {extras.length > 0 ? (
           <li className="flex justify-between gap-3">
             <span className="text-muted">خدمات إضافية</span>
-            <span className="tabular-nums" dir="ltr">
+            <span
+              key={`extras-${extrasTotal}-${extras.length}`}
+              className="tabular-nums xp-fade-in"
+              dir="ltr"
+            >
               {extrasTotal > 0 ? formatPrice(extrasTotal) : "مجاني"}
             </span>
           </li>
@@ -79,7 +92,11 @@ export function ProductExperiencePriceSummary({
         {qty > 1 ? (
           <li className="flex justify-between gap-3">
             <span className="text-muted">الكمية</span>
-            <span className="tabular-nums" dir="ltr">
+            <span
+              key={`qty-${qty}`}
+              className="tabular-nums xp-fade-in"
+              dir="ltr"
+            >
               × {qty}
             </span>
           </li>

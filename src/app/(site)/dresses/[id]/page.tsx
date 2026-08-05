@@ -10,6 +10,7 @@ import {
   getProductPrimaryAction,
   resolveProductCommerceType,
 } from "@/lib/products/primary-action";
+import { dressAvailability } from "@/lib/products/storefront-availability";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
 import { Button } from "@/components/ui/Button";
@@ -58,6 +59,7 @@ export default async function DressDetailPage({ params }: Props) {
   // CTA + rental presentation from product_type ONLY (never category name/slug)
   const commerceType = resolveProductCommerceType(dress.product_type);
   const primaryAction = getProductPrimaryAction(commerceType);
+  const availability = dressAvailability(dress.is_available);
   const experience = await resolveStorefrontProductExperience({
     productId: dress.id,
     productType: commerceType,
@@ -77,61 +79,64 @@ export default async function DressDetailPage({ params }: Props) {
     .filter((d) => d.id !== dress.id && d.is_available)
     .slice(0, 3);
 
+  const wishlistProps = {
+    variant: "icon" as const,
+    productKind: "dress" as const,
+    productId: dress.id,
+    productSlug: dress.id,
+    productTitle: dress.name_ar,
+    productImageUrl: featuredImage(dress.images),
+  };
+
   return (
     <>
-    <TrackRecentlyViewed
-      productKind="dress"
-      productId={dress.id}
-      productSlug={dress.id}
-      productTitle={dress.name_ar}
-      productImageUrl={featuredImage(dress.images)}
-    />
-    <ProductDetailLayout
-      images={dress.images}
-      name={dress.name_ar}
-      categoryLabel={categoryLabel}
-      price={dress.price}
-      salePrice={dress.sale_price}
-      rentalPrice={dress.rental_price}
-      priceSuffix={
-        primaryAction.isRentalPresentation && !dress.price
-          ? "/ إيجار"
-          : undefined
-      }
-      description={dress.description_ar}
-      available={dress.is_available}
-      shippingNote={
-        primaryAction.requiresShipping
-          ? "الشحن والتوصيل يُحدَّدان عند إتمام الطلب"
-          : "حجز في البوتيك — بدون شحن"
-      }
-      availabilityLabel={
-        dress.is_available ? "متوفر · جاهز للطلب" : "غير متوفر حالياً"
-      }
-      meta={
-        <>
-          {dress.style && (
-            <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-              <Palette className="h-4 w-4 text-gold" />
-              {getDressStyleLabel(dress.style)}
-            </span>
-          )}
-          {dress.size && (
-            <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-              <Ruler className="h-4 w-4 text-gold" />
-              {dress.size}
-            </span>
-          )}
-          {dress.color && (
-            <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-              {getDressColorLabel(dress.color)}
-            </span>
-          )}
-        </>
-      }
-      actions={
-        <>
-          {dress.is_available ? (
+      <TrackRecentlyViewed
+        productKind="dress"
+        productId={dress.id}
+        productSlug={dress.id}
+        productTitle={dress.name_ar}
+        productImageUrl={featuredImage(dress.images)}
+      />
+      <ProductDetailLayout
+        images={dress.images}
+        name={dress.name_ar}
+        categoryLabel={categoryLabel}
+        price={dress.price}
+        salePrice={dress.sale_price}
+        rentalPrice={dress.rental_price}
+        priceSuffix={
+          primaryAction.isRentalPresentation && !dress.price
+            ? "/ إيجار"
+            : undefined
+        }
+        description={dress.description_ar}
+        available={availability.available}
+        availabilityLabel={availability.label}
+        isFeatured={dress.is_featured}
+        galleryWishlist={<WishlistButton {...wishlistProps} />}
+        meta={
+          <>
+            {dress.style && (
+              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
+                <Palette className="h-4 w-4 text-gold" />
+                {getDressStyleLabel(dress.style)}
+              </span>
+            )}
+            {dress.size && (
+              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
+                <Ruler className="h-4 w-4 text-gold" />
+                {dress.size}
+              </span>
+            )}
+            {dress.color && (
+              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
+                {getDressColorLabel(dress.color)}
+              </span>
+            )}
+          </>
+        }
+        actions={
+          dress.is_available ? (
             <ProductPrimaryCta
               productType={commerceType}
               shopProductType="dress"
@@ -144,16 +149,7 @@ export default async function DressDetailPage({ params }: Props) {
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
-              wishlist={
-                <WishlistButton
-                  variant="icon"
-                  productKind="dress"
-                  productId={dress.id}
-                  productSlug={dress.id}
-                  productTitle={dress.name_ar}
-                  productImageUrl={featuredImage(dress.images)}
-                />
-              }
+              wishlist={<WishlistButton {...wishlistProps} />}
               bookingHref={
                 primaryAction.kind === "book_now"
                   ? "/booking"
@@ -161,24 +157,20 @@ export default async function DressDetailPage({ params }: Props) {
               }
             />
           ) : (
-            <WishlistButton
-              variant="icon"
-              productKind="dress"
-              productId={dress.id}
-              productSlug={dress.id}
-              productTitle={dress.name_ar}
-              productImageUrl={featuredImage(dress.images)}
-            />
-          )}
-          <Link href={categoryHref} className="inline-block">
-            <Button variant="ghost" size="md">
-              العودة للمجموعة
-            </Button>
-          </Link>
-        </>
-      }
-      related={<RelatedProducts dresses={related} />}
-    />
+            <WishlistButton {...wishlistProps} />
+          )
+        }
+        below={
+          <div className="mt-8">
+            <Link href={categoryHref} className="inline-block">
+              <Button variant="ghost" size="md">
+                العودة للمجموعة
+              </Button>
+            </Link>
+          </div>
+        }
+        related={<RelatedProducts dresses={related} />}
+      />
     </>
   );
 }

@@ -9,6 +9,7 @@ import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getBridalRobeById, getBridalRobes } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
+import { shopStockAvailability } from "@/lib/products/storefront-availability";
 import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
 
 interface Props {
@@ -46,7 +47,10 @@ export default async function RobeDetailPage({ params }: Props) {
       is_featured: r.is_featured,
     }));
 
-  const inStock = robe.is_available && robe.stock_quantity > 0;
+  const stock = shopStockAvailability({
+    isAvailable: robe.is_available,
+    stockQuantity: robe.stock_quantity,
+  });
   const experience = await resolveStorefrontProductExperience({
     productId: robe.id,
     productType: robe.product_type ?? "bridal_accessory",
@@ -57,99 +61,82 @@ export default async function RobeDetailPage({ params }: Props) {
     experience_config: robe.experience_config,
   });
 
+  const wishlistProps = {
+    variant: "icon" as const,
+    productKind: "bridal_robe" as const,
+    productId: robe.id,
+    productSlug: robe.id,
+    productTitle: robe.name_ar,
+    productImageUrl: featuredImage(robe.images),
+  };
+
   return (
     <>
-    <TrackRecentlyViewed
-      productKind="bridal_robe"
-      productId={robe.id}
-      productSlug={robe.id}
-      productTitle={robe.name_ar}
-      productImageUrl={featuredImage(robe.images)}
-    />
-    <ProductDetailLayout
-      images={robe.images}
-      name={robe.name_ar}
-      categoryLabel="برنص العروس"
-      price={robe.price}
-      description={robe.description_ar}
-      available={inStock}
-      shippingNote="الشحن والتوصيل يُحدَّدان عند إتمام الطلب"
-      availabilityLabel={
-        inStock
-          ? `متوفر · ${robe.stock_quantity} قطعة`
-          : "غير متوفر حالياً"
-      }
-      meta={
-        <>
-          {robe.color && (
-            <span className="rounded-full bg-beige px-4 py-2 text-sm">
-              {robe.color}
-            </span>
-          )}
-          {robe.size && (
-            <span className="rounded-full bg-beige px-4 py-2 text-sm">
-              {robe.size}
-            </span>
-          )}
-          {robe.material && (
-            <span className="rounded-full bg-beige px-4 py-2 text-sm">
-              {robe.material}
-            </span>
-          )}
-        </>
-      }
-      actions={
-        inStock ? (
-          <ShopCustomizeAndBuy
-            flush
-            productType="bridal_robe"
-            productId={robe.id}
-            nameAr={robe.name_ar}
-            price={robe.price}
-            image={featuredImage(robe.images)}
-            extraServices={experience.extraServices}
-            experienceConfig={experience.experienceConfig}
-            sections={experience.sections}
-            wishlist={
-              <WishlistButton
-                variant="icon"
-                productKind="bridal_robe"
-                productId={robe.id}
-                productSlug={robe.id}
-                productTitle={robe.name_ar}
-                productImageUrl={featuredImage(robe.images)}
-              />
-            }
-          />
-        ) : (
+      <TrackRecentlyViewed
+        productKind="bridal_robe"
+        productId={robe.id}
+        productSlug={robe.id}
+        productTitle={robe.name_ar}
+        productImageUrl={featuredImage(robe.images)}
+      />
+      <ProductDetailLayout
+        images={robe.images}
+        name={robe.name_ar}
+        categoryLabel="برنص العروس"
+        price={robe.price}
+        description={robe.description_ar}
+        available={stock.available}
+        availabilityLabel={stock.label}
+        isFeatured={robe.is_featured}
+        galleryWishlist={<WishlistButton {...wishlistProps} />}
+        meta={
           <>
-            <WishlistButton
-              variant="icon"
-              productKind="bridal_robe"
+            {robe.color && (
+              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+                {robe.color}
+              </span>
+            )}
+            {robe.size && (
+              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+                {robe.size}
+              </span>
+            )}
+            {robe.material && (
+              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+                {robe.material}
+              </span>
+            )}
+          </>
+        }
+        actions={
+          stock.available ? (
+            <ShopCustomizeAndBuy
+              flush
+              productType="bridal_robe"
               productId={robe.id}
-              productSlug={robe.id}
-              productTitle={robe.name_ar}
-              productImageUrl={featuredImage(robe.images)}
+              nameAr={robe.name_ar}
+              price={robe.price}
+              image={featuredImage(robe.images)}
+              extraServices={experience.extraServices}
+              experienceConfig={experience.experienceConfig}
+              sections={experience.sections}
+              wishlist={<WishlistButton {...wishlistProps} />}
             />
+          ) : (
+            <WishlistButton {...wishlistProps} />
+          )
+        }
+        below={
+          <div className="mt-8">
             <Link href="/robes" className="inline-block">
               <Button variant="ghost" size="md">
                 العودة لبرنص العروس
               </Button>
             </Link>
-          </>
-        )
-      }
-      below={
-        inStock ? (
-          <Link href="/robes" className="mt-6 inline-block">
-            <Button variant="ghost" size="md">
-              العودة لبرنص العروس
-            </Button>
-          </Link>
-        ) : null
-      }
-      related={<RelatedShopProducts items={related} />}
-    />
+          </div>
+        }
+        related={<RelatedShopProducts items={related} />}
+      />
     </>
   );
 }

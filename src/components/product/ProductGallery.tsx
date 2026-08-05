@@ -7,9 +7,13 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ProductCardImageCounter } from "@/components/product/ProductCardOverlay";
+import {
+  ProductCardImageCounter,
+  ProductCardOverlay,
+} from "@/components/product/ProductCardOverlay";
 import { featuredImage } from "@/lib/products/featured-image";
 import { cn } from "@/lib/utils";
 
@@ -18,17 +22,24 @@ interface ProductGalleryProps {
   alt: string;
   className?: string;
   priority?: boolean;
+  /** Top-left overlay badges (SALE / featured). */
+  badges?: ReactNode;
+  /** Top-right wishlist control. */
+  wishlist?: ReactNode;
 }
 
 /**
  * Luxury PDP gallery: hover zoom, smooth fade, mobile swipe,
- * image counter, premium nav. Chrome hidden for a single image.
+ * image counter, premium nav. Overlay: badges TL · wishlist TR.
+ * Chrome hidden for a single image (except overlays when provided).
  */
 export function ProductGallery({
   images,
   alt,
   className,
   priority = true,
+  badges,
+  wishlist,
 }: ProductGalleryProps) {
   const slides = (images ?? []).filter(Boolean);
   const slidesKey = slides.join("|");
@@ -153,22 +164,26 @@ export function ProductGallery({
           draggable={false}
         />
 
-        {multi ? (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 md:bottom-5 md:left-auto md:right-4 md:translate-x-0">
-            <ProductCardImageCounter
-              current={safeIndex + 1}
-              total={count}
-              className="bg-charcoal/70 px-3 py-1.5 text-xs backdrop-blur-sm"
-            />
-          </div>
-        ) : null}
+        <ProductCardOverlay
+          badges={badges}
+          wishlist={wishlist}
+          imageCounter={
+            multi ? (
+              <ProductCardImageCounter
+                current={safeIndex + 1}
+                total={count}
+                className="bg-charcoal/70 px-3 py-1.5 text-xs backdrop-blur-sm"
+              />
+            ) : undefined
+          }
+        />
 
         {multi && (
           <>
             <button
               type="button"
               aria-label="الصورة السابقة"
-              className="absolute start-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
+              className="absolute start-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
               onClick={() => go(safeIndex - 1)}
             >
               <ChevronRight className="h-5 w-5" strokeWidth={1.75} />
@@ -176,7 +191,7 @@ export function ProductGallery({
             <button
               type="button"
               aria-label="الصورة التالية"
-              className="absolute end-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
+              className="absolute end-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
               onClick={() => go(safeIndex + 1)}
             >
               <ChevronLeft className="h-5 w-5" strokeWidth={1.75} />

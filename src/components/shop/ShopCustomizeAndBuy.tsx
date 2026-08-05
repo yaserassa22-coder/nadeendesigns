@@ -8,6 +8,7 @@ import type {
   ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
 import type { ShopProductType } from "@/types/shop";
+import { cn } from "@/lib/utils";
 
 interface ShopCustomizeAndBuyProps {
   productType: ShopProductType;
@@ -25,12 +26,12 @@ interface ShopCustomizeAndBuyProps {
   wishlist?: ReactNode;
   /** Drop top margin when nested in PDP actions (vs below slot). */
   flush?: boolean;
+  className?: string;
 }
 
 /**
- * Veil / robe purchase entry — wraps ProductExperienceBuy + modal.
- * Personalization UI lives inside ProductExperienceModal (existing atoms).
- * Delivery / notes / order options are collected at checkout only.
+ * Veil / robe purchase entry — clean CTAs only (no instructional card).
+ * Personalization & services open inside ProductExperienceModal on click.
  */
 export function ShopCustomizeAndBuy({
   productType,
@@ -44,42 +45,25 @@ export function ShopCustomizeAndBuy({
   sections = [],
   wishlist,
   flush = false,
+  className,
 }: ShopCustomizeAndBuyProps) {
   return (
-    <div
-      className={
-        flush
-          ? "rounded-[var(--xp-card-radius-lg)] border border-[color:var(--xp-border)] bg-[color:var(--xp-surface)] p-5 shadow-[var(--xp-shadow)] md:p-6"
-          : "mt-10 rounded-[var(--xp-card-radius-lg)] border border-[color:var(--xp-border)] bg-[color:var(--xp-surface)] p-6 shadow-[var(--xp-shadow)] md:p-8"
-      }
-    >
-      <div className="mb-6">
-        <p className="mb-1 text-xs tracking-[0.2em] text-gold uppercase">
-          تخصيص وشراء
-        </p>
-        <h2 className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold tracking-wide text-charcoal">
-          خصّصي منتجكِ
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          التخصيص والخدمات تظهر قبل الإضافة — التوصيل والملاحظات عند الدفع فقط.
-        </p>
-      </div>
-      <ProductExperienceBuy
-        shopProductType={productType}
-        productId={productId}
-        nameAr={nameAr}
-        price={price}
-        salePrice={salePrice}
-        image={image}
-        extraServices={extraServices}
-        experienceConfig={experienceConfig}
-        sections={sections}
-        wishlist={wishlist}
-        enablePersonalization
-        enableGiftWrapping
-        requiresShipping
-        size="lg"
-      />
-    </div>
+    <ProductExperienceBuy
+      className={cn(!flush && "mt-10", className)}
+      shopProductType={productType}
+      productId={productId}
+      nameAr={nameAr}
+      price={price}
+      salePrice={salePrice}
+      image={image}
+      extraServices={extraServices}
+      experienceConfig={experienceConfig}
+      sections={sections}
+      wishlist={wishlist}
+      enablePersonalization
+      enableGiftWrapping
+      requiresShipping
+      size="lg"
+    />
   );
 }
