@@ -293,7 +293,17 @@ CREATE POLICY "Admin all bookings" ON bookings FOR ALL USING (
 );
 DROP POLICY IF EXISTS "Admin all contact" ON contact_messages;
 CREATE POLICY "Admin all contact" ON contact_messages FOR ALL USING (
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid()
+      AND role IN ('admin', 'owner', 'manager', 'staff')
+  )
+) WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid()
+      AND role IN ('admin', 'owner', 'manager', 'staff')
+  )
 );
 DROP POLICY IF EXISTS "Admin all settings" ON settings;
 CREATE POLICY "Admin all settings" ON settings FOR ALL USING (

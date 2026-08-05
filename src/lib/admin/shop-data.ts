@@ -140,7 +140,13 @@ export async function getAdminOrders(): Promise<AdminOrdersResult> {
 
 export async function getAdminMessages(): Promise<ContactMessage[]> {
   if (!isSupabaseConfigured()) return [];
-  const supabase = createAdminClient();
+  /**
+   * Must NOT use bare createAdminClient() without SERVICE_ROLE — that falls
+   * back to anon, which has INSERT-only RLS on contact_messages. Anon SELECT
+   * returns [] with no error (rows exist but are invisible).
+   * Prefer service role; otherwise the authenticated admin cookie session.
+   */
+  const supabase = await createPrivilegedClient();
   let query = supabase
     .from("contact_messages")
     .select("*")
@@ -152,9 +158,15 @@ export async function getAdminMessages(): Promise<ContactMessage[]> {
       .from("contact_messages")
       .select("*")
       .order("created_at", { ascending: false });
-    if (retry.error || !retry.data) return [];
-    return retry.data as ContactMessage[];
+    if (retry.error) {
+      console.error("[getAdminMessages] retry failed", retry.error);
+      return [];
+    }
+    return (retry.data ?? []) as ContactMessage[];
   }
-  if (error || !data) return [];
-  return filterLifecycleRows(data as ContactMessage[], "all");
+  if (error) {
+    console.error("[getAdminMessages] select failed", error);
+    return [];
+  }
+  return filterLifecycleRows((data ?? []) as ContactMessage[], "all");
 }

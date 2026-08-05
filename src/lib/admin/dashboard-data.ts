@@ -249,7 +249,7 @@ async function fetchProductCatalog(): Promise<ProductCatalogEntry[]> {
 async function fetchRecentMessages(limit = 8): Promise<RecentActivityRow[]> {
   if (!isSupabaseConfigured()) return [];
   try {
-    const supabase = createAdminClient();
+    const supabase = await createPrivilegedClient();
     const { data, error } = await supabase
       .from("contact_messages")
       .select("id, name, subject, created_at")

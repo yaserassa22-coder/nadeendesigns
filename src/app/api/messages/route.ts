@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth";
 import { withNotDeletedFilter } from "@/lib/admin/lifecycle";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
@@ -63,13 +62,23 @@ export async function PATCH(request: Request) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ success: true });
   }
-  const supabase = createAdminClient();
+  // Privileged client required — anon cannot UPDATE contact_messages under RLS.
+  const supabase = await createPrivilegedClient();
   const { error } = await supabase
     .from("contact_messages")
     .update({ is_read: body.is_read ?? true })
     .eq("id", body.id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error("[messages PATCH]", error);
+    return NextResponse.json(
+      {
+        error: error.message,
+        ...(process.env.NODE_ENV !== "production"
+          ? { detail: error.message, code: error.code }
+          : {}),
+      },
+      { status: 400 }
+    );
   }
   return NextResponse.json({ success: true });
 }
