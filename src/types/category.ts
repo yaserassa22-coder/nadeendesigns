@@ -291,6 +291,85 @@ export function isAccessoriesGroupCategory(
   return resolveCategoryProductKind(category) === "accessories_group";
 }
 
+/**
+ * Custom Dress Design is a standalone admin module — not a product category
+ * in the Products sidebar (even if a matching categories row exists).
+ */
+export function isCustomDesignModuleCategory(
+  category: Pick<Category, "legacy_key" | "slug">
+): boolean {
+  const legacy = category.legacy_key?.trim().toLowerCase() ?? "";
+  const slug = category.slug?.trim().toLowerCase() ?? "";
+  return (
+    legacy === "custom_design" ||
+    slug === "custom-design" ||
+    slug === "custom_design"
+  );
+}
+
+/**
+ * Resolve seed/legacy category keys against a live Category row
+ * (legacy_key, slug, or hyphen/underscore variants).
+ */
+export function categoryMatchesLegacyKeys(
+  category: Pick<Category, "legacy_key" | "slug">,
+  keys: readonly string[]
+): boolean {
+  const legacy = category.legacy_key?.trim().toLowerCase() ?? "";
+  const slug = category.slug?.trim().toLowerCase() ?? "";
+  return keys.some((raw) => {
+    const key = raw.trim().toLowerCase();
+    if (!key) return false;
+    const hyphen = key.replace(/_/g, "-");
+    const underscore = key.replace(/-/g, "_");
+    return (
+      legacy === key ||
+      legacy === hyphen ||
+      legacy === underscore ||
+      slug === key ||
+      slug === hyphen ||
+      slug === underscore
+    );
+  });
+}
+
+/**
+ * Flat Products sidebar order: pin known commerce seeds (resolved from DB),
+ * then remaining visible categories by sort_order. Excludes custom_design.
+ */
+export function orderAdminProductSidebarCategories(
+  categories: readonly Category[]
+): Category[] {
+  const productCats = categories.filter(
+    (c) => !isCustomDesignModuleCategory(c) && c.is_visible !== false
+  );
+  const pinGroups: readonly (readonly string[])[] = [
+    ["wedding", "wedding_dress", "wedding-dresses"],
+    ["nouf_dresses", "nouf_dress", "nouf-dresses"],
+    ["bridal_accessories", "bridal-accessories", "accessories"],
+  ];
+  const used = new Set<string>();
+  const pinned: Category[] = [];
+  for (const keys of pinGroups) {
+    const found = productCats.find(
+      (c) => !used.has(c.id) && categoryMatchesLegacyKeys(c, keys)
+    );
+    if (found) {
+      pinned.push(found);
+      used.add(found.id);
+    }
+  }
+  const rest = productCats
+    .filter((c) => !used.has(c.id))
+    .slice()
+    .sort(
+      (a, b) =>
+        a.sort_order - b.sort_order ||
+        a.name_ar.localeCompare(b.name_ar, "ar")
+    );
+  return [...pinned, ...rest];
+}
+
 export function isDressProductCategory(
   category: Pick<Category, "product_kind" | "legacy_key">
 ): boolean {

@@ -1,6 +1,14 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, RefreshCw, Sparkles } from "lucide-react";
 import type {
   AppointmentLifecycleAction,
@@ -33,6 +41,8 @@ import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 interface BookingsManagerProps {
   initialBookings: Booking[];
   initialError?: string | null;
+  /** Prefill service filter (e.g. custom_design from Custom Design sidebar). */
+  initialServiceFilter?: string | null;
 }
 
 const STATUS_OPTIONS = Object.entries(BOOKING_STATUS_LABELS).map(
@@ -51,16 +61,23 @@ function normalizeBooking(b: Booking): Booking {
   };
 }
 
-export function BookingsManager({
+function BookingsManagerInner({
   initialBookings,
   initialError = null,
+  initialServiceFilter = null,
 }: BookingsManagerProps) {
+  const searchParams = useSearchParams();
+  const serviceFromUrl = searchParams.get("service") ?? initialServiceFilter;
+
   const [bookings, setBookings] = useState(() =>
     initialBookings.map(normalizeBooking)
   );
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<BookingStatus | "all">("all");
+  const [serviceFilter, setServiceFilter] = useState<string | "all">(
+    () => serviceFromUrl || "all"
+  );
   const [visibility, setVisibility] = useState<ListVisibility>("active");
   const [updating, setUpdating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -68,6 +85,13 @@ export function BookingsManager({
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
+
+  const serviceUrlKey = serviceFromUrl ?? "";
+  const [prevServiceUrlKey, setPrevServiceUrlKey] = useState(serviceUrlKey);
+  if (prevServiceUrlKey !== serviceUrlKey) {
+    setPrevServiceUrlKey(serviceUrlKey);
+    setServiceFilter(serviceFromUrl || "all");
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -111,6 +135,20 @@ export function BookingsManager({
     return () => window.clearTimeout(timer);
   }, [loadBookings]);
 
+  const serviceOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const b of bookings) {
+      if (b.service_type) seen.add(b.service_type);
+    }
+    if (serviceFilter !== "all") seen.add(serviceFilter);
+    return Array.from(seen)
+      .sort()
+      .map((value) => ({
+        value,
+        label: getServiceTypeLabel(value) || value,
+      }));
+  }, [bookings, serviceFilter]);
+
   const filtered = useMemo(() => {
     const byVis = filterLifecycleRows(
       bookings as Array<
@@ -118,9 +156,13 @@ export function BookingsManager({
       >,
       visibility
     );
-    if (filter === "all") return byVis;
-    return byVis.filter((b) => b.status === filter);
-  }, [bookings, filter, visibility]);
+    const byService =
+      serviceFilter === "all"
+        ? byVis
+        : byVis.filter((b) => b.service_type === serviceFilter);
+    if (filter === "all") return byService;
+    return byService.filter((b) => b.status === filter);
+  }, [bookings, filter, serviceFilter, visibility]);
 
   const patchBooking = async (
     id: string,
@@ -156,6 +198,12 @@ export function BookingsManager({
             value={filter}
             onChange={(e) => setFilter(e.target.value as BookingStatus | "all")}
             options={[{ value: "all", label: "الكل" }, ...STATUS_OPTIONS]}
+          />
+          <Select
+            label="نوع الخدمة"
+            value={serviceFilter}
+            onChange={(e) => setServiceFilter(e.target.value)}
+            options={[{ value: "all", label: "الكل" }, ...serviceOptions]}
           />
           <div>
             <p className="mb-1.5 text-sm text-muted">العرض</p>
@@ -518,5 +566,19 @@ export function BookingsManager({
         }
       />
     </div>
+  );
+}
+
+export function BookingsManager(props: BookingsManagerProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-beige-dark bg-white p-6 text-sm text-muted">
+          جاري تحميل الحجوزات…
+        </div>
+      }
+    >
+      <BookingsManagerInner {...props} />
+    </Suspense>
   );
 }
