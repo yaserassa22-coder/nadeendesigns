@@ -97,6 +97,9 @@ export default function CheckoutPage() {
   });
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<
+    { id: string; name_ar: string; description_ar: string }[]
+  >([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
@@ -108,20 +111,39 @@ export default function CheckoutPage() {
     Promise.all([
       fetch("/api/settings").then((r) => r.json()),
       fetch("/api/shipping-regions").then((r) => r.json()),
+      fetch("/api/store-settings").then((r) => r.json()).catch(() => null),
     ])
-      .then(([settingsData, regionsData]) => {
+      .then(([settingsData, regionsData, storeData]) => {
         if (cancelled) return;
         const normalized = normalizeSiteSettings(settingsData);
         setSettings(normalized);
         const list = Array.isArray(regionsData) ? regionsData : [];
         setRegions(list);
         setDeliveryMethod(defaultDeliveryMethod(normalized));
+        if (storeData?.payments && Array.isArray(storeData.payments)) {
+          setPaymentMethods(storeData.payments);
+        } else {
+          setPaymentMethods([
+            {
+              id: "cod",
+              name_ar: "الدفع عند الاستلام",
+              description_ar: "ادفعي عند استلام طلبكِ",
+            },
+          ]);
+        }
       })
       .catch(() => {
         if (!cancelled) {
           const normalized = normalizeSiteSettings(null);
           setSettings(normalized);
           setDeliveryMethod(defaultDeliveryMethod(normalized));
+          setPaymentMethods([
+            {
+              id: "cod",
+              name_ar: "الدفع عند الاستلام",
+              description_ar: "ادفعي عند استلام طلبكِ",
+            },
+          ]);
         }
       })
       .finally(() => {
@@ -732,6 +754,36 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {paymentMethods.length > 0 && (
+              <div className="space-y-3 border-t border-beige-dark pt-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-charcoal">
+                    طريقة الدفع
+                  </h2>
+                  <p className="mt-1 text-sm text-muted">
+                    الطرق المتاحة حالياً حسب إعدادات المتجر.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {paymentMethods.map((method) => (
+                    <div
+                      key={method.id}
+                      className="rounded-xl border border-gold/40 bg-gold/5 px-4 py-3 text-sm"
+                    >
+                      <p className="font-medium text-charcoal">
+                        {method.name_ar}
+                      </p>
+                      {method.description_ar ? (
+                        <p className="mt-0.5 text-muted">
+                          {method.description_ar}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

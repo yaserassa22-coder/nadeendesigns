@@ -38,6 +38,7 @@ import {
 } from "@/types";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/shop/CartProvider";
+import { useWishlist } from "@/components/shop/WishlistProvider";
 import { NotificationCenter } from "@/components/layout/NotificationCenter";
 import { LuxuryNavPanel } from "@/components/layout/LuxuryNavPanel";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
@@ -79,6 +80,8 @@ const FALLBACK_ITEMS: NavItem[] = capTopLevelNav([
 
 interface HeaderProps {
   items?: NavItem[];
+  storeName?: string;
+  logoUrl?: string;
 }
 
 function itemHasPanel(item: NavItem): boolean {
@@ -112,7 +115,11 @@ function collectSearchHits(items: NavItem[]): SearchHit[] {
   return hits;
 }
 
-export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
+export function Header({
+  items = FALLBACK_ITEMS,
+  storeName = SITE_NAME,
+  logoUrl,
+}: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -120,6 +127,7 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
   const [panelVariant, setPanelVariant] = useState<"mega" | "compact">("mega");
   const [searchOpen, setSearchOpen] = useState(false);
   const { count } = useCart();
+  const { count: wishlistCount } = useWishlist();
   const { customer, user, openLogin } = useCustomerAuth();
   const baseId = useId();
   const searchHits = useMemo(() => collectSearchHits(items), [items]);
@@ -190,7 +198,11 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
             <Search className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
           </UtilityIconButton>
 
-          <UtilityLink href="/account/wishlist" label="قائمة الأمنيات">
+          <UtilityLink
+            href="/wishlist"
+            label="قائمة الأمنيات"
+            badge={wishlistCount > 0 ? wishlistCount : undefined}
+          >
             <Heart className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
           </UtilityLink>
 
@@ -219,7 +231,7 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
         </div>
 
         {/* Column 2 — logo (never shrinks, never overlapped) */}
-        <BrandLogo scrolled={scrolled} />
+        <BrandLogo scrolled={scrolled} name={storeName} logoUrl={logoUrl} />
 
         {/* Column 3 — primary nav (physical end / right) */}
         <nav
@@ -255,7 +267,12 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
           <Menu className="h-6 w-6" strokeWidth={1.5} />
         </button>
 
-        <BrandLogo scrolled={scrolled} className="justify-self-center" />
+        <BrandLogo
+          scrolled={scrolled}
+          name={storeName}
+          logoUrl={logoUrl}
+          className="justify-self-center"
+        />
 
         <div className="flex shrink-0 items-center justify-self-end gap-0.5 sm:gap-1">
           <UtilityIconButton
@@ -266,8 +283,9 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
             <Search className="h-5 w-5" strokeWidth={1.5} />
           </UtilityIconButton>
           <UtilityLink
-            href="/account/wishlist"
+            href="/wishlist"
             label="قائمة الأمنيات"
+            badge={wishlistCount > 0 ? wishlistCount : undefined}
             className="p-1.5 sm:p-2"
           >
             <Heart className="h-5 w-5" strokeWidth={1.5} />
@@ -314,7 +332,7 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
           >
             <div className="flex items-center justify-between border-b border-beige-dark/60 px-4 py-5">
               <span className="font-[family-name:var(--font-cormorant)] text-2xl tracking-[0.2em] text-gold">
-                {SITE_NAME}
+                {storeName}
               </span>
               <button
                 type="button"
@@ -423,11 +441,12 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
                   احجزي موعدًا
                 </Link>
                 <Link
-                  href="/account/wishlist"
+                  href="/wishlist"
                   onClick={() => setMobileOpen(false)}
                   className="block rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
                 >
                   قائمة الأمنيات
+                  {wishlistCount > 0 ? ` (${wishlistCount})` : ""}
                 </Link>
                 <Link
                   href="/cart"
@@ -468,9 +487,13 @@ export function Header({ items = FALLBACK_ITEMS }: HeaderProps) {
 function BrandLogo({
   scrolled,
   className,
+  name = SITE_NAME,
+  logoUrl,
 }: {
   scrolled: boolean;
   className?: string;
+  name?: string;
+  logoUrl?: string;
 }) {
   return (
     <Link
@@ -480,16 +503,28 @@ function BrandLogo({
         className
       )}
     >
-      <span
-        className={cn(
-          "text-center font-[family-name:var(--font-cormorant)] font-semibold tracking-[0.22em] text-charcoal transition-[font-size,color,letter-spacing] duration-500 group-hover:text-gold",
-          scrolled
-            ? "text-xl sm:text-2xl md:text-[1.65rem]"
-            : "text-2xl sm:text-3xl md:text-[2rem]"
-        )}
-      >
-        {SITE_NAME}
-      </span>
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={name}
+          className={cn(
+            "object-contain transition-[height,width] duration-500",
+            scrolled ? "h-8 sm:h-9" : "h-10 sm:h-12"
+          )}
+        />
+      ) : (
+        <span
+          className={cn(
+            "text-center font-[family-name:var(--font-cormorant)] font-semibold tracking-[0.22em] text-charcoal transition-[font-size,color,letter-spacing] duration-500 group-hover:text-gold",
+            scrolled
+              ? "text-xl sm:text-2xl md:text-[1.65rem]"
+              : "text-2xl sm:text-3xl md:text-[2rem]"
+          )}
+        >
+          {name}
+        </span>
+      )}
       <span className="mt-1 h-px w-0 bg-gold transition-all duration-500 group-hover:w-full" />
     </Link>
   );

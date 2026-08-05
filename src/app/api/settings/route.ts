@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminApi } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
@@ -57,6 +58,9 @@ export async function PUT(request: Request) {
       updated_at: new Date().toISOString(),
     });
     if (error) throw error;
+    revalidatePath("/", "layout");
+    revalidatePath("/checkout");
+    revalidatePath("/contact");
     return NextResponse.json({ success: true, settings: merged });
   } catch (e) {
     const message =

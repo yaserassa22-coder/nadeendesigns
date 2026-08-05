@@ -1,0 +1,583 @@
+import {
+  DEFAULT_PAYMENT_PROVIDERS,
+  DEFAULT_STORE_INTEGRATIONS,
+  DEFAULT_STORE_SETTINGS,
+  type StoreAuthSettings,
+  type StoreContactSettings,
+  type StoreGeneralSettings,
+  type StoreHomepageSettings,
+  type StoreIntegrationStub,
+  type StoreNotificationChannelSettings,
+  type StorePaymentProvider,
+  type StoreSecuritySettings,
+  type StoreSeoSettings,
+  type StoreSettings,
+  type StoreSettingsSection,
+  type StoreShippingSettings,
+  type StoreSocialSettings,
+} from "@/types/store";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  getCustomerAuthSettings,
+  mergeCustomerAuthSettings,
+  saveCustomerAuthSettings,
+} from "@/lib/customer-auth/settings";
+import {
+  mergeSiteSettingsPatch,
+  normalizeSiteSettings,
+} from "@/lib/settings";
+import { DEFAULT_SETTINGS } from "@/lib/constants";
+import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import type { SiteSettings } from "@/types";
+
+export const STORE_SETTINGS_KEY = "store";
+
+let cached: StoreSettings | null = null;
+let cachedAt = 0;
+const CACHE_MS = 30_000;
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function bool(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function num(value: unknown, fallback: number, min = 0): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, n);
+}
+
+function str(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function normalizeProvider(
+  raw: unknown,
+  fallback: StorePaymentProvider
+): StorePaymentProvider {
+  const src = asObject(raw);
+  return {
+    id: str(src.id, fallback.id),
+    name: str(src.name, fallback.name),
+    name_ar: str(src.name_ar, fallback.name_ar),
+    enabled: bool(src.enabled, fallback.enabled),
+    coming_soon: bool(src.coming_soon, fallback.coming_soon),
+    sort_order: Math.floor(num(src.sort_order, fallback.sort_order)),
+    icon: str(src.icon, fallback.icon),
+    description: str(src.description, fallback.description),
+    description_ar: str(src.description_ar, fallback.description_ar),
+    configuration: asObject(src.configuration),
+    secret_env_ref:
+      src.secret_env_ref === null
+        ? null
+        : str(src.secret_env_ref, fallback.secret_env_ref ?? ""),
+    configured: bool(src.configured, fallback.configured),
+  };
+}
+
+function normalizeProviders(raw: unknown): StorePaymentProvider[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const byId = new Map<string, unknown>();
+  for (const item of list) {
+    const id = str(asObject(item).id, "");
+    if (id) byId.set(id, item);
+  }
+
+  const merged = DEFAULT_PAYMENT_PROVIDERS.map((def) =>
+    normalizeProvider(byId.get(def.id) ?? def, def)
+  );
+
+  // Preserve any custom providers admin may have added
+  for (const item of list) {
+    const id = str(asObject(item).id, "");
+    if (!id || DEFAULT_PAYMENT_PROVIDERS.some((d) => d.id === id)) continue;
+    merged.push(
+      normalizeProvider(item, {
+        ...DEFAULT_PAYMENT_PROVIDERS[0],
+        id,
+        enabled: false,
+        coming_soon: true,
+        configured: false,
+      })
+    );
+  }
+
+  return merged.sort((a, b) => a.sort_order - b.sort_order);
+}
+
+function normalizeIntegrations(raw: unknown): StoreIntegrationStub[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const byId = new Map<string, unknown>();
+  for (const item of list) {
+    const id = str(asObject(item).id, "");
+    if (id) byId.set(id, item);
+  }
+
+  return DEFAULT_STORE_INTEGRATIONS.map((def) => {
+    const src = asObject(byId.get(def.id) ?? {});
+    return {
+      id: def.id,
+      name: str(src.name, def.name),
+      enabled: bool(src.enabled, def.enabled),
+      coming_soon: bool(src.coming_soon, def.coming_soon),
+      configured: bool(src.configured, def.configured),
+      env_refs: Array.isArray(src.env_refs)
+        ? (src.env_refs as unknown[]).filter(
+            (x): x is string => typeof x === "string"
+          )
+        : def.env_refs,
+      notes: str(src.notes, def.notes),
+    };
+  });
+}
+
+function normalizeGeneral(raw: unknown): StoreGeneralSettings {
+  const d = DEFAULT_STORE_SETTINGS.general;
+  const s = asObject(raw);
+  return {
+    store_name: str(s.store_name, d.store_name),
+    description: str(s.description, d.description),
+    description_ar: str(s.description_ar, d.description_ar),
+    logo_url: str(s.logo_url, d.logo_url),
+    favicon_url: str(s.favicon_url, d.favicon_url),
+    business_email: str(s.business_email, d.business_email),
+    business_phone: str(s.business_phone, d.business_phone),
+    business_address: str(s.business_address, d.business_address),
+    business_address_ar: str(s.business_address_ar, d.business_address_ar),
+    working_hours: str(s.working_hours, d.working_hours),
+    working_hours_ar: str(s.working_hours_ar, d.working_hours_ar),
+    currency: str(s.currency, d.currency),
+    language: str(s.language, d.language),
+    timezone: str(s.timezone, d.timezone),
+  };
+}
+
+function normalizeShipping(raw: unknown): StoreShippingSettings {
+  const d = DEFAULT_STORE_SETTINGS.shipping;
+  const s = asObject(raw);
+  return {
+    shipping_enabled: bool(s.shipping_enabled, d.shipping_enabled),
+    shipping_flat_fee: num(s.shipping_flat_fee, d.shipping_flat_fee),
+    shipping_free_threshold: num(
+      s.shipping_free_threshold,
+      d.shipping_free_threshold
+    ),
+    boutique_pickup_enabled: bool(
+      s.boutique_pickup_enabled,
+      d.boutique_pickup_enabled
+    ),
+    delivery_enabled: bool(s.delivery_enabled, d.delivery_enabled),
+    estimated_delivery_ar: str(
+      s.estimated_delivery_ar,
+      d.estimated_delivery_ar
+    ),
+  };
+}
+
+function normalizeContact(raw: unknown): StoreContactSettings {
+  const d = DEFAULT_STORE_SETTINGS.contact;
+  const s = asObject(raw);
+  return {
+    phone: str(s.phone, d.phone),
+    email: str(s.email, d.email),
+    whatsapp: str(s.whatsapp, d.whatsapp),
+    instagram_url: str(s.instagram_url, d.instagram_url),
+    facebook_url: str(s.facebook_url, d.facebook_url),
+    tiktok_url: str(s.tiktok_url, d.tiktok_url),
+    location_ar: str(s.location_ar, d.location_ar),
+    google_maps_url: str(s.google_maps_url, d.google_maps_url),
+  };
+}
+
+function normalizeSocial(raw: unknown): StoreSocialSettings {
+  const d = DEFAULT_STORE_SETTINGS.social;
+  const s = asObject(raw);
+  return {
+    instagram_url: str(s.instagram_url, d.instagram_url),
+    facebook_url: str(s.facebook_url, d.facebook_url),
+    tiktok_url: str(s.tiktok_url, d.tiktok_url),
+    pinterest_url: str(s.pinterest_url, d.pinterest_url),
+    youtube_url: str(s.youtube_url, d.youtube_url),
+  };
+}
+
+function normalizeHomepage(raw: unknown): StoreHomepageSettings {
+  const d = DEFAULT_STORE_SETTINGS.homepage;
+  const s = asObject(raw);
+  return {
+    hero: bool(s.hero, d.hero),
+    featured_categories: bool(s.featured_categories, d.featured_categories),
+    featured_products: bool(s.featured_products, d.featured_products),
+    collections: bool(s.collections, d.collections),
+    testimonials: bool(s.testimonials, d.testimonials),
+    instagram: bool(s.instagram, d.instagram),
+    newsletter: bool(s.newsletter, d.newsletter),
+  };
+}
+
+function normalizeAuth(raw: unknown): StoreAuthSettings {
+  const d = DEFAULT_STORE_SETTINGS.authentication;
+  const s = asObject(raw);
+  return {
+    guest_checkout_enabled: bool(
+      s.guest_checkout_enabled,
+      d.guest_checkout_enabled
+    ),
+    google_enabled: bool(s.google_enabled, d.google_enabled),
+    apple_enabled: bool(s.apple_enabled, d.apple_enabled),
+    email_password_enabled: bool(
+      s.email_password_enabled,
+      d.email_password_enabled
+    ),
+    phone_otp_enabled: bool(s.phone_otp_enabled, d.phone_otp_enabled),
+    registration_enabled: bool(s.registration_enabled, d.registration_enabled),
+  };
+}
+
+function normalizeNotifications(
+  raw: unknown
+): StoreNotificationChannelSettings {
+  const d = DEFAULT_STORE_SETTINGS.notifications;
+  const s = asObject(raw);
+  return {
+    email_enabled: bool(s.email_enabled, d.email_enabled),
+    whatsapp_enabled: bool(s.whatsapp_enabled, d.whatsapp_enabled),
+    sms_enabled: bool(s.sms_enabled, d.sms_enabled),
+    sms_coming_soon: bool(s.sms_coming_soon, d.sms_coming_soon),
+  };
+}
+
+function normalizeSeo(raw: unknown): StoreSeoSettings {
+  const d = DEFAULT_STORE_SETTINGS.seo;
+  const s = asObject(raw);
+  return {
+    title: str(s.title, d.title),
+    description: str(s.description, d.description),
+    keywords: str(s.keywords, d.keywords),
+    og_image_url: str(s.og_image_url, d.og_image_url),
+    robots_index: bool(s.robots_index, d.robots_index),
+    robots_follow: bool(s.robots_follow, d.robots_follow),
+    google_analytics_id: str(s.google_analytics_id, d.google_analytics_id),
+    meta_pixel_id: str(s.meta_pixel_id, d.meta_pixel_id),
+  };
+}
+
+function normalizeSecurity(raw: unknown): StoreSecuritySettings {
+  const d = DEFAULT_STORE_SETTINGS.security;
+  const s = asObject(raw);
+  const status = str(s.backup_status, d.backup_status);
+  const backup_status =
+    status === "ok" ||
+    status === "warning" ||
+    status === "error" ||
+    status === "unknown"
+      ? status
+      : d.backup_status;
+  return {
+    session_timeout_minutes: Math.min(
+      1440,
+      Math.max(5, Math.floor(num(s.session_timeout_minutes, d.session_timeout_minutes, 5)))
+    ),
+    maintenance_mode: bool(s.maintenance_mode, d.maintenance_mode),
+    backup_status,
+    backup_last_at:
+      s.backup_last_at === null
+        ? null
+        : str(s.backup_last_at, d.backup_last_at ?? ""),
+    backup_note: str(s.backup_note, d.backup_note),
+  };
+}
+
+/** Fill missing keys from defaults; preserve admin-saved empty strings. */
+export function normalizeStoreSettings(
+  raw?: Partial<StoreSettings> | null
+): StoreSettings {
+  const src = asObject(raw);
+  const payments = asObject(src.payments);
+  return {
+    general: normalizeGeneral(src.general),
+    payments: {
+      providers: normalizeProviders(payments.providers),
+    },
+    shipping: normalizeShipping(src.shipping),
+    contact: normalizeContact(src.contact),
+    social: normalizeSocial(src.social),
+    homepage: normalizeHomepage(src.homepage),
+    authentication: normalizeAuth(src.authentication),
+    notifications: normalizeNotifications(src.notifications),
+    seo: normalizeSeo(src.seo),
+    security: normalizeSecurity(src.security),
+    integrations: normalizeIntegrations(src.integrations),
+  };
+}
+
+/**
+ * Merge-safe patch: shallow-spread top level, deep-merge known section bags
+ * and payment providers by id so concurrent section saves never clobber.
+ */
+export function mergeStoreSettingsPatch(
+  current: StoreSettings,
+  patch: Partial<StoreSettings>
+): StoreSettings {
+  const next: StoreSettings = {
+    ...current,
+    general: patch.general
+      ? { ...current.general, ...patch.general }
+      : current.general,
+    payments: patch.payments
+      ? {
+          providers: normalizeProviders(
+            patch.payments.providers ?? current.payments.providers
+          ),
+        }
+      : current.payments,
+    shipping: patch.shipping
+      ? { ...current.shipping, ...patch.shipping }
+      : current.shipping,
+    contact: patch.contact
+      ? { ...current.contact, ...patch.contact }
+      : current.contact,
+    social: patch.social
+      ? { ...current.social, ...patch.social }
+      : current.social,
+    homepage: patch.homepage
+      ? { ...current.homepage, ...patch.homepage }
+      : current.homepage,
+    authentication: patch.authentication
+      ? { ...current.authentication, ...patch.authentication }
+      : current.authentication,
+    notifications: patch.notifications
+      ? { ...current.notifications, ...patch.notifications }
+      : current.notifications,
+    seo: patch.seo ? { ...current.seo, ...patch.seo } : current.seo,
+    security: patch.security
+      ? { ...current.security, ...patch.security }
+      : current.security,
+    integrations: patch.integrations
+      ? normalizeIntegrations(patch.integrations)
+      : current.integrations,
+  };
+  return normalizeStoreSettings(next);
+}
+
+export async function getStoreSettings(force = false): Promise<StoreSettings> {
+  const now = Date.now();
+  if (!force && cached && now - cachedAt < CACHE_MS) return cached;
+
+  if (!isSupabaseConfigured()) {
+    cached = DEFAULT_STORE_SETTINGS;
+    cachedAt = now;
+    return cached;
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", STORE_SETTINGS_KEY)
+      .maybeSingle();
+
+    let settings = normalizeStoreSettings(
+      (data?.value as Partial<StoreSettings> | null) ?? null
+    );
+
+    // Hydrate shipping/contact from live `site` when store bag is still default-ish
+    // so admin UI reflects what storefront already shows.
+    try {
+      const { data: siteRow } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "site")
+        .maybeSingle();
+      if (siteRow?.value) {
+        const site = normalizeSiteSettings(siteRow.value as SiteSettings);
+        settings = hydrateFromSite(settings, site);
+      }
+    } catch {
+      /* site hydrate optional */
+    }
+
+    try {
+      const auth = await getCustomerAuthSettings(true);
+      settings = {
+        ...settings,
+        authentication: {
+          guest_checkout_enabled: auth.guest_checkout_enabled,
+          google_enabled: auth.google_enabled,
+          apple_enabled: auth.apple_enabled,
+          email_password_enabled: auth.email_password_enabled,
+          phone_otp_enabled: auth.otp_enabled,
+          registration_enabled: settings.authentication.registration_enabled,
+        },
+      };
+    } catch {
+      /* auth hydrate optional */
+    }
+
+    cached = settings;
+    cachedAt = now;
+    return cached;
+  } catch {
+    return DEFAULT_STORE_SETTINGS;
+  }
+}
+
+function hydrateFromSite(
+  store: StoreSettings,
+  site: SiteSettings
+): StoreSettings {
+  return {
+    ...store,
+    shipping: {
+      ...store.shipping,
+      shipping_enabled: site.shipping_enabled,
+      shipping_flat_fee: site.shipping_flat_fee,
+      shipping_free_threshold: site.shipping_free_threshold,
+      boutique_pickup_enabled: site.boutique_pickup_enabled,
+      delivery_enabled: site.delivery_enabled,
+    },
+    contact: {
+      ...store.contact,
+      phone: site.phone || store.contact.phone,
+      email: site.email || store.contact.email,
+      whatsapp: site.whatsapp || store.contact.whatsapp,
+      instagram_url: site.instagram_url || store.contact.instagram_url,
+      location_ar: site.address_ar || store.contact.location_ar,
+    },
+    general: {
+      ...store.general,
+      business_email: site.email || store.general.business_email,
+      business_phone: site.phone || store.general.business_phone,
+      business_address_ar:
+        site.address_ar || store.general.business_address_ar,
+      working_hours_ar: site.working_hours_ar || store.general.working_hours_ar,
+    },
+  };
+}
+
+async function loadSiteSettings(): Promise<SiteSettings> {
+  if (!isSupabaseConfigured()) {
+    return normalizeSiteSettings(DEFAULT_SETTINGS);
+  }
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "site")
+    .maybeSingle();
+  if (!data?.value) return normalizeSiteSettings(DEFAULT_SETTINGS);
+  return normalizeSiteSettings(data.value as SiteSettings);
+}
+
+async function saveSitePatch(patch: Partial<SiteSettings>): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const current = await loadSiteSettings();
+  const merged = mergeSiteSettingsPatch(current, patch);
+  const supabase = await createPrivilegedClient();
+  const { error } = await supabase.from("settings").upsert({
+    key: "site",
+    value: merged,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+}
+
+/**
+ * Persist store settings and sync overlapping domains into existing keys
+ * (`site` shipping/contact, `customer_auth`) so checkout/CMS keep working.
+ */
+export async function saveStoreSettings(
+  value: StoreSettings,
+  sections?: StoreSettingsSection[]
+): Promise<StoreSettings> {
+  const merged = normalizeStoreSettings(value);
+  const touchAll = !sections || sections.length === 0;
+  const touch = (s: StoreSettingsSection) => touchAll || sections.includes(s);
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createPrivilegedClient();
+    const { error } = await supabase.from("settings").upsert({
+      key: STORE_SETTINGS_KEY,
+      value: merged,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+  }
+
+  if (touch("shipping") || touch("contact") || touch("general") || touch("social")) {
+    const sitePatch: Partial<SiteSettings> = {};
+    if (touch("shipping")) {
+      sitePatch.shipping_enabled = merged.shipping.shipping_enabled;
+      sitePatch.shipping_flat_fee = merged.shipping.shipping_flat_fee;
+      sitePatch.shipping_free_threshold = merged.shipping.shipping_free_threshold;
+      sitePatch.boutique_pickup_enabled =
+        merged.shipping.boutique_pickup_enabled;
+      sitePatch.delivery_enabled = merged.shipping.delivery_enabled;
+    }
+    if (touch("contact") || touch("general")) {
+      sitePatch.phone =
+        merged.contact.phone || merged.general.business_phone;
+      sitePatch.email =
+        merged.contact.email || merged.general.business_email;
+      sitePatch.whatsapp = merged.contact.whatsapp;
+      sitePatch.address_ar =
+        merged.contact.location_ar || merged.general.business_address_ar;
+      sitePatch.working_hours_ar = merged.general.working_hours_ar;
+    }
+    if (touch("social") || touch("contact")) {
+      const ig =
+        merged.social.instagram_url || merged.contact.instagram_url;
+      if (ig) {
+        sitePatch.instagram_url = ig;
+        try {
+          const handle = new URL(ig).pathname.replace(/\//g, "");
+          if (handle) sitePatch.instagram_handle = `@${handle}`;
+        } catch {
+          /* ignore invalid url */
+        }
+      }
+    }
+    await saveSitePatch(sitePatch);
+  }
+
+  if (touch("authentication")) {
+    const currentAuth = await getCustomerAuthSettings(true);
+    await saveCustomerAuthSettings(
+      mergeCustomerAuthSettings({
+        ...currentAuth,
+        guest_checkout_enabled: merged.authentication.guest_checkout_enabled,
+        google_enabled: merged.authentication.google_enabled,
+        apple_enabled: merged.authentication.apple_enabled,
+        email_password_enabled: merged.authentication.email_password_enabled,
+        otp_enabled: merged.authentication.phone_otp_enabled,
+      })
+    );
+  }
+
+  cached = merged;
+  cachedAt = Date.now();
+  return merged;
+}
+
+export function invalidateStoreSettingsCache() {
+  cached = null;
+  cachedAt = 0;
+}
+
+/** Public storefront brand helpers */
+export function getEnabledPaymentProviders(settings: StoreSettings) {
+  return settings.payments.providers
+    .filter((p) => p.enabled && !p.coming_soon)
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+export function getStoreDisplayName(settings: StoreSettings): string {
+  return settings.general.store_name.trim() || DEFAULT_STORE_SETTINGS.general.store_name;
+}

@@ -1,24 +1,23 @@
 import type { Metadata } from "next";
-import { SettingsForm } from "@/components/admin/SettingsForm";
-import { CustomerAuthSettingsForm } from "@/components/admin/CustomerAuthSettingsForm";
-import { getAdminSettings } from "@/lib/admin/data";
+import { StoreSettingsPanel } from "@/components/admin/StoreSettingsPanel";
+import { getStoreSettings } from "@/lib/store/settings";
 import { isCloudinaryConfigured } from "@/lib/supabase/env";
 
 export const metadata: Metadata = {
-  title: "إعدادات الموقع",
+  title: "إعدادات المتجر",
 };
 
 export default async function AdminSettingsPage() {
-  const settings = await getAdminSettings();
+  const settings = await getStoreSettings(true);
   const cloudinaryReady = isCloudinaryConfigured();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-charcoal">إعدادات الموقع</h1>
+        <h1 className="text-3xl font-bold text-charcoal">إعدادات المتجر</h1>
         <p className="mt-2 text-muted">
-          بيانات التواصل، الشحن، وروابط التواصل الاجتماعي. محتوى الهيرو وصفحة من
-          نحن من قائمة المحتوى.
+          إدارة مركزية للمتجر من قاعدة البيانات — الاسم، التواصل، الدفع، الشحن،
+          SEO، والصحة. لا حاجة لتعديل الكود لتفعيل الميزات.
         </p>
       </div>
 
@@ -31,8 +30,7 @@ export default async function AdminSettingsPage() {
         </div>
       )}
 
-      <SettingsForm initialSettings={settings} />
-      <CustomerAuthSettingsForm />
+      <StoreSettingsPanel initialSettings={settings} />
     </div>
   );
 }

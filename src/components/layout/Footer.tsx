@@ -12,10 +12,32 @@ import {
 interface FooterProps {
   settings: SiteSettings;
   navLinks?: NavLink[];
+  storeName?: string;
+  logoUrl?: string;
+  social?: {
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+  };
 }
 
-export function Footer({ settings, navLinks }: FooterProps) {
+export function Footer({
+  settings,
+  navLinks,
+  storeName = SITE_NAME,
+  logoUrl,
+  social,
+}: FooterProps) {
   const links = navLinks?.length ? navLinks : [...NAV_LINKS];
+  const instagramUrl =
+    social?.instagram || settings.instagram_url || OFFICIAL_INSTAGRAM_URL;
+  let instagramHandle = OFFICIAL_INSTAGRAM_HANDLE;
+  try {
+    const path = new URL(instagramUrl).pathname.replace(/\//g, "");
+    if (path) instagramHandle = `@${path}`;
+  } catch {
+    /* keep default */
+  }
 
   return (
     <footer className="border-t border-beige-dark bg-charcoal text-ivory">
@@ -23,9 +45,18 @@ export function Footer({ settings, navLinks }: FooterProps) {
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link href="/">
-              <span className="font-[family-name:var(--font-cormorant)] text-2xl font-semibold tracking-widest text-gold">
-                {SITE_NAME}
-              </span>
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt={storeName}
+                  className="h-10 object-contain"
+                />
+              ) : (
+                <span className="font-[family-name:var(--font-cormorant)] text-2xl font-semibold tracking-widest text-gold">
+                  {storeName}
+                </span>
+              )}
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-ivory/70">
               {settings.about_ar.slice(0, 120)}...
@@ -78,20 +109,20 @@ export function Footer({ settings, navLinks }: FooterProps) {
             </h3>
             <p className="text-sm text-ivory/70">{settings.working_hours_ar}</p>
             <a
-              href={OFFICIAL_INSTAGRAM_URL}
+              href={instagramUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-6 inline-flex items-center gap-2 text-sm text-gold transition-colors hover:text-gold-light"
             >
               <Camera className="h-5 w-5" />
-              <span dir="ltr">{OFFICIAL_INSTAGRAM_HANDLE}</span>
+              <span dir="ltr">{instagramHandle}</span>
             </a>
           </div>
         </div>
 
         <div className="decorative-line mt-12 opacity-30" />
         <p className="mt-8 text-center text-xs text-ivory/50">
-          © {new Date().getFullYear()} {SITE_NAME}. جميع الحقوق محفوظة.
+          © {new Date().getFullYear()} {storeName}. جميع الحقوق محفوظة.
         </p>
       </div>
     </footer>

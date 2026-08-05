@@ -54,7 +54,7 @@ const LINKS_AFTER_CATEGORIES = [
   { href: "/admin/trash", label: "🗑️ سلة المحذوفات" },
   { href: "/admin/content/home", label: "🏠 محتوى الرئيسية" },
   { href: "/admin/content/about", label: "📖 محتوى من نحن" },
-  { href: "/admin/settings", label: "⚙️ الإعدادات" },
+  { href: "/admin/settings", label: "⚙️ إعدادات المتجر" },
 ] as const;
 
 function isLinkActive(
