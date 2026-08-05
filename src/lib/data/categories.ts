@@ -15,15 +15,23 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 /** Ensure new columns exist on rows from older DB schemas. */
 export function normalizeCategoryRow(row: Category): Category {
+  // Leaf categories must not use accessories_group — that kind is only for the
+  // bridal-accessories container. Children (e.g. سنسال) are product-assignable.
+  const rawKind =
+    (row.product_kind as CategoryProductKind | null) ??
+    resolveCategoryProductKind(row);
+  const product_kind: CategoryProductKind | null =
+    rawKind === "accessories_group" && row.parent_id
+      ? "dress"
+      : rawKind;
+
   return {
     ...row,
     // Pre-033 DBs omit these — treat as enabled so existing catalogs keep working.
     visible_in_navigation: row.visible_in_navigation !== false,
     show_on_homepage: row.show_on_homepage !== false,
     featured_collection: row.featured_collection === true,
-    product_kind:
-      (row.product_kind as CategoryProductKind | null) ??
-      resolveCategoryProductKind(row),
+    product_kind,
     seo_title_ar: row.seo_title_ar ?? null,
     seo_description_ar: row.seo_description_ar ?? null,
     seo_og_image_url: row.seo_og_image_url ?? null,

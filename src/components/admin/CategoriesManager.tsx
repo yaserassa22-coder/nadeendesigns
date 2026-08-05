@@ -37,6 +37,15 @@ const emptyForm = {
   seo_og_image_url: "" as string,
 };
 
+/** accessories_group is container-only; leaf rows stay product-assignable. */
+function coerceLeafProductKind(
+  productKind: string,
+  parentId: string
+): string {
+  if (productKind === "accessories_group" && parentId) return "dress";
+  return productKind || "dress";
+}
+
 export function CategoriesManager({ initialCategories }: CategoriesManagerProps) {
   const router = useRouter();
   const [categories, setCategories] = useState(initialCategories);
@@ -130,7 +139,10 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         cover_image_url: form.cover_image_url || null,
         description_ar: form.description_ar,
         href: form.href.trim() || `/${form.slug.trim().toLowerCase()}`,
-        product_kind: form.product_kind || "dress",
+        product_kind: coerceLeafProductKind(
+          form.product_kind,
+          form.parent_id
+        ),
         seo_title_ar: form.seo_title_ar.trim() || null,
         seo_description_ar: form.seo_description_ar.trim() || null,
         seo_og_image_url: form.seo_og_image_url || null,

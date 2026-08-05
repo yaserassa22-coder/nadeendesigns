@@ -12,7 +12,10 @@ import {
 import { Pencil, Plus } from "lucide-react";
 import type { Dress } from "@/types";
 import type { Category } from "@/types/category";
-import { selectDressAssignableCategories } from "@/types/category";
+import {
+  dressAssignableFrom,
+  fetchAdminCategories,
+} from "@/lib/admin/fetch-admin-categories";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { formatPrice } from "@/lib/utils";
@@ -73,12 +76,8 @@ function DressesManagerInner({
     DEFAULT_STORE_SETTINGS.general.currency
   );
 
-  // Sync when server props refresh after category create / router.refresh().
-  const [categoriesProp, setCategoriesProp] = useState(initialCategories);
-  if (initialCategories !== categoriesProp) {
-    setCategoriesProp(initialCategories);
-    setCategories(initialCategories);
-  }
+  // Dresses may refresh from RSC; categories always come from /api/categories
+  // after mount — never clobber live refetch with a stale initialCategories snapshot.
   const [dressesProp, setDressesProp] = useState(initialDresses);
   if (initialDresses !== dressesProp) {
     setDressesProp(initialDresses);
@@ -86,15 +85,7 @@ function DressesManagerInner({
   }
 
   const dressCategories = useMemo(
-    () => selectDressAssignableCategories(categories),
-    [categories]
-  );
-
-  const collectionCategories = useMemo(
-    () =>
-      categories.filter(
-        (c) => c.featured_collection || c.show_on_homepage
-      ),
+    () => dressAssignableFrom(categories),
     [categories]
   );
 
@@ -157,30 +148,18 @@ function DressesManagerInner({
 
   const refetchCategories = useCallback(async (): Promise<Category[]> => {
     try {
-      const res = await fetch("/api/categories", { cache: "no-store" });
-      if (!res.ok) {
-        return await new Promise<Category[]>((resolve) => {
-          setCategories((prev) => {
-            resolve(prev);
-            return prev;
-          });
-        });
-      }
-      const data = (await res.json()) as Category[];
-      if (Array.isArray(data)) {
-        setCategories(data);
-        return data;
-      }
+      const data = await fetchAdminCategories();
+      setCategories(data);
+      return data;
     } catch {
-      /* keep current */
-    }
-    return await new Promise<Category[]>((resolve) => {
-      setCategories((prev) => {
-        resolve(prev);
-        return prev;
+      return await new Promise<Category[]>((resolve) => {
+        setCategories((prev) => {
+          resolve(prev);
+          return prev;
+        });
       });
-    });
-  }, [setCategories]);
+    }
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -261,7 +240,8 @@ function DressesManagerInner({
   const openCreate = async () => {
     setEditing(null);
     setError("");
-    const fresh = selectDressAssignableCategories(await refetchCategories());
+    // Same query as Edit / ProductEditorModal — GET /api/categories
+    const fresh = dressAssignableFrom(await refetchCategories());
     const defaultCategory =
       resolvedLockId ??
       (categoryFilter !== "all" ? categoryFilter : fresh[0]?.id ?? "");
@@ -273,7 +253,8 @@ function DressesManagerInner({
   const openEdit = async (dress: Dress) => {
     setEditing(dress);
     setError("");
-    const fresh = selectDressAssignableCategories(await refetchCategories());
+    // Same query as Create / ProductEditorModal — GET /api/categories
+    const fresh = dressAssignableFrom(await refetchCategories());
     const base = dressToForm(dress, fresh);
     setForm(loadDressFormDraft(dress.id) ?? base);
     setOpen(true);
@@ -295,13 +276,14 @@ function DressesManagerInner({
     });
   }, []);
 
-  const handleCreated = useCallback(
-    (dress: Dress) => {
-      setEditing(dress);
-      setForm(dressToForm(dress, dressCategories));
-    },
-    [dressCategories]
-  );
+  const handleCreated = useCallback((dress: Dress) => {
+    setEditing(dress);
+    setForm((prev) => {
+      // Prefer current form category; resolve against live state list
+      const next = dressToForm(dress, dressAssignableFrom(categories));
+      return { ...next, category_id: prev.category_id || next.category_id };
+    });
+  }, [categories]);
 
   const lockedLabel =
     dressCategories.find((c) => c.id === resolvedLockId)?.name_ar ?? "تصنيف مقفل";
@@ -543,8 +525,6 @@ function DressesManagerInner({
           editing={editing}
           form={form}
           setForm={setForm}
-          dressCategories={dressCategories}
-          collectionCategories={collectionCategories}
           lockedCategoryId={resolvedLockId}
           lockedLabel={lockedLabel}
           currencyCode={currencyCode}

@@ -33,6 +33,11 @@ import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { X } from "lucide-react";
+import {
+  collectionCategoriesFrom,
+  dressAssignableFrom,
+  fetchAdminCategories,
+} from "@/lib/admin/fetch-admin-categories";
 
 export type ProductEditorTab =
   | "general"
@@ -235,8 +240,6 @@ interface ProductEditorModalProps {
   editing: Dress | null;
   form: DressFormState;
   setForm: Dispatch<SetStateAction<DressFormState>>;
-  dressCategories: Category[];
-  collectionCategories: Category[];
   lockedCategoryId?: string;
   lockedLabel: string;
   currencyCode: string;
@@ -253,8 +256,6 @@ export function ProductEditorModal({
   editing,
   form,
   setForm,
-  dressCategories,
-  collectionCategories,
   lockedCategoryId,
   lockedLabel,
   currencyCode,
@@ -268,9 +269,12 @@ export function ProductEditorModal({
   const [saving, setSaving] = useState(false);
   const [autosaveStatus, setAutosaveStatus] =
     useState<AutosaveUiStatus>("idle");
+  const [liveCategories, setLiveCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const skipFirstAutosave = useRef(true);
   const formRef = useRef(form);
   const editingRef = useRef(editing);
+  const liveCategoriesRef = useRef(liveCategories);
 
   useEffect(() => {
     formRef.current = form;
@@ -279,6 +283,35 @@ export function ProductEditorModal({
   useEffect(() => {
     editingRef.current = editing;
   }, [editing]);
+
+  useEffect(() => {
+    liveCategoriesRef.current = liveCategories;
+  }, [liveCategories]);
+
+  // Always reload categories from /api/categories when the editor opens
+  // (Create and Edit share this exact path — no parent snapshots).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setCategoriesLoading(true);
+    void (async () => {
+      try {
+        const rows = await fetchAdminCategories();
+        if (cancelled) return;
+        setLiveCategories(rows);
+      } catch {
+        if (!cancelled) setLiveCategories([]);
+      } finally {
+        if (!cancelled) setCategoriesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, editing?.id]);
+
+  const dressCategories = dressAssignableFrom(liveCategories);
+  const collectionCategories = collectionCategoriesFrom(liveCategories);
 
   const draftId = editing?.id ?? "new";
   const storageKey = productDraftStorageKey(draftId);
@@ -325,7 +358,7 @@ export function ProductEditorModal({
         const dress = data as Dress;
         writeLocalDraft(
           productDraftStorageKey(dress.id),
-          dressToForm(dress, dressCategories)
+          dressToForm(dress, dressAssignableFrom(liveCategoriesRef.current))
         );
         if (isCreate) {
           clearLocalDraft(productDraftStorageKey("new"));
@@ -354,7 +387,6 @@ export function ProductEditorModal({
     [
       lockedCategoryId,
       storageKey,
-      dressCategories,
       onCreated,
       onSaved,
       onClose,
@@ -676,10 +708,22 @@ export function ProductEditorModal({
                   label="التصنيف"
                   value={form.category_id}
                   onChange={(e) => patch({ category_id: e.target.value })}
-                  options={dressCategories.map((c) => ({
-                    value: c.id,
-                    label: c.name_ar,
-                  }))}
+                  disabled={categoriesLoading && dressCategories.length === 0}
+                  options={
+                    dressCategories.length > 0
+                      ? dressCategories.map((c) => ({
+                          value: c.id,
+                          label: c.name_ar,
+                        }))
+                      : [
+                          {
+                            value: form.category_id || "",
+                            label: categoriesLoading
+                              ? "جاري تحميل التصنيفات…"
+                              : "— لا توجد تصنيفات —",
+                          },
+                        ]
+                  }
                 />
               )}
               <Select
