@@ -264,36 +264,35 @@ export function slugifyCategory(input: string): string {
     .replace(/^-|-$/g, "");
 }
 
-/** Normalize optional product_kind from DB (missing column → infer from legacy_key). */
+/** Normalize optional product_kind from DB (missing column → infer from legacy_key / slug). */
 export function resolveCategoryProductKind(
-  category: Pick<Category, "product_kind" | "legacy_key">
+  category: Pick<Category, "product_kind" | "legacy_key"> & {
+    slug?: string | null;
+  }
 ): CategoryProductKind | null {
   if (category.product_kind) return category.product_kind;
-  const key = category.legacy_key;
-  if (!key) return null;
-  if (
-    key === "wedding" ||
-    key === "rental" ||
-    key === "custom_design" ||
-    key === "nouf_dresses"
-  ) {
+  const keys = [category.legacy_key, category.slug]
+    .map((v) => v?.trim().toLowerCase())
+    .filter((v): v is string => Boolean(v));
+  if (keys.length === 0) return null;
+
+  const is = (...candidates: string[]) =>
+    keys.some((key) => {
+      const hyphen = key.replace(/_/g, "-");
+      const underscore = key.replace(/-/g, "_");
+      return candidates.some(
+        (c) => key === c || hyphen === c || underscore === c
+      );
+    });
+
+  if (is("wedding", "wedding_dress", "wedding-dresses", "rental", "custom_design", "nouf_dresses", "nouf_dress", "nouf-dresses")) {
     return "dress";
   }
-  if (key === "veils" || key === "veil") return "veil";
-  if (
-    key === "bridal_robes" ||
-    key === "bridal_robe" ||
-    key === "bridal_cape" ||
-    key === "robes" ||
-    key === "robe"
-  ) {
+  if (is("veils", "veil")) return "veil";
+  if (is("bridal_robes", "bridal_robe", "bridal_cape", "robes", "robe")) {
     return "bridal_robe";
   }
-  if (
-    key === "bridal_accessories" ||
-    key === "bridal-accessories" ||
-    key === "accessories"
-  ) {
+  if (is("bridal_accessories", "bridal-accessories", "accessories")) {
     return "accessories_group";
   }
   return null;
