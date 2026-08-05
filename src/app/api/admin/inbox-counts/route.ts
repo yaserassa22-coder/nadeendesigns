@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth";
-import { isLifecycleSchemaError } from "@/lib/admin/query-lifecycle";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isMissingTableError } from "@/lib/supabase/errors";
+import {
+  isLifecycleSchemaError,
+  isMissingTableError,
+} from "@/lib/supabase/errors";
 
 /**
  * Unread / pending counters for Admin sidebar badges.

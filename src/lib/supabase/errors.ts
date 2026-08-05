@@ -46,6 +46,18 @@ export function isMissingColumnError(error: unknown, column?: string): boolean {
   return new RegExp(column, "i").test(raw);
 }
 
+/**
+ * Soft-delete / archive schema not applied yet (missing is_deleted, archived_at, …).
+ * Callers typically retry the query without lifecycle filters.
+ */
+export function isLifecycleSchemaError(error: unknown): boolean {
+  if (!error) return false;
+  if (isMissingColumnError(error)) return true;
+  if (isMissingTableError(error)) return true;
+  const msg = getErrorMessage(error);
+  return /is_deleted|archived_at|deleted_at/i.test(msg);
+}
+
 /** Postgres CHECK constraint violation (23514). */
 export function isCheckConstraintError(error: unknown): boolean {
   const code = getErrorCode(error);

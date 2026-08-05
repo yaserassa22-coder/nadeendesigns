@@ -1,9 +1,9 @@
-import {
-  isMissingColumnError,
-  isMissingTableError,
-} from "@/lib/supabase/errors";
+import { isLifecycleSchemaError } from "@/lib/supabase/errors";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterRowsByVisibility } from "@/lib/admin/lifecycle";
+
+/** Re-export for existing admin callers. */
+export { isLifecycleSchemaError };
 
 type QueryLike = {
   eq: (column: string, value: unknown) => QueryLike;
@@ -31,17 +31,6 @@ export function applyLifecycleToQuery<T extends QueryLike>(
     q = q.not("archived_at", "is", null) as T;
   }
   return q;
-}
-
-export function isLifecycleSchemaError(error: unknown): boolean {
-  if (!error) return false;
-  if (isMissingColumnError(error)) return true;
-  if (isMissingTableError(error)) return true;
-  const msg =
-    error && typeof error === "object" && "message" in error
-      ? String((error as { message?: string }).message ?? "")
-      : "";
-  return /is_deleted|archived_at|deleted_at/i.test(msg);
 }
 
 /** Client/server fallback when columns are absent on some rows. */
