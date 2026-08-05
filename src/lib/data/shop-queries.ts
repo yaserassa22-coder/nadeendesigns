@@ -37,10 +37,16 @@ async function selectShopTable<T extends LifecycleRow>(
   return (data as T[]).filter(isPublicRow);
 }
 
+function isShopPublic(item: { is_available?: boolean | null }): boolean {
+  return item.is_available !== false;
+}
+
 export async function getVeils(): Promise<Veil[]> {
-  if (!isSupabaseConfigured()) return SEED_VEILS;
+  if (!isSupabaseConfigured()) {
+    return SEED_VEILS.filter(isShopPublic);
+  }
   const rows = await selectShopTable<Veil & LifecycleRow>("veils");
-  return rows ?? SEED_VEILS;
+  return (rows ?? SEED_VEILS).filter(isShopPublic);
 }
 
 export async function getVeilById(id: string): Promise<Veil | null> {
@@ -64,14 +70,16 @@ export async function getVeilById(id: string): Promise<Veil | null> {
     return SEED_VEILS.find((v) => v.id === id) ?? null;
   }
   const row = data as Veil & LifecycleRow;
-  if (!isPublicRow(row)) return null;
+  if (!isPublicRow(row) || !isShopPublic(row)) return null;
   return row;
 }
 
 export async function getBridalRobes(): Promise<BridalRobe[]> {
-  if (!isSupabaseConfigured()) return SEED_BRIDAL_ROBES;
+  if (!isSupabaseConfigured()) {
+    return SEED_BRIDAL_ROBES.filter(isShopPublic);
+  }
   const rows = await selectShopTable<BridalRobe & LifecycleRow>("bridal_robes");
-  return rows ?? SEED_BRIDAL_ROBES;
+  return (rows ?? SEED_BRIDAL_ROBES).filter(isShopPublic);
 }
 
 export async function getBridalRobeById(id: string): Promise<BridalRobe | null> {
@@ -95,7 +103,7 @@ export async function getBridalRobeById(id: string): Promise<BridalRobe | null> 
     return SEED_BRIDAL_ROBES.find((r) => r.id === id) ?? null;
   }
   const row = data as BridalRobe & LifecycleRow;
-  if (!isPublicRow(row)) return null;
+  if (!isPublicRow(row) || !isShopPublic(row)) return null;
   return row;
 }
 
@@ -104,6 +112,7 @@ export type AccessoryShopItem = {
   id: string;
   name_ar: string;
   price: number;
+  sale_price?: number | null;
   images: string[];
   color: string | null;
   material: string | null;
@@ -129,6 +138,7 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     id: v.id,
     name_ar: v.name_ar,
     price: v.price,
+    sale_price: v.sale_price ?? null,
     images: v.images ?? [],
     color: v.color,
     material: v.material,
@@ -145,6 +155,7 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     id: r.id,
     name_ar: r.name_ar,
     price: r.price,
+    sale_price: r.sale_price ?? null,
     images: r.images ?? [],
     color: r.color,
     material: r.material,

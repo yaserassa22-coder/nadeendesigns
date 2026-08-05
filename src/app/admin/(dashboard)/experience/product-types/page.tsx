@@ -4,6 +4,7 @@ import { ExperienceEngineShell } from "@/components/admin/experience/ExperienceE
 import {
   PRODUCT_COMMERCE_TYPES,
   PRODUCT_COMMERCE_TYPE_LABELS,
+  applyPurchaseFlowOverride,
   getProductPrimaryAction,
 } from "@/lib/products/primary-action";
 import { listPurchaseFlows } from "@/lib/products/purchase-flows";
@@ -33,8 +34,11 @@ export default async function ProductTypesPage() {
     >
       <div className="space-y-4">
         {PRODUCT_COMMERCE_TYPES.map((type) => {
-          const action = getProductPrimaryAction(type);
           const flow = flows.find((f) => f.product_type === type);
+          const action = applyPurchaseFlowOverride(
+            getProductPrimaryAction(type),
+            flow
+          );
           return (
             <div
               key={type}

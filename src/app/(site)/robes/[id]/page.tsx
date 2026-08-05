@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
 import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
+import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getBridalRobeById, getBridalRobes } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
+import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { shopStockAvailability } from "@/lib/products/storefront-availability";
 import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
 
@@ -34,12 +35,13 @@ export default async function RobeDetailPage({ params }: Props) {
   if (!robe) notFound();
 
   const related = (await getBridalRobes())
-    .filter((r) => r.id !== robe.id && r.is_available)
+    .filter((r) => r.id !== robe.id)
     .slice(0, 3)
     .map((r) => ({
       id: r.id,
       name_ar: r.name_ar,
       price: r.price,
+      sale_price: r.sale_price,
       images: r.images,
       href: `/robes/${r.id}`,
       subtitle: r.size || r.color || undefined,
@@ -54,6 +56,7 @@ export default async function RobeDetailPage({ params }: Props) {
   const experience = await resolveStorefrontProductExperience({
     productId: robe.id,
     productType: robe.product_type ?? "bridal_accessory",
+    fallbackType: "bridal_accessory",
     shopProductType: "bridal_robe",
     categoryId: null,
     collectionId: null,
@@ -71,6 +74,12 @@ export default async function RobeDetailPage({ params }: Props) {
     productTitle: robe.name_ar,
     productImageUrl: featuredImage(robe.images),
   };
+  const wishlistControl = isFeatureEnabled(
+    experience.enabledFeatureIds,
+    "wishlist"
+  ) ? (
+    <WishlistButton {...wishlistProps} />
+  ) : null;
 
   return (
     <>
@@ -86,11 +95,12 @@ export default async function RobeDetailPage({ params }: Props) {
         name={robe.name_ar}
         categoryLabel="برنص العروس"
         price={robe.price}
+        salePrice={robe.sale_price}
         description={robe.description_ar}
         available={stock.available}
         availabilityLabel={stock.label}
         isFeatured={robe.is_featured}
-        galleryWishlist={<WishlistButton {...wishlistProps} />}
+        galleryWishlist={wishlistControl}
         meta={
           <>
             {robe.color && (
@@ -112,19 +122,26 @@ export default async function RobeDetailPage({ params }: Props) {
         }
         actions={
           stock.available ? (
-            <ShopCustomizeAndBuy
-              flush
-              productType="bridal_robe"
+            <ProductPrimaryCta
+              productType={experience.commerceType}
+              fallbackType="bridal_accessory"
+              primaryAction={experience.primaryAction}
+              enabledFeatureIds={experience.enabledFeatureIds}
+              shopProductType="bridal_robe"
               productId={robe.id}
               nameAr={robe.name_ar}
               price={robe.price}
+              salePrice={robe.sale_price}
               image={featuredImage(robe.images)}
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
+              wishlist={wishlistControl}
             />
-          ) : null
+          ) : (
+            wishlistControl
+          )
         }
         below={
           <div className="mt-6">

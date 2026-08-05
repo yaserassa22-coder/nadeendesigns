@@ -6,10 +6,8 @@ import { getCategories, getCategoryById } from "@/lib/data/categories";
 import { resolveCategoryHref } from "@/lib/categories/href";
 import { findCategoryMatch } from "@/lib/dresses/category";
 import { featuredImage } from "@/lib/products/featured-image";
-import {
-  getProductPrimaryAction,
-  resolveProductCommerceType,
-} from "@/lib/products/primary-action";
+import { resolveProductCommerceType } from "@/lib/products/primary-action";
+import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { dressAvailability } from "@/lib/products/storefront-availability";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
@@ -56,10 +54,8 @@ export default async function DressDetailPage({ params }: Props) {
     ? resolveCategoryHref(category)
     : "/wedding-dresses";
 
-  // CTA + rental presentation from product_type ONLY (never category name/slug)
+  // CTA from product_type + Admin purchase_flows (never category name/slug)
   const commerceType = resolveProductCommerceType(dress.product_type);
-  const primaryAction = getProductPrimaryAction(commerceType);
-  const availability = dressAvailability(dress.is_available);
   const experience = await resolveStorefrontProductExperience({
     productId: dress.id,
     productType: commerceType,
@@ -71,6 +67,8 @@ export default async function DressDetailPage({ params }: Props) {
     experience_config: dress.experience_config,
     features_config: dress.features_config,
   });
+  const primaryAction = experience.primaryAction;
+  const availability = dressAvailability(dress.is_available);
   const related = (
     await getDresses(
       dress.category_id
@@ -78,7 +76,7 @@ export default async function DressDetailPage({ params }: Props) {
         : { category: dress.category }
     )
   )
-    .filter((d) => d.id !== dress.id && d.is_available)
+    .filter((d) => d.id !== dress.id)
     .slice(0, 3);
 
   const wishlistProps = {
@@ -89,6 +87,13 @@ export default async function DressDetailPage({ params }: Props) {
     productTitle: dress.name_ar,
     productImageUrl: featuredImage(dress.images),
   };
+  const wishlistEnabled = isFeatureEnabled(
+    experience.enabledFeatureIds,
+    "wishlist"
+  );
+  const wishlistControl = wishlistEnabled ? (
+    <WishlistButton {...wishlistProps} />
+  ) : null;
 
   return (
     <>
@@ -115,7 +120,7 @@ export default async function DressDetailPage({ params }: Props) {
         available={availability.available}
         availabilityLabel={availability.label}
         isFeatured={dress.is_featured}
-        galleryWishlist={<WishlistButton {...wishlistProps} />}
+        galleryWishlist={wishlistControl}
         meta={
           <>
             {dress.style && (
@@ -138,29 +143,30 @@ export default async function DressDetailPage({ params }: Props) {
           </>
         }
         actions={
-          dress.is_available ? (
-            <ProductPrimaryCta
-              productType={commerceType}
-              shopProductType="dress"
-              productId={dress.id}
-              nameAr={dress.name_ar}
-              price={dress.price}
-              salePrice={dress.sale_price}
-              rentalPrice={dress.rental_price}
-              image={featuredImage(dress.images)}
-              extraServices={experience.extraServices}
-              experienceConfig={experience.experienceConfig}
-              sections={experience.sections}
-              featuresConfig={experience.featuresConfig}
-              bookingHref={
-                primaryAction.kind === "book_now"
-                  ? "/booking"
-                  : primaryAction.kind === "request_design"
-                    ? `/booking?service=custom_design&dress=${dress.id}`
-                    : `/booking?dress=${dress.id}`
-              }
-            />
-          ) : null
+          <ProductPrimaryCta
+            productType={experience.commerceType}
+            primaryAction={primaryAction}
+            enabledFeatureIds={experience.enabledFeatureIds}
+            shopProductType="dress"
+            productId={dress.id}
+            nameAr={dress.name_ar}
+            price={dress.price}
+            salePrice={dress.sale_price}
+            rentalPrice={dress.rental_price}
+            image={featuredImage(dress.images)}
+            extraServices={experience.extraServices}
+            experienceConfig={experience.experienceConfig}
+            sections={experience.sections}
+            featuresConfig={experience.featuresConfig}
+            wishlist={wishlistControl}
+            bookingHref={
+              primaryAction.kind === "book_now"
+                ? "/booking"
+                : primaryAction.kind === "request_design"
+                  ? `/booking?service=custom_design&dress=${dress.id}`
+                  : `/booking?dress=${dress.id}`
+            }
+          />
         }
         below={
           <div className="mt-6">

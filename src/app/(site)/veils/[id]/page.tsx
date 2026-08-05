@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ShopCustomizeAndBuy } from "@/components/shop/ShopCustomizeAndBuy";
 import { RelatedShopProducts } from "@/components/shop/RelatedShopProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
+import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getVeilById, getVeils } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
+import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { shopStockAvailability } from "@/lib/products/storefront-availability";
 import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
 
@@ -34,12 +35,13 @@ export default async function VeilDetailPage({ params }: Props) {
   if (!veil) notFound();
 
   const related = (await getVeils())
-    .filter((v) => v.id !== veil.id && v.is_available)
+    .filter((v) => v.id !== veil.id)
     .slice(0, 3)
     .map((v) => ({
       id: v.id,
       name_ar: v.name_ar,
       price: v.price,
+      sale_price: v.sale_price,
       images: v.images,
       href: `/veils/${v.id}`,
       subtitle: v.category,
@@ -54,6 +56,7 @@ export default async function VeilDetailPage({ params }: Props) {
   const experience = await resolveStorefrontProductExperience({
     productId: veil.id,
     productType: veil.product_type ?? "bridal_accessory",
+    fallbackType: "bridal_accessory",
     shopProductType: "veil",
     categoryId: null,
     collectionId: null,
@@ -71,6 +74,12 @@ export default async function VeilDetailPage({ params }: Props) {
     productTitle: veil.name_ar,
     productImageUrl: featuredImage(veil.images),
   };
+  const wishlistControl = isFeatureEnabled(
+    experience.enabledFeatureIds,
+    "wishlist"
+  ) ? (
+    <WishlistButton {...wishlistProps} />
+  ) : null;
 
   return (
     <>
@@ -86,11 +95,12 @@ export default async function VeilDetailPage({ params }: Props) {
         name={veil.name_ar}
         categoryLabel={`طرحة العروس · ${veil.category}`}
         price={veil.price}
+        salePrice={veil.sale_price}
         description={veil.description_ar}
         available={stock.available}
         availabilityLabel={stock.label}
         isFeatured={veil.is_featured}
-        galleryWishlist={<WishlistButton {...wishlistProps} />}
+        galleryWishlist={wishlistControl}
         meta={
           <>
             {veil.color && (
@@ -107,19 +117,26 @@ export default async function VeilDetailPage({ params }: Props) {
         }
         actions={
           stock.available ? (
-            <ShopCustomizeAndBuy
-              flush
-              productType="veil"
+            <ProductPrimaryCta
+              productType={experience.commerceType}
+              fallbackType="bridal_accessory"
+              primaryAction={experience.primaryAction}
+              enabledFeatureIds={experience.enabledFeatureIds}
+              shopProductType="veil"
               productId={veil.id}
               nameAr={veil.name_ar}
               price={veil.price}
+              salePrice={veil.sale_price}
               image={featuredImage(veil.images)}
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
+              wishlist={wishlistControl}
             />
-          ) : null
+          ) : (
+            wishlistControl
+          )
         }
         below={
           <div className="mt-6">

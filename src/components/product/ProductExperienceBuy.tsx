@@ -42,6 +42,8 @@ type Props = {
   /** Feature gates — default true for backward compatibility */
   showAddToCart?: boolean;
   showBuyNow?: boolean;
+  /** Primary add-to-cart label from purchase flow (Admin sync). */
+  addLabel?: string;
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -70,6 +72,7 @@ export function ProductExperienceBuy({
   requiresShipping = true,
   showAddToCart = true,
   showBuyNow = true,
+  addLabel: addLabelProp,
   disabled = false,
   size = "lg",
   className,
@@ -94,7 +97,8 @@ export function ProductExperienceBuy({
     supportsPersonalization,
     extraServices,
   });
-  const addLabel = getProductPrimaryAction("ready_to_buy").label;
+  const addLabel =
+    addLabelProp?.trim() || getProductPrimaryAction("ready_to_buy").label;
 
   const directAdd = (mode: ProductExperienceIntent) => {
     setMessage("");
@@ -169,9 +173,7 @@ export function ProductExperienceBuy({
           experienceConfig={experienceConfig}
           sections={sections}
           enablePersonalization={supportsPersonalization}
-          enableGiftWrapping={
-            enableGiftWrapping || supportsPersonalization
-          }
+          enableGiftWrapping={enableGiftWrapping}
           requiresShipping={requiresShipping}
           onSuccess={(mode) => {
             if (mode === "cart") setMessage("تمت الإضافة إلى السلة");

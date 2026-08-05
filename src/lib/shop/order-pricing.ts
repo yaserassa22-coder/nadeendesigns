@@ -18,6 +18,10 @@ import {
   type ProductOrderOptionsConfig,
   type ServiceOfferContext,
 } from "@/lib/products/order-experience";
+import {
+  normalizeProductExperienceConfig,
+  type ProductExperienceConfig,
+} from "@/lib/products/experience-designer";
 import { resolveProductPricing } from "@/lib/products/pricing";
 import { getStoreSettings } from "@/lib/store/settings";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -49,6 +53,7 @@ type CatalogProduct = {
   collection_id?: string | null;
   order_options_config?: ProductOrderOptionsConfig | null;
   extra_services_config?: ProductExtraServicesConfig | null;
+  experience_config?: ProductExperienceConfig | null;
   is_available?: boolean | null;
 };
 
@@ -73,13 +78,13 @@ async function loadCatalogProduct(
     const { data, error } = await supabase
       .from(table)
       .select(
-        "id, name_ar, price, sale_price, product_type, category_id, collection_id, order_options_config, extra_services_config, is_available"
+        "id, name_ar, price, sale_price, product_type, category_id, collection_id, order_options_config, extra_services_config, experience_config, is_available"
       )
       .eq("id", productId)
       .maybeSingle();
     if (error) {
-      // veils/robes may lack sale_price / category columns
-      if (/sale_price|order_options_config|extra_services_config|category_id|collection_id|product_type|PGRST204|42703/i.test(
+      // veils/robes may lack sale_price / category / experience columns
+      if (/sale_price|order_options_config|extra_services_config|experience_config|category_id|collection_id|product_type|PGRST204|42703/i.test(
         error.message ?? ""
       )) {
         const retry = await supabase
@@ -107,6 +112,7 @@ async function loadCatalogProduct(
           collection_id: null,
           order_options_config: null,
           extra_services_config: null,
+          experience_config: null,
           is_available: row.is_available,
         };
       }
@@ -127,6 +133,7 @@ async function loadCatalogProduct(
       collection_id: row.collection_id ?? null,
       order_options_config: row.order_options_config ?? null,
       extra_services_config: row.extra_services_config ?? null,
+      experience_config: row.experience_config ?? null,
       is_available: row.is_available,
     };
   } catch {
@@ -209,8 +216,16 @@ export async function recalculateCheckoutLines(
       availableExtras,
       line.extra_services
     );
-    // Personalization fees: none today — never trust client personalization_fee.
-    const personalizationFee = 0;
+    // Charge catalog personalization fee when the line has personalization.
+    // Never trust client personalization_fee — read from experience_config.
+    const persUi = catalog?.experience_config
+      ? normalizeProductExperienceConfig(catalog.experience_config)
+          .personalization_ui
+      : null;
+    const personalizationFee =
+      line.personalization && persUi
+        ? Math.max(0, Number(persUi.extra_price) || 0)
+        : 0;
 
     const quantity = Math.max(1, Math.min(20, Math.floor(Number(line.quantity) || 1)));
     const lineTotal = lineChargedTotal({

@@ -32,7 +32,7 @@ export type ExperienceSectionConfig = {
 export type ExperiencePersonalizationUi = {
   required: boolean;
   max_characters: number;
-  /** Preview / catalog fee — server order pricing does not charge this today. */
+  /** Charged when personalization is enabled on a cart line (server + client). */
   extra_price: number;
 };
 

@@ -9,6 +9,8 @@ export interface Veil {
   name_ar: string;
   description_ar: string;
   price: number;
+  /** Optional sale price — when lower than price, storefront shows sale UI. */
+  sale_price?: number | null;
   images: string[];
   category: string;
   color: string | null;
@@ -31,6 +33,8 @@ export interface BridalRobe {
   name_ar: string;
   description_ar: string;
   price: number;
+  /** Optional sale price — when lower than price, storefront shows sale UI. */
+  sale_price?: number | null;
   images: string[];
   color: string | null;
   size: string | null;

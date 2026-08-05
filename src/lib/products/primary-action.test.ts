@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyPurchaseFlowOverride,
   getProductPrimaryAction,
   inferProductCommerceTypeFromLegacyCategory,
   resolveProductCommerceType,
@@ -75,5 +76,26 @@ describe("resolveProductCommerceType", () => {
   it("maps legacy aliases", () => {
     expect(resolveProductCommerceType("accessory")).toBe("bridal_accessory");
     expect(resolveProductCommerceType("rental")).toBe("rental_dress");
+  });
+});
+
+describe("applyPurchaseFlowOverride", () => {
+  it("merges Admin purchase-flow labels and hide flags onto ACTIONS", () => {
+    const base = getProductPrimaryAction("rental_dress");
+    const next = applyPurchaseFlowOverride(base, {
+      primary_cta: "book_appointment",
+      primary_label_ar: "احجزي معاينة",
+      hide_cart: true,
+      hide_buy_now: true,
+      secondary_ctas: ["wishlist"],
+    });
+    expect(next.label).toBe("احجزي معاينة");
+    expect(next.kind).toBe("book_appointment");
+    expect(next.hideCart).toBe(true);
+  });
+
+  it("returns base when flow is null", () => {
+    const base = getProductPrimaryAction("bridal_accessory");
+    expect(applyPurchaseFlowOverride(base, null)).toEqual(base);
   });
 });

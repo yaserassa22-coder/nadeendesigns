@@ -497,11 +497,8 @@ export function resolveProductExtraServices(
     return channelFiltered;
   }
   const ids = new Set(productOverride.enabled_ids ?? []);
-  // Custom override: still respect visibility when context provided
-  const pool = ctx
-    ? base.filter((s) => serviceMatchesVisibility({ ...s, enabled: true }, ctx))
-    : base;
-  return pool
+  // Custom pick list — never resurrect globally disabled services.
+  return channelFiltered
     .filter((s) => ids.has(s.id))
     .map((s) => {
       const overridePrice = productOverride.price_overrides?.[s.id];
@@ -513,13 +510,11 @@ export function resolveProductExtraServices(
         const pricing_mode = resolveServicePricingMode(undefined, price);
         return {
           ...s,
-          enabled: true,
-          visible: true,
           pricing_mode,
           price: pricing_mode === "FREE" ? 0 : price,
         };
       }
-      return { ...s, enabled: true, visible: true };
+      return s;
     });
 }
 

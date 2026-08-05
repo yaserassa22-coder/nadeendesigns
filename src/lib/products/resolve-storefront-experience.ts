@@ -15,10 +15,19 @@ import {
   type ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
 import {
+  listExperienceFeatures,
   normalizeProductFeaturesConfig,
   resolveEnabledFeatureIds,
   type ProductFeaturesConfig,
 } from "@/lib/products/experience-features";
+import {
+  applyPurchaseFlowOverride,
+  getProductPrimaryAction,
+  resolveProductCommerceType,
+  type ProductCommerceType,
+  type ProductPrimaryAction,
+} from "@/lib/products/primary-action";
+import { getPurchaseFlowForType } from "@/lib/products/purchase-flows";
 import { getStoreSettings } from "@/lib/store/settings";
 import type { ShopProductType } from "@/types/shop";
 
@@ -33,12 +42,15 @@ export type ResolvedProductExperience = {
   /** Storefront-safe sections only (no delivery / notes / order options). */
   sections: ExperienceSectionConfig[];
   featuresConfig: ProductFeaturesConfig | null;
+  /** After per-product resolution ∩ global library enabled flags. */
   enabledFeatureIds: string[];
+  /** Purchase-flow override applied (Admin → storefront sync). */
+  primaryAction: ProductPrimaryAction;
+  commerceType: ProductCommerceType;
 };
 
 /**
- * Resolve storefront extra services + designer sections for the PDP/modal.
- * Order options are resolved for checkout/admin continuity but never shown on PDP.
+ * Resolve storefront experience + purchase flow for the PDP/modal.
  * Serializable — safe to pass Server → Client as props.
  */
 export async function resolveStorefrontProductExperience(input?: {
@@ -47,16 +59,22 @@ export async function resolveStorefrontProductExperience(input?: {
   categoryId?: string | null;
   collectionId?: string | null;
   shopProductType?: ShopProductType | null;
+  /** Fallback commerce type when productType missing (veils/robes → bridal_accessory). */
+  fallbackType?: ProductCommerceType;
   order_options_config?: ProductOrderOptionsConfig | null;
   extra_services_config?: ProductExtraServicesConfig | null;
   experience_config?: ProductExperienceConfig | null;
   features_config?: ProductFeaturesConfig | null;
 }): Promise<ResolvedProductExperience> {
   const store = await getStoreSettings(true);
+  const commerceType = resolveProductCommerceType(
+    input?.productType,
+    input?.fallbackType ?? "ready_to_buy"
+  );
   const ctx: ServiceOfferContext | null = input?.productId
     ? {
         productId: input.productId,
-        productType: input.productType ?? null,
+        productType: commerceType,
         categoryId: input.categoryId ?? null,
         collectionId: input.collectionId ?? null,
         channel: "online",
@@ -70,11 +88,28 @@ export async function resolveStorefrontProductExperience(input?: {
   const featuresConfig = normalizeProductFeaturesConfig(
     input?.features_config
   );
-  const enabledFeatureIds = resolveEnabledFeatureIds({
+  let enabledFeatureIds = resolveEnabledFeatureIds({
     features_config: featuresConfig,
-    productType: input?.productType,
+    productType: commerceType,
     shopProductType: input?.shopProductType,
   });
+
+  // Global Features Library: disabled rows must hide on storefront.
+  const library = await listExperienceFeatures();
+  if (library.length) {
+    const globallyOff = new Set(
+      library.filter((f) => !f.enabled).map((f) => f.id)
+    );
+    if (globallyOff.size) {
+      enabledFeatureIds = enabledFeatureIds.filter((id) => !globallyOff.has(id));
+    }
+  }
+
+  const flow = await getPurchaseFlowForType(commerceType);
+  const primaryAction = applyPurchaseFlowOverride(
+    getProductPrimaryAction(commerceType),
+    flow
+  );
 
   return {
     orderOptions: enabledOrderOptions(
@@ -90,5 +125,7 @@ export async function resolveStorefrontProductExperience(input?: {
     sections: storefrontExperienceSections(experienceConfig),
     featuresConfig,
     enabledFeatureIds,
+    primaryAction,
+    commerceType,
   };
 }

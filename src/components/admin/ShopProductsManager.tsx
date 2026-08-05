@@ -22,6 +22,7 @@ type FormState = {
   name_ar: string;
   description_ar: string;
   price: string;
+  sale_price: string;
   category: string;
   color: string;
   size: string;
@@ -36,6 +37,7 @@ const emptyForm = (kind: Kind): FormState => ({
   name_ar: "",
   description_ar: "",
   price: "",
+  sale_price: "",
   category: kind === "veils" ? VEIL_CATEGORY_OPTIONS[0] : "",
   color: "",
   size: "",
@@ -117,6 +119,10 @@ export function ShopProductsManager({
       name_ar: item.name_ar,
       description_ar: item.description_ar,
       price: String(item.price ?? ""),
+      sale_price:
+        item.sale_price != null && item.sale_price !== undefined
+          ? String(item.sale_price)
+          : "",
       category: "category" in item ? String(item.category) : "",
       color: item.color ?? "",
       size: "size" in item ? (item.size ?? "") : "",
@@ -133,10 +139,14 @@ export function ShopProductsManager({
   const payload = () => {
     // Trim ends only — preserve internal newlines / blank lines in descriptions
     const description_ar = form.description_ar.replace(/^\s+|\s+$/g, "");
+    const saleRaw = form.sale_price.trim();
+    const saleNum = saleRaw === "" ? null : Number(saleRaw);
     const base = {
       name_ar: form.name_ar.trim(),
       description_ar,
       price: Number(form.price || 0),
+      sale_price:
+        saleNum != null && Number.isFinite(saleNum) ? saleNum : null,
       images: form.images,
       color: form.color || null,
       material: form.material || null,
@@ -440,6 +450,15 @@ export function ShopProductsManager({
                 dir="ltr"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
+              />
+              <Input
+                label="سعر التخفيض (₪)"
+                type="number"
+                dir="ltr"
+                value={form.sale_price}
+                onChange={(e) =>
+                  setForm({ ...form, sale_price: e.target.value })
+                }
               />
               <Input
                 label="الكمية في المخزون"

@@ -176,6 +176,11 @@ export function ProductExperienceModal({
       ? Math.max(0, experienceConfig?.personalization_ui?.extra_price ?? 0)
       : 0;
 
+  /** Legacy fallback only when no designer config was provided at all. */
+  const allowLegacyFallback =
+    experienceConfig == null &&
+    (!sectionsProp || sectionsProp.length === 0);
+
   const buildPersonalizationPayload = ():
     | ProductPersonalization
     | null
@@ -259,6 +264,8 @@ export function ProductExperienceModal({
       // Delivery / notes / order options collected at checkout only.
       order_options: null,
       extra_services: lineExtraServices.length ? lineExtraServices : null,
+      personalization_fee:
+        pers && personalizationFee > 0 ? personalizationFee : null,
       requires_shipping: requiresShipping,
     });
 
@@ -362,8 +369,8 @@ export function ProductExperienceModal({
             ? contentSections.map((s) => renderSection(s))
             : null}
 
-          {/* Fallback when designer disabled all content sections */}
-          {!hasDesignerContent ? (
+          {/* Legacy products only — never re-enable sections Admin turned off */}
+          {!hasDesignerContent && allowLegacyFallback ? (
             <>
               {enablePersonalization && personalizationType ? (
                 <VeilRobePersonalizationFields

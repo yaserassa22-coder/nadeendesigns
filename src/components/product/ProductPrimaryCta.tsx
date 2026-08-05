@@ -9,6 +9,7 @@ import {
   getProductPrimaryAction,
   resolveProductCommerceType,
   type ProductCommerceType,
+  type ProductPrimaryAction,
 } from "@/lib/products/primary-action";
 import type { ExtraServiceConfig } from "@/lib/products/order-experience";
 import type {
@@ -29,6 +30,13 @@ export type ProductPrimaryCtaProps = {
   productType: ProductCommerceType | string | null | undefined;
   /** Fallback when productType missing (veils/robes → bridal_accessory) */
   fallbackType?: ProductCommerceType;
+  /**
+   * Server-resolved action (purchase_flows override). When provided, wins over
+   * client-side ACTIONS fallback so Admin edits sync to the storefront.
+   */
+  primaryAction?: ProductPrimaryAction;
+  /** Server-resolved feature IDs (already ∩ global library). */
+  enabledFeatureIds?: string[];
   /** Cart entity kind when action is add_to_cart */
   shopProductType?: ShopProductType;
   productId: string;
@@ -51,12 +59,14 @@ export type ProductPrimaryCtaProps = {
 };
 
 /**
- * Primary product CTA. Action/label come ONLY from product commerce type
- * (and purchase-flow defaults). Feature library gates wishlist / personalization.
+ * Primary product CTA. Prefer server-resolved purchase flow + feature IDs.
+ * Falls back to ACTIONS / local feature defaults when props omitted.
  */
 export function ProductPrimaryCta({
   productType,
   fallbackType = "ready_to_buy",
+  primaryAction: primaryActionProp,
+  enabledFeatureIds: enabledFeatureIdsProp,
   shopProductType = "dress",
   productId,
   nameAr,
@@ -74,12 +84,15 @@ export function ProductPrimaryCta({
   className,
 }: ProductPrimaryCtaProps) {
   const commerceType = resolveProductCommerceType(productType, fallbackType);
-  const action = getProductPrimaryAction(commerceType);
-  const enabledFeatures = resolveEnabledFeatureIds({
-    features_config: featuresConfig,
-    productType: commerceType,
-    shopProductType,
-  });
+  const action =
+    primaryActionProp ?? getProductPrimaryAction(commerceType, fallbackType);
+  const enabledFeatures =
+    enabledFeatureIdsProp ??
+    resolveEnabledFeatureIds({
+      features_config: featuresConfig,
+      productType: commerceType,
+      shopProductType,
+    });
 
   const showWishlist =
     isFeatureEnabled(enabledFeatures, "wishlist") ? wishlist : null;
@@ -89,7 +102,6 @@ export function ProductPrimaryCta({
       featuresAllowPersonalization(enabledFeatures, shopProductType);
     const allowGift = featuresAllowGiftWrap(enabledFeatures);
     const gatedServices = extraServices.filter((s) => {
-      // Map known service IDs to feature flags when present
       if (s.id === "gift_wrap") return allowGift;
       if (s.id === "greeting_card")
         return isFeatureEnabled(enabledFeatures, "gift_message");
@@ -115,6 +127,7 @@ export function ProductPrimaryCta({
         enablePersonalization={allowPersonalization}
         enableGiftWrapping={allowGift}
         requiresShipping={action.requiresShipping}
+        addLabel={action.label}
         showBuyNow={
           !action.hideBuyNow && isFeatureEnabled(enabledFeatures, "buy_now")
         }
@@ -124,6 +137,17 @@ export function ProductPrimaryCta({
         className={className}
       />
     );
+  }
+
+  const bookingFeatureOk =
+    action.kind === "request_design"
+      ? isFeatureEnabled(enabledFeatures, "request_design")
+      : isFeatureEnabled(enabledFeatures, "appointment_booking");
+
+  if (!bookingFeatureOk) {
+    return showWishlist ? (
+      <div className={className}>{showWishlist}</div>
+    ) : null;
   }
 
   const href =

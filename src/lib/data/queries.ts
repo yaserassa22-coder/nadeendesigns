@@ -10,8 +10,22 @@ import {
   withNormalizedDressCategory,
   withResolvedProductType,
 } from "@/lib/dresses/category";
+import {
+  deriveProductStatus,
+  isAvailableFromStatus,
+} from "@/lib/products/status";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+
+/** Storefront-only: published products (status / is_available dual-write). */
+function isStorefrontPublished(dress: Dress): boolean {
+  return isAvailableFromStatus(
+    deriveProductStatus({
+      status: (dress as Dress & { status?: string | null }).status,
+      is_available: dress.is_available,
+    })
+  );
+}
 
 function dressMatchesCategoryFilter(
   dress: Dress,
@@ -121,7 +135,8 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
     );
   }
 
-  return dresses;
+  // Draft / hidden must not appear on the storefront.
+  return dresses.filter(isStorefrontPublished);
 }
 
 /**
@@ -230,15 +245,18 @@ export async function getDressById(id: string): Promise<Dress | null> {
       const row = data as Dress & {
         is_deleted?: boolean;
         archived_at?: string | null;
+        status?: string | null;
       };
       if (row.is_deleted || row.archived_at) return null;
-      return withResolvedProductType(withNormalizedDressCategory(row));
+      const dress = withResolvedProductType(withNormalizedDressCategory(row));
+      if (!isStorefrontPublished(dress)) return null;
+      return dress;
     }
   }
   const seed = SEED_DRESSES.find((d) => d.id === id);
-  return seed
-    ? withResolvedProductType(withNormalizedDressCategory(seed))
-    : null;
+  if (!seed) return null;
+  const dress = withResolvedProductType(withNormalizedDressCategory(seed));
+  return isStorefrontPublished(dress) ? dress : null;
 }
 
 export async function getGalleryItems(): Promise<GalleryItem[]> {
