@@ -53,6 +53,18 @@ Modules must remain independent. Avoid tight coupling.
 
 Minimal. Elegant. Fast. Clean.
 
+## Rule #11 — SERVER / CLIENT BOUNDARY
+
+Never pass functions from Server Components to Client Components.
+
+Forbidden across the Server → Client boundary: `overlay={fn}`, `render={fn}`, `renderX={fn}`, `children={() => …}`, `header={() => …}`, `footer={() => …}`, `icon={() => …}`, or any other callback / render-prop.
+
+Allowed props: serializable data (strings, numbers, booleans, plain objects/arrays of those), and React elements / JSX (including as `children` or named slots like `wishlist={<… />}`).
+
+Custom rendering that needs live client state (e.g. carousel slide index) must live **inside** the Client Component. Pass data + elements in; compose UI there.
+
+Client → Client callbacks remain fine.
+
 ## Current development order
 
 1. Store Settings

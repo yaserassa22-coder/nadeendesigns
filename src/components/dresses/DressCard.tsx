@@ -4,7 +4,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Dress } from "@/types";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
-import { ProductCardMediaOverlay } from "@/components/product/ProductCardMediaOverlay";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { getDressStyleLabel } from "@/lib/styles";
@@ -42,26 +41,22 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
           href={href}
           roundedClassName="rounded-none"
           priority={index < 3}
-          overlay={({ current, total }) => (
-            <ProductCardMediaOverlay
-              current={current}
-              total={total}
-              price={dress.price}
-              salePrice={dress.sale_price}
-              isFeatured={dress.is_featured}
-              tags={dress.tags}
-              wishlist={
-                <WishlistButton
-                  variant="icon"
-                  productKind="dress"
-                  productId={dress.id}
-                  productSlug={dress.id}
-                  productTitle={dress.name_ar}
-                  productImageUrl={featuredImage(dress.images)}
-                />
-              }
-            />
-          )}
+          overlay={{
+            price: dress.price,
+            salePrice: dress.sale_price,
+            isFeatured: dress.is_featured,
+            tags: dress.tags,
+            wishlist: (
+              <WishlistButton
+                variant="icon"
+                productKind="dress"
+                productId={dress.id}
+                productSlug={dress.id}
+                productTitle={dress.name_ar}
+                productImageUrl={featuredImage(dress.images)}
+              />
+            ),
+          }}
         />
         {!dress.is_available && (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-charcoal/50">

@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { featuredImage } from "@/lib/products/featured-image";
 import { inferWishlistKind } from "@/lib/shop/wishlist";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
-import { ProductCardMediaOverlay } from "@/components/product/ProductCardMediaOverlay";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { Input, Select } from "@/components/ui/Input";
@@ -136,26 +135,22 @@ export function ShopCatalog({
                     href={href}
                     roundedClassName="rounded-none"
                     priority={i < 3}
-                    overlay={({ current, total }) => (
-                      <ProductCardMediaOverlay
-                        current={current}
-                        total={total}
-                        price={item.price}
-                        salePrice={item.sale_price}
-                        isFeatured={item.is_featured}
-                        tags={item.tags}
-                        wishlist={
-                          <WishlistButton
-                            variant="icon"
-                            productKind={productKind}
-                            productId={item.id}
-                            productSlug={item.id}
-                            productTitle={item.name_ar}
-                            productImageUrl={featuredImage(item.images)}
-                          />
-                        }
-                      />
-                    )}
+                    overlay={{
+                      price: item.price,
+                      salePrice: item.sale_price,
+                      isFeatured: item.is_featured,
+                      tags: item.tags,
+                      wishlist: (
+                        <WishlistButton
+                          variant="icon"
+                          productKind={productKind}
+                          productId={item.id}
+                          productSlug={item.id}
+                          productTitle={item.name_ar}
+                          productImageUrl={featuredImage(item.images)}
+                        />
+                      ),
+                    }}
                   />
                   {!item.is_available && (
                     <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-charcoal/50">

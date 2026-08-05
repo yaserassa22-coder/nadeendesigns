@@ -10,13 +10,21 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ProductCardMediaOverlay } from "@/components/product/ProductCardMediaOverlay";
 import { featuredImage } from "@/lib/products/featured-image";
 import { cn } from "@/lib/utils";
 
-export type ProductCardOverlayContext = {
-  /** 1-based current slide index */
-  current: number;
-  total: number;
+/**
+ * Serializable card chrome + wishlist element.
+ * Do NOT pass a render function — Server Components cannot send functions to Client Components.
+ * Slide counter (`current`/`total`) is applied inside this client component.
+ */
+export type ProductCardOverlayProps = {
+  wishlist: ReactNode;
+  price?: number | null;
+  salePrice?: number | null;
+  isFeatured?: boolean | null;
+  tags?: string[] | null;
 };
 
 interface ProductCardImageCarouselProps {
@@ -30,9 +38,9 @@ interface ProductCardImageCarouselProps {
   priority?: boolean;
   /**
    * Shared product-card chrome (badges / wishlist / counter).
-   * Receives live slide index so the overlay counter stays in sync.
+   * Pass serializable badge data + a wishlist ReactNode — never a function.
    */
-  overlay?: (ctx: ProductCardOverlayContext) => ReactNode;
+  overlay?: ProductCardOverlayProps;
 }
 
 /**
@@ -107,11 +115,17 @@ export function ProductCardImageCarousel({
     }
   };
 
-  const overlayNode =
-    overlay?.({
-      current: count === 0 ? 0 : safeIndex + 1,
-      total: count,
-    }) ?? null;
+  const overlayNode = overlay ? (
+    <ProductCardMediaOverlay
+      current={count === 0 ? 0 : safeIndex + 1}
+      total={count}
+      price={overlay.price}
+      salePrice={overlay.salePrice}
+      isFeatured={overlay.isFeatured}
+      tags={overlay.tags}
+      wishlist={overlay.wishlist}
+    />
+  ) : null;
 
   if (!current) {
     return (

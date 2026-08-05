@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
-import { ProductCardMediaOverlay } from "@/components/product/ProductCardMediaOverlay";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { featuredImage } from "@/lib/products/featured-image";
@@ -48,29 +47,25 @@ export function RelatedShopProducts({
                 alt={item.name_ar}
                 href={item.href}
                 sizes="(max-width: 768px) 100vw, 33vw"
-                overlay={({ current, total }) => (
-                  <ProductCardMediaOverlay
-                    current={current}
-                    total={total}
-                    price={item.price}
-                    salePrice={item.sale_price}
-                    isFeatured={item.is_featured}
-                    tags={item.tags}
-                    wishlist={
-                      <WishlistButton
-                        variant="icon"
-                        productKind={inferWishlistKind({
-                          kind: item.kind,
-                          href: item.href,
-                        })}
-                        productId={item.id}
-                        productSlug={item.id}
-                        productTitle={item.name_ar}
-                        productImageUrl={featuredImage(item.images)}
-                      />
-                    }
-                  />
-                )}
+                overlay={{
+                  price: item.price,
+                  salePrice: item.sale_price,
+                  isFeatured: item.is_featured,
+                  tags: item.tags,
+                  wishlist: (
+                    <WishlistButton
+                      variant="icon"
+                      productKind={inferWishlistKind({
+                        kind: item.kind,
+                        href: item.href,
+                      })}
+                      productId={item.id}
+                      productSlug={item.id}
+                      productTitle={item.name_ar}
+                      productImageUrl={featuredImage(item.images)}
+                    />
+                  ),
+                }}
               />
             </div>
             <Link href={item.href} className="block p-5">
