@@ -15,12 +15,25 @@ export default function AccountMessagesPage() {
   const [text, setText] = useState("");
   const [stub, setStub] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   async function load() {
-    const d = await fetch("/api/account/messages").then((r) => r.json());
-    setMessages(d.messages ?? []);
-    setStub(Boolean(d.stub));
-    setLoading(false);
+    try {
+      const res = await fetch("/api/account/messages");
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(d.error || "تعذّر تحميل الرسائل");
+        return;
+      }
+      setMessages(d.messages ?? []);
+      setStub(Boolean(d.stub));
+    } catch {
+      setError("تعذّر تحميل الرسائل. تحققي من الاتصال.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -31,14 +44,28 @@ export default function AccountMessagesPage() {
   }, []);
 
   async function send() {
-    if (!text.trim()) return;
-    await fetch("/api/account/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: text }),
-    });
-    setText("");
-    void load();
+    if (!text.trim() || sending) return;
+    setSending(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch("/api/account/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(d.error || "تعذّر إرسال الرسالة");
+      }
+      setText("");
+      setSuccess("تم إرسال رسالتكِ بنجاح. سنرد عليكِ في أقرب وقت.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+    } finally {
+      setSending(false);
+    }
   }
 
   if (loading) return <div className="h-40 animate-pulse rounded-2xl bg-beige" />;
@@ -67,17 +94,37 @@ export default function AccountMessagesPage() {
           </div>
         ))}
       </div>
+      {(error || success) && (
+        <div className="space-y-1 border-t border-beige-dark px-3 pt-2">
+          {error ? (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+              {error}
+            </p>
+          ) : null}
+          {success ? (
+            <p className="rounded-lg bg-gold/10 px-3 py-2 text-xs text-charcoal">
+              {success}
+            </p>
+          ) : null}
+        </div>
+      )}
       <div className="flex gap-2 border-t border-beige-dark p-3">
         <input
           className="flex-1 rounded-xl border border-beige-dark px-3 py-2 text-sm"
           placeholder="اكتبني رسالتك…"
           value={text}
+          disabled={sending}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") void send();
           }}
         />
-        <Button style={{ backgroundColor: "#C9A14A" }} onClick={() => void send()}>
+        <Button
+          style={{ backgroundColor: "#C9A14A" }}
+          loading={sending}
+          disabled={sending || !text.trim()}
+          onClick={() => void send()}
+        >
           إرسال
         </Button>
       </div>

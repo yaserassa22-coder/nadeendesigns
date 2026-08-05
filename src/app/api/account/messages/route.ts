@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCustomerApi } from "@/lib/customer-auth/customer";
 import { isMissingTableError } from "@/lib/supabase/errors";
+import { notifyAdminIntake } from "@/lib/notifications/service";
 
 export async function GET() {
   const auth = await requireCustomerApi();
@@ -60,5 +62,50 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  const messageId = String(data?.id ?? crypto.randomUUID());
+  const customerLabel =
+    auth.customer.full_name ||
+    auth.customer.phone ||
+    auth.customer.email ||
+    auth.customer.id;
+  const customerKey =
+    auth.customer.customer_key ||
+    (auth.customer.phone
+      ? `p:${auth.customer.phone}`
+      : auth.customer.email
+        ? `e:${auth.customer.email}`
+        : auth.customer.id);
+  const adminPath = `/admin/customers/${encodeURIComponent(customerKey)}`;
+  try {
+    after(() =>
+      notifyAdminIntake({
+        id: messageId,
+        notificationType: "admin_new_account_message",
+        title: "رسالة من حساب عميلة",
+        headline: "رسالة جديدة من حساب العميلة",
+        customerId: auth.customer.id,
+        adminPath,
+        lines: [
+          { label: "العميلة", value: String(customerLabel) },
+          { label: "الرسالة", value: text.slice(0, 500) },
+        ],
+      })
+    );
+  } catch {
+    void notifyAdminIntake({
+      id: messageId,
+      notificationType: "admin_new_account_message",
+      title: "رسالة من حساب عميلة",
+      headline: "رسالة جديدة من حساب العميلة",
+      customerId: auth.customer.id,
+      adminPath,
+      lines: [
+        { label: "العميلة", value: String(customerLabel) },
+        { label: "الرسالة", value: text.slice(0, 500) },
+      ],
+    });
+  }
+
   return NextResponse.json({ message: data });
 }

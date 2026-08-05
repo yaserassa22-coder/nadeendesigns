@@ -22,11 +22,21 @@ import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { ADMIN_CATEGORIES_CHANGED_EVENT } from "@/lib/admin/category-events";
 import {
+  ADMIN_INBOX_CHANGED_EVENT,
+} from "@/lib/admin/inbox-events";
+import {
   adminCategoryProductsHref,
   groupAdminProductSidebarCategories,
   isAdminCategoryNavActive,
   type Category,
 } from "@/types/category";
+
+type InboxCounts = {
+  messages: number;
+  bookings: number;
+  orders: number;
+  total: number;
+};
 
 type CategoryWithCount = Category & { product_count?: number };
 
@@ -124,12 +134,14 @@ function NavLink({
   active,
   onNavigate,
   className,
+  badge,
 }: {
   href: string;
   label: ReactNode;
   active: boolean;
   onNavigate: () => void;
   className?: string;
+  badge?: number;
 }) {
   return (
     <Link
@@ -143,9 +155,69 @@ function NavLink({
         className
       )}
     >
-      {label}
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {badge != null && badge > 0 ? (
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+            active ? "bg-white/20 text-white" : "bg-gold/15 text-gold"
+          )}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </Link>
   );
+}
+
+function useAdminInboxCounts() {
+  const [counts, setCounts] = useState<InboxCounts>({
+    messages: 0,
+    bookings: 0,
+    orders: 0,
+    total: 0,
+  });
+
+  const refetch = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/inbox-counts", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as Partial<InboxCounts>;
+      setCounts({
+        messages: Number(data.messages) || 0,
+        bookings: Number(data.bookings) || 0,
+        orders: Number(data.orders) || 0,
+        total: Number(data.total) || 0,
+      });
+    } catch {
+      /* keep previous */
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void refetch();
+    }, 0);
+    const onFocus = () => {
+      void refetch();
+    };
+    const onChanged = () => {
+      void refetch();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener(ADMIN_INBOX_CHANGED_EVENT, onChanged);
+    const interval = window.setInterval(() => {
+      void refetch();
+    }, 60_000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener(ADMIN_INBOX_CHANGED_EVENT, onChanged);
+    };
+  }, [refetch]);
+
+  return counts;
 }
 
 function SectionToggle({
@@ -537,8 +609,16 @@ function AdminSidebarInner() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const inbox = useAdminInboxCounts();
 
   const closeMobile = () => setOpen(false);
+
+  const moduleBadge = (href: string): number | undefined => {
+    if (href === "/admin/messages") return inbox.messages;
+    if (href === "/admin/bookings") return inbox.bookings;
+    if (href === "/admin/orders") return inbox.orders;
+    return undefined;
+  };
 
   const logout = async () => {
     setLoggingOut(true);
@@ -578,6 +658,11 @@ function AdminSidebarInner() {
               "exact" in link ? link.exact : false
             )}
             onNavigate={closeMobile}
+            badge={
+              link.href === "/admin" && inbox.total > 0
+                ? inbox.total
+                : undefined
+            }
           />
         ))}
 
@@ -615,6 +700,7 @@ function AdminSidebarInner() {
               service
             )}
             onNavigate={closeMobile}
+            badge={moduleBadge(link.href)}
           />
         ))}
       </nav>

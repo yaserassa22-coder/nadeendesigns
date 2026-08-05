@@ -12,6 +12,7 @@ import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleAc
 import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 import type { LifecycleCapabilities } from "@/lib/admin/permissions";
+import { notifyAdminInboxChanged } from "@/lib/admin/inbox-events";
 
 interface MessagesManagerProps {
   initialMessages: ContactMessage[];
@@ -49,7 +50,12 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
       setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, is_read } : m))
       );
+      notifyAdminInboxChanged();
     }
+  };
+
+  const openMessage = (m: ContactMessage) => {
+    if (!m.is_read) void markRead(m.id, true);
   };
 
   const filtered = useMemo(() => {
@@ -109,6 +115,9 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
             <article
               key={m.id}
               className="rounded-2xl border border-beige-dark bg-white p-5"
+              onClick={() => openMessage(m)}
+              onFocus={() => openMessage(m)}
+              tabIndex={0}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -142,6 +151,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                         setLastDeletedId(m.id);
                         setMessages((prev) => prev.filter((x) => x.id !== m.id));
                         setSnack("تم نقل الرسالة إلى سلة المحذوفات");
+                        notifyAdminInboxChanged();
                         return;
                       }
                       setMessages((prev) =>
@@ -157,6 +167,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                             : x
                         )
                       );
+                      notifyAdminInboxChanged();
                     }}
                     onError={(msg) => alert(msg)}
                   />
@@ -165,7 +176,10 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
               <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-charcoal">
                 {m.message}
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div
+                className="mt-4 flex flex-wrap gap-2"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {!m.is_read && (
                   <Button
                     size="sm"
@@ -190,6 +204,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                   onClick={() => {
                     setReplyTo(m.id);
                     setReplyText("");
+                    if (!m.is_read) void markRead(m.id, true);
                   }}
                 >
                   رد

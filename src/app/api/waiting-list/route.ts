@@ -1,8 +1,10 @@
+import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { isMissingTableError } from "@/lib/supabase/errors";
+import { onWaitlistJoined } from "@/lib/notifications/service";
 
 const schema = z.object({
   name: z.string().trim().min(2, "الاسم مطلوب"),
@@ -54,18 +56,22 @@ export async function POST(request: Request) {
 
   const d = parsed.data;
   const supabase = createAdminClient();
-  const { error } = await supabase.from("waiting_list").insert({
-    name: d.name,
-    phone: d.phone,
-    email: d.email?.trim() ? d.email.trim() : null,
-    preferred_date: d.preferred_date || null,
-    preferred_time: d.preferred_time || null,
-    consultant_id: d.consultant_id || null,
-    notes: d.notes?.trim() || null,
-    status: "waiting",
-    notify_whatsapp: d.notify_whatsapp ?? true,
-    notify_email: d.notify_email ?? true,
-  });
+  const { data: row, error } = await supabase
+    .from("waiting_list")
+    .insert({
+      name: d.name,
+      phone: d.phone,
+      email: d.email?.trim() ? d.email.trim() : null,
+      preferred_date: d.preferred_date || null,
+      preferred_time: d.preferred_time || null,
+      consultant_id: d.consultant_id || null,
+      notes: d.notes?.trim() || null,
+      status: "waiting",
+      notify_whatsapp: d.notify_whatsapp ?? true,
+      notify_email: d.notify_email ?? true,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     if (isMissingTableError(error, "waiting_list")) {
@@ -80,10 +86,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  const id = row?.id ?? crypto.randomUUID();
+  try {
+    after(() =>
+      onWaitlistJoined({
+        id,
+        name: d.name,
+        phone: d.phone,
+        email: d.email?.trim() ? d.email.trim() : null,
+        preferred_date: d.preferred_date || null,
+        preferred_time: d.preferred_time || null,
+      })
+    );
+  } catch {
+    void onWaitlistJoined({
+      id,
+      name: d.name,
+      phone: d.phone,
+      email: d.email?.trim() ? d.email.trim() : null,
+      preferred_date: d.preferred_date || null,
+      preferred_time: d.preferred_time || null,
+    });
+  }
+
   return NextResponse.json(
     {
       success: true,
       message: "تم إضافتكِ إلى قائمة الانتظار. سنتواصل عند توفّر موعد.",
+      id,
     },
     { status: 201 }
   );

@@ -13,6 +13,8 @@ import {
 } from "@/lib/notifications/log";
 import { getNotificationSettings } from "@/lib/notifications/settings";
 import {
+  adminIntakeAlertEmail,
+  adminIntakeAlertWhatsApp,
   adminNewOrderEmail,
   adminWhatsAppMessage,
   bookingSubmittedEmail,
@@ -569,12 +571,167 @@ export async function notifyBookingSubmitted(booking: Booking) {
   });
 }
 
+/** Generic Admin email/WhatsApp for intake (contact, booking, waitlist). Never throws. */
+export async function notifyAdminIntake(alert: {
+  id: string;
+  notificationType: string;
+  title: string;
+  headline: string;
+  lines: Array<{ label: string; value: string }>;
+  adminPath: string;
+  customerId?: string | null;
+}) {
+  if (!isNotificationsEnabled()) {
+    console.info("[notifications] disabled — skip admin intake", alert.id);
+    return;
+  }
+
+  const settings = await getNotificationSettings();
+  const adminEmail = getAdminNotificationEmail() || settings.reply_email;
+  const tasks: Promise<unknown>[] = [];
+
+  if (adminEmail && isResendConfigured()) {
+    const { subject, html } = adminIntakeAlertEmail(alert, settings);
+    tasks.push(
+      sendWithRetry(
+        () =>
+          sendEmail({
+            to: adminEmail,
+            subject,
+            html,
+            replyTo: settings.reply_email,
+            fromName: settings.sender_name,
+          }),
+        {
+          orderId: alert.id,
+          customerId: alert.customerId,
+          notificationType: alert.notificationType,
+          channel: "email",
+          orderStatus: "pending",
+          recipient: adminEmail,
+        }
+      )
+    );
+  } else {
+    await logNotification({
+      orderId: alert.id,
+      customerId: alert.customerId,
+      notificationType: alert.notificationType,
+      channel: "email",
+      orderStatus: "pending",
+      recipient: adminEmail || null,
+      status: "failed",
+      errorMessage: adminEmail
+        ? "Resend غير مُعد"
+        : "ADMIN_NOTIFICATION_EMAIL غير مُعد",
+    });
+  }
+
+  const adminWhatsApp = process.env.ADMIN_WHATSAPP_TO?.trim();
+  if (adminWhatsApp && isWhatsAppConfigured()) {
+    const body = adminIntakeAlertWhatsApp(alert, settings);
+    tasks.push(
+      sendWithRetry(() => sendWhatsApp({ to: adminWhatsApp, body }), {
+        orderId: alert.id,
+        customerId: alert.customerId,
+        notificationType: alert.notificationType,
+        channel: "whatsapp",
+        orderStatus: "pending",
+        recipient: adminWhatsApp,
+      })
+    );
+  }
+
+  await Promise.allSettled(tasks);
+}
+
 /** Fired when a new booking is created. */
 export async function onBookingSubmitted(booking: Booking) {
   try {
-    await notifyBookingSubmitted(booking);
+    await Promise.allSettled([
+      notifyBookingSubmitted(booking),
+      notifyAdminIntake({
+        id: booking.id,
+        notificationType: "admin_new_booking",
+        title: "حجز جديد",
+        headline: "طلب حجز جديد",
+        customerId: booking.phone || booking.email,
+        adminPath: `/admin/bookings?focus=${encodeURIComponent(booking.id)}`,
+        lines: [
+          { label: "الاسم", value: booking.name },
+          { label: "الهاتف", value: booking.phone },
+          { label: "البريد", value: booking.email || "—" },
+          { label: "التاريخ", value: booking.date },
+          { label: "الوقت", value: booking.time?.slice(0, 5) || "—" },
+          { label: "الخدمة", value: booking.service_type },
+          ...(booking.notes
+            ? [{ label: "ملاحظات", value: booking.notes.slice(0, 500) }]
+            : []),
+        ],
+      }),
+    ]);
   } catch (e) {
     console.error("[notifications] onBookingSubmitted failed", e);
+  }
+}
+
+/** Fired when a contact message is stored. */
+export async function onContactSubmitted(message: {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  subject: string;
+  message: string;
+}) {
+  try {
+    await notifyAdminIntake({
+      id: message.id,
+      notificationType: "admin_new_contact",
+      title: "رسالة تواصل جديدة",
+      headline: "رسالة جديدة من نموذج التواصل",
+      customerId: message.email || message.phone,
+      adminPath: "/admin/messages",
+      lines: [
+        { label: "الاسم", value: message.name },
+        { label: "البريد", value: message.email },
+        { label: "الهاتف", value: message.phone || "—" },
+        { label: "الموضوع", value: message.subject },
+        { label: "الرسالة", value: message.message.slice(0, 500) },
+      ],
+    });
+  } catch (e) {
+    console.error("[notifications] onContactSubmitted failed", e);
+  }
+}
+
+/** Fired when someone joins the waiting list. */
+export async function onWaitlistJoined(entry: {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  preferred_date?: string | null;
+  preferred_time?: string | null;
+}) {
+  try {
+    await notifyAdminIntake({
+      id: entry.id,
+      notificationType: "admin_new_waitlist",
+      title: "انضمام لقائمة الانتظار",
+      headline: "عميلة جديدة في قائمة الانتظار",
+      customerId: entry.phone || entry.email,
+      adminPath: "/admin/bookings",
+      lines: [
+        { label: "الاسم", value: entry.name },
+        { label: "الهاتف", value: entry.phone },
+        { label: "البريد", value: entry.email || "—" },
+        { label: "التاريخ المفضّل", value: entry.preferred_date || "—" },
+        { label: "الوقت المفضّل", value: entry.preferred_time || "—" },
+      ],
+    });
+  } catch (e) {
+    console.error("[notifications] onWaitlistJoined failed", e);
   }
 }
 

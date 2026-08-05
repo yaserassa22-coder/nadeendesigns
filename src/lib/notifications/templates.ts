@@ -519,6 +519,61 @@ export function adminWhatsAppMessage(
   ].join("\n");
 }
 
+/** Generic Admin intake alert (contact, booking, waitlist, …). */
+export function adminIntakeAlertEmail(
+  alert: {
+    title: string;
+    headline: string;
+    lines: Array<{ label: string; value: string }>;
+    adminPath: string;
+  },
+  settings: NotificationSettings
+) {
+  const adminUrl = `${getSiteUrl()}${alert.adminPath}`;
+  const subject = `${alert.title} — ${settings.sender_name || SITE_NAME}`;
+  const rows = alert.lines
+    .map(
+      (line) =>
+        `<tr><td style="padding:0 18px 10px;text-align:right;"><strong>${escapeHtml(line.label)}:</strong> ${escapeHtml(line.value)}</td></tr>`
+    )
+    .join("");
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 12px;font-size:22px;color:#2c2419;">${escapeHtml(alert.headline)}</h1>
+    <p style="margin:0 0 18px;line-height:1.8;color:#5c5348;">
+      طلب جديد يحتاج متابعتكِ في لوحة التحكم.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;margin-bottom:18px;">
+      ${rows}
+    </table>
+    <p style="margin:24px 0 0;text-align:center;">
+      <a href="${adminUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#b8956c;color:#fff;text-decoration:none;font-weight:700;">
+        فتح في لوحة التحكم
+      </a>
+    </p>
+    `,
+    settings
+  );
+  return { subject, html };
+}
+
+export function adminIntakeAlertWhatsApp(
+  alert: {
+    title: string;
+    lines: Array<{ label: string; value: string }>;
+    adminPath: string;
+  },
+  settings: NotificationSettings
+) {
+  return [
+    `${alert.title} — ${settings.sender_name || SITE_NAME}`,
+    ...alert.lines.map((line) => `${line.label}: ${line.value}`),
+    ``,
+    `لوحة التحكم: ${getSiteUrl()}${alert.adminPath}`,
+  ].join("\n");
+}
+
 /** Booking confirmation email */
 export function bookingSubmittedEmail(
   booking: {

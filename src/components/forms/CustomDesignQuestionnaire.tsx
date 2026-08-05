@@ -180,7 +180,7 @@ export function CustomDesignQuestionnaire() {
     reset(data);
     setIsEditing(true);
     setSaveNotice(
-      isEditing ? "تم حفظ التعديلات بنجاح." : "استلمنا رؤيتكِ بكل حب"
+      isEditing ? "تم حفظ التعديلات بنجاح." : "تم حفظ تفاصيل تصميمكِ"
     );
     setPhase("success");
   };
@@ -216,12 +216,12 @@ export function CustomDesignQuestionnaire() {
           <CheckCircle className="h-8 w-8" />
         </div>
         <h3 className="mt-6 text-2xl font-semibold text-charcoal md:text-3xl">
-          {saveNotice || "استلمنا رؤيتكِ بكل حب"}
+          {saveNotice || "تم حفظ تفاصيل تصميمكِ"}
         </h3>
         <p className="mx-auto mt-4 max-w-md text-muted leading-relaxed">
           {isEditing
-            ? "يمكنك متابعة حجز الاستشارة أو العودة لتعديل أي تفصيلة أخرى."
-            : "خطوتكِ التالية هي حجز استشارة شخصية لنبدأ معًا رحلة تصميم فستانكِ الحصري."}
+            ? "تم تحديث المسودة. أكملي حجز الاستشارة لإرسال الطلب إلى البوتيك."
+            : "تم حفظ المسودة على هذا الجهاز. أكملي حجز الاستشارة لإرسال طلب التصميم إلى الإدارة وسنتواصل معكِ في أقرب وقت."}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link href="/booking?service=custom_design">

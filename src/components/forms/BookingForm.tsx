@@ -91,6 +91,7 @@ const API_FIELD_TO_FORM: Record<string, keyof BookingFormData | "form"> = {
 export function BookingForm() {
   const searchParams = useSearchParams();
   const serviceParam = searchParams.get("service");
+  const dressParam = searchParams.get("dress");
   const defaultService =
     serviceParam &&
     BOOKING_SERVICE_OPTIONS.some((o) => o.value === serviceParam)
@@ -134,19 +135,32 @@ export function BookingForm() {
   const selectedTime = watch("time");
 
   useEffect(() => {
+    const noteParts: string[] = [];
     try {
+      // Keep brief until booking succeeds — do not remove on mount.
       const brief = sessionStorage.getItem(CUSTOM_DESIGN_BRIEF_KEY);
       if (brief) {
-        setValue("notes", brief);
+        noteParts.push(brief);
         setValue("service_type", "custom_design");
-        sessionStorage.removeItem(CUSTOM_DESIGN_BRIEF_KEY);
       }
     } catch {
       /* ignore */
     }
 
+    if (dressParam?.trim()) {
+      noteParts.push(`منتج مرتبط (معرّف): ${dressParam.trim()}`);
+    }
+
+    if (noteParts.length) {
+      const current = getValues("notes")?.trim() ?? "";
+      const merged = noteParts.join("\n\n");
+      if (!current.includes(noteParts[0]!)) {
+        setValue("notes", current ? `${merged}\n\n${current}` : merged);
+      }
+    }
+
     if (serviceParam) setValue("service_type", defaultService);
-  }, [setValue, serviceParam, defaultService]);
+  }, [setValue, getValues, serviceParam, defaultService, dressParam]);
 
   useEffect(() => {
     if (!selectedDate) {
@@ -293,6 +307,11 @@ export function BookingForm() {
         return;
       }
 
+      try {
+        sessionStorage.removeItem(CUSTOM_DESIGN_BRIEF_KEY);
+      } catch {
+        /* ignore */
+      }
       setSuccess(true);
       reset({
         service_type: defaultService,
