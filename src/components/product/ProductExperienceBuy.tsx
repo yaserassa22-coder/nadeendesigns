@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Zap } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { useCart } from "@/components/shop/CartProvider";
+import { PurchaseCtaGroup } from "@/components/ui/experience";
 import {
   ProductExperienceModal,
   type ProductExperienceIntent,
@@ -34,6 +33,8 @@ type Props = {
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];
+  /** Compact wishlist slot — aligned with Add to Cart / Buy Now. */
+  wishlist?: ReactNode;
   /** Open modal with veil/robe personalization (wraps existing UI). */
   enablePersonalization?: boolean;
   enableGiftWrapping?: boolean;
@@ -60,6 +61,7 @@ export function ProductExperienceBuy({
   extraServices = [],
   experienceConfig = null,
   sections = [],
+  wishlist,
   enablePersonalization,
   enableGiftWrapping = false,
   requiresShipping = true,
@@ -133,33 +135,16 @@ export function ProductExperienceBuy({
   };
 
   return (
-    <div className={className ? `space-y-3 ${className}` : "space-y-3"}>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button
-          size={size}
-          disabled={disabled || !canBuy}
-          onClick={onAddToCart}
-          className="sm:flex-1"
-        >
-          <ShoppingBag className="h-4 w-4" />
-          {addLabel}
-        </Button>
-        <Button
-          size={size}
-          variant="outline"
-          disabled={disabled || !canBuy}
-          onClick={onBuyNow}
-          className="sm:flex-1"
-        >
-          <Zap className="h-4 w-4" />
-          شراء الآن
-        </Button>
-      </div>
-      {message ? (
-        <p className="text-sm text-gold" role="status">
-          {message}
-        </p>
-      ) : null}
+    <div className={className}>
+      <PurchaseCtaGroup
+        wishlist={wishlist}
+        onAddToCart={onAddToCart}
+        onBuyNow={onBuyNow}
+        addLabel={addLabel}
+        disabled={disabled || !canBuy}
+        size={size}
+        message={message}
+      />
 
       {canBuy && unit != null ? (
         <ProductExperienceModal

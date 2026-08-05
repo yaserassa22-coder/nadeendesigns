@@ -1,0 +1,115 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { ShoppingBag, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export type PurchaseCtaSize = "sm" | "md" | "lg";
+
+type Props = {
+  /** Compact wishlist control (icon button). Same height as purchase CTAs. */
+  wishlist?: ReactNode;
+  onAddToCart: () => void;
+  onBuyNow: () => void;
+  addLabel?: string;
+  buyLabel?: string;
+  disabled?: boolean;
+  size?: PurchaseCtaSize;
+  className?: string;
+  /** Optional status line under the row (e.g. added to cart). */
+  message?: string;
+  /** Show cancel / tertiary ghost action (modal). */
+  secondaryAction?: ReactNode;
+};
+
+const heightClass: Record<PurchaseCtaSize, string> = {
+  sm: "h-[var(--xp-cta-height-sm)] text-sm",
+  md: "h-[var(--xp-cta-height)] text-sm",
+  lg: "h-[var(--xp-cta-height)] text-base",
+};
+
+const iconClass = "h-[var(--xp-cta-icon)] w-[var(--xp-cta-icon)] shrink-0";
+
+/**
+ * Unified luxury purchase chrome: Wishlist · Add to Cart · Buy Now.
+ * Same height, icon weight, padding rhythm, and typography across surfaces.
+ */
+export function PurchaseCtaGroup({
+  wishlist,
+  onAddToCart,
+  onBuyNow,
+  addLabel = "أضيفي للسلة",
+  buyLabel = "شراء الآن",
+  disabled = false,
+  size = "lg",
+  className,
+  message,
+  secondaryAction,
+}: Props) {
+  const h = heightClass[size];
+
+  return (
+    <div className={cn("space-y-3", className)}>
+      <div
+        className="flex flex-col gap-[var(--xp-cta-gap)] sm:flex-row sm:items-center"
+        data-purchase-cta-group=""
+      >
+        {wishlist ? (
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-center sm:self-stretch",
+              "[&_button]:h-[var(--xp-cta-height)] [&_button]:w-[var(--xp-cta-height)]",
+              size === "sm" &&
+                "[&_button]:h-[var(--xp-cta-height-sm)] [&_button]:w-[var(--xp-cta-height-sm)]",
+              "[&_svg]:h-[var(--xp-cta-icon)] [&_svg]:w-[var(--xp-cta-icon)]"
+            )}
+          >
+            {wishlist}
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onAddToCart}
+          className={cn(
+            "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] border-2 border-gold bg-transparent px-6 font-medium text-gold transition-colors duration-300",
+            "hover:bg-gold hover:text-white",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            h
+          )}
+        >
+          <ShoppingBag className={iconClass} strokeWidth={1.75} />
+          {addLabel}
+        </button>
+
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onBuyNow}
+          className={cn(
+            "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] bg-gold px-6 font-medium text-white shadow-md shadow-gold/20 transition-colors duration-300",
+            "hover:bg-gold-dark",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            h
+          )}
+        >
+          <Zap className={iconClass} strokeWidth={1.75} />
+          {buyLabel}
+        </button>
+
+        {secondaryAction ? (
+          <div className="flex shrink-0 sm:order-last">{secondaryAction}</div>
+        ) : null}
+      </div>
+
+      {message ? (
+        <p className="text-sm text-gold" role="status">
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
+}

@@ -100,6 +100,14 @@ export default async function DressDetailPage({ params }: Props) {
       }
       description={dress.description_ar}
       available={dress.is_available}
+      shippingNote={
+        primaryAction.requiresShipping
+          ? "الشحن والتوصيل يُحدَّدان عند إتمام الطلب"
+          : "حجز في البوتيك — بدون شحن"
+      }
+      availabilityLabel={
+        dress.is_available ? "متوفر · جاهز للطلب" : "غير متوفر حالياً"
+      }
       meta={
         <>
           {dress.style && (
@@ -123,13 +131,6 @@ export default async function DressDetailPage({ params }: Props) {
       }
       actions={
         <>
-          <WishlistButton
-            productKind="dress"
-            productId={dress.id}
-            productSlug={dress.id}
-            productTitle={dress.name_ar}
-            productImageUrl={featuredImage(dress.images)}
-          />
           {dress.is_available ? (
             <ProductPrimaryCta
               productType={commerceType}
@@ -143,15 +144,34 @@ export default async function DressDetailPage({ params }: Props) {
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
+              wishlist={
+                <WishlistButton
+                  variant="icon"
+                  productKind="dress"
+                  productId={dress.id}
+                  productSlug={dress.id}
+                  productTitle={dress.name_ar}
+                  productImageUrl={featuredImage(dress.images)}
+                />
+              }
               bookingHref={
                 primaryAction.kind === "book_now"
                   ? "/booking"
                   : `/booking?dress=${dress.id}`
               }
             />
-          ) : null}
-          <Link href={categoryHref}>
-            <Button variant="outline" size="lg">
+          ) : (
+            <WishlistButton
+              variant="icon"
+              productKind="dress"
+              productId={dress.id}
+              productSlug={dress.id}
+              productTitle={dress.name_ar}
+              productImageUrl={featuredImage(dress.images)}
+            />
+          )}
+          <Link href={categoryHref} className="inline-block">
+            <Button variant="ghost" size="md">
               العودة للمجموعة
             </Button>
           </Link>

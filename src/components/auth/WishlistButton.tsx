@@ -69,14 +69,14 @@ export function WishlistButton({
         aria-label={saved ? "إزالة من قائمة الأمنيات" : "أضيفي إلى قائمة الأمنيات"}
         aria-pressed={saved}
         className={cn(
-          /* Position via ProductCardOverlay top-right slot — never ad-hoc absolute. */
-          "relative z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-charcoal shadow-sm transition hover:bg-gold hover:text-white disabled:opacity-60",
-          saved && "text-gold",
+          /* Position via ProductCardOverlay top-right, or PurchaseCtaGroup slot. */
+          "relative z-30 flex h-10 w-10 items-center justify-center rounded-full border border-beige-dark/80 bg-white/95 text-charcoal shadow-sm transition hover:border-gold hover:bg-gold hover:text-white disabled:opacity-60",
+          saved && "border-gold/40 text-gold",
           className
         )}
       >
         <Heart
-          className="h-4 w-4"
+          className="h-[var(--xp-cta-icon)] w-[var(--xp-cta-icon)]"
           strokeWidth={1.75}
           fill={saved ? "currentColor" : "none"}
         />

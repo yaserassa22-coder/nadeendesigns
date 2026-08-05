@@ -73,6 +73,12 @@ export default async function RobeDetailPage({ params }: Props) {
       price={robe.price}
       description={robe.description_ar}
       available={inStock}
+      shippingNote="الشحن والتوصيل يُحدَّدان عند إتمام الطلب"
+      availabilityLabel={
+        inStock
+          ? `متوفر · ${robe.stock_quantity} قطعة`
+          : "غير متوفر حالياً"
+      }
       meta={
         <>
           {robe.color && (
@@ -90,30 +96,12 @@ export default async function RobeDetailPage({ params }: Props) {
               {robe.material}
             </span>
           )}
-          <span className="rounded-full bg-beige px-4 py-2 text-sm">
-            المخزون: {robe.stock_quantity}
-          </span>
         </>
       }
       actions={
-        <>
-          <WishlistButton
-            productKind="bridal_robe"
-            productId={robe.id}
-            productSlug={robe.id}
-            productTitle={robe.name_ar}
-            productImageUrl={featuredImage(robe.images)}
-          />
-          <Link href="/robes">
-            <Button variant="outline" size="lg">
-              العودة لبرنص العروس
-            </Button>
-          </Link>
-        </>
-      }
-      below={
         inStock ? (
           <ShopCustomizeAndBuy
+            flush
             productType="bridal_robe"
             productId={robe.id}
             nameAr={robe.name_ar}
@@ -122,7 +110,42 @@ export default async function RobeDetailPage({ params }: Props) {
             extraServices={experience.extraServices}
             experienceConfig={experience.experienceConfig}
             sections={experience.sections}
+            wishlist={
+              <WishlistButton
+                variant="icon"
+                productKind="bridal_robe"
+                productId={robe.id}
+                productSlug={robe.id}
+                productTitle={robe.name_ar}
+                productImageUrl={featuredImage(robe.images)}
+              />
+            }
           />
+        ) : (
+          <>
+            <WishlistButton
+              variant="icon"
+              productKind="bridal_robe"
+              productId={robe.id}
+              productSlug={robe.id}
+              productTitle={robe.name_ar}
+              productImageUrl={featuredImage(robe.images)}
+            />
+            <Link href="/robes" className="inline-block">
+              <Button variant="ghost" size="md">
+                العودة لبرنص العروس
+              </Button>
+            </Link>
+          </>
+        )
+      }
+      below={
+        inStock ? (
+          <Link href="/robes" className="mt-6 inline-block">
+            <Button variant="ghost" size="md">
+              العودة لبرنص العروس
+            </Button>
+          </Link>
         ) : null
       }
       related={<RelatedShopProducts items={related} />}

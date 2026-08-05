@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
 import type { ExtraServiceConfig } from "@/lib/products/order-experience";
 import type {
@@ -20,6 +21,10 @@ interface ShopCustomizeAndBuyProps {
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];
+  /** Compact wishlist — aligned with Add to Cart / Buy Now. */
+  wishlist?: ReactNode;
+  /** Drop top margin when nested in PDP actions (vs below slot). */
+  flush?: boolean;
 }
 
 /**
@@ -37,17 +42,26 @@ export function ShopCustomizeAndBuy({
   extraServices = [],
   experienceConfig = null,
   sections = [],
+  wishlist,
+  flush = false,
 }: ShopCustomizeAndBuyProps) {
   return (
-    <div className="mt-10 rounded-3xl border border-beige-dark bg-white/80 p-6 shadow-sm md:p-8">
-      <div className="mb-5">
-        <p className="mb-1 text-sm text-gold">تخصيص وشراء</p>
-        <h2 className="text-2xl font-bold text-charcoal">
-          خصّصي منتجكِ وأضيفيه للسلة
+    <div
+      className={
+        flush
+          ? "rounded-[var(--xp-card-radius-lg)] border border-[color:var(--xp-border)] bg-[color:var(--xp-surface)] p-5 shadow-[var(--xp-shadow)] md:p-6"
+          : "mt-10 rounded-[var(--xp-card-radius-lg)] border border-[color:var(--xp-border)] bg-[color:var(--xp-surface)] p-6 shadow-[var(--xp-shadow)] md:p-8"
+      }
+    >
+      <div className="mb-6">
+        <p className="mb-1 text-xs tracking-[0.2em] text-gold uppercase">
+          تخصيص وشراء
+        </p>
+        <h2 className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold tracking-wide text-charcoal">
+          خصّصي منتجكِ
         </h2>
         <p className="mt-2 text-sm text-muted">
-          أضيفي للسلة أو اشتري الآن — التخصيص والخدمات الإضافية تظهر قبل الإتمام.
-          عنوان التوصيل والملاحظات تُسأل عند الدفع فقط.
+          التخصيص والخدمات تظهر قبل الإضافة — التوصيل والملاحظات عند الدفع فقط.
         </p>
       </div>
       <ProductExperienceBuy
@@ -60,6 +74,7 @@ export function ShopCustomizeAndBuy({
         extraServices={extraServices}
         experienceConfig={experienceConfig}
         sections={sections}
+        wishlist={wishlist}
         enablePersonalization
         enableGiftWrapping
         requiresShipping

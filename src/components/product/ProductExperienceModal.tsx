@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ShoppingBag, X, Zap } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PurchaseCtaGroup } from "@/components/ui/experience";
 import { useCart } from "@/components/shop/CartProvider";
 import { ExtraServicesFields } from "@/components/product/ExtraServicesFields";
 import { ProductExperiencePriceSummary } from "@/components/product/ProductExperiencePriceSummary";
@@ -70,7 +71,7 @@ function SectionShell({
   const [open, setOpen] = useState(!section.collapsed);
   if (!children) return null;
   return (
-    <div className="rounded-3xl border border-beige-dark/80 bg-white/60">
+    <div className="rounded-[var(--xp-card-radius-lg)] border border-[color:var(--xp-border)] bg-[color:var(--xp-surface)]">
       <button
         type="button"
         className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start"
@@ -86,7 +87,7 @@ function SectionShell({
         </div>
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-muted transition-transform",
+            "h-4 w-4 shrink-0 text-muted transition-transform duration-300",
             open ? "rotate-180" : ""
           )}
         />
@@ -412,43 +413,29 @@ export function ProductExperienceModal({
         <div className="sticky bottom-0 border-t border-beige-dark/70 bg-ivory/95 px-5 py-4 backdrop-blur-sm md:px-6">
           {summaryEnabled || !hasDesignerContent ? (
             <ProductExperiencePriceSummary
-              className="mb-3 rounded-2xl border border-gold/30 bg-white/80 p-3 text-sm md:p-4"
+              className="mb-3"
               baseUnitPrice={unitPrice}
               quantity={quantity}
               selectedServices={selectedServices}
             />
           ) : null}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-              variant="ghost"
-              size="lg"
-              className="sm:order-3"
-              onClick={onClose}
-              disabled={submitting}
-            >
-              إلغاء
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="sm:order-2 sm:flex-1"
-              disabled={submitting}
-              onClick={() => commit("cart")}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              أضيفي للسلة
-            </Button>
-            <Button
-              size="lg"
-              variant="primary"
-              className="sm:order-1 sm:flex-1"
-              disabled={submitting}
-              onClick={() => commit("checkout")}
-            >
-              <Zap className="h-4 w-4" />
-              شراء الآن
-            </Button>
-          </div>
+          <PurchaseCtaGroup
+            onAddToCart={() => commit("cart")}
+            onBuyNow={() => commit("checkout")}
+            disabled={submitting}
+            size="lg"
+            secondaryAction={
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={onClose}
+                disabled={submitting}
+                className="h-[var(--xp-cta-height)]"
+              >
+                إلغاء
+              </Button>
+            }
+          />
         </div>
       </div>
     </div>

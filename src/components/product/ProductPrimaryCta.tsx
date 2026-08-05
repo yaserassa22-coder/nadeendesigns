@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +33,8 @@ export type ProductPrimaryCtaProps = {
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];
+  /** Compact wishlist — aligned with Add to Cart / Buy Now when purchasable. */
+  wishlist?: ReactNode;
   /** Booking deep-link extras */
   bookingHref?: string;
   disabled?: boolean;
@@ -55,6 +58,7 @@ export function ProductPrimaryCta({
   extraServices = [],
   experienceConfig = null,
   sections = [],
+  wishlist,
   bookingHref,
   disabled = false,
   size = "lg",
@@ -75,6 +79,7 @@ export function ProductPrimaryCta({
         extraServices={extraServices}
         experienceConfig={experienceConfig}
         sections={sections}
+        wishlist={wishlist}
         requiresShipping={action.requiresShipping}
         disabled={disabled}
         size={size}
@@ -90,11 +95,14 @@ export function ProductPrimaryCta({
       : `/booking?dress=${encodeURIComponent(productId)}`);
 
   return (
-    <Link href={href} className={className}>
-      <Button size={size} disabled={disabled}>
-        <Calendar className="h-4 w-4" />
-        {action.label}
-      </Button>
-    </Link>
+    <div className={className ? `flex flex-wrap items-center gap-3 ${className}` : "flex flex-wrap items-center gap-3"}>
+      {wishlist}
+      <Link href={href}>
+        <Button size={size} disabled={disabled}>
+          <Calendar className="h-4 w-4" />
+          {action.label}
+        </Button>
+      </Link>
+    </div>
   );
 }

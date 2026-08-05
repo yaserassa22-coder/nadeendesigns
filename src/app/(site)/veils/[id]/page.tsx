@@ -73,6 +73,12 @@ export default async function VeilDetailPage({ params }: Props) {
       price={veil.price}
       description={veil.description_ar}
       available={inStock}
+      shippingNote="الشحن والتوصيل يُحدَّدان عند إتمام الطلب"
+      availabilityLabel={
+        inStock
+          ? `متوفر · ${veil.stock_quantity} قطعة`
+          : "غير متوفر حالياً"
+      }
       meta={
         <>
           {veil.color && (
@@ -85,30 +91,12 @@ export default async function VeilDetailPage({ params }: Props) {
               {veil.material}
             </span>
           )}
-          <span className="rounded-full bg-beige px-4 py-2 text-sm">
-            المخزون: {veil.stock_quantity}
-          </span>
         </>
       }
       actions={
-        <>
-          <WishlistButton
-            productKind="veil"
-            productId={veil.id}
-            productSlug={veil.id}
-            productTitle={veil.name_ar}
-            productImageUrl={featuredImage(veil.images)}
-          />
-          <Link href="/veils">
-            <Button variant="outline" size="lg">
-              العودة لطرحة العروس
-            </Button>
-          </Link>
-        </>
-      }
-      below={
         inStock ? (
           <ShopCustomizeAndBuy
+            flush
             productType="veil"
             productId={veil.id}
             nameAr={veil.name_ar}
@@ -117,7 +105,42 @@ export default async function VeilDetailPage({ params }: Props) {
             extraServices={experience.extraServices}
             experienceConfig={experience.experienceConfig}
             sections={experience.sections}
+            wishlist={
+              <WishlistButton
+                variant="icon"
+                productKind="veil"
+                productId={veil.id}
+                productSlug={veil.id}
+                productTitle={veil.name_ar}
+                productImageUrl={featuredImage(veil.images)}
+              />
+            }
           />
+        ) : (
+          <>
+            <WishlistButton
+              variant="icon"
+              productKind="veil"
+              productId={veil.id}
+              productSlug={veil.id}
+              productTitle={veil.name_ar}
+              productImageUrl={featuredImage(veil.images)}
+            />
+            <Link href="/veils" className="inline-block">
+              <Button variant="ghost" size="md">
+                العودة لطرحة العروس
+              </Button>
+            </Link>
+          </>
+        )
+      }
+      below={
+        inStock ? (
+          <Link href="/veils" className="mt-6 inline-block">
+            <Button variant="ghost" size="md">
+              العودة لطرحة العروس
+            </Button>
+          </Link>
         ) : null
       }
       related={<RelatedShopProducts items={related} />}

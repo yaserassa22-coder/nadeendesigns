@@ -69,15 +69,20 @@ function Card({
   title,
   children,
   action,
+  hint,
 }: {
   title: string;
   children: React.ReactNode;
   action?: React.ReactNode;
+  hint?: string;
 }) {
   return (
-    <section className="rounded-2xl border border-beige-dark/80 bg-white p-5 shadow-sm">
+    <section className="rounded-[var(--xp-card-radius)] border border-beige-dark/80 bg-white p-5 shadow-[var(--xp-shadow)]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-charcoal">{title}</h3>
+        <div>
+          <h3 className="text-base font-semibold text-charcoal">{title}</h3>
+          {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
+        </div>
         {action}
       </div>
       {children}
@@ -397,6 +402,7 @@ export function ExperienceDesignerPanel({
       {/* 1. Experience Template */}
       <Card
         title="قالب التجربة"
+        hint="ابدئي من قالب جاهز — أو احفظي إعداداتكِ الحالية"
         action={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -853,7 +859,7 @@ export function ExperienceDesignerPanel({
         >
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-charcoal">
             <Settings2 className="h-4 w-4 text-muted" />
-            إعدادات متقدمة
+            المزيد من الخيارات
           </span>
           <ChevronDown
             className={cn(
@@ -865,7 +871,7 @@ export function ExperienceDesignerPanel({
         {advancedOpen ? (
           <div className="space-y-5 border-t border-beige-dark/50 px-5 py-4">
             <div className="space-y-3">
-              <p className="text-xs font-medium text-muted">عناوين مخصصة</p>
+              <p className="text-xs font-medium text-muted">تعديل عناوين الأقسام</p>
               {journeySections.map((section) => (
                 <div
                   key={section.id}
@@ -936,9 +942,6 @@ export function ExperienceDesignerPanel({
                         }
                       />
                       {EXPERIENCE_SECTION_LABELS_AR[section.id]}
-                      <span className="text-[10px] text-muted" dir="ltr">
-                        ({section.id})
-                      </span>
                     </label>
                     <div className="flex gap-1">
                       <Button

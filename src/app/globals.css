@@ -11,6 +11,21 @@
   --gold-dark: #a8894f;
   --charcoal: #2c2419;
   --muted: #6b5e4f;
+
+  /* Experience design system — shared luxury purchase chrome */
+  --xp-cta-height: 3.25rem;
+  --xp-cta-height-sm: 2.75rem;
+  --xp-cta-icon: 1.125rem;
+  --xp-cta-radius: 9999px;
+  --xp-cta-gap: 0.75rem;
+  --xp-card-radius: 1.25rem;
+  --xp-card-radius-lg: 1.5rem;
+  --xp-surface: rgba(255, 255, 255, 0.88);
+  --xp-surface-selected: rgba(201, 169, 110, 0.08);
+  --xp-border: rgba(231, 223, 211, 0.95);
+  --xp-border-selected: rgba(201, 169, 110, 0.55);
+  --xp-shadow: 0 12px 40px rgba(44, 36, 25, 0.08);
+  --xp-transition: 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
@@ -93,6 +108,34 @@ body {
 
 .animate-fade-up {
   animation: fade-up 0.8s ease-out forwards;
+}
+
+@keyframes xp-price-pulse {
+  0% {
+    opacity: 0.35;
+    transform: translateY(4px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.xp-price-pulse {
+  animation: xp-price-pulse var(--xp-transition) ease-out;
+}
+
+@keyframes xp-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.xp-fade-in {
+  animation: xp-fade 320ms ease-out;
 }
 
 /* Veil / robe personalization preview fonts */
