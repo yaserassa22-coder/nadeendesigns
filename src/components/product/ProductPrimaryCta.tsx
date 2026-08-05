@@ -9,7 +9,7 @@ import {
   resolveProductCommerceType,
   type ProductCommerceType,
 } from "@/lib/products/primary-action";
-import type { ExtraServiceConfig, OrderOptionConfig } from "@/lib/products/order-experience";
+import type { ExtraServiceConfig } from "@/lib/products/order-experience";
 import type {
   ExperienceSectionConfig,
   ProductExperienceConfig,
@@ -29,7 +29,6 @@ export type ProductPrimaryCtaProps = {
   salePrice?: number | null;
   rentalPrice?: number | null;
   image?: string | null;
-  orderOptions?: OrderOptionConfig[];
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];
@@ -53,7 +52,6 @@ export function ProductPrimaryCta({
   price,
   salePrice,
   image,
-  orderOptions = [],
   extraServices = [],
   experienceConfig = null,
   sections = [],
@@ -74,7 +72,6 @@ export function ProductPrimaryCta({
         price={price}
         salePrice={salePrice}
         image={image}
-        orderOptions={orderOptions}
         extraServices={extraServices}
         experienceConfig={experienceConfig}
         sections={sections}

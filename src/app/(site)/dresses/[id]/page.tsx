@@ -140,7 +140,6 @@ export default async function DressDetailPage({ params }: Props) {
               salePrice={dress.sale_price}
               rentalPrice={dress.rental_price}
               image={featuredImage(dress.images)}
-              orderOptions={experience.orderOptions}
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}

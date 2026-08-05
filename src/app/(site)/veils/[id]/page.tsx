@@ -114,7 +114,6 @@ export default async function VeilDetailPage({ params }: Props) {
             nameAr={veil.name_ar}
             price={veil.price}
             image={featuredImage(veil.images)}
-            orderOptions={experience.orderOptions}
             extraServices={experience.extraServices}
             experienceConfig={experience.experienceConfig}
             sections={experience.sections}

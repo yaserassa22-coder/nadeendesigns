@@ -51,8 +51,6 @@ type Props = {
   unitPrice: number;
   compareAtPrice?: number | null;
   image?: string | null;
-  /** @deprecated Order options belong to checkout — ignored on PDP/modal. */
-  orderOptions?: unknown;
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];

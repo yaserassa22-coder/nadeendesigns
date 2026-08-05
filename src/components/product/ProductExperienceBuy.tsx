@@ -12,7 +12,6 @@ import {
 import {
   productNeedsExperienceModal,
   type ExtraServiceConfig,
-  type OrderOptionConfig,
 } from "@/lib/products/order-experience";
 import type {
   ExperienceSectionConfig,
@@ -32,7 +31,6 @@ type Props = {
   price?: number | null;
   salePrice?: number | null;
   image?: string | null;
-  orderOptions?: OrderOptionConfig[];
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];
@@ -59,8 +57,6 @@ export function ProductExperienceBuy({
   price,
   salePrice,
   image,
-  // orderOptions accepted for backward-compatible call sites; never used on PDP.
-  orderOptions: _unusedOrderOptions,
   extraServices = [],
   experienceConfig = null,
   sections = [],

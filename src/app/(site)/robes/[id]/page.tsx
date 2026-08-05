@@ -119,7 +119,6 @@ export default async function RobeDetailPage({ params }: Props) {
             nameAr={robe.name_ar}
             price={robe.price}
             image={featuredImage(robe.images)}
-            orderOptions={experience.orderOptions}
             extraServices={experience.extraServices}
             experienceConfig={experience.experienceConfig}
             sections={experience.sections}

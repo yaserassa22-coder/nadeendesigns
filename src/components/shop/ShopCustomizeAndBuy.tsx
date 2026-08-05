@@ -1,7 +1,7 @@
 "use client";
 
 import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
-import type { ExtraServiceConfig, OrderOptionConfig } from "@/lib/products/order-experience";
+import type { ExtraServiceConfig } from "@/lib/products/order-experience";
 import type {
   ExperienceSectionConfig,
   ProductExperienceConfig,
@@ -16,8 +16,6 @@ interface ShopCustomizeAndBuyProps {
   /** Optional sale — when lower than price, cart charges sale and keeps compare-at. */
   salePrice?: number | null;
   image?: string;
-  /** Resolved enabled order options (store + product). Empty = none. */
-  orderOptions?: OrderOptionConfig[];
   /** Resolved available extra services (store + product). Empty = none. */
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
@@ -27,7 +25,7 @@ interface ShopCustomizeAndBuyProps {
 /**
  * Veil / robe purchase entry — wraps ProductExperienceBuy + modal.
  * Personalization UI lives inside ProductExperienceModal (existing atoms).
- * Does not rewrite personalization validation logic.
+ * Delivery / notes / order options are collected at checkout only.
  */
 export function ShopCustomizeAndBuy({
   productType,
@@ -36,7 +34,6 @@ export function ShopCustomizeAndBuy({
   price,
   salePrice,
   image,
-  orderOptions = [],
   extraServices = [],
   experienceConfig = null,
   sections = [],
@@ -49,7 +46,8 @@ export function ShopCustomizeAndBuy({
           خصّصي منتجكِ وأضيفيه للسلة
         </h2>
         <p className="mt-2 text-sm text-muted">
-          أضيفي للسلة أو اشتري الآن — التخصيص وخيارات الطلب تظهر قبل الإتمام.
+          أضيفي للسلة أو اشتري الآن — التخصيص والخدمات الإضافية تظهر قبل الإتمام.
+          عنوان التوصيل والملاحظات تُسأل عند الدفع فقط.
         </p>
       </div>
       <ProductExperienceBuy
@@ -59,7 +57,6 @@ export function ShopCustomizeAndBuy({
         price={price}
         salePrice={salePrice}
         image={image}
-        orderOptions={orderOptions}
         extraServices={extraServices}
         experienceConfig={experienceConfig}
         sections={sections}
