@@ -68,6 +68,7 @@ function DressesManagerInner({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const collectionParam = searchParams.get("collection");
 
   const [dresses, setDresses] = useState(initialDresses);
   const [categories, setCategories] = useState(initialCategories);
@@ -124,11 +125,21 @@ function DressesManagerInner({
   const setCategoryFilterAndUrl = (value: string | "all") => {
     if (resolvedLockId) return;
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("collection");
     if (value === "all") params.delete("category");
     else params.set("category", value);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
+
+  const featuredCollectionIds = useMemo(() => {
+    if (collectionParam !== "1") return null;
+    return new Set(
+      categories
+        .filter((c) => c.featured_collection === true)
+        .map((c) => c.id)
+    );
+  }, [collectionParam, categories]);
   const [availabilityFilter, setAvailabilityFilter] = useState<
     "all" | "yes" | "no"
   >("all");
@@ -201,6 +212,11 @@ function DressesManagerInner({
         if (dressCatId !== effectiveCategory && d.category !== effectiveCategory) {
           return false;
         }
+      } else if (featuredCollectionIds) {
+        const dressCatId = resolveDressCategoryId(d, dressCategories);
+        if (!dressCatId || !featuredCollectionIds.has(dressCatId)) {
+          return false;
+        }
       }
       if (availabilityFilter === "yes" && !d.is_available) return false;
       if (availabilityFilter === "no" && d.is_available) return false;
@@ -231,6 +247,7 @@ function DressesManagerInner({
     search,
     categoryFilter,
     resolvedLockId,
+    featuredCollectionIds,
     availabilityFilter,
     featuredFilter,
     statusFilter,

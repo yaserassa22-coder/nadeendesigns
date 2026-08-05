@@ -23,23 +23,18 @@ import { cn } from "@/lib/utils";
 import { ADMIN_CATEGORIES_CHANGED_EVENT } from "@/lib/admin/category-events";
 import {
   buildCategoryTree,
-  resolveCategoryProductKind,
   type Category,
   type CategoryTreeNode,
 } from "@/types/category";
 
 type CategoryWithCount = Category & { product_count?: number };
 
-const LINKS_BEFORE_CATEGORIES = [
+/** Top-level modules — never hardcode product-category shortcuts here. */
+const PRIMARY_LINKS = [
   { href: "/admin", label: "لوحة التحكم", exact: true },
-  { href: "/admin/reports", label: "📊 التقارير" },
 ] as const;
 
-const LINKS_AFTER_CATEGORIES = [
-  { href: "/admin/dresses", label: "👰 المنتجات" },
-  { href: "/admin/nouf-dresses", label: "👗 فساتين نوف" },
-  { href: "/admin/veils", label: "🕊️ طرحة العروس" },
-  { href: "/admin/bridal-robes", label: "🥻 برنص العروس" },
+const MODULE_LINKS = [
   { href: "/admin/gallery", label: "🖼️ المعرض" },
   { href: "/admin/bookings", label: "📅 الحجوزات" },
   { href: "/admin/calendar", label: "🗓️ تقويم المواعيد" },
@@ -54,13 +49,19 @@ const LINKS_AFTER_CATEGORIES = [
   { href: "/admin/trash", label: "🗑️ سلة المحذوفات" },
   { href: "/admin/content/home", label: "🏠 محتوى الرئيسية" },
   { href: "/admin/content/about", label: "📖 محتوى من نحن" },
+  { href: "/admin/reports", label: "📊 التقارير" },
   { href: "/admin/settings", label: "⚙️ إعدادات المتجر" },
 ] as const;
+
+function categoryProductsHref(categoryId: string): string {
+  return `/admin/dresses?category=${encodeURIComponent(categoryId)}`;
+}
 
 function isLinkActive(
   href: string,
   pathname: string,
   category: string | null,
+  collection: string | null,
   exact?: boolean
 ) {
   if (exact) return pathname === href;
@@ -68,15 +69,20 @@ function isLinkActive(
   if (href.includes("?")) {
     const [path, query] = href.split("?");
     const params = new URLSearchParams(query);
-    return pathname === path && category === params.get("category");
+    const hrefCategory = params.get("category");
+    const hrefCollection = params.get("collection");
+    if (pathname !== path) return false;
+    if (hrefCollection) {
+      return collection === hrefCollection && !category;
+    }
+    if (hrefCategory) {
+      return category === hrefCategory;
+    }
+    return !category && !collection;
   }
 
   if (href === "/admin/dresses") {
-    return pathname === "/admin/dresses" && !category;
-  }
-
-  if (href === "/admin/nouf-dresses") {
-    return pathname === "/admin/nouf-dresses";
+    return pathname === "/admin/dresses" && !category && !collection;
   }
 
   if (pathname.startsWith(href + "/") || pathname === href) {
@@ -85,23 +91,11 @@ function isLinkActive(
   return false;
 }
 
-function categoryProductsHref(c: Category): string {
-  const kind = resolveCategoryProductKind(c);
-  if (kind === "veil") return "/admin/veils";
-  if (kind === "bridal_robe") return "/admin/bridal-robes";
-  if (kind === "accessories_group") return "/admin/categories";
-  return `/admin/dresses?category=${encodeURIComponent(c.id)}`;
-}
-
 function isCategoryNavActive(
   c: Category,
   pathname: string,
   categoryParam: string | null
 ) {
-  const kind = resolveCategoryProductKind(c);
-  if (kind === "veil") return pathname === "/admin/veils";
-  if (kind === "bridal_robe") return pathname === "/admin/bridal-robes";
-  if (kind === "accessories_group") return false;
   if (pathname !== "/admin/dresses" || !categoryParam) return false;
   return (
     categoryParam === c.id ||
@@ -140,6 +134,50 @@ function NavLink({
   );
 }
 
+function SectionToggle({
+  label,
+  open,
+  onToggle,
+  active,
+  trailing,
+}: {
+  label: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  active?: boolean;
+  trailing?: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-0.5 rounded-xl",
+        open || active ? "bg-beige/60" : ""
+      )}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-colors",
+          open || active
+            ? "text-charcoal"
+            : "text-charcoal hover:bg-beige"
+        )}
+      >
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted transition-transform",
+            open ? "rotate-0" : "-rotate-90"
+          )}
+        />
+        <span className="truncate">{label}</span>
+      </button>
+      {trailing}
+    </div>
+  );
+}
+
 function CategoryTreeItem({
   node,
   depth,
@@ -161,9 +199,7 @@ function CategoryTreeItem({
   const expanded = expandedIds.has(node.id);
   const active = isCategoryNavActive(node, pathname, categoryParam);
   const count = node.product_count ?? 0;
-  const href = categoryProductsHref(node);
-  const kind = resolveCategoryProductKind(node);
-  const isGroup = kind === "accessories_group";
+  const href = categoryProductsHref(node.id);
 
   return (
     <li>
@@ -195,30 +231,19 @@ function CategoryTreeItem({
           <span className="inline-block w-8 shrink-0" aria-hidden />
         )}
 
-        {isGroup && hasChildren ? (
-          <button
-            type="button"
-            onClick={() => toggleExpand(node.id)}
-            className="min-w-0 flex-1 truncate py-2 pe-2 text-start font-medium"
-          >
-            {node.name_ar}
-            <span className="ms-1 text-muted">({count})</span>
-          </button>
-        ) : (
-          <Link
-            href={href}
-            onClick={onNavigate}
-            className={cn(
-              "min-w-0 flex-1 truncate py-2 pe-2 text-start",
-              active ? "font-semibold text-gold" : "font-medium"
-            )}
-          >
-            {node.name_ar}
-            <span className={cn("ms-1", active ? "text-gold/80" : "text-muted")}>
-              ({count})
-            </span>
-          </Link>
-        )}
+        <Link
+          href={href}
+          onClick={onNavigate}
+          className={cn(
+            "min-w-0 flex-1 truncate py-2 pe-2 text-start",
+            active ? "font-semibold text-gold" : "font-medium"
+          )}
+        >
+          {node.name_ar}
+          <span className={cn("ms-1", active ? "text-gold/80" : "text-muted")}>
+            ({count})
+          </span>
+        </Link>
       </div>
 
       {hasChildren && expanded && (
@@ -241,33 +266,9 @@ function CategoryTreeItem({
   );
 }
 
-function CategoriesNavSection({
-  pathname,
-  categoryParam,
-  onNavigate,
-}: {
-  pathname: string;
-  categoryParam: string | null;
-  onNavigate: () => void;
-}) {
+function useAdminSidebarCategories() {
   const [categories, setCategories] = useState<CategoryWithCount[]>([]);
   const [loaded, setLoaded] = useState(false);
-
-  const routeWantsSectionOpen =
-    pathname.startsWith("/admin/categories") ||
-    (pathname === "/admin/dresses" && Boolean(categoryParam));
-  const routeKey = `${pathname}|${categoryParam ?? ""}`;
-  const [sectionRouteKey, setSectionRouteKey] = useState(routeKey);
-  const [sectionOpen, setSectionOpen] = useState(routeWantsSectionOpen);
-  // Reset open state when the route implies the Categories section should show.
-  if (sectionRouteKey !== routeKey) {
-    setSectionRouteKey(routeKey);
-    if (routeWantsSectionOpen) setSectionOpen(true);
-  }
-
-  const [userExpandedIds, setUserExpandedIds] = useState<Set<string>>(
-    () => new Set()
-  );
 
   const refetch = useCallback(async () => {
     try {
@@ -312,29 +313,105 @@ function CategoriesNavSection({
     [categories]
   );
 
+  return { categories: visible, loaded };
+}
+
+function ProductsNavSection({
+  pathname,
+  categoryParam,
+  collectionParam,
+  onNavigate,
+}: {
+  pathname: string;
+  categoryParam: string | null;
+  collectionParam: string | null;
+  onNavigate: () => void;
+}) {
+  const { categories, loaded } = useAdminSidebarCategories();
+
+  const routeWantsProductsOpen =
+    pathname.startsWith("/admin/dresses") ||
+    pathname.startsWith("/admin/categories");
+  const routeKey = `${pathname}|${categoryParam ?? ""}|${collectionParam ?? ""}`;
+  const [sectionRouteKey, setSectionRouteKey] = useState(routeKey);
+  const [productsOpen, setProductsOpen] = useState(routeWantsProductsOpen);
+  const [categoriesOpen, setCategoriesOpen] = useState(
+    Boolean(categoryParam) || pathname.startsWith("/admin/categories")
+  );
+  const [collectionsOpen, setCollectionsOpen] = useState(
+    collectionParam === "1"
+  );
+
+  const featuredCategoryActive = useMemo(() => {
+    if (!categoryParam || !categories.length) return false;
+    return categories.some(
+      (c) =>
+        c.featured_collection === true &&
+        (c.id === categoryParam ||
+          c.slug === categoryParam ||
+          c.legacy_key === categoryParam)
+    );
+  }, [categoryParam, categories]);
+
+  if (sectionRouteKey !== routeKey) {
+    setSectionRouteKey(routeKey);
+    if (routeWantsProductsOpen) setProductsOpen(true);
+    if (categoryParam || pathname.startsWith("/admin/categories")) {
+      setCategoriesOpen(true);
+    }
+    if (collectionParam === "1") setCollectionsOpen(true);
+  }
+
+  const collectionsHintKey = `${collectionParam ?? ""}|${categoryParam ?? ""}|${featuredCategoryActive}`;
+  const [collectionsHintPrev, setCollectionsHintPrev] =
+    useState(collectionsHintKey);
+  if (collectionsHintPrev !== collectionsHintKey) {
+    setCollectionsHintPrev(collectionsHintKey);
+    if (collectionParam === "1" || featuredCategoryActive) {
+      setCollectionsOpen(true);
+    }
+  }
+
+  const [userExpandedIds, setUserExpandedIds] = useState<Set<string>>(
+    () => new Set()
+  );
+
   const tree = useMemo(() => {
-    const nodes = buildCategoryTree(visible);
+    const nodes = buildCategoryTree(categories);
     return nodes as Array<CategoryTreeNode & { product_count?: number }>;
-  }, [visible]);
+  }, [categories]);
+
+  const collections = useMemo(
+    () =>
+      categories
+        .filter((c) => c.featured_collection === true)
+        .slice()
+        .sort(
+          (a, b) =>
+            a.sort_order - b.sort_order ||
+            a.name_ar.localeCompare(b.name_ar, "ar")
+        ),
+    [categories]
+  );
 
   const ancestorExpandedIds = useMemo(() => {
     const ids = new Set<string>();
-    if (!categoryParam || !visible.length) return ids;
-    const active = visible.find(
+    if (!categoryParam || !categories.length) return ids;
+    const active = categories.find(
       (c) =>
         c.id === categoryParam ||
         c.slug === categoryParam ||
         c.legacy_key === categoryParam
     );
     if (!active) return ids;
-    const byId = new Map(visible.map((c) => [c.id, c]));
+    const byId = new Map(categories.map((c) => [c.id, c]));
     let cur: Category | undefined = active;
     while (cur?.parent_id) {
       ids.add(cur.parent_id);
       cur = byId.get(cur.parent_id);
     }
     return ids;
-  }, [categoryParam, visible]);
+  }, [categoryParam, categories]);
 
   const expandedIds = useMemo(() => {
     const merged = new Set(userExpandedIds);
@@ -354,90 +431,204 @@ function CategoriesNavSection({
     });
   };
 
+  const allProductsActive = isLinkActive(
+    "/admin/dresses",
+    pathname,
+    categoryParam,
+    collectionParam
+  );
   const manageActive = pathname.startsWith("/admin/categories");
+  const collectionsHubActive =
+    pathname === "/admin/dresses" && collectionParam === "1";
 
   return (
     <div className="space-y-1">
-      <div
-        className={cn(
-          "flex items-center gap-0.5 rounded-xl",
-          sectionOpen || manageActive ? "bg-beige/60" : ""
-        )}
-      >
-        <button
-          type="button"
-          aria-expanded={sectionOpen}
-          onClick={() => setSectionOpen((o) => !o)}
-          className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-colors",
-            sectionOpen || manageActive
-              ? "text-charcoal"
-              : "text-charcoal hover:bg-beige"
-          )}
-        >
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 shrink-0 text-muted transition-transform",
-              sectionOpen ? "rotate-0" : "-rotate-90"
-            )}
-          />
-          <span className="truncate">📂 التصنيفات</span>
-        </button>
-        <Link
-          href="/admin/categories"
-          onClick={onNavigate}
-          title="إدارة التصنيفات"
-          aria-label="إدارة التصنيفات"
-          className={cn(
-            "me-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
-            manageActive
-              ? "bg-gold text-white"
-              : "text-muted hover:bg-beige hover:text-charcoal"
-          )}
-        >
-          <Settings2 className="h-4 w-4" />
-        </Link>
-      </div>
+      <SectionToggle
+        label="👰 المنتجات"
+        open={productsOpen}
+        onToggle={() => setProductsOpen((o) => !o)}
+        active={routeWantsProductsOpen}
+      />
 
-      {sectionOpen && (
+      {productsOpen && (
         <div className="ms-1 space-y-1 border-r border-beige-dark/70 pe-1">
-          <Link
-            href="/admin/categories"
-            onClick={onNavigate}
-            className={cn(
-              "block rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-              manageActive
-                ? "bg-gold/15 text-gold"
-                : "text-muted hover:bg-beige hover:text-charcoal"
-            )}
-          >
-            إدارة التصنيفات
-          </Link>
+          <NavLink
+            href="/admin/dresses"
+            label="كل المنتجات"
+            active={allProductsActive}
+            onNavigate={onNavigate}
+            className="px-3 py-2 text-sm"
+          />
 
-          {!loaded && (
-            <p className="px-3 py-2 text-xs text-muted">جاري التحميل…</p>
-          )}
-
-          {loaded && tree.length === 0 && (
-            <p className="px-3 py-2 text-xs text-muted">لا توجد تصنيفات ظاهرة</p>
-          )}
-
-          {tree.length > 0 && (
-            <ul className="space-y-0.5 pb-1">
-              {tree.map((node) => (
-                <CategoryTreeItem
-                  key={node.id}
-                  node={node}
-                  depth={0}
-                  pathname={pathname}
-                  categoryParam={categoryParam}
-                  expandedIds={expandedIds}
-                  toggleExpand={toggleExpand}
-                  onNavigate={onNavigate}
+          {/* Categories subtree */}
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-0.5 rounded-lg">
+              <button
+                type="button"
+                aria-expanded={categoriesOpen}
+                onClick={() => setCategoriesOpen((o) => !o)}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  categoriesOpen || manageActive
+                    ? "bg-beige/60 text-charcoal"
+                    : "text-charcoal hover:bg-beige"
+                )}
+              >
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0 text-muted transition-transform",
+                    categoriesOpen ? "rotate-0" : "-rotate-90"
+                  )}
                 />
-              ))}
-            </ul>
-          )}
+                <span className="truncate">التصنيفات</span>
+              </button>
+              <Link
+                href="/admin/categories"
+                onClick={onNavigate}
+                title="إدارة التصنيفات"
+                aria-label="إدارة التصنيفات"
+                className={cn(
+                  "me-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                  manageActive
+                    ? "bg-gold text-white"
+                    : "text-muted hover:bg-beige hover:text-charcoal"
+                )}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {categoriesOpen && (
+              <div className="ms-1 space-y-0.5 border-r border-beige-dark/50 pe-1">
+                <Link
+                  href="/admin/categories"
+                  onClick={onNavigate}
+                  className={cn(
+                    "block rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    manageActive
+                      ? "bg-gold/15 text-gold"
+                      : "text-muted hover:bg-beige hover:text-charcoal"
+                  )}
+                >
+                  إدارة التصنيفات
+                </Link>
+
+                {!loaded && (
+                  <p className="px-3 py-2 text-xs text-muted">جاري التحميل…</p>
+                )}
+
+                {loaded && tree.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-muted">
+                    لا توجد تصنيفات ظاهرة
+                  </p>
+                )}
+
+                {tree.length > 0 && (
+                  <ul className="space-y-0.5 pb-1">
+                    {tree.map((node) => (
+                      <CategoryTreeItem
+                        key={node.id}
+                        node={node}
+                        depth={0}
+                        pathname={pathname}
+                        categoryParam={categoryParam}
+                        expandedIds={expandedIds}
+                        toggleExpand={toggleExpand}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Collections — featured_collection rows from Categories table */}
+          <div className="space-y-0.5">
+            <button
+              type="button"
+              aria-expanded={collectionsOpen}
+              onClick={() => setCollectionsOpen((o) => !o)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                collectionsOpen || collectionsHubActive
+                  ? "bg-beige/60 text-charcoal"
+                  : "text-charcoal hover:bg-beige"
+              )}
+            >
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 text-muted transition-transform",
+                  collectionsOpen ? "rotate-0" : "-rotate-90"
+                )}
+              />
+              <span className="truncate">المجموعات</span>
+            </button>
+
+            {collectionsOpen && (
+              <div className="ms-1 space-y-0.5 border-r border-beige-dark/50 pe-1">
+                <Link
+                  href="/admin/dresses?collection=1"
+                  onClick={onNavigate}
+                  className={cn(
+                    "block rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    collectionsHubActive
+                      ? "bg-gold/15 text-gold"
+                      : "text-muted hover:bg-beige hover:text-charcoal"
+                  )}
+                >
+                  كل المجموعات المميزة
+                </Link>
+
+                {!loaded && (
+                  <p className="px-3 py-2 text-xs text-muted">جاري التحميل…</p>
+                )}
+
+                {loaded && collections.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-muted">
+                    لا توجد مجموعات مميزة — فعّلي «مجموعة مميزة» من التصنيفات
+                  </p>
+                )}
+
+                {collections.length > 0 && (
+                  <ul className="space-y-0.5 pb-1">
+                    {collections.map((c) => {
+                      const active = isCategoryNavActive(
+                        c,
+                        pathname,
+                        categoryParam
+                      );
+                      const count = c.product_count ?? 0;
+                      return (
+                        <li key={c.id}>
+                          <Link
+                            href={categoryProductsHref(c.id)}
+                            onClick={onNavigate}
+                            className={cn(
+                              "block truncate rounded-lg px-3 py-2 text-sm transition-colors",
+                              active
+                                ? "bg-gold/15 font-semibold text-gold"
+                                : "font-medium text-charcoal/90 hover:bg-beige"
+                            )}
+                          >
+                            {c.name_ar}
+                            <span
+                              className={cn(
+                                "ms-1",
+                                active ? "text-gold/80" : "text-muted"
+                              )}
+                            >
+                              ({count})
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -448,6 +639,7 @@ function AdminSidebarInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const category = searchParams.get("category");
+  const collection = searchParams.get("collection");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -478,7 +670,7 @@ function AdminSidebarInner() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {LINKS_BEFORE_CATEGORIES.map((link) => (
+        {PRIMARY_LINKS.map((link) => (
           <NavLink
             key={link.href}
             href={link.href}
@@ -487,24 +679,26 @@ function AdminSidebarInner() {
               link.href,
               pathname,
               category,
+              collection,
               "exact" in link ? link.exact : false
             )}
             onNavigate={closeMobile}
           />
         ))}
 
-        <CategoriesNavSection
+        <ProductsNavSection
           pathname={pathname}
           categoryParam={category}
+          collectionParam={collection}
           onNavigate={closeMobile}
         />
 
-        {LINKS_AFTER_CATEGORIES.map((link) => (
+        {MODULE_LINKS.map((link) => (
           <NavLink
             key={link.href}
             href={link.href}
             label={link.label}
-            active={isLinkActive(link.href, pathname, category)}
+            active={isLinkActive(link.href, pathname, category, collection)}
             onNavigate={closeMobile}
           />
         ))}
