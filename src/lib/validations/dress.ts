@@ -139,6 +139,10 @@ export const dressPayloadBaseSchema = z.object({
   product_type: productCommerceTypeSchema.optional(),
   order_options_config: orderOptionsConfigSchema,
   extra_services_config: extraServicesConfigSchema,
+  /** Product Experience Designer layout JSON — validated loosely, normalized in app. */
+  experience_config: z
+    .union([z.null(), z.record(z.string(), z.unknown())])
+    .optional(),
   price: optionalNullableNumber("السعر").optional(),
   sale_price: optionalNullableNumber("سعر التخفيض").optional(),
   cost_price: optionalNullableNumber("سعر التكلفة").optional(),

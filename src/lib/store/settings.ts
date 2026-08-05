@@ -22,6 +22,10 @@ import {
   normalizeExtraServices,
   normalizeOrderOptions,
 } from "@/lib/products/order-experience";
+import {
+  resolveStoreExtraServices,
+  syncStoreServicesTable,
+} from "@/lib/products/store-services";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
@@ -444,6 +448,16 @@ export async function getStoreSettings(force = false): Promise<StoreSettings> {
       /* auth hydrate optional */
     }
 
+    try {
+      const library = await resolveStoreExtraServices(settings.extra_services);
+      settings = {
+        ...settings,
+        extra_services: library as StoreExtraServicesSettings,
+      };
+    } catch {
+      /* store_services table optional until 038 */
+    }
+
     cached = settings;
     cachedAt = now;
     return cached;
@@ -582,6 +596,10 @@ export async function saveStoreSettings(
         otp_enabled: merged.authentication.phone_otp_enabled,
       })
     );
+  }
+
+  if (touch("extra_services")) {
+    await syncStoreServicesTable(merged.extra_services.services);
   }
 
   cached = merged;

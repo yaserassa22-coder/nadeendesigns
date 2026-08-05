@@ -38,6 +38,26 @@ export type FutureServicePricingMode =
   | "QUANTITY"
   | "CONDITIONAL";
 
+/**
+ * Visibility scopes use IDs only — never category/product display names.
+ * scope=all → every product; otherwise intersection match on listed ID arrays.
+ */
+export type ServiceVisibilityScope =
+  | "all"
+  | "product_types"
+  | "categories"
+  | "collections"
+  | "products";
+
+export type ServiceVisibility = {
+  scope: ServiceVisibilityScope;
+  /** Commerce product_type values e.g. ready_to_buy, bridal_accessory */
+  product_types?: string[];
+  category_ids?: string[];
+  collection_ids?: string[];
+  product_ids?: string[];
+};
+
 export type ExtraServiceConfig = {
   id: ExtraServiceId | string;
   name: string;
@@ -48,9 +68,34 @@ export type ExtraServiceConfig = {
   pricing_mode: ServicePricingMode;
   /** Unit price when pricing_mode === FIXED_PRICE; ignored when FREE. */
   price: number;
+  /** Master kill-switch (admin library). */
   enabled: boolean;
+  /** Soft hide without disabling catalog entry. */
+  visible: boolean;
+  /** Customer cannot uncheck when offered. */
+  required: boolean;
+  /** Pre-checked in the modal when offered. */
+  default_selected: boolean;
+  available_online: boolean;
+  /** Stub for future boutique POS — not used on storefront yet. */
+  available_in_store: boolean;
   sort_order: number;
+  visibility: ServiceVisibility;
 };
+
+export type ServiceOfferContext = {
+  productId: string;
+  /** Shop entity: dress | veil | bridal_robe — used with product_ids */
+  shopProductType?: string;
+  /** Commerce type from product.product_type */
+  productType?: string | null;
+  categoryId?: string | null;
+  collectionId?: string | null;
+  /** Channel filter — storefront always "online". */
+  channel?: "online" | "in_store";
+};
+
+export const DEFAULT_SERVICE_VISIBILITY: ServiceVisibility = { scope: "all" };
 
 export type StoreOrderOptionsSettings = {
   options: OrderOptionConfig[];
@@ -131,52 +176,117 @@ export const DEFAULT_ORDER_OPTIONS: OrderOptionConfig[] = [
   },
 ];
 
+function baseServiceDefaults(
+  partial: Pick<
+    ExtraServiceConfig,
+    "id" | "name" | "name_ar" | "sort_order"
+  >
+): ExtraServiceConfig {
+  return {
+    ...partial,
+    description: "",
+    description_ar: "",
+    pricing_mode: "FREE",
+    price: 0,
+    enabled: false,
+    visible: true,
+    required: false,
+    default_selected: false,
+    available_online: true,
+    available_in_store: false,
+    visibility: { ...DEFAULT_SERVICE_VISIBILITY },
+  };
+}
+
 export const DEFAULT_EXTRA_SERVICES: ExtraServiceConfig[] = [
-  {
+  baseServiceDefaults({
     id: "gift_wrap",
     name: "Gift Wrap",
     name_ar: "تغليف هدية",
-    description: "",
-    description_ar: "",
-    pricing_mode: "FREE",
-    price: 0,
-    enabled: false,
     sort_order: 0,
-  },
-  {
+  }),
+  baseServiceDefaults({
     id: "greeting_card",
     name: "Greeting Card",
     name_ar: "بطاقة تهنئة",
-    description: "",
-    description_ar: "",
-    pricing_mode: "FREE",
-    price: 0,
-    enabled: false,
     sort_order: 1,
-  },
-  {
+  }),
+  baseServiceDefaults({
     id: "luxury_box",
     name: "Luxury Box",
     name_ar: "علبة فاخرة",
-    description: "",
-    description_ar: "",
-    pricing_mode: "FREE",
-    price: 0,
-    enabled: false,
     sort_order: 2,
-  },
-  {
+  }),
+  baseServiceDefaults({
     id: "express_delivery",
     name: "Express Delivery",
     name_ar: "توصيل سريع",
-    description: "",
-    description_ar: "",
-    pricing_mode: "FREE",
-    price: 0,
-    enabled: false,
     sort_order: 3,
-  },
+  }),
 ];
+
+function normalizeVisibility(raw: unknown): ServiceVisibility {
+  const src =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const scopeRaw = src.scope;
+  const scope: ServiceVisibilityScope =
+    scopeRaw === "product_types" ||
+    scopeRaw === "categories" ||
+    scopeRaw === "collections" ||
+    scopeRaw === "products" ||
+    scopeRaw === "all"
+      ? scopeRaw
+      : "all";
+  const asIdList = (v: unknown): string[] =>
+    Array.isArray(v)
+      ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      : [];
+  return {
+    scope,
+    product_types: asIdList(src.product_types),
+    category_ids: asIdList(src.category_ids),
+    collection_ids: asIdList(src.collection_ids),
+    product_ids: asIdList(src.product_ids),
+  };
+}
+
+/** Whether a service is offered for this product context (IDs only). */
+export function serviceMatchesVisibility(
+  svc: ExtraServiceConfig,
+  ctx: ServiceOfferContext
+): boolean {
+  if (!svc.enabled || !svc.visible) return false;
+  const channel = ctx.channel ?? "online";
+  if (channel === "online" && !svc.available_online) return false;
+  if (channel === "in_store" && !svc.available_in_store) return false;
+
+  const v = svc.visibility ?? DEFAULT_SERVICE_VISIBILITY;
+  if (v.scope === "all") return true;
+
+  if (v.scope === "product_types") {
+    const types = v.product_types ?? [];
+    if (!types.length) return false;
+    return typeof ctx.productType === "string" && types.includes(ctx.productType);
+  }
+  if (v.scope === "categories") {
+    const ids = v.category_ids ?? [];
+    if (!ids.length) return false;
+    return typeof ctx.categoryId === "string" && ids.includes(ctx.categoryId);
+  }
+  if (v.scope === "collections") {
+    const ids = v.collection_ids ?? [];
+    if (!ids.length) return false;
+    return (
+      typeof ctx.collectionId === "string" && ids.includes(ctx.collectionId)
+    );
+  }
+  if (v.scope === "products") {
+    const ids = v.product_ids ?? [];
+    if (!ids.length) return false;
+    return ids.includes(ctx.productId);
+  }
+  return false;
+}
 
 /**
  * Idempotent legacy migrate: missing pricing_mode → FREE when price=0, FIXED when price>0.
@@ -276,13 +386,15 @@ export function normalizeExtraServices(
     def: ExtraServiceConfig,
     row: Record<string, unknown> | undefined
   ): ExtraServiceConfig => {
-    if (!row) return { ...def };
+    if (!row) return { ...def, visibility: { ...def.visibility } };
     const rawPrice =
       typeof row.price === "number" && Number.isFinite(row.price)
         ? Math.max(0, row.price)
         : def.price;
     const pricing_mode = resolveServicePricingMode(row.pricing_mode, rawPrice);
     const price = pricing_mode === "FREE" ? 0 : rawPrice;
+    const required =
+      typeof row.required === "boolean" ? row.required : def.required;
     return {
       ...def,
       name: typeof row.name === "string" ? row.name : def.name,
@@ -296,8 +408,27 @@ export function normalizeExtraServices(
       pricing_mode,
       price,
       enabled: typeof row.enabled === "boolean" ? row.enabled : def.enabled,
+      visible: typeof row.visible === "boolean" ? row.visible : def.visible,
+      required,
+      default_selected:
+        typeof row.default_selected === "boolean"
+          ? row.default_selected
+          : required
+            ? true
+            : def.default_selected,
+      available_online:
+        typeof row.available_online === "boolean"
+          ? row.available_online
+          : def.available_online,
+      available_in_store:
+        typeof row.available_in_store === "boolean"
+          ? row.available_in_store
+          : def.available_in_store,
       sort_order:
         typeof row.sort_order === "number" ? row.sort_order : def.sort_order,
+      visibility: row.visibility
+        ? normalizeVisibility(row.visibility)
+        : { ...def.visibility },
     };
   };
 
@@ -309,17 +440,12 @@ export function normalizeExtraServices(
     if (known.some((s) => s.id === id)) continue;
     known.push(
       mergeService(
-        {
+        baseServiceDefaults({
           id,
           name: id,
           name_ar: id,
-          description: "",
-          description_ar: "",
-          pricing_mode: "FREE",
-          price: 0,
-          enabled: false,
           sort_order: known.length,
-        },
+        }),
         row
       )
     );
@@ -350,18 +476,29 @@ export function resolveProductOrderOptions(
 
 /**
  * Resolve effective extra services for a product.
- * Returns only services available to the customer (enabled / override-selected).
+ * Applies visibility + channel, then optional per-product enabled_ids override.
  */
 export function resolveProductExtraServices(
   storeDefaults: StoreExtraServicesSettings,
-  productOverride?: ProductExtraServicesConfig | null
+  productOverride?: ProductExtraServicesConfig | null,
+  ctx?: ServiceOfferContext | null
 ): ExtraServiceConfig[] {
   const base = normalizeExtraServices(storeDefaults).services;
+  const channelFiltered = ctx
+    ? base.filter((s) => serviceMatchesVisibility(s, ctx))
+    : base.filter(
+        (s) => s.enabled && s.visible !== false && s.available_online !== false
+      );
+
   if (!productOverride?.use_custom) {
-    return base.filter((s) => s.enabled);
+    return channelFiltered;
   }
   const ids = new Set(productOverride.enabled_ids ?? []);
-  return base
+  // Custom override: still respect visibility when context provided
+  const pool = ctx
+    ? base.filter((s) => serviceMatchesVisibility({ ...s, enabled: true }, ctx))
+    : base;
+  return pool
     .filter((s) => ids.has(s.id))
     .map((s) => {
       const overridePrice = productOverride.price_overrides?.[s.id];
@@ -374,12 +511,36 @@ export function resolveProductExtraServices(
         return {
           ...s,
           enabled: true,
+          visible: true,
           pricing_mode,
           price: pricing_mode === "FREE" ? 0 : price,
         };
       }
-      return { ...s, enabled: true };
+      return { ...s, enabled: true, visible: true };
     });
+}
+
+/** Initial selected service ids (required + default_selected). */
+export function defaultSelectedServiceIds(
+  services: ExtraServiceConfig[]
+): string[] {
+  const ids: string[] = [];
+  for (const s of services) {
+    if (s.required || s.default_selected) ids.push(s.id);
+  }
+  return ids;
+}
+
+/** Ensure required services remain selected. */
+export function enforceRequiredServiceIds(
+  services: ExtraServiceConfig[],
+  selectedIds: string[]
+): string[] {
+  const next = new Set(selectedIds);
+  for (const s of services) {
+    if (s.required) next.add(s.id);
+  }
+  return [...next];
 }
 
 /** Enabled order options for storefront forms (inherits store + product override). */

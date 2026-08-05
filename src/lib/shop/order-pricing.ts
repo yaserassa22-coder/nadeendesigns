@@ -16,6 +16,7 @@ import {
   type OrderOptionKey,
   type ProductExtraServicesConfig,
   type ProductOrderOptionsConfig,
+  type ServiceOfferContext,
 } from "@/lib/products/order-experience";
 import { resolveProductPricing } from "@/lib/products/pricing";
 import { getStoreSettings } from "@/lib/store/settings";
@@ -43,6 +44,9 @@ type CatalogProduct = {
   name_ar: string;
   price: number;
   sale_price?: number | null;
+  product_type?: string | null;
+  category_id?: string | null;
+  collection_id?: string | null;
   order_options_config?: ProductOrderOptionsConfig | null;
   extra_services_config?: ProductExtraServicesConfig | null;
   is_available?: boolean | null;
@@ -69,13 +73,13 @@ async function loadCatalogProduct(
     const { data, error } = await supabase
       .from(table)
       .select(
-        "id, name_ar, price, sale_price, order_options_config, extra_services_config, is_available"
+        "id, name_ar, price, sale_price, product_type, category_id, collection_id, order_options_config, extra_services_config, is_available"
       )
       .eq("id", productId)
       .maybeSingle();
     if (error) {
-      // veils/robes may lack sale_price column
-      if (/sale_price|order_options_config|extra_services_config|PGRST204|42703/i.test(
+      // veils/robes may lack sale_price / category columns
+      if (/sale_price|order_options_config|extra_services_config|category_id|collection_id|product_type|PGRST204|42703/i.test(
         error.message ?? ""
       )) {
         const retry = await supabase
@@ -95,6 +99,12 @@ async function loadCatalogProduct(
           name_ar: row.name_ar,
           price: Number(row.price) || 0,
           sale_price: null,
+          product_type:
+            productType === "veil" || productType === "bridal_robe"
+              ? "bridal_accessory"
+              : null,
+          category_id: null,
+          collection_id: null,
           order_options_config: null,
           extra_services_config: null,
           is_available: row.is_available,
@@ -112,6 +122,9 @@ async function loadCatalogProduct(
         row.sale_price != null && Number.isFinite(Number(row.sale_price))
           ? Number(row.sale_price)
           : null,
+      product_type: row.product_type ?? null,
+      category_id: row.category_id ?? null,
+      collection_id: row.collection_id ?? null,
       order_options_config: row.order_options_config ?? null,
       extra_services_config: row.extra_services_config ?? null,
       is_available: row.is_available,
@@ -173,9 +186,22 @@ export async function recalculateCheckoutLines(
       store.order_options,
       catalog?.order_options_config
     );
+    const offerCtx: ServiceOfferContext = {
+      productId: line.product_id,
+      shopProductType: line.product_type,
+      productType:
+        catalog?.product_type ??
+        (line.product_type === "veil" || line.product_type === "bridal_robe"
+          ? "bridal_accessory"
+          : null),
+      categoryId: catalog?.category_id ?? null,
+      collectionId: catalog?.collection_id ?? null,
+      channel: "online",
+    };
     const availableExtras = resolveProductExtraServices(
       store.extra_services,
-      catalog?.extra_services_config
+      catalog?.extra_services_config,
+      offerCtx
     );
 
     const orderOptions = optionsFromClientLine(enabledOpts, line.order_options);

@@ -14,6 +14,10 @@ import {
   type ExtraServiceConfig,
   type OrderOptionConfig,
 } from "@/lib/products/order-experience";
+import type {
+  ExperienceSectionConfig,
+  ProductExperienceConfig,
+} from "@/lib/products/experience-designer";
 import { resolveProductPricing } from "@/lib/products/pricing";
 import { getProductPrimaryAction } from "@/lib/products/primary-action";
 import {
@@ -30,6 +34,8 @@ type Props = {
   image?: string | null;
   orderOptions?: OrderOptionConfig[];
   extraServices?: ExtraServiceConfig[];
+  experienceConfig?: ProductExperienceConfig | null;
+  sections?: ExperienceSectionConfig[];
   /** Open modal with veil/robe personalization (wraps existing UI). */
   enablePersonalization?: boolean;
   enableGiftWrapping?: boolean;
@@ -54,6 +60,8 @@ export function ProductExperienceBuy({
   image,
   orderOptions = [],
   extraServices = [],
+  experienceConfig = null,
+  sections = [],
   enablePersonalization,
   enableGiftWrapping = false,
   requiresShipping = true,
@@ -168,6 +176,8 @@ export function ProductExperienceBuy({
           image={image}
           orderOptions={orderOptions}
           extraServices={extraServices}
+          experienceConfig={experienceConfig}
+          sections={sections}
           enablePersonalization={supportsPersonalization}
           enableGiftWrapping={
             enableGiftWrapping || supportsPersonalization

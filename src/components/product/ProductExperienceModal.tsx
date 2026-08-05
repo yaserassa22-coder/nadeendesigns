@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, X, Zap } from "lucide-react";
+import { ChevronDown, ShoppingBag, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCart } from "@/components/shop/CartProvider";
@@ -26,15 +26,25 @@ import { PersonalizationFonts } from "@/components/dresses/PersonalizationFonts"
 import {
   buildLineExtraServices,
   buildLineOrderOptions,
+  defaultSelectedServiceIds,
+  enforceRequiredServiceIds,
   validateOrderOptionValues,
   type ExtraServiceConfig,
   type OrderOptionConfig,
+  type OrderOptionKey,
 } from "@/lib/products/order-experience";
+import {
+  DELIVERY_OPTION_KEYS,
+  enabledExperienceSections,
+  type ExperienceSectionConfig,
+  type ProductExperienceConfig,
+} from "@/lib/products/experience-designer";
 import {
   shopTypeToPersonalizationType,
   validatePersonalization,
 } from "@/lib/products/personalization";
 import { giftOptionsSchema } from "@/lib/validations/gift";
+import { cn } from "@/lib/utils";
 import type { GiftOptions, ProductPersonalization } from "@/types";
 import type { ShopProductType } from "@/types/shop";
 
@@ -43,7 +53,6 @@ export type ProductExperienceIntent = "cart" | "checkout";
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** Preferred primary action when opening (Buy Now highlights checkout). */
   intent?: ProductExperienceIntent;
   shopProductType: ShopProductType;
   productId: string;
@@ -53,19 +62,53 @@ type Props = {
   image?: string | null;
   orderOptions?: OrderOptionConfig[];
   extraServices?: ExtraServiceConfig[];
-  /** Veil/robe embroidery — wraps existing personalization UI. */
+  experienceConfig?: ProductExperienceConfig | null;
+  sections?: ExperienceSectionConfig[];
   enablePersonalization?: boolean;
-  /** Keep gift wrapping section (veil/robe legacy flow). */
   enableGiftWrapping?: boolean;
   requiresShipping?: boolean;
-  /** Called after successful add (parent may show toast). */
   onSuccess?: (intent: ProductExperienceIntent) => void;
 };
 
+function SectionShell({
+  section,
+  children,
+}: {
+  section: ExperienceSectionConfig;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!section.collapsed);
+  if (!children) return null;
+  return (
+    <div className="rounded-3xl border border-beige-dark/80 bg-white/60">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div>
+          <h3 className="text-base font-semibold text-charcoal">
+            {section.title_ar || section.title || section.id}
+          </h3>
+          {section.description_ar ? (
+            <p className="mt-0.5 text-xs text-muted">{section.description_ar}</p>
+          ) : null}
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted transition-transform",
+            open ? "rotate-180" : ""
+          )}
+        />
+      </button>
+      {open ? <div className="px-5 pb-5">{children}</div> : null}
+    </div>
+  );
+}
+
 /**
- * Single reusable Product Experience Modal:
- * Personalization + Order Options + Extra Services + Live Price Summary.
- * Buttons: Cancel | Add to Cart | Buy Now
+ * Single reusable Product Experience Modal (Sprint 2A MASTER).
+ * Section order/titles come from Product Experience Designer config.
  */
 export function ProductExperienceModal({
   open,
@@ -79,6 +122,8 @@ export function ProductExperienceModal({
   image,
   orderOptions = [],
   extraServices = [],
+  experienceConfig = null,
+  sections: sectionsProp,
   enablePersonalization = false,
   enableGiftWrapping = false,
   requiresShipping = true,
@@ -88,11 +133,28 @@ export function ProductExperienceModal({
   const { addItem } = useCart();
   const personalizationType = shopTypeToPersonalizationType(shopProductType);
 
+  const sections = useMemo(() => {
+    if (sectionsProp?.length) return sectionsProp;
+    return enabledExperienceSections(experienceConfig);
+  }, [sectionsProp, experienceConfig]);
+
+  const deliveryKeys = useMemo(
+    () => new Set<string>(DELIVERY_OPTION_KEYS),
+    []
+  );
+  const deliveryOptions = orderOptions.filter((o) => deliveryKeys.has(o.key));
+  const notesOptions = orderOptions.filter((o) => o.key === "order_notes");
+  const generalOptions = orderOptions.filter(
+    (o) => !deliveryKeys.has(o.key) && o.key !== "order_notes"
+  );
+
   const [quantity, setQuantity] = useState(1);
   const [orderOptionValues, setOrderOptionValues] = useState<OrderOptionValues>(
     {}
   );
-  const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([]);
+  const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>(() =>
+    defaultSelectedServiceIds(extraServices)
+  );
   const [personalization, setPersonalization] =
     useState<VeilRobePersonalizationState>(() =>
       personalizationType
@@ -113,7 +175,10 @@ export function ProductExperienceModal({
   }, [open]);
 
   const selectedServices = useMemo(
-    () => extraServices.filter((s) => selectedExtraIds.includes(s.id)),
+    () =>
+      extraServices.filter(
+        (s) => selectedExtraIds.includes(s.id) || s.required
+      ),
     [extraServices, selectedExtraIds]
   );
 
@@ -191,14 +256,15 @@ export function ProductExperienceModal({
       return;
     }
 
+    const selected = enforceRequiredServiceIds(
+      extraServices,
+      selectedExtraIds
+    );
     const lineOrderOptions = buildLineOrderOptions(
       orderOptions,
       orderOptionValues
     );
-    const lineExtraServices = buildLineExtraServices(
-      extraServices,
-      selectedExtraIds
-    );
+    const lineExtraServices = buildLineExtraServices(extraServices, selected);
 
     addItem({
       product_type: shopProductType,
@@ -222,10 +288,102 @@ export function ProductExperienceModal({
     if (mode === "checkout") {
       router.push("/checkout");
     }
-    // Add to Cart: stay on storefront (no redirect)
+  };
+
+  const renderSection = (section: ExperienceSectionConfig) => {
+    switch (section.id) {
+      case "personalization":
+        if (!enablePersonalization || !personalizationType) return null;
+        return (
+          <SectionShell key={section.id} section={section}>
+            <VeilRobePersonalizationFields
+              personalizationType={personalizationType}
+              value={personalization}
+              onChange={setPersonalization}
+              errors={errors}
+            />
+          </SectionShell>
+        );
+      case "gift_options":
+        if (!enableGiftWrapping) return null;
+        return (
+          <SectionShell key={section.id} section={section}>
+            <GiftWrappingSection
+              value={gift}
+              onChange={setGift}
+              errors={errors}
+            />
+          </SectionShell>
+        );
+      case "extra_services":
+        if (!extraServices.length) return null;
+        return (
+          <SectionShell key={section.id} section={section}>
+            <ExtraServicesFields
+              services={extraServices}
+              selectedIds={selectedExtraIds}
+              onChange={setSelectedExtraIds}
+              title={section.title_ar || section.title}
+              description={section.description_ar || section.description}
+            />
+          </SectionShell>
+        );
+      case "order_options":
+        if (!generalOptions.length) return null;
+        return (
+          <SectionShell key={section.id} section={section}>
+            <OrderOptionsFields
+              options={generalOptions}
+              values={orderOptionValues}
+              onChange={setOrderOptionValues}
+              errors={errors}
+            />
+          </SectionShell>
+        );
+      case "delivery":
+        if (!deliveryOptions.length) return null;
+        return (
+          <SectionShell key={section.id} section={section}>
+            <OrderOptionsFields
+              options={deliveryOptions}
+              values={orderOptionValues}
+              onChange={setOrderOptionValues}
+              errors={errors}
+            />
+          </SectionShell>
+        );
+      case "order_notes":
+        if (!notesOptions.length) return null;
+        return (
+          <SectionShell key={section.id} section={section}>
+            <OrderOptionsFields
+              options={notesOptions}
+              values={orderOptionValues}
+              onChange={setOrderOptionValues}
+              errors={errors}
+            />
+          </SectionShell>
+        );
+      case "summary":
+        return (
+          <SectionShell key={section.id} section={section}>
+            <ProductExperiencePriceSummary
+              baseUnitPrice={unitPrice}
+              quantity={quantity}
+              selectedServices={selectedServices}
+            />
+          </SectionShell>
+        );
+      default:
+        return null;
+    }
   };
 
   if (!open) return null;
+
+  const hasAnyDesignerSection = sections.some((s) => s.enabled);
+  const fallbackOptions = orderOptions.length > 0;
+  const fallbackServices = extraServices.length > 0;
 
   return (
     <div
@@ -264,36 +422,51 @@ export function ProductExperienceModal({
           </button>
         </div>
 
-        <PersonalizationFonts className="flex-1 space-y-5 overflow-y-auto px-5 py-5 md:px-6">
-          {enablePersonalization && personalizationType ? (
-            <VeilRobePersonalizationFields
-              personalizationType={personalizationType}
-              value={personalization}
-              onChange={setPersonalization}
-              errors={errors}
-            />
+        <PersonalizationFonts className="flex-1 space-y-4 overflow-y-auto px-5 py-5 md:px-6">
+          {hasAnyDesignerSection
+            ? sections.map((s) => renderSection(s))
+            : null}
+
+          {/* Backward-compatible fallback if designer disabled all content sections */}
+          {!hasAnyDesignerSection ? (
+            <>
+              {enablePersonalization && personalizationType ? (
+                <VeilRobePersonalizationFields
+                  personalizationType={personalizationType}
+                  value={personalization}
+                  onChange={setPersonalization}
+                  errors={errors}
+                />
+              ) : null}
+              {enableGiftWrapping ? (
+                <GiftWrappingSection
+                  value={gift}
+                  onChange={setGift}
+                  errors={errors}
+                />
+              ) : null}
+              {fallbackOptions ? (
+                <OrderOptionsFields
+                  options={orderOptions}
+                  values={orderOptionValues}
+                  onChange={setOrderOptionValues}
+                  errors={errors}
+                />
+              ) : null}
+              {fallbackServices ? (
+                <ExtraServicesFields
+                  services={extraServices}
+                  selectedIds={selectedExtraIds}
+                  onChange={setSelectedExtraIds}
+                />
+              ) : null}
+              <ProductExperiencePriceSummary
+                baseUnitPrice={unitPrice}
+                quantity={quantity}
+                selectedServices={selectedServices}
+              />
+            </>
           ) : null}
-
-          {enableGiftWrapping ? (
-            <GiftWrappingSection
-              value={gift}
-              onChange={setGift}
-              errors={errors}
-            />
-          ) : null}
-
-          <OrderOptionsFields
-            options={orderOptions}
-            values={orderOptionValues}
-            onChange={setOrderOptionValues}
-            errors={errors}
-          />
-
-          <ExtraServicesFields
-            services={extraServices}
-            selectedIds={selectedExtraIds}
-            onChange={setSelectedExtraIds}
-          />
 
           <Input
             label="الكمية"
@@ -307,12 +480,6 @@ export function ProductExperienceModal({
                 Math.max(1, Math.min(20, Number(e.target.value) || 1))
               )
             }
-          />
-
-          <ProductExperiencePriceSummary
-            baseUnitPrice={unitPrice}
-            quantity={quantity}
-            selectedServices={selectedServices}
           />
 
           {errors.form ? (
@@ -356,3 +523,6 @@ export function ProductExperienceModal({
     </div>
   );
 }
+
+// Keep type export used by option value maps
+export type { OrderOptionKey };

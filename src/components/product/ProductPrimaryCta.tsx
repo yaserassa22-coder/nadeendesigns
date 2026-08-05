@@ -10,6 +10,10 @@ import {
   type ProductCommerceType,
 } from "@/lib/products/primary-action";
 import type { ExtraServiceConfig, OrderOptionConfig } from "@/lib/products/order-experience";
+import type {
+  ExperienceSectionConfig,
+  ProductExperienceConfig,
+} from "@/lib/products/experience-designer";
 import type { ShopProductType } from "@/types/shop";
 
 export type ProductPrimaryCtaProps = {
@@ -27,6 +31,8 @@ export type ProductPrimaryCtaProps = {
   image?: string | null;
   orderOptions?: OrderOptionConfig[];
   extraServices?: ExtraServiceConfig[];
+  experienceConfig?: ProductExperienceConfig | null;
+  sections?: ExperienceSectionConfig[];
   /** Booking deep-link extras */
   bookingHref?: string;
   disabled?: boolean;
@@ -49,6 +55,8 @@ export function ProductPrimaryCta({
   image,
   orderOptions = [],
   extraServices = [],
+  experienceConfig = null,
+  sections = [],
   bookingHref,
   disabled = false,
   size = "lg",
@@ -68,6 +76,8 @@ export function ProductPrimaryCta({
         image={image}
         orderOptions={orderOptions}
         extraServices={extraServices}
+        experienceConfig={experienceConfig}
+        sections={sections}
         requiresShipping={action.requiresShipping}
         disabled={disabled}
         size={size}

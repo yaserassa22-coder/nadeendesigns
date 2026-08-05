@@ -1,0 +1,117 @@
+import { describe, expect, it } from "vitest";
+import {
+  defaultProductExperienceConfig,
+  enabledExperienceSections,
+  moveExperienceSection,
+  normalizeProductExperienceConfig,
+} from "./experience-designer";
+import {
+  defaultSelectedServiceIds,
+  enforceRequiredServiceIds,
+  serviceMatchesVisibility,
+  type ExtraServiceConfig,
+} from "./order-experience";
+
+describe("experience designer", () => {
+  it("fills default sections", () => {
+    const cfg = normalizeProductExperienceConfig({});
+    expect(cfg.sections.length).toBe(7);
+    expect(cfg.sections.map((s) => s.id)).toContain("summary");
+  });
+
+  it("preserves custom titles and order", () => {
+    const cfg = normalizeProductExperienceConfig({
+      sections: [
+        {
+          id: "summary",
+          enabled: true,
+          sort_order: 0,
+          title_ar: "الإجمالي",
+        },
+        {
+          id: "extra_services",
+          enabled: true,
+          sort_order: 1,
+          title_ar: "خدمات",
+        },
+      ],
+    });
+    const enabled = enabledExperienceSections(cfg);
+    expect(enabled[0].id).toBe("summary");
+    expect(enabled[0].title_ar).toBe("الإجمالي");
+  });
+
+  it("moves sections up/down", () => {
+    const base = defaultProductExperienceConfig().sections;
+    const moved = moveExperienceSection(base, "summary", "up");
+    const summaryIdx = moved.findIndex((s) => s.id === "summary");
+    expect(summaryIdx).toBeLessThan(
+      base.findIndex((s) => s.id === "summary")
+    );
+  });
+});
+
+describe("service visibility + defaults", () => {
+  const svc = (partial: Partial<ExtraServiceConfig>): ExtraServiceConfig => ({
+    id: "gift_wrap",
+    name: "Gift Wrap",
+    name_ar: "تغليف",
+    description: "",
+    description_ar: "",
+    pricing_mode: "FREE",
+    price: 0,
+    enabled: true,
+    visible: true,
+    required: false,
+    default_selected: false,
+    available_online: true,
+    available_in_store: false,
+    sort_order: 0,
+    visibility: { scope: "all" },
+    ...partial,
+  });
+
+  it("matches all / product_types / product ids", () => {
+    expect(
+      serviceMatchesVisibility(svc({}), {
+        productId: "p1",
+        productType: "ready_to_buy",
+        channel: "online",
+      })
+    ).toBe(true);
+
+    expect(
+      serviceMatchesVisibility(
+        svc({
+          visibility: {
+            scope: "product_types",
+            product_types: ["bridal_accessory"],
+          },
+        }),
+        { productId: "p1", productType: "ready_to_buy", channel: "online" }
+      )
+    ).toBe(false);
+
+    expect(
+      serviceMatchesVisibility(
+        svc({
+          visibility: { scope: "products", product_ids: ["p1"] },
+        }),
+        { productId: "p1", productType: "ready_to_buy", channel: "online" }
+      )
+    ).toBe(true);
+  });
+
+  it("enforces required + default selected", () => {
+    const services = [
+      svc({ id: "a", required: true }),
+      svc({ id: "b", default_selected: true }),
+      svc({ id: "c" }),
+    ];
+    expect(defaultSelectedServiceIds(services).sort()).toEqual(["a", "b"]);
+    expect(enforceRequiredServiceIds(services, ["c"]).sort()).toEqual([
+      "a",
+      "c",
+    ]);
+  });
+});

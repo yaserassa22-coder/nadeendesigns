@@ -46,10 +46,17 @@ import {
 import {
   DEFAULT_EXTRA_SERVICES,
   DEFAULT_ORDER_OPTIONS,
+  type ExtraServiceConfig,
   type OrderOptionKey,
   type ProductExtraServicesConfig,
   type ProductOrderOptionsConfig,
 } from "@/lib/products/order-experience";
+import {
+  defaultProductExperienceConfig,
+  normalizeProductExperienceConfig,
+  type ProductExperienceConfig,
+} from "@/lib/products/experience-designer";
+import { ExperienceDesignerPanel } from "@/components/admin/product-editor/ExperienceDesignerPanel";
 
 export type ProductEditorTab =
   | "general"
@@ -92,6 +99,8 @@ export type DressFormState = {
   >;
   extra_services_use_custom: boolean;
   extra_service_ids: string[];
+  /** Product Experience Designer layout */
+  experience_config: ProductExperienceConfig;
 };
 
 const TABS: { id: ProductEditorTab; label: string }[] = [
@@ -185,6 +194,7 @@ export function emptyDressForm(categoryId = ""): DressFormState {
     order_options: defaultOrderOptionsForm(),
     extra_services_use_custom: false,
     extra_service_ids: [],
+    experience_config: defaultProductExperienceConfig(),
   };
 }
 
@@ -242,6 +252,9 @@ export function dressToForm(
     skuTouched: Boolean(dress.sku),
     ...orderOptionsFromConfig(dress.order_options_config),
     ...extraServicesFromConfig(dress.extra_services_config),
+    experience_config: normalizeProductExperienceConfig(
+      dress.experience_config ?? {}
+    ),
   };
 }
 
@@ -276,6 +289,7 @@ export function buildDressPayload(
     product_type: form.product_type,
     order_options_config,
     extra_services_config,
+    experience_config: normalizeProductExperienceConfig(form.experience_config),
     price: form.price ? Number(form.price) : null,
     sale_price: form.sale_price ? Number(form.sale_price) : null,
     cost_price: form.cost_price ? Number(form.cost_price) : null,
@@ -310,6 +324,9 @@ function readLocalDraft(key: string): DressFormState | null {
         extra_service_ids: Array.isArray(form.extra_service_ids)
           ? form.extra_service_ids
           : [],
+        experience_config: normalizeProductExperienceConfig(
+          form.experience_config ?? {}
+        ),
       };
     }
   } catch {
@@ -381,6 +398,9 @@ export function ProductEditorModal({
     useState<AutosaveUiStatus>("idle");
   const [liveCategories, setLiveCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [libraryServices, setLibraryServices] = useState<ExtraServiceConfig[]>(
+    DEFAULT_EXTRA_SERVICES
+  );
   const skipFirstAutosave = useRef(true);
   const formRef = useRef(form);
   const editingRef = useRef(editing);
@@ -415,6 +435,17 @@ export function ProductEditorModal({
         if (!cancelled) setLiveCategories([]);
       } finally {
         if (!cancelled) setCategoriesLoading(false);
+      }
+      try {
+        const res = await fetch("/api/admin/store-settings");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          settings?: { extra_services?: { services?: ExtraServiceConfig[] } };
+        };
+        const services = data.settings?.extra_services?.services;
+        if (services?.length) setLibraryServices(services);
+      } catch {
+        /* keep defaults */
       }
     })();
     return () => {
@@ -910,10 +941,16 @@ export function ProductEditorModal({
           {tab === "experience" && (
             <div className="space-y-8">
               <p className="text-sm text-muted">
-                إعدادات خيارات الطلب والخدمات الإضافية لهذا المنتج فقط.
-                الافتراضيات تُدار من إعدادات المتجر. لن تُطبَّق على الدفع
-                حتى المرحلة التالية.
+                مصمم تجربة المنتج: ترتيب الأقسام، القوالب، وخيارات الطلب
+                والخدمات. الإعدادات تُحفظ مع المنتج وتظهر في مودال الشراء.
               </p>
+
+              <ExperienceDesignerPanel
+                value={form.experience_config}
+                onChange={(experience_config) => patch({ experience_config })}
+                productNameAr={form.name_ar || "المنتج"}
+                supportsPersonalization={false}
+              />
 
               <section className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1019,7 +1056,7 @@ export function ProductEditorModal({
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {DEFAULT_EXTRA_SERVICES.map((svc) => {
+                    {libraryServices.map((svc) => {
                       const checked = form.extra_service_ids.includes(svc.id);
                       return (
                         <label
@@ -1027,7 +1064,7 @@ export function ProductEditorModal({
                           className="flex items-center justify-between gap-3 border-b border-border/60 pb-3 text-sm"
                         >
                           <span>
-                            {svc.name_ar}
+                            {svc.name_ar || svc.name}
                             <span className="ms-2 text-xs text-muted">
                               {svc.pricing_mode === "FREE"
                                 ? "مجاني"

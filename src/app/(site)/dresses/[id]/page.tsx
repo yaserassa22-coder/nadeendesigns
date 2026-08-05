@@ -59,8 +59,13 @@ export default async function DressDetailPage({ params }: Props) {
   const commerceType = resolveProductCommerceType(dress.product_type);
   const primaryAction = getProductPrimaryAction(commerceType);
   const experience = await resolveStorefrontProductExperience({
+    productId: dress.id,
+    productType: commerceType,
+    categoryId: dress.category_id ?? category?.id ?? null,
+    collectionId: dress.collection_id ?? null,
     order_options_config: dress.order_options_config,
     extra_services_config: dress.extra_services_config,
+    experience_config: dress.experience_config,
   });
   const related = (
     await getDresses(
@@ -137,6 +142,8 @@ export default async function DressDetailPage({ params }: Props) {
               image={featuredImage(dress.images)}
               orderOptions={experience.orderOptions}
               extraServices={experience.extraServices}
+              experienceConfig={experience.experienceConfig}
+              sections={experience.sections}
               bookingHref={
                 primaryAction.kind === "book_now"
                   ? "/booking"

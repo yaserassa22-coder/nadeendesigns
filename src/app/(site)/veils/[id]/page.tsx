@@ -48,8 +48,13 @@ export default async function VeilDetailPage({ params }: Props) {
 
   const inStock = veil.is_available && veil.stock_quantity > 0;
   const experience = await resolveStorefrontProductExperience({
+    productId: veil.id,
+    productType: veil.product_type ?? "bridal_accessory",
+    categoryId: null,
+    collectionId: null,
     order_options_config: veil.order_options_config,
     extra_services_config: veil.extra_services_config,
+    experience_config: veil.experience_config,
   });
 
   return (
@@ -111,6 +116,8 @@ export default async function VeilDetailPage({ params }: Props) {
             image={featuredImage(veil.images)}
             orderOptions={experience.orderOptions}
             extraServices={experience.extraServices}
+            experienceConfig={experience.experienceConfig}
+            sections={experience.sections}
           />
         ) : null
       }

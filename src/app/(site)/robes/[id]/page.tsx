@@ -48,8 +48,13 @@ export default async function RobeDetailPage({ params }: Props) {
 
   const inStock = robe.is_available && robe.stock_quantity > 0;
   const experience = await resolveStorefrontProductExperience({
+    productId: robe.id,
+    productType: robe.product_type ?? "bridal_accessory",
+    categoryId: null,
+    collectionId: null,
     order_options_config: robe.order_options_config,
     extra_services_config: robe.extra_services_config,
+    experience_config: robe.experience_config,
   });
 
   return (
@@ -116,6 +121,8 @@ export default async function RobeDetailPage({ params }: Props) {
             image={featuredImage(robe.images)}
             orderOptions={experience.orderOptions}
             extraServices={experience.extraServices}
+            experienceConfig={experience.experienceConfig}
+            sections={experience.sections}
           />
         ) : null
       }

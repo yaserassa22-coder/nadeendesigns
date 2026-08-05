@@ -156,6 +156,14 @@ export type StoreOrderOptionsSettings = {
   options: StoreOrderOption[];
 };
 
+export type StoreExtraServiceVisibility = {
+  scope: "all" | "product_types" | "categories" | "collections" | "products";
+  product_types?: string[];
+  category_ids?: string[];
+  collection_ids?: string[];
+  product_ids?: string[];
+};
+
 export type StoreExtraService = {
   id: string;
   name: string;
@@ -165,7 +173,13 @@ export type StoreExtraService = {
   pricing_mode: "FREE" | "FIXED_PRICE";
   price: number;
   enabled: boolean;
+  visible: boolean;
+  required: boolean;
+  default_selected: boolean;
+  available_online: boolean;
+  available_in_store: boolean;
   sort_order: number;
+  visibility: StoreExtraServiceVisibility;
 };
 
 export type StoreExtraServicesSettings = {
@@ -543,7 +557,13 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         pricing_mode: "FREE",
         price: 0,
         enabled: false,
+        visible: true,
+        required: false,
+        default_selected: false,
+        available_online: true,
+        available_in_store: false,
         sort_order: 0,
+        visibility: { scope: "all" },
       },
       {
         id: "greeting_card",
@@ -554,7 +574,13 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         pricing_mode: "FREE",
         price: 0,
         enabled: false,
+        visible: true,
+        required: false,
+        default_selected: false,
+        available_online: true,
+        available_in_store: false,
         sort_order: 1,
+        visibility: { scope: "all" },
       },
       {
         id: "luxury_box",
@@ -565,7 +591,13 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         pricing_mode: "FREE",
         price: 0,
         enabled: false,
+        visible: true,
+        required: false,
+        default_selected: false,
+        available_online: true,
+        available_in_store: false,
         sort_order: 2,
+        visibility: { scope: "all" },
       },
       {
         id: "express_delivery",
@@ -576,7 +608,13 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         pricing_mode: "FREE",
         price: 0,
         enabled: false,
+        visible: true,
+        required: false,
+        default_selected: false,
+        available_online: true,
+        available_in_store: false,
         sort_order: 3,
+        visibility: { scope: "all" },
       },
     ],
   },

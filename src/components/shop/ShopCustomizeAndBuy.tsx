@@ -2,6 +2,10 @@
 
 import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
 import type { ExtraServiceConfig, OrderOptionConfig } from "@/lib/products/order-experience";
+import type {
+  ExperienceSectionConfig,
+  ProductExperienceConfig,
+} from "@/lib/products/experience-designer";
 import type { ShopProductType } from "@/types/shop";
 
 interface ShopCustomizeAndBuyProps {
@@ -16,6 +20,8 @@ interface ShopCustomizeAndBuyProps {
   orderOptions?: OrderOptionConfig[];
   /** Resolved available extra services (store + product). Empty = none. */
   extraServices?: ExtraServiceConfig[];
+  experienceConfig?: ProductExperienceConfig | null;
+  sections?: ExperienceSectionConfig[];
 }
 
 /**
@@ -32,6 +38,8 @@ export function ShopCustomizeAndBuy({
   image,
   orderOptions = [],
   extraServices = [],
+  experienceConfig = null,
+  sections = [],
 }: ShopCustomizeAndBuyProps) {
   return (
     <div className="mt-10 rounded-3xl border border-beige-dark bg-white/80 p-6 shadow-sm md:p-8">
@@ -53,6 +61,8 @@ export function ShopCustomizeAndBuy({
         image={image}
         orderOptions={orderOptions}
         extraServices={extraServices}
+        experienceConfig={experienceConfig}
+        sections={sections}
         enablePersonalization
         enableGiftWrapping
         requiresShipping

@@ -20,6 +20,7 @@ export interface Veil {
   product_type?: "bridal_accessory" | null;
   order_options_config?: import("@/lib/products/order-experience").ProductOrderOptionsConfig | null;
   extra_services_config?: import("@/lib/products/order-experience").ProductExtraServicesConfig | null;
+  experience_config?: import("@/lib/products/experience-designer").ProductExperienceConfig | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface BridalRobe {
   product_type?: "bridal_accessory" | null;
   order_options_config?: import("@/lib/products/order-experience").ProductOrderOptionsConfig | null;
   extra_services_config?: import("@/lib/products/order-experience").ProductExtraServicesConfig | null;
+  experience_config?: import("@/lib/products/experience-designer").ProductExperienceConfig | null;
   created_at: string;
   updated_at: string;
 }

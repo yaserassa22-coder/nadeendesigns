@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  enforceRequiredServiceIds,
   formatExtraServicePriceLabel,
   type ExtraServiceConfig,
 } from "@/lib/products/order-experience";
@@ -11,25 +12,29 @@ type Props = {
   services: ExtraServiceConfig[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  title?: string;
+  description?: string;
 };
 
 /**
  * Dynamic paid extra services from store / product config.
- * Shows FREE vs +₪N; selection updates live price summary in the modal.
+ * Required services cannot be unchecked; FREE vs +₪N labels update live.
  */
 export function ExtraServicesFields({
   services,
   selectedIds,
   onChange,
+  title = "خدمات إضافية",
+  description = "اختاري الخدمات التي ترغبين بإضافتها إلى طلبكِ.",
 }: Props) {
   if (!services.length) return null;
 
-  const toggle = (id: string) => {
-    if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter((x) => x !== id));
-    } else {
-      onChange([...selectedIds, id]);
-    }
+  const toggle = (id: string, required: boolean) => {
+    if (required) return;
+    const next = selectedIds.includes(id)
+      ? selectedIds.filter((x) => x !== id)
+      : [...selectedIds, id];
+    onChange(enforceRequiredServiceIds(services, next));
   };
 
   return (
@@ -37,15 +42,15 @@ export function ExtraServicesFields({
       <div>
         <div className="mb-1 inline-flex items-center gap-2 text-gold">
           <Sparkles className="h-4 w-4" />
-          <h3 className="text-lg font-semibold text-charcoal">خدمات إضافية</h3>
+          <h3 className="text-lg font-semibold text-charcoal">{title}</h3>
         </div>
-        <p className="text-sm text-muted">
-          اختاري الخدمات التي ترغبين بإضافتها إلى طلبكِ.
-        </p>
+        {description ? (
+          <p className="text-sm text-muted">{description}</p>
+        ) : null}
       </div>
       <div className="space-y-3">
         {services.map((svc) => {
-          const checked = selectedIds.includes(svc.id);
+          const checked = selectedIds.includes(svc.id) || Boolean(svc.required);
           const desc = svc.description_ar || svc.description;
           return (
             <label
@@ -54,28 +59,28 @@ export function ExtraServicesFields({
                 "flex cursor-pointer items-start justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors",
                 checked
                   ? "border-gold/40 bg-gold/5"
-                  : "border-beige-dark bg-white hover:border-gold/30"
+                  : "border-beige-dark bg-white hover:border-gold/30",
+                svc.required ? "cursor-default" : ""
               )}
             >
               <span className="flex items-start gap-3">
                 <input
                   type="checkbox"
                   checked={checked}
-                  onChange={() => toggle(svc.id)}
+                  disabled={Boolean(svc.required)}
+                  onChange={() => toggle(svc.id, Boolean(svc.required))}
                   className="mt-1 h-4 w-4 accent-[var(--gold)]"
                 />
                 <span>
                   <span className="block text-sm font-medium text-charcoal">
                     {svc.name_ar || svc.name}
+                    {svc.required ? (
+                      <span className="ms-2 text-xs text-gold">إلزامي</span>
+                    ) : null}
                   </span>
                   {desc ? (
                     <span className="mt-0.5 block text-xs text-muted">
                       {desc}
-                    </span>
-                  ) : null}
-                  {svc.name_ar && svc.name && svc.name !== svc.name_ar ? (
-                    <span className="mt-0.5 block text-xs text-muted" dir="ltr">
-                      {svc.name}
                     </span>
                   ) : null}
                 </span>

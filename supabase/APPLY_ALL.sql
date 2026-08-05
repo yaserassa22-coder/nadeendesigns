@@ -1,4 +1,4 @@
-- =============================================================================
+﻿- =============================================================================
 -- APPLY_ALL.sql ? SINGLE-FILE master setup for NadEEN Designs
 --
 -- ONE FILE. Run once or repeatedly. No other APPLY_*.sql required.
@@ -70,12 +70,14 @@
 --       settings.key = 'store' JSONB (payments inside JSON; secrets via env)
 --   38. Sprint P1.1 product management core: APPLY_PRODUCT_MANAGEMENT_CORE (= 035)
 --       dresses: name_en, short_description, slug, sku, sale_price, cost_price,
---       status (published|draft|hidden), tags[], collection_id ג€” dual-write ג†” is_available
+--       status (published|draft|hidden), tags[], collection_id ׳’ג‚¬ג€ dual-write ׳’ג€ ג€ is_available
 --   39. Product commerce type: APPLY_PRODUCT_COMMERCE_TYPE (= 036)
 --       dresses/veils/bridal_robes.product_type for storefront CTA
 --   40. Product experience foundation: APPLY_PRODUCT_EXPERIENCE_FOUNDATION (= 037)
 --       Sprint 2 enums + order_options / extra_services config columns
 --       (ready_to_buy|rental|custom_design|accessory|service); never category-name CTAs
+--   41. Product experience engine: APPLY_PRODUCT_EXPERIENCE_ENGINE (= 038)
+--       store_services library + experience templates + experience_config JSONB
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, settings) must already
 -- exist from the main schema / earlier project setup. This file applies
@@ -2964,7 +2966,7 @@ END $$;
 
 
 -- #############################################################################
--- 34 ג€” Phase G guest customers: APPLY_GUEST_CUSTOMERS.sql (= 031)
+-- 34 ׳’ג‚¬ג€ Phase G guest customers: APPLY_GUEST_CUSTOMERS.sql (= 031)
 -- guest_customers, guest_carts, recently_viewed, wishlist guest_id,
 -- guest_id on orders/bookings/designs. Idempotent. Requires customers (31).
 -- #############################################################################
@@ -3150,7 +3152,7 @@ CREATE POLICY "Admin all recently_viewed" ON recently_viewed
   );
 
 -- #############################################################################
--- 35 ג€” Phase G2 guest storefront RLS: APPLY_GUEST_STOREFRONT_RLS.sql (= 032)
+-- 35 ׳’ג‚¬ג€ Phase G2 guest storefront RLS: APPLY_GUEST_STOREFRONT_RLS.sql (= 032)
 -- Anon-key path for guest cart/session durability (no SERVICE_ROLE required).
 -- Idempotent. Requires section 34 / guest_customers.
 -- #############################################################################
@@ -3379,9 +3381,9 @@ CREATE INDEX IF NOT EXISTS idx_categories_featured_collection
   WHERE featured_collection = true;
 
 -- =============================================================================
--- 37 ג€” Sprint S1: store settings seed (= 034 / APPLY_STORE_SETTINGS)
+-- 37 ׳’ג‚¬ג€ Sprint S1: store settings seed (= 034 / APPLY_STORE_SETTINGS)
 -- settings.key = 'store' JSONB bag. Payment providers live inside JSON
--- (not a separate table). Secrets never stored ג€” env refs + configured flags.
+-- (not a separate table). Secrets never stored ׳’ג‚¬ג€ env refs + configured flags.
 -- ON CONFLICT DO NOTHING so re-runs never overwrite admin edits.
 -- =============================================================================
 
@@ -3392,15 +3394,15 @@ VALUES (
     'general', jsonb_build_object(
       'store_name', 'Nadeen Designs',
       'description', 'Luxury bridal boutique',
-      'description_ar', '״¨ˆ״×ƒ ״§״®״± „״³״§״×† ״§„״²״§ ˆ״§„״¥ƒ״³״³ˆ״§״±״§״×',
+      'description_ar', '׳´ֲ¨ן¢ֻ†׳´ֳ—ן¢ֲן¢ֶ’ ן¢ֲ׳´ֲ§׳´ֲ®׳´ֲ± ן¢ג€ן¢ֲ׳´ֲ³׳´ֲ§׳´ֳ—ן¢ֲן¢ג€  ׳´ֲ§ן¢ג€׳´ֲ²ן¢ֲ׳´ֲ§ן¢ֲ ן¢ֻ†׳´ֲ§ן¢ג€׳´ֲ¥ן¢ֶ’׳´ֲ³׳´ֲ³ן¢ֻ†׳´ֲ§׳´ֲ±׳´ֲ§׳´ֳ—',
       'logo_url', '',
       'favicon_url', '',
       'business_email', 'hello@nadeendesigns.com',
       'business_phone', '+966500000000',
       'business_address', 'Riyadh, Saudi Arabia',
-      'business_address_ar', '״§„״±״§״¶״ ״§„……„ƒ״© ״§„״¹״±״¨״© ״§„״³״¹ˆ״¯״©',
-      'working_hours', 'Satג€“Thu 10:00ג€“21:00',
-      'working_hours_ar', '״§„״³״¨״× - ״§„״®…״³: 10:00 ״µ - 9:00 …',
+      'business_address_ar', '׳´ֲ§ן¢ג€׳´ֲ±ן¢ֲ׳´ֲ§׳´ֲ¶׳´ֲ ׳´ֲ§ן¢ג€ן¢ג€¦ן¢ג€¦ן¢ג€ן¢ֶ’׳´ֲ© ׳´ֲ§ן¢ג€׳´ֲ¹׳´ֲ±׳´ֲ¨ן¢ֲ׳´ֲ© ׳´ֲ§ן¢ג€׳´ֲ³׳´ֲ¹ן¢ֻ†׳´ֲ¯ן¢ֲ׳´ֲ©',
+      'working_hours', 'Sat׳’ג‚¬ג€Thu 10:00׳’ג‚¬ג€21:00',
+      'working_hours_ar', '׳´ֲ§ן¢ג€׳´ֲ³׳´ֲ¨׳´ֳ— - ׳´ֲ§ן¢ג€׳´ֲ®ן¢ג€¦ן¢ֲ׳´ֲ³: 10:00 ׳´ֲµ - 9:00 ן¢ג€¦',
       'currency', 'ILS',
       'language', 'ar',
       'timezone', 'Asia/Jerusalem'
@@ -3410,13 +3412,13 @@ VALUES (
         jsonb_build_object(
           'id', 'cod',
           'name', 'Cash on Delivery',
-          'name_ar', '״§„״¯״¹ ״¹†״¯ ״§„״§״³״×„״§…',
+          'name_ar', '׳´ֲ§ן¢ג€׳´ֲ¯ן¢ֲ׳´ֲ¹ ׳´ֲ¹ן¢ג€ ׳´ֲ¯ ׳´ֲ§ן¢ג€׳´ֲ§׳´ֲ³׳´ֳ—ן¢ג€׳´ֲ§ן¢ג€¦',
           'enabled', true,
           'coming_soon', false,
           'sort_order', 0,
           'icon', 'banknote',
           'description', 'Pay when you receive your order',
-          'description_ar', '״§״¯״¹ ״¹†״¯ ״§״³״×„״§… ״·„״¨ƒ …† ״§„״¨ˆ״×ƒ ״£ˆ …״¹ ״§„…†״¯ˆ״¨',
+          'description_ar', '׳´ֲ§׳´ֲ¯ן¢ֲ׳´ֲ¹ן¢ֲ ׳´ֲ¹ן¢ג€ ׳´ֲ¯ ׳´ֲ§׳´ֲ³׳´ֳ—ן¢ג€׳´ֲ§ן¢ג€¦ ׳´ֲ·ן¢ג€׳´ֲ¨ן¢ֶ’ן¢ֲ ן¢ג€¦ן¢ג€  ׳´ֲ§ן¢ג€׳´ֲ¨ן¢ֻ†׳´ֳ—ן¢ֲן¢ֶ’ ׳´ֲ£ן¢ֻ† ן¢ג€¦׳´ֲ¹ ׳´ֲ§ן¢ג€ן¢ג€¦ן¢ג€ ׳´ֲ¯ן¢ֻ†׳´ֲ¨',
           'configuration', '{}'::jsonb,
           'secret_env_ref', null,
           'configured', true
@@ -3424,13 +3426,13 @@ VALUES (
         jsonb_build_object(
           'id', 'stripe',
           'name', 'Stripe',
-          'name_ar', '״³״×״±״§״¨',
+          'name_ar', '׳´ֲ³׳´ֳ—׳´ֲ±׳´ֲ§ן¢ֲ׳´ֲ¨',
           'enabled', false,
           'coming_soon', true,
           'sort_order', 1,
           'icon', 'credit-card',
           'description', 'Cards via Stripe',
-          'description_ar', '״¨״·״§‚״§״× ״¹״¨״± ״³״×״±״§״¨ ג€” ‚״±״¨״§‹',
+          'description_ar', '׳´ֲ¨׳´ֲ·׳´ֲ§ן¢ג€׳´ֲ§׳´ֳ— ׳´ֲ¹׳´ֲ¨׳´ֲ± ׳´ֲ³׳´ֳ—׳´ֲ±׳´ֲ§ן¢ֲ׳´ֲ¨ ׳’ג‚¬ג€ ן¢ג€׳´ֲ±ן¢ֲ׳´ֲ¨׳´ֲ§ן¢ג€¹',
           'configuration', '{}'::jsonb,
           'secret_env_ref', 'STRIPE_SECRET_KEY',
           'configured', false
@@ -3438,13 +3440,13 @@ VALUES (
         jsonb_build_object(
           'id', 'paypal',
           'name', 'PayPal',
-          'name_ar', '״¨״§ ״¨״§„',
+          'name_ar', '׳´ֲ¨׳´ֲ§ן¢ֲ ׳´ֲ¨׳´ֲ§ן¢ג€',
           'enabled', false,
           'coming_soon', true,
           'sort_order', 2,
           'icon', 'wallet',
           'description', 'PayPal checkout',
-          'description_ar', '״¨״§ ״¨״§„ ג€” ‚״±״¨״§‹',
+          'description_ar', '׳´ֲ¨׳´ֲ§ן¢ֲ ׳´ֲ¨׳´ֲ§ן¢ג€ ׳’ג‚¬ג€ ן¢ג€׳´ֲ±ן¢ֲ׳´ֲ¨׳´ֲ§ן¢ג€¹',
           'configuration', '{}'::jsonb,
           'secret_env_ref', 'PAYPAL_CLIENT_SECRET',
           'configured', false
@@ -3452,13 +3454,13 @@ VALUES (
         jsonb_build_object(
           'id', 'tranzila',
           'name', 'Tranzila',
-          'name_ar', '״×״±״§†״²„״§',
+          'name_ar', '׳´ֳ—׳´ֲ±׳´ֲ§ן¢ג€ ׳´ֲ²ן¢ֲן¢ג€׳´ֲ§',
           'enabled', false,
           'coming_soon', true,
           'sort_order', 3,
           'icon', 'credit-card',
           'description', 'Israeli payment gateway',
-          'description_ar', '״¨ˆ״§״¨״© ״×״±״§†״²„״§ ג€” ‚״±״¨״§‹',
+          'description_ar', '׳´ֲ¨ן¢ֻ†׳´ֲ§׳´ֲ¨׳´ֲ© ׳´ֳ—׳´ֲ±׳´ֲ§ן¢ג€ ׳´ֲ²ן¢ֲן¢ג€׳´ֲ§ ׳’ג‚¬ג€ ן¢ג€׳´ֲ±ן¢ֲ׳´ֲ¨׳´ֲ§ן¢ג€¹',
           'configuration', '{}'::jsonb,
           'secret_env_ref', 'TRANZILA_API_KEY',
           'configured', false
@@ -3480,7 +3482,7 @@ VALUES (
       'instagram_url', 'https://www.instagram.com/nadeendesign_/',
       'facebook_url', '',
       'tiktok_url', '',
-      'location_ar', '״§„״±״§״¶״ ״§„……„ƒ״© ״§„״¹״±״¨״© ״§„״³״¹ˆ״¯״©',
+      'location_ar', '׳´ֲ§ן¢ג€׳´ֲ±ן¢ֲ׳´ֲ§׳´ֲ¶׳´ֲ ׳´ֲ§ן¢ג€ן¢ג€¦ן¢ג€¦ן¢ג€ן¢ֶ’׳´ֲ© ׳´ֲ§ן¢ג€׳´ֲ¹׳´ֲ±׳´ֲ¨ן¢ֲ׳´ֲ© ׳´ֲ§ן¢ג€׳´ֲ³׳´ֲ¹ן¢ֻ†׳´ֲ¯ן¢ֲ׳´ֲ©',
       'google_maps_url', ''
     ),
     'social', jsonb_build_object(
@@ -3514,9 +3516,9 @@ VALUES (
       'sms_coming_soon', true
     ),
     'seo', jsonb_build_object(
-      'title', 'Nadeen Designs | ״¨ˆ״×ƒ ״³״§״×† ״§„״²״§ ״§„״§״®״±״©',
-      'description', 'Nadeen Designs ג€” ״¨ˆ״×ƒ ״§״®״± „״³״§״×† ״§„״²״§ ˆ״§„״¥״¬״§״±.',
-      'keywords', '״³״§״×† ״²״§, ״¨ˆ״×ƒ ״¹״±ˆ״³, Nadeen Designs',
+      'title', 'Nadeen Designs | ׳´ֲ¨ן¢ֻ†׳´ֳ—ן¢ֲן¢ֶ’ ן¢ֲ׳´ֲ³׳´ֲ§׳´ֳ—ן¢ֲן¢ג€  ׳´ֲ§ן¢ג€׳´ֲ²ן¢ֲ׳´ֲ§ן¢ֲ ׳´ֲ§ן¢ג€ן¢ֲ׳´ֲ§׳´ֲ®׳´ֲ±׳´ֲ©',
+      'description', 'Nadeen Designs ׳’ג‚¬ג€ ׳´ֲ¨ן¢ֻ†׳´ֳ—ן¢ֲן¢ֶ’ ן¢ֲ׳´ֲ§׳´ֲ®׳´ֲ± ן¢ג€ן¢ֲ׳´ֲ³׳´ֲ§׳´ֳ—ן¢ֲן¢ג€  ׳´ֲ§ן¢ג€׳´ֲ²ן¢ֲ׳´ֲ§ן¢ֲ ן¢ֻ†׳´ֲ§ן¢ג€׳´ֲ¥ן¢ֲ׳´ֲ¬׳´ֲ§׳´ֲ±.',
+      'keywords', 'ן¢ֲ׳´ֲ³׳´ֲ§׳´ֳ—ן¢ֲן¢ג€  ׳´ֲ²ן¢ֲ׳´ֲ§ן¢ֲ, ׳´ֲ¨ן¢ֻ†׳´ֳ—ן¢ֲן¢ֶ’ ׳´ֲ¹׳´ֲ±ן¢ֻ†׳´ֲ³, Nadeen Designs',
       'og_image_url', '',
       'robots_index', true,
       'robots_follow', true,
@@ -3528,7 +3530,7 @@ VALUES (
       'maintenance_mode', false,
       'backup_status', 'unknown',
       'backup_last_at', null,
-      'backup_note', '״§„†״³״® ״§„״§״­״×״§״· ״¯״§״± ״¹״¨״± Supabase ג€” ״§„״­״§„״© „„״¹״±״¶ ‚״·'
+      'backup_note', '׳´ֲ§ן¢ג€ן¢ג€ ׳´ֲ³׳´ֲ® ׳´ֲ§ן¢ג€׳´ֲ§׳´ֲ­׳´ֳ—ן¢ֲ׳´ֲ§׳´ֲ·ן¢ֲ ן¢ֲן¢ֲ׳´ֲ¯׳´ֲ§׳´ֲ± ׳´ֲ¹׳´ֲ¨׳´ֲ± Supabase ׳’ג‚¬ג€ ׳´ֲ§ן¢ג€׳´ֲ­׳´ֲ§ן¢ג€׳´ֲ© ן¢ג€ן¢ג€׳´ֲ¹׳´ֲ±׳´ֲ¶ ן¢ֲן¢ג€׳´ֲ·'
     ),
     'integrations', '[]'::jsonb
   ),
@@ -3537,7 +3539,7 @@ VALUES (
 ON CONFLICT (key) DO NOTHING;
 
 -- =============================================================================
--- 38 ג€” Sprint P1.1: product management core (= 035 / APPLY_PRODUCT_MANAGEMENT_CORE)
+-- 38 ׳’ג‚¬ג€ Sprint P1.1: product management core (= 035 / APPLY_PRODUCT_MANAGEMENT_CORE)
 -- Additive dresses columns. Safe to re-run. Does not rewrite existing rows beyond
 -- status backfill from is_available.
 -- =============================================================================
@@ -3723,10 +3725,10 @@ SET product_type = CASE
     OR category ILIKE '%accessor%'
     OR category ILIKE '%veil%'
     OR category ILIKE '%robe%'
-    OR category ILIKE '%طرحة%'
-    OR category ILIKE '%برنص%'
-    OR category ILIKE '%اكسسوار%'
-    OR category ILIKE '%إكسسوار%'
+    OR category ILIKE '%״·״±״­״©%'
+    OR category ILIKE '%״¨״±†״µ%'
+    OR category ILIKE '%״§ƒ״³״³ˆ״§״±%'
+    OR category ILIKE '%״¥ƒ״³״³ˆ״§״±%'
     THEN 'bridal_accessory'
   WHEN lower(replace(btrim(category), '-', '_')) IN (
       'wedding',
@@ -3829,7 +3831,7 @@ END $$;
 
 -- =============================================================================
 -- 40 - Product experience foundation (= 037 / APPLY_PRODUCT_EXPERIENCE_FOUNDATION)
--- CRITICAL ORDER: DROP CHECK → normalize data → ADD CHECK → validate
+-- CRITICAL ORDER: DROP CHECK ג†’ normalize data ג†’ ADD CHECK ג†’ validate
 -- Never UPDATE to bridal_accessory while old CHECK still rejects it.
 -- =============================================================================
 
@@ -3932,6 +3934,212 @@ VALUES (
   NOW()
 )
 ON CONFLICT (key) DO NOTHING;
+
+
+
+-- =============================================================================
+-- 41 - Product experience engine (= 038 / APPLY_PRODUCT_EXPERIENCE_ENGINE)
+-- Global services library + experience templates + experience_config JSONB
+-- =============================================================================
+
+-- 038_product_experience_engine.sql
+-- Sprint 2A MASTER: Global Services Library + Experience Templates + per-product experience_config.
+-- Safe to re-run. Extends 037 ג€” does not remove existing columns or flows.
+
+-- ---------------------------------------------------------------------------
+-- 1) Global services library (IDs are stable text keys ג€” no hardcoded names)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS store_services (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT '',
+  name_ar TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  description_ar TEXT NOT NULL DEFAULT '',
+  pricing_mode TEXT NOT NULL DEFAULT 'FREE'
+    CHECK (pricing_mode IN ('FREE', 'FIXED_PRICE')),
+  price NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (price >= 0),
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  visible BOOLEAN NOT NULL DEFAULT TRUE,
+  required BOOLEAN NOT NULL DEFAULT FALSE,
+  default_selected BOOLEAN NOT NULL DEFAULT FALSE,
+  available_online BOOLEAN NOT NULL DEFAULT TRUE,
+  available_in_store BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  -- Visibility scopes use IDs only: product_types[], category_ids[], collection_ids[], product_ids[]
+  visibility JSONB NOT NULL DEFAULT '{"scope":"all"}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS store_services_sort_idx
+  ON store_services (sort_order, id);
+
+CREATE INDEX IF NOT EXISTS store_services_enabled_idx
+  ON store_services (enabled)
+  WHERE enabled = TRUE;
+
+ALTER TABLE store_services ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "store_services_admin_all" ON store_services;
+CREATE POLICY "store_services_admin_all" ON store_services
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  );
+
+DROP POLICY IF EXISTS "store_services_public_read_enabled" ON store_services;
+CREATE POLICY "store_services_public_read_enabled" ON store_services
+  FOR SELECT
+  USING (enabled = TRUE AND visible = TRUE AND available_online = TRUE);
+
+-- Seed defaults when empty (idempotent)
+INSERT INTO store_services (
+  id, name, name_ar, description, description_ar,
+  pricing_mode, price, enabled, visible, required, default_selected,
+  available_online, available_in_store, sort_order, visibility
+)
+VALUES
+  ('gift_wrap', 'Gift Wrap', '״×״÷„ ‡״¯״©', '', '', 'FREE', 0, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE, 0, '{"scope":"all"}'::jsonb),
+  ('greeting_card', 'Greeting Card', '״¨״·״§‚״© ״×‡†״¦״©', '', '', 'FREE', 0, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE, 1, '{"scope":"all"}'::jsonb),
+  ('luxury_box', 'Luxury Box', '״¹„״¨״© ״§״®״±״©', '', '', 'FREE', 0, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE, 2, '{"scope":"all"}'::jsonb),
+  ('express_delivery', 'Express Delivery', '״×ˆ״µ„ ״³״±״¹', '', '', 'FREE', 0, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE, 3, '{"scope":"all"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 2) Experience templates (DB-backed, reusable)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS product_experience_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT UNIQUE,
+  name TEXT NOT NULL DEFAULT '',
+  name_ar TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  description_ar TEXT NOT NULL DEFAULT '',
+  -- Full ProductExperienceConfig JSON (sections order/settings)
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  is_system BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS product_experience_templates_sort_idx
+  ON product_experience_templates (sort_order, name_ar);
+
+ALTER TABLE product_experience_templates ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "experience_templates_admin_all" ON product_experience_templates;
+CREATE POLICY "experience_templates_admin_all" ON product_experience_templates
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  );
+
+DROP POLICY IF EXISTS "experience_templates_public_read" ON product_experience_templates;
+CREATE POLICY "experience_templates_public_read" ON product_experience_templates
+  FOR SELECT
+  USING (TRUE);
+
+-- Seed system templates when missing (idempotent by slug)
+INSERT INTO product_experience_templates (
+  slug, name, name_ar, description_ar, is_system, sort_order, config
+)
+VALUES
+  (
+    'gift',
+    'Gift',
+    '‡״¯״©',
+    '״×״¬״±״¨״© ״´״±״§״¡ …†״§״³״¨״© „„‡״¯״§״§ ג€” ״®״¯…״§״× + ״®״§״±״§״× ״·„״¨ + …„״®״µ',
+    TRUE,
+    0,
+    '{
+      "sections": [
+        {"id":"extra_services","enabled":true,"collapsed":false,"sort_order":0,"title_ar":"״®״¯…״§״× ״¥״¶״§״©","title":"Extra Services"},
+        {"id":"gift_options","enabled":true,"collapsed":false,"sort_order":1,"title_ar":"״×״÷„ ‡״¯״©","title":"Gift Options"},
+        {"id":"order_options","enabled":true,"collapsed":false,"sort_order":2,"title_ar":"״®״§״±״§״× ״§„״·„״¨","title":"Order Options"},
+        {"id":"delivery","enabled":true,"collapsed":true,"sort_order":3,"title_ar":"״§„״×ˆ״µ„","title":"Delivery"},
+        {"id":"order_notes","enabled":true,"collapsed":true,"sort_order":4,"title_ar":"…„״§״­״¸״§״×","title":"Order Notes"},
+        {"id":"personalization","enabled":false,"collapsed":true,"sort_order":5,"title_ar":"״×״®״µ״µ ״§„ƒ״×״§״¨״©","title":"Personalization"},
+        {"id":"summary","enabled":true,"collapsed":false,"sort_order":6,"title_ar":"…„״®״µ ״§„״³״¹״±","title":"Summary"}
+      ]
+    }'::jsonb
+  ),
+  (
+    'accessory',
+    'Accessory',
+    '״¥ƒ״³״³ˆ״§״±',
+    '״×״¬״±״¨״© ״¥ƒ״³״³ˆ״§״±״§״× ״§„״¹״±ˆ״³ ג€” ״×״®״µ״µ + ״®״¯…״§״× + …„״®״µ',
+    TRUE,
+    1,
+    '{
+      "sections": [
+        {"id":"personalization","enabled":true,"collapsed":false,"sort_order":0,"title_ar":"״×״®״µ״µ ״§„ƒ״×״§״¨״©","title":"Personalization"},
+        {"id":"gift_options","enabled":true,"collapsed":true,"sort_order":1,"title_ar":"״×״÷„ ‡״¯״©","title":"Gift Options"},
+        {"id":"extra_services","enabled":true,"collapsed":false,"sort_order":2,"title_ar":"״®״¯…״§״× ״¥״¶״§״©","title":"Extra Services"},
+        {"id":"order_options","enabled":true,"collapsed":true,"sort_order":3,"title_ar":"״®״§״±״§״× ״§„״·„״¨","title":"Order Options"},
+        {"id":"delivery","enabled":false,"collapsed":true,"sort_order":4,"title_ar":"״§„״×ˆ״µ„","title":"Delivery"},
+        {"id":"order_notes","enabled":true,"collapsed":true,"sort_order":5,"title_ar":"…„״§״­״¸״§״×","title":"Order Notes"},
+        {"id":"summary","enabled":true,"collapsed":false,"sort_order":6,"title_ar":"…„״®״µ ״§„״³״¹״±","title":"Summary"}
+      ]
+    }'::jsonb
+  ),
+  (
+    'ready_to_buy',
+    'Ready to Buy',
+    '״¬״§‡״² „„״´״±״§״¡',
+    '״×״¬״±״¨״© ״¨״³״·״© „„…†״×״¬״§״× ״§„״¬״§‡״²״©',
+    TRUE,
+    2,
+    '{
+      "sections": [
+        {"id":"extra_services","enabled":true,"collapsed":false,"sort_order":0,"title_ar":"״®״¯…״§״× ״¥״¶״§״©","title":"Extra Services"},
+        {"id":"order_options","enabled":true,"collapsed":false,"sort_order":1,"title_ar":"״®״§״±״§״× ״§„״·„״¨","title":"Order Options"},
+        {"id":"delivery","enabled":true,"collapsed":true,"sort_order":2,"title_ar":"״§„״×ˆ״µ„","title":"Delivery"},
+        {"id":"order_notes","enabled":true,"collapsed":true,"sort_order":3,"title_ar":"…„״§״­״¸״§״×","title":"Order Notes"},
+        {"id":"gift_options","enabled":false,"collapsed":true,"sort_order":4,"title_ar":"״×״÷„ ‡״¯״©","title":"Gift Options"},
+        {"id":"personalization","enabled":false,"collapsed":true,"sort_order":5,"title_ar":"״×״®״µ״µ ״§„ƒ״×״§״¨״©","title":"Personalization"},
+        {"id":"summary","enabled":true,"collapsed":false,"sort_order":6,"title_ar":"…„״®״µ ״§„״³״¹״±","title":"Summary"}
+      ]
+    }'::jsonb
+  )
+ON CONFLICT (slug) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 3) Per-product experience designer config (JSONB)
+-- ---------------------------------------------------------------------------
+ALTER TABLE dresses
+  ADD COLUMN IF NOT EXISTS experience_config JSONB;
+
+ALTER TABLE veils
+  ADD COLUMN IF NOT EXISTS experience_config JSONB;
+
+ALTER TABLE bridal_robes
+  ADD COLUMN IF NOT EXISTS experience_config JSONB;
+
+-- Ensure store settings row exists (extra_services JSON remains dual-write mirror)
+INSERT INTO settings (key, value, updated_at)
+VALUES ('store', '{}'::jsonb, NOW())
+ON CONFLICT (key) DO NOTHING;
+
+NOTIFY pgrst, 'reload schema';
 
 
 -- =============================================================================
