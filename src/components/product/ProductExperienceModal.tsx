@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PurchaseCtaGroup } from "@/components/ui/experience";
 import { useCart } from "@/components/shop/CartProvider";
@@ -374,12 +373,12 @@ export function ProductExperienceModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-experience-title"
-        className="relative z-10 flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-beige-dark bg-white shadow-[0_24px_80px_rgba(44,36,25,0.2)] sm:rounded-3xl"
+        className="relative z-10 flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] border border-beige-dark/60 bg-white shadow-[0_28px_90px_rgba(44,36,25,0.18)] sm:rounded-[1.75rem]"
       >
-        <div className="flex items-start justify-between gap-3 border-b border-beige-dark/70 px-5 py-4 md:px-6">
+        <div className="flex items-start justify-between gap-3 border-b border-beige-dark/50 px-6 py-5">
           <h2
             id="product-experience-title"
-            className="text-lg font-semibold text-charcoal md:text-xl"
+            className="font-[family-name:var(--font-cormorant)] text-2xl tracking-wide text-charcoal"
           >
             {nameAr}
           </h2>
@@ -470,15 +469,14 @@ export function ProductExperienceModal({
             disabled={submitting}
             size="lg"
             secondaryAction={
-              <Button
-                variant="ghost"
-                size="lg"
+              <button
+                type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="h-[var(--xp-cta-height)]"
+                className="text-sm text-muted underline-offset-4 hover:text-charcoal hover:underline disabled:opacity-50"
               >
                 إلغاء
-              </Button>
+              </button>
             }
           />
         </div>

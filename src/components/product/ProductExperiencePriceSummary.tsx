@@ -17,8 +17,7 @@ type Props = {
 };
 
 /**
- * Live price breakdown inside the Product Experience Modal.
- * Premium card; totals animate when services / qty change.
+ * Live price breakdown — line items mirror Admin service cards (FREE / +₪).
  */
 export function ProductExperiencePriceSummary({
   baseUnitPrice,
@@ -41,22 +40,18 @@ export function ProductExperiencePriceSummary({
   });
   const qty = Math.max(1, quantity);
   const lineTotal = unit * qty;
-  const extrasTotal = extras.reduce((sum, s) => sum + s.price, 0);
 
   return (
     <div
       className={cn(
-        "rounded-[var(--xp-card-radius)] border border-gold/30 bg-gradient-to-b from-gold/[0.07] to-white/90 p-4 shadow-[var(--xp-shadow)] md:p-5",
+        "rounded-[var(--xp-card-radius)] border border-gold/25 bg-gradient-to-b from-gold/[0.06] to-white p-5 shadow-[var(--xp-shadow)]",
         className
       )}
       aria-live="polite"
     >
-      <h3 className="mb-3 font-[family-name:var(--font-cormorant)] text-lg tracking-wide text-charcoal">
-        ملخص السعر
-      </h3>
-      <ul className="space-y-2.5 text-sm text-charcoal">
+      <ul className="space-y-3 text-sm text-charcoal">
         <li className="flex justify-between gap-3">
-          <span className="text-muted">سعر المنتج</span>
+          <span className="text-muted">المنتج</span>
           <span
             key={`base-${baseUnitPrice}`}
             className="tabular-nums xp-fade-in"
@@ -70,25 +65,28 @@ export function ProductExperiencePriceSummary({
             <span className="text-muted">التخصيص</span>
             <span
               key={`pers-${personalizationFee}`}
-              className="tabular-nums xp-fade-in"
+              className="tabular-nums xp-fade-in text-gold"
               dir="ltr"
             >
-              {formatPrice(personalizationFee)}
+              +{formatPrice(personalizationFee)}
             </span>
           </li>
         ) : null}
-        {extras.length > 0 ? (
-          <li className="flex justify-between gap-3">
-            <span className="text-muted">خدمات إضافية</span>
+        {extras.map((s) => (
+          <li key={s.id} className="flex justify-between gap-3">
+            <span className="text-muted">{s.name_ar || s.name}</span>
             <span
-              key={`extras-${extrasTotal}-${extras.length}`}
-              className="tabular-nums xp-fade-in"
+              key={`${s.id}-${s.price}`}
+              className={cn(
+                "tabular-nums xp-fade-in",
+                s.price > 0 ? "text-gold" : "text-emerald-700"
+              )}
               dir="ltr"
             >
-              {extrasTotal > 0 ? formatPrice(extrasTotal) : "مجاني"}
+              {s.price > 0 ? `+${formatPrice(s.price)}` : "مجاني"}
             </span>
           </li>
-        ) : null}
+        ))}
         {qty > 1 ? (
           <li className="flex justify-between gap-3">
             <span className="text-muted">الكمية</span>
@@ -101,7 +99,7 @@ export function ProductExperiencePriceSummary({
             </span>
           </li>
         ) : null}
-        <li className="flex items-baseline justify-between gap-3 border-t border-gold/25 pt-3">
+        <li className="flex items-baseline justify-between gap-3 border-t border-gold/20 pt-3">
           <span className="text-base font-semibold">الإجمالي</span>
           <span
             key={lineTotal}

@@ -974,6 +974,7 @@ export function ProductEditorModal({
               onOrderOptionsChange={(order_options) =>
                 patch({ order_options })
               }
+              savedIndicator={autosaveStatus}
               unitPrice={
                 form.sale_price
                   ? Number(form.sale_price) || 0

@@ -5,7 +5,20 @@
  * Storefront PDP / Experience Modal render ONLY purchase-config sections.
  * Delivery / address / notes / order options are checkout-only and never
  * appear on the product page (kept in Admin for future use).
+ *
+ * Future-ready (not implemented): conditional visibility, VIP / holiday
+ * pricing, service bundles, multi-template variants, conditional journey steps.
+ * Keep storefront resolution in resolve-storefront-experience + this module.
  */
+
+/** Reserved extension points — do not use in UI until productized. */
+export type ExperienceFutureExtensions = {
+  conditional_visibility?: unknown;
+  vip_pricing?: unknown;
+  holiday_pricing?: unknown;
+  service_bundles?: unknown;
+  conditional_steps?: unknown;
+};
 
 export type ExperienceSectionId =
   | "personalization"

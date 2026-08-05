@@ -13,32 +13,32 @@ const CARDS = [
   {
     href: "/admin/experience/features",
     title: "الميزات",
-    body: "تفعيل لكل منتج من المحرر.",
+    body: "فعّلي ما يظهر للعميلة على كل منتج.",
   },
   {
     href: "/admin/experience/services",
     title: "الخدمات",
-    body: "مكتبة الخدمات العامة.",
+    body: "تغليف · صندوق فاخر · توصيل سريع.",
   },
   {
     href: "/admin/experience/product-types",
     title: "أنواع المنتجات",
-    body: "إيجار · إكسسوار · تصميم.",
+    body: "إيجار · إكسسوار · تصميم خاص.",
   },
   {
     href: "/admin/experience/purchase-flows",
     title: "مسارات الشراء",
-    body: "أزرار وخطوات الواجهة.",
+    body: "أزرار الشراء وخطوات التجربة.",
   },
   {
     href: "/admin/experience/templates",
     title: "القوالب",
-    body: "قوالب تجربة المنتج.",
+    body: "ابدئي بسرعة من قالب جاهز.",
   },
   {
     href: "/admin/experience/preview",
     title: "معاينة",
-    body: "سلوك كل نوع على الواجهة.",
+    body: "شاهدي سلوك كل نوع قبل النشر.",
   },
 ] as const;
 
@@ -50,29 +50,23 @@ export default async function ExperienceEngineHomePage() {
   ]);
 
   return (
-    <ExperienceEngineShell
-      title="محرك التجربة"
-      description="ميزات · خدمات · أنواع · مسارات شراء · قوالب."
-    >
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-beige-dark bg-white px-5 py-4">
-          <p className="text-xs text-muted">الميزات</p>
-          <p className="mt-1 text-2xl font-semibold text-charcoal">
-            {features.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-beige-dark bg-white px-5 py-4">
-          <p className="text-xs text-muted">مسارات الشراء</p>
-          <p className="mt-1 text-2xl font-semibold text-charcoal">
-            {flows.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-beige-dark bg-white px-5 py-4">
-          <p className="text-xs text-muted">القوالب</p>
-          <p className="mt-1 text-2xl font-semibold text-charcoal">
-            {templates.length}
-          </p>
-        </div>
+    <ExperienceEngineShell title="محرك التجربة">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[
+          { label: "الميزات", value: features.length },
+          { label: "مسارات الشراء", value: flows.length },
+          { label: "القوالب", value: templates.length },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-3xl border border-beige-dark/50 bg-white px-6 py-5 shadow-[0_8px_28px_rgba(44,36,25,0.05)]"
+          >
+            <p className="text-xs text-muted">{stat.label}</p>
+            <p className="mt-2 font-[family-name:var(--font-cormorant)] text-3xl text-charcoal">
+              {stat.value}
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -80,10 +74,12 @@ export default async function ExperienceEngineHomePage() {
           <Link
             key={card.href}
             href={card.href}
-            className="rounded-2xl border border-beige-dark bg-white px-5 py-5 transition-colors hover:border-gold/40 hover:bg-beige/20"
+            className="group rounded-3xl border border-beige-dark/50 bg-white px-6 py-6 shadow-[0_8px_28px_rgba(44,36,25,0.05)] transition hover:border-gold/35 hover:shadow-[0_12px_36px_rgba(44,36,25,0.08)]"
           >
-            <h2 className="text-lg font-semibold text-charcoal">{card.title}</h2>
-            <p className="mt-2 text-sm text-muted">{card.body}</p>
+            <h2 className="font-[family-name:var(--font-cormorant)] text-xl tracking-wide text-charcoal group-hover:text-gold">
+              {card.title}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{card.body}</p>
           </Link>
         ))}
       </div>

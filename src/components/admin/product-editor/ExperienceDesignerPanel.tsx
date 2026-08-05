@@ -2,16 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowDown,
+  Check,
   ChevronDown,
   Copy,
+  Gift,
   GripVertical,
   Monitor,
+  Package,
   Pencil,
   Plus,
   Settings2,
   Smartphone,
   Sparkles,
   Trash2,
+  Zap,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -68,25 +73,30 @@ function Card({
   title,
   children,
   action,
-  hint,
 }: {
   title: string;
   children: React.ReactNode;
   action?: React.ReactNode;
-  hint?: string;
 }) {
   return (
-    <section className="rounded-[var(--xp-card-radius)] border border-beige-dark/80 bg-white p-5 shadow-[var(--xp-shadow)]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-base font-semibold text-charcoal">{title}</h3>
-          {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
-        </div>
+    <section className="rounded-3xl border border-beige-dark/50 bg-white p-6 shadow-[0_8px_32px_rgba(44,36,25,0.06)] md:p-7">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-[family-name:var(--font-cormorant)] text-xl tracking-wide text-charcoal">
+          {title}
+        </h3>
         {action}
       </div>
       {children}
     </section>
   );
+}
+
+function serviceIcon(svc: ExtraServiceConfig) {
+  const key = `${svc.name_ar || ""} ${svc.name || ""}`.toLowerCase();
+  if (/هدي|gift|wrap|تغليف/.test(key)) return Gift;
+  if (/صندوق|box|luxury|فاخر/.test(key)) return Package;
+  if (/سريع|express|توصيل|deliver/.test(key)) return Zap;
+  return Sparkles;
 }
 
 function LuxuryToggle({
@@ -171,8 +181,8 @@ export function ExperienceDesignerPanel({
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
     "desktop"
   );
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [developerOpen, setDeveloperOpen] = useState(false);
   const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
   const [servicesModalOpen, setServicesModalOpen] = useState(false);
   const [servicesDraft, setServicesDraft] = useState<StoreExtraService[]>([]);
@@ -368,15 +378,40 @@ export function ExperienceDesignerPanel({
       s.enabled
   );
 
-  // savedIndicator retained on Props for callers; footer owns autosave status.
-  void savedIndicator;
-
   return (
-    <div className="relative space-y-5">
+    <div className="relative space-y-6">
+      {/* Autosave chip — store-owner friendly */}
+      <div className="sticky top-0 z-10 -mx-1 flex justify-end px-1">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium shadow-sm transition",
+            savedIndicator === "saved"
+              ? "bg-emerald-50 text-emerald-700"
+              : savedIndicator === "saving"
+                ? "bg-beige text-muted"
+                : savedIndicator === "failed"
+                  ? "bg-red-50 text-red-600"
+                  : "bg-transparent text-transparent"
+          )}
+          aria-live="polite"
+        >
+          {savedIndicator === "saved" ? (
+            <>
+              <Check className="h-3.5 w-3.5" /> تم الحفظ
+            </>
+          ) : savedIndicator === "saving" ? (
+            "جاري الحفظ…"
+          ) : savedIndicator === "failed" ? (
+            "فشل الحفظ"
+          ) : (
+            "\u00a0"
+          )}
+        </span>
+      </div>
+
       {/* 1. Experience Template */}
       <Card
         title="قالب التجربة"
-        hint="ابدئي من قالب جاهز — أو احفظي إعداداتكِ الحالية"
         action={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -399,13 +434,12 @@ export function ExperienceDesignerPanel({
         }
       >
         <Select
-          label="القالب"
           value={config.template_id ?? ""}
           onChange={(e) => {
             if (e.target.value) applyTemplate(e.target.value);
           }}
           options={[
-            { value: "", label: "— اختاري قالباً —" },
+            { value: "", label: "اختاري قالباً…" },
             ...templates.map((t) => ({
               value: t.id,
               label: t.name_ar || t.name,
@@ -413,12 +447,12 @@ export function ExperienceDesignerPanel({
           ]}
         />
         {showSaveTemplate ? (
-          <div className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="mt-4 flex flex-wrap items-end gap-2">
             <Input
               label="اسم القالب"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="مثال: فستان إيجار"
+              placeholder="إكسسوار · هدية · فستان إيجار…"
             />
             <Button
               type="button"
@@ -611,240 +645,264 @@ export function ExperienceDesignerPanel({
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {(extraServicesUseCustom
             ? libraryServices.filter((s) => extraServiceIds.includes(s.id))
             : displayedServices
-          ).map((svc) => (
-            <div
-              key={svc.id}
-              className="rounded-xl border border-beige-dark/70 bg-ivory/40 p-3"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold/15 text-gold">
-                    <Sparkles className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-charcoal">
-                      {svc.name_ar || svc.name}
-                    </p>
-                    <p className="text-xs text-gold">{servicePriceLabel(svc)}</p>
+          ).map((svc) => {
+            const Icon = serviceIcon(svc);
+            return (
+              <div
+                key={svc.id}
+                className="rounded-2xl border border-beige-dark/40 bg-gradient-to-b from-ivory/80 to-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gold/12 text-gold">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-charcoal">
+                        {svc.name_ar || svc.name}
+                      </p>
+                      <p
+                        className={cn(
+                          "mt-0.5 text-sm font-medium",
+                          svc.pricing_mode === "FREE" || !svc.price
+                            ? "text-emerald-700"
+                            : "text-gold"
+                        )}
+                        dir="ltr"
+                      >
+                        {servicePriceLabel(svc)}
+                      </p>
+                    </div>
                   </div>
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-[11px] font-medium",
+                      svc.enabled
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-beige text-muted"
+                    )}
+                  >
+                    {svc.enabled ? "مفعّل" : "معطّل"}
+                  </span>
                 </div>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                    svc.enabled
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-beige text-muted"
-                  )}
-                >
-                  {svc.enabled ? "مفعّل" : "معطّل"}
-                </span>
+                <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] text-muted">
+                  {svc.required ? (
+                    <span className="rounded-full bg-beige px-2 py-0.5">
+                      إلزامي
+                    </span>
+                  ) : null}
+                  {svc.default_selected ? (
+                    <span className="rounded-full bg-beige px-2 py-0.5">
+                      محدد افتراضياً
+                    </span>
+                  ) : null}
+                  {svc.available_online ? (
+                    <span className="rounded-full bg-beige px-2 py-0.5">
+                      أونلاين
+                    </span>
+                  ) : null}
+                  {svc.available_in_store ? (
+                    <span className="rounded-full bg-beige px-2 py-0.5">
+                      بالمتجر
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-1 border-t border-beige-dark/40 pt-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={openServicesModal}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    تعديل
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => duplicateService(svc)}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    نسخ
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => removeServiceLocal(String(svc.id))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    حذف
+                  </Button>
+                </div>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted">
-                {svc.required ? <span>إلزامي</span> : null}
-                {svc.default_selected ? <span>· محدد افتراضياً</span> : null}
-                {svc.available_online ? <span>· أونلاين</span> : null}
-                {svc.available_in_store ? <span>· بالمتجر</span> : null}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={openServicesModal}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  تعديل
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => duplicateService(svc)}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  نسخ
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => removeServiceLocal(String(svc.id))}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  حذف
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 
       {/* 4. Customer Journey */}
       <Card title="رحلة العميل">
-        <div className="space-y-2">
+        <div className="space-y-0">
           {journeySections.map((section, index) => (
-            <div
-              key={section.id}
-              draggable
-              onDragStart={() => setDragId(section.id)}
-              onDragEnd={() => setDragId(null)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (!dragId) return;
-                onChange({
-                  ...config,
-                  sections: reorderJourneySection(
-                    config.sections,
-                    dragId,
-                    section.id
-                  ),
-                });
-                setDragId(null);
-              }}
-              className={cn(
-                "flex items-center gap-3 rounded-xl border bg-white px-3 py-3 transition",
-                dragId === section.id
-                  ? "border-gold bg-gold/5 opacity-80"
-                  : "border-beige-dark/70",
-                !section.enabled ? "opacity-50" : ""
-              )}
-            >
-              <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted" />
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-charcoal">
-                {index + 1}
-              </span>
-              <span className="flex-1 text-sm font-medium text-charcoal">
-                {section.title_ar ||
-                  EXPERIENCE_SECTION_LABELS_AR[section.id]}
-              </span>
-              <label className="flex items-center gap-1.5 text-xs text-muted">
-                <input
-                  type="checkbox"
-                  className="accent-gold"
-                  checked={section.enabled}
-                  onChange={(e) =>
-                    patchSection(section.id, { enabled: e.target.checked })
-                  }
-                />
-                ظاهر
-              </label>
+            <div key={section.id}>
+              <div
+                draggable
+                onDragStart={() => setDragId(section.id)}
+                onDragEnd={() => setDragId(null)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (!dragId) return;
+                  onChange({
+                    ...config,
+                    sections: reorderJourneySection(
+                      config.sections,
+                      dragId,
+                      section.id
+                    ),
+                  });
+                  setDragId(null);
+                }}
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl border bg-white px-4 py-3.5 transition",
+                  dragId === section.id
+                    ? "border-gold bg-gold/5 opacity-80"
+                    : "border-beige-dark/50",
+                  !section.enabled ? "opacity-45" : ""
+                )}
+              >
+                <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted" />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-charcoal text-xs font-semibold text-white">
+                  {index + 1}
+                </span>
+                <span className="flex-1 text-sm font-medium text-charcoal">
+                  {section.title_ar ||
+                    EXPERIENCE_SECTION_LABELS_AR[section.id]}
+                </span>
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  <input
+                    type="checkbox"
+                    className="accent-gold"
+                    checked={section.enabled}
+                    onChange={(e) =>
+                      patchSection(section.id, { enabled: e.target.checked })
+                    }
+                  />
+                  ظاهر
+                </label>
+              </div>
+              <div className="flex justify-center py-1.5 text-muted">
+                <ArrowDown className="h-4 w-4" />
+              </div>
             </div>
           ))}
-          <div className="flex items-center gap-3 rounded-xl border border-dashed border-gold/40 bg-gold/5 px-3 py-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gold text-xs font-semibold text-white">
+          <div className="flex items-center gap-3 rounded-2xl border border-dashed border-gold/40 bg-gold/5 px-4 py-3.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-xs font-semibold text-white">
               {journeySections.filter((s) => s.enabled).length + 1}
             </span>
             <span className="text-sm font-medium text-charcoal">الدفع</span>
-            <span className="ms-auto text-[10px] text-muted">ثابت</span>
           </div>
         </div>
       </Card>
 
-      {/* 5. Live Preview — collapsed by default */}
-      <section className="rounded-2xl border border-beige-dark/60 bg-white">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start"
-          onClick={() => setPreviewOpen((v) => !v)}
-        >
-          <span className="text-base font-semibold text-charcoal">
-            معاينة مباشرة
-          </span>
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 shrink-0 text-muted transition-transform",
-              previewOpen ? "rotate-180" : ""
-            )}
-          />
-        </button>
-        {previewOpen ? (
-          <div className="space-y-4 border-t border-beige-dark/50 px-5 pb-5 pt-4">
-            <div className="flex rounded-full border border-beige-dark p-0.5 w-fit">
-              <button
-                type="button"
-                onClick={() => setPreviewMode("desktop")}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
-                  previewMode === "desktop"
-                    ? "bg-gold text-white"
-                    : "text-muted hover:text-charcoal"
-                )}
-              >
-                <Monitor className="h-3.5 w-3.5" />
-                سطح المكتب
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewMode("mobile")}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
-                  previewMode === "mobile"
-                    ? "bg-gold text-white"
-                    : "text-muted hover:text-charcoal"
-                )}
-              >
-                <Smartphone className="h-3.5 w-3.5" />
-                جوال
-              </button>
-            </div>
-            <div
+      {/* 5. Live Preview — always visible */}
+      <Card
+        title="معاينة مباشرة"
+        action={
+          <div className="flex rounded-full border border-beige-dark/70 p-0.5">
+            <button
+              type="button"
+              onClick={() => setPreviewMode("desktop")}
               className={cn(
-                "mx-auto rounded-2xl border border-gold/30 bg-gradient-to-b from-ivory to-white p-4 shadow-inner transition-all",
-                previewMode === "mobile" ? "max-w-[320px]" : "max-w-full"
+                "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
+                previewMode === "desktop"
+                  ? "bg-gold text-white"
+                  : "text-muted hover:text-charcoal"
               )}
             >
-              <p className="mb-3 text-xs text-gold">{productNameAr}</p>
-              <ol className="space-y-2">
-                {previewSections.map((s, i) => (
-                  <li
-                    key={s.id}
-                    className="rounded-xl border border-beige-dark/50 bg-white px-3 py-2.5 text-sm"
-                  >
-                    <span className="font-medium text-charcoal">
-                      {i + 1}.{" "}
-                      {s.title_ar || EXPERIENCE_SECTION_LABELS_AR[s.id]}
-                    </span>
-                    {s.id === "personalization" && persUi.extra_price > 0 ? (
-                      <span className="ms-2 text-xs text-gold" dir="ltr">
-                        +{formatPrice(persUi.extra_price)}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-4 space-y-2 border-t border-beige-dark/50 pt-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">الإجمالي</span>
-                  <span
-                    className="font-semibold text-gold transition-all"
-                    dir="ltr"
-                  >
-                    {formatPrice(
-                      Math.max(0, unitPrice) +
-                        (persSection.enabled ? persUi.extra_price : 0)
-                    )}
+              <Monitor className="h-3.5 w-3.5" />
+              سطح المكتب
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewMode("mobile")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
+                previewMode === "mobile"
+                  ? "bg-gold text-white"
+                  : "text-muted hover:text-charcoal"
+              )}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              جوال
+            </button>
+          </div>
+        }
+      >
+        <div
+          className={cn(
+            "mx-auto rounded-3xl border border-gold/20 bg-gradient-to-b from-ivory via-white to-white p-5 shadow-inner transition-all",
+            previewMode === "mobile" ? "max-w-[340px]" : "max-w-lg"
+          )}
+        >
+          <p className="mb-4 font-[family-name:var(--font-cormorant)] text-lg text-charcoal">
+            {productNameAr}
+          </p>
+          <ol className="space-y-2.5">
+            {previewSections.map((s, i) => (
+              <li
+                key={s.id}
+                className="rounded-2xl border border-beige-dark/40 bg-white px-4 py-3 text-sm shadow-sm"
+              >
+                <span className="font-medium text-charcoal">
+                  {i + 1}. {s.title_ar || EXPERIENCE_SECTION_LABELS_AR[s.id]}
+                </span>
+                {s.id === "personalization" && persUi.extra_price > 0 ? (
+                  <span className="ms-2 text-xs text-gold" dir="ltr">
+                    +{formatPrice(persUi.extra_price)}
                   </span>
-                </div>
-              </div>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+          <div className="mt-5 flex items-baseline justify-between border-t border-beige-dark/40 pt-4">
+            <span className="text-sm text-muted">الإجمالي</span>
+            <span
+              className="xp-price-pulse font-[family-name:var(--font-cormorant)] text-2xl text-gold tabular-nums"
+              dir="ltr"
+            >
+              {formatPrice(
+                Math.max(0, unitPrice) +
+                  (persSection.enabled ? persUi.extra_price : 0)
+              )}
+            </span>
+          </div>
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex h-11 items-center justify-center rounded-full bg-gold text-sm font-medium text-white">
+              شراء الآن
+            </div>
+            <div className="flex h-11 items-center justify-center rounded-full border-2 border-gold text-sm font-medium text-gold">
+              أضيفي للسلة
             </div>
           </div>
-        ) : null}
-      </section>
+        </div>
+      </Card>
 
       {/* 6. Advanced Settings (collapsed) */}
-      <section className="rounded-2xl border border-beige-dark/60 bg-beige/20">
+      <section className="rounded-3xl border border-beige-dark/40 bg-beige/15">
         <button
           type="button"
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start"
+          className="flex w-full items-center justify-between gap-3 px-6 py-5 text-start"
           onClick={() => setAdvancedOpen((v) => !v)}
         >
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-charcoal">
+          <span className="inline-flex items-center gap-2 font-[family-name:var(--font-cormorant)] text-lg text-charcoal">
             <Settings2 className="h-4 w-4 text-muted" />
-            المزيد من الخيارات
+            إعدادات متقدمة
           </span>
           <ChevronDown
             className={cn(
@@ -854,31 +912,23 @@ export function ExperienceDesignerPanel({
           />
         </button>
         {advancedOpen ? (
-          <div className="space-y-5 border-t border-beige-dark/50 px-5 py-4">
+          <div className="space-y-5 border-t border-beige-dark/40 px-6 py-5">
             <div className="space-y-3">
-              <p className="text-xs font-medium text-muted">تعديل عناوين الأقسام</p>
+              <p className="text-xs font-medium text-muted">عناوين مخصصة</p>
               {journeySections.map((section) => (
                 <div
                   key={section.id}
-                  className="grid gap-2 rounded-xl border border-beige-dark/50 bg-white p-3 sm:grid-cols-2"
+                  className="grid gap-2 rounded-2xl border border-beige-dark/40 bg-white p-4 sm:grid-cols-2"
                 >
                   <Input
-                    label={`${EXPERIENCE_SECTION_LABELS_AR[section.id]} (عربي)`}
+                    label={EXPERIENCE_SECTION_LABELS_AR[section.id]}
                     value={section.title_ar}
                     onChange={(e) =>
                       patchSection(section.id, { title_ar: e.target.value })
                     }
                   />
-                  <Input
-                    label="Title (EN)"
-                    dir="ltr"
-                    value={section.title}
-                    onChange={(e) =>
-                      patchSection(section.id, { title: e.target.value })
-                    }
-                  />
                   <Textarea
-                    label="وصف"
+                    label="وصف مختصر"
                     rows={2}
                     value={section.description_ar}
                     onChange={(e) =>
@@ -887,7 +937,7 @@ export function ExperienceDesignerPanel({
                       })
                     }
                   />
-                  <label className="flex items-center gap-2 self-end pb-2 text-sm">
+                  <label className="flex items-center gap-2 self-end pb-2 text-sm sm:col-span-2">
                     <input
                       type="checkbox"
                       className="accent-gold"
@@ -904,9 +954,40 @@ export function ExperienceDesignerPanel({
               ))}
             </div>
 
+            <div className="rounded-2xl border border-beige-dark/40 bg-white">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-3 text-start text-sm text-muted"
+                onClick={() => setDeveloperOpen((v) => !v)}
+              >
+                خيارات المطوّر
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform",
+                    developerOpen ? "rotate-180" : ""
+                  )}
+                />
+              </button>
+              {developerOpen ? (
+                <div className="space-y-3 border-t border-beige-dark/40 px-4 py-3">
+                  {journeySections.map((section) => (
+                    <Input
+                      key={`en-${section.id}`}
+                      label={`${EXPERIENCE_SECTION_LABELS_AR[section.id]} · EN`}
+                      dir="ltr"
+                      value={section.title}
+                      onChange={(e) =>
+                        patchSection(section.id, { title: e.target.value })
+                      }
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
             <div className="space-y-3">
               <p className="text-xs font-medium text-muted">
-                أقسام عند الدفع فقط
+                يظهر عند الدفع فقط
               </p>
               {config.sections
                 .filter((s) => isCheckoutOnlyExperienceSection(s.id))

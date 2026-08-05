@@ -74,22 +74,7 @@ export function PurchaseCtaGroup({
           </div>
         ) : null}
 
-        {showAddToCart ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={disabled}
-            onClick={onAddToCart}
-            className={cn(
-              "flex-1 rounded-[var(--xp-cta-radius)] py-0 shadow-none",
-              h
-            )}
-          >
-            <ShoppingBag className={iconClass} strokeWidth={1.75} />
-            {addLabel}
-          </Button>
-        ) : null}
-
+        {/* Buy Now = primary gold · Add to Cart = secondary outline */}
         {showBuyNow ? (
           <Button
             type="button"
@@ -97,7 +82,7 @@ export function PurchaseCtaGroup({
             disabled={disabled}
             onClick={onBuyNow}
             className={cn(
-              "flex-1 rounded-[var(--xp-cta-radius)] py-0",
+              "flex-1 rounded-[var(--xp-cta-radius)] py-0 order-1 sm:order-none",
               h
             )}
           >
@@ -106,8 +91,26 @@ export function PurchaseCtaGroup({
           </Button>
         ) : null}
 
+        {showAddToCart ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            onClick={onAddToCart}
+            className={cn(
+              "flex-1 rounded-[var(--xp-cta-radius)] py-0 shadow-none order-2 sm:order-none",
+              h
+            )}
+          >
+            <ShoppingBag className={iconClass} strokeWidth={1.75} />
+            {addLabel}
+          </Button>
+        ) : null}
+
         {secondaryAction ? (
-          <div className="flex shrink-0 sm:order-last">{secondaryAction}</div>
+          <div className="flex shrink-0 order-3 w-full justify-center sm:order-last sm:w-auto">
+            {secondaryAction}
+          </div>
         ) : null}
       </div>
 
