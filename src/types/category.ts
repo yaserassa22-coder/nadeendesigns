@@ -280,8 +280,22 @@ export function resolveCategoryProductKind(
     return "dress";
   }
   if (key === "veils" || key === "veil") return "veil";
-  if (key === "bridal_robes" || key === "bridal_cape") return "bridal_robe";
-  if (key === "bridal_accessories") return "accessories_group";
+  if (
+    key === "bridal_robes" ||
+    key === "bridal_robe" ||
+    key === "bridal_cape" ||
+    key === "robes" ||
+    key === "robe"
+  ) {
+    return "bridal_robe";
+  }
+  if (
+    key === "bridal_accessories" ||
+    key === "bridal-accessories" ||
+    key === "accessories"
+  ) {
+    return "accessories_group";
+  }
   return null;
 }
 
@@ -452,4 +466,39 @@ export function selectDressAssignableCategories(
   categories: readonly Category[]
 ): Category[] {
   return categories.filter((c) => isDressProductCategory(c));
+}
+
+/**
+ * Admin Products sidebar href for a category — by product_kind / legacy, never by name.
+ * - veil → /admin/veils (own table manager)
+ * - bridal_robe → /admin/bridal-robes
+ * - accessories_group → null (no single admin list; children are the links)
+ * - dress / default → /admin/dresses?category=<id>
+ */
+export function adminCategoryProductsHref(
+  category: Pick<Category, "id" | "product_kind" | "legacy_key" | "slug">
+): string | null {
+  const kind = resolveCategoryProductKind(category);
+  if (kind === "veil") return "/admin/veils";
+  if (kind === "bridal_robe") return "/admin/bridal-robes";
+  if (kind === "accessories_group") return null;
+  return `/admin/dresses?category=${encodeURIComponent(category.id)}`;
+}
+
+/** Whether an Admin Products sidebar category link is active for the current route. */
+export function isAdminCategoryNavActive(
+  category: Pick<Category, "id" | "slug" | "legacy_key" | "product_kind">,
+  pathname: string,
+  categoryParam: string | null
+): boolean {
+  const href = adminCategoryProductsHref(category);
+  if (href === "/admin/veils") return pathname === "/admin/veils";
+  if (href === "/admin/bridal-robes") return pathname === "/admin/bridal-robes";
+  if (!href) return false;
+  if (pathname !== "/admin/dresses" || !categoryParam) return false;
+  return (
+    categoryParam === category.id ||
+    categoryParam === category.slug ||
+    categoryParam === category.legacy_key
+  );
 }

@@ -30,6 +30,8 @@ export {
   resolveCategoryProductKind,
   isAccessoriesGroupCategory,
   isDressProductCategory,
+  adminCategoryProductsHref,
+  isAdminCategoryNavActive,
 } from "@/types/category";
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";

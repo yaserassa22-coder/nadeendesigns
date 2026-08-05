@@ -22,7 +22,9 @@ import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { ADMIN_CATEGORIES_CHANGED_EVENT } from "@/lib/admin/category-events";
 import {
+  adminCategoryProductsHref,
   groupAdminProductSidebarCategories,
+  isAdminCategoryNavActive,
   type Category,
 } from "@/types/category";
 
@@ -73,10 +75,6 @@ const EXPERIENCE_ENGINE_LINKS = [
   { href: "/admin/experience/preview", label: "معاينة" },
 ] as const;
 
-function categoryProductsHref(categoryId: string): string {
-  return `/admin/dresses?category=${encodeURIComponent(categoryId)}`;
-}
-
 function isLinkActive(
   href: string,
   pathname: string,
@@ -118,19 +116,6 @@ function isLinkActive(
     return true;
   }
   return false;
-}
-
-function isCategoryNavActive(
-  c: Category,
-  pathname: string,
-  categoryParam: string | null
-) {
-  if (pathname !== "/admin/dresses" || !categoryParam) return false;
-  return (
-    categoryParam === c.id ||
-    categoryParam === c.slug ||
-    categoryParam === c.legacy_key
-  );
 }
 
 function NavLink({
@@ -269,7 +254,9 @@ function ProductsNavSection({
 
   const routeWantsProductsOpen =
     pathname.startsWith("/admin/dresses") ||
-    pathname.startsWith("/admin/categories");
+    pathname.startsWith("/admin/categories") ||
+    pathname.startsWith("/admin/veils") ||
+    pathname.startsWith("/admin/bridal-robes");
   const routeKey = `${pathname}|${categoryParam ?? ""}|${collectionParam ?? ""}`;
   const [sectionRouteKey, setSectionRouteKey] = useState(routeKey);
   const [productsOpen, setProductsOpen] = useState(routeWantsProductsOpen);
@@ -299,25 +286,35 @@ function ProductsNavSection({
     pathname === "/admin/dresses" && collectionParam === "1";
 
   const renderCategoryLink = (c: CategoryWithCount) => {
-    const active = isCategoryNavActive(c, pathname, categoryParam);
+    const href = adminCategoryProductsHref(c);
+    const active = isAdminCategoryNavActive(c, pathname, categoryParam);
     const count = c.product_count ?? 0;
+    const label = (
+      <>
+        {c.name_ar}
+        <span className={cn("ms-1", active ? "text-white/80" : "text-muted")}>
+          ({count})
+        </span>
+      </>
+    );
+
+    // Accessories group has no single admin list — children (veils/robes) are the links.
+    if (!href) {
+      return (
+        <span
+          key={c.id}
+          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted"
+        >
+          {label}
+        </span>
+      );
+    }
+
     return (
       <NavLink
         key={c.id}
-        href={categoryProductsHref(c.id)}
-        label={
-          <>
-            {c.name_ar}
-            <span
-              className={cn(
-                "ms-1",
-                active ? "text-white/80" : "text-muted"
-              )}
-            >
-              ({count})
-            </span>
-          </>
-        }
+        href={href}
+        label={label}
         active={active}
         onNavigate={onNavigate}
         className="px-3 py-2 text-sm"
