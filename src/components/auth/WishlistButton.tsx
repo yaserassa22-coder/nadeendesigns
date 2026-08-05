@@ -69,7 +69,8 @@ export function WishlistButton({
         aria-label={saved ? "إزالة من قائمة الأمنيات" : "أضيفي إلى قائمة الأمنيات"}
         aria-pressed={saved}
         className={cn(
-          "absolute top-3 start-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-charcoal shadow-sm transition hover:bg-gold hover:text-white disabled:opacity-60",
+          /* Position via ProductCardOverlay top-right slot — never ad-hoc absolute. */
+          "relative z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-charcoal shadow-sm transition hover:bg-gold hover:text-white disabled:opacity-60",
           saved && "text-gold",
           className
         )}

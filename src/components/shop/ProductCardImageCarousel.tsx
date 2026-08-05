@@ -7,10 +7,17 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { featuredImage } from "@/lib/products/featured-image";
 import { cn } from "@/lib/utils";
+
+export type ProductCardOverlayContext = {
+  /** 1-based current slide index */
+  current: number;
+  total: number;
+};
 
 interface ProductCardImageCarouselProps {
   images: string[] | null | undefined;
@@ -21,6 +28,11 @@ interface ProductCardImageCarouselProps {
   roundedClassName?: string;
   /** Prefer for above-the-fold cards only (first visible row). */
   priority?: boolean;
+  /**
+   * Shared product-card chrome (badges / wishlist / counter).
+   * Receives live slide index so the overlay counter stays in sync.
+   */
+  overlay?: (ctx: ProductCardOverlayContext) => ReactNode;
 }
 
 /**
@@ -35,6 +47,7 @@ export function ProductCardImageCarousel({
   sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw",
   roundedClassName = "rounded-2xl",
   priority = false,
+  overlay,
 }: ProductCardImageCarouselProps) {
   const slides = (images ?? []).filter(Boolean);
   const imageKey = slides.join("|");
@@ -94,6 +107,12 @@ export function ProductCardImageCarousel({
     }
   };
 
+  const overlayNode =
+    overlay?.({
+      current: count === 0 ? 0 : safeIndex + 1,
+      total: count,
+    }) ?? null;
+
   if (!current) {
     return (
       <div
@@ -102,7 +121,9 @@ export function ProductCardImageCarousel({
           roundedClassName,
           className
         )}
-      />
+      >
+        {overlayNode}
+      </div>
     );
   }
 
@@ -173,7 +194,8 @@ export function ProductCardImageCarousel({
             <ChevronLeft className="h-4 w-4" />
           </button>
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1.5">
+          {/* Dots stay centered; numeric counter lives in ProductCardOverlay bottom-right. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1.5 px-14">
             {slides.map((_, i) => (
               <button
                 key={`${slides[i]}-${i}`}
@@ -196,6 +218,8 @@ export function ProductCardImageCarousel({
           </div>
         </>
       )}
+
+      {overlayNode}
     </div>
   );
 }

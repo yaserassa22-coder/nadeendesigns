@@ -4,11 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Dress } from "@/types";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
+import { ProductCardMediaOverlay } from "@/components/product/ProductCardMediaOverlay";
 import { WishlistButton } from "@/components/auth/WishlistButton";
-import {
-  ProductPrice,
-  ProductSaleBadge,
-} from "@/components/product/ProductPrice";
+import { ProductPrice } from "@/components/product/ProductPrice";
 import { getDressStyleLabel } from "@/lib/styles";
 import { featuredImage } from "@/lib/products/featured-image";
 import { resolveProductPricing } from "@/lib/products/pricing";
@@ -44,23 +42,29 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
           href={href}
           roundedClassName="rounded-none"
           priority={index < 3}
+          overlay={({ current, total }) => (
+            <ProductCardMediaOverlay
+              current={current}
+              total={total}
+              price={dress.price}
+              salePrice={dress.sale_price}
+              isFeatured={dress.is_featured}
+              tags={dress.tags}
+              wishlist={
+                <WishlistButton
+                  variant="icon"
+                  productKind="dress"
+                  productId={dress.id}
+                  productSlug={dress.id}
+                  productTitle={dress.name_ar}
+                  productImageUrl={featuredImage(dress.images)}
+                />
+              }
+            />
+          )}
         />
-        <WishlistButton
-          variant="icon"
-          productKind="dress"
-          productId={dress.id}
-          productSlug={dress.id}
-          productTitle={dress.name_ar}
-          productImageUrl={featuredImage(dress.images)}
-        />
-        <ProductSaleBadge price={dress.price} salePrice={dress.sale_price} />
-        {dress.is_featured && (
-          <span className="pointer-events-none absolute top-4 end-4 z-20 rounded-full bg-gold px-3 py-1 text-xs font-medium text-white">
-            مميز
-          </span>
-        )}
         {!dress.is_available && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-charcoal/50">
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-charcoal/50">
             <span className="rounded-full bg-white px-4 py-2 text-sm font-medium">
               غير متوفر
             </span>

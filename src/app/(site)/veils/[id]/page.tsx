@@ -41,6 +41,8 @@ export default async function VeilDetailPage({ params }: Props) {
       images: v.images,
       href: `/veils/${v.id}`,
       subtitle: v.category,
+      kind: "veil" as const,
+      is_featured: v.is_featured,
     }));
 
   const inStock = veil.is_available && veil.stock_quantity > 0;

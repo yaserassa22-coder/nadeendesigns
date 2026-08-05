@@ -106,7 +106,10 @@ export function ProductPrice({
   );
 }
 
-/** Compact SALE pill for product image overlays. */
+/**
+ * Compact SALE pill for product image overlays.
+ * Positioning belongs to `ProductCardOverlay` — do not add absolute coords here.
+ */
 export function ProductSaleBadge({
   price,
   salePrice,
@@ -122,7 +125,7 @@ export function ProductSaleBadge({
   return (
     <span
       className={cn(
-        "pointer-events-none absolute top-4 start-4 z-20 rounded-full bg-charcoal px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase",
+        "pointer-events-none inline-flex rounded-full bg-charcoal/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white uppercase backdrop-blur-[2px]",
         className
       )}
     >

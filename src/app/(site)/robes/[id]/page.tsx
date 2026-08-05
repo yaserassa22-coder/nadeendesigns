@@ -41,6 +41,8 @@ export default async function RobeDetailPage({ params }: Props) {
       images: r.images,
       href: `/robes/${r.id}`,
       subtitle: r.size || r.color || undefined,
+      kind: "bridal_robe" as const,
+      is_featured: r.is_featured,
     }));
 
   const inStock = robe.is_available && robe.stock_quantity > 0;

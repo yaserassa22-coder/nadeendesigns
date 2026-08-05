@@ -6,11 +6,9 @@ import { motion } from "framer-motion";
 import { featuredImage } from "@/lib/products/featured-image";
 import { inferWishlistKind } from "@/lib/shop/wishlist";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
+import { ProductCardMediaOverlay } from "@/components/product/ProductCardMediaOverlay";
 import { WishlistButton } from "@/components/auth/WishlistButton";
-import {
-  ProductPrice,
-  ProductSaleBadge,
-} from "@/components/product/ProductPrice";
+import { ProductPrice } from "@/components/product/ProductPrice";
 import { Input, Select } from "@/components/ui/Input";
 
 interface ShopCatalogItem {
@@ -28,6 +26,8 @@ interface ShopCatalogItem {
   /** When set (e.g. mixed Bridal Accessories), used instead of basePath/id */
   href?: string;
   kind?: "veil" | "bridal_robe" | "dress" | string;
+  is_featured?: boolean;
+  tags?: string[] | null;
 }
 
 interface ShopCatalogProps {
@@ -136,27 +136,35 @@ export function ShopCatalog({
                     href={href}
                     roundedClassName="rounded-none"
                     priority={i < 3}
+                    overlay={({ current, total }) => (
+                      <ProductCardMediaOverlay
+                        current={current}
+                        total={total}
+                        price={item.price}
+                        salePrice={item.sale_price}
+                        isFeatured={item.is_featured}
+                        tags={item.tags}
+                        wishlist={
+                          <WishlistButton
+                            variant="icon"
+                            productKind={productKind}
+                            productId={item.id}
+                            productSlug={item.id}
+                            productTitle={item.name_ar}
+                            productImageUrl={featuredImage(item.images)}
+                          />
+                        }
+                      />
+                    )}
                   />
-                  <WishlistButton
-                    variant="icon"
-                    productKind={productKind}
-                    productId={item.id}
-                    productSlug={item.id}
-                    productTitle={item.name_ar}
-                    productImageUrl={featuredImage(item.images)}
-                  />
-                  <ProductSaleBadge
-                    price={item.price}
-                    salePrice={item.sale_price}
-                  />
+                  {!item.is_available && (
+                    <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-charcoal/50">
+                      <span className="rounded-full bg-white px-4 py-2 text-sm font-medium">
+                        غير متوفر
+                      </span>
+                    </div>
+                  )}
                 </div>
-                {!item.is_available && (
-                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-3">
-                    <span className="rounded-full bg-charcoal/80 px-3 py-1 text-xs text-white">
-                      غير متوفر
-                    </span>
-                  </div>
-                )}
                 <Link href={href} className="block p-5">
                   <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
                     {item.name_ar}
