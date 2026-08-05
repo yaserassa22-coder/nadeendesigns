@@ -34,6 +34,7 @@ const P11_COLUMNS = [
   "order_options_config",
   "extra_services_config",
   "experience_config",
+  "features_config",
 ] as const;
 
 function emptyToNull(value: string | null | undefined): string | null {
@@ -235,6 +236,7 @@ export async function POST(request: Request) {
       order_options_config: body.order_options_config ?? null,
       extra_services_config: body.extra_services_config ?? null,
       experience_config: body.experience_config ?? null,
+      features_config: body.features_config ?? null,
       price: body.price ?? null,
       sale_price: body.sale_price ?? null,
       cost_price: body.cost_price ?? null,
@@ -265,7 +267,7 @@ export async function POST(request: Request) {
     // Graceful if category_id / P1.1 columns not yet migrated
     if (
       error &&
-      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|product_type|order_options_config|extra_services_config|experience_config|PGRST204|42703/i.test(
+      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|product_type|order_options_config|extra_services_config|experience_config|features_config|PGRST204|42703/i.test(
         `${error.message}${error.code}`
       )
     ) {
@@ -397,7 +399,7 @@ export async function PUT(request: Request) {
 
     if (
       error &&
-      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|product_type|order_options_config|extra_services_config|experience_config|PGRST204|42703/i.test(
+      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|product_type|order_options_config|extra_services_config|experience_config|features_config|PGRST204|42703/i.test(
         `${error.message}${error.code}`
       )
     ) {

@@ -57,14 +57,21 @@ import {
   type ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
 import { ExperienceDesignerPanel } from "@/components/admin/product-editor/ExperienceDesignerPanel";
+import { ProductFeaturesPanel } from "@/components/admin/product-editor/ProductFeaturesPanel";
+import {
+  normalizeProductFeaturesConfig,
+  type ProductFeaturesConfig,
+} from "@/lib/products/experience-features";
 
 export type ProductEditorTab =
   | "general"
   | "pricing"
   | "media"
   | "organization"
+  | "features"
   | "experience"
-  | "status";
+  | "seo"
+  | "advanced";
 
 export type DressFormState = {
   name_ar: string;
@@ -101,6 +108,8 @@ export type DressFormState = {
   extra_service_ids: string[];
   /** Product Experience Designer layout */
   experience_config: ProductExperienceConfig;
+  /** Feature library assignment */
+  features_config: ProductFeaturesConfig | null;
 };
 
 const TABS: { id: ProductEditorTab; label: string }[] = [
@@ -108,8 +117,10 @@ const TABS: { id: ProductEditorTab; label: string }[] = [
   { id: "pricing", label: "التسعير" },
   { id: "media", label: "الوسائط" },
   { id: "organization", label: "التنظيم" },
+  { id: "features", label: "الميزات" },
   { id: "experience", label: "تجربة المنتج" },
-  { id: "status", label: "الحالة" },
+  { id: "seo", label: "SEO" },
+  { id: "advanced", label: "متقدم" },
 ];
 
 const AUTOSAVE_MS = 1400;
@@ -195,6 +206,7 @@ export function emptyDressForm(categoryId = ""): DressFormState {
     extra_services_use_custom: false,
     extra_service_ids: [],
     experience_config: defaultProductExperienceConfig(),
+    features_config: null,
   };
 }
 
@@ -255,6 +267,7 @@ export function dressToForm(
     experience_config: normalizeProductExperienceConfig(
       dress.experience_config ?? {}
     ),
+    features_config: normalizeProductFeaturesConfig(dress.features_config),
   };
 }
 
@@ -290,6 +303,12 @@ export function buildDressPayload(
     order_options_config,
     extra_services_config,
     experience_config: normalizeProductExperienceConfig(form.experience_config),
+    features_config: form.features_config?.use_custom
+      ? {
+          use_custom: true,
+          enabled_ids: form.features_config.enabled_ids ?? [],
+        }
+      : null,
     price: form.price ? Number(form.price) : null,
     sale_price: form.sale_price ? Number(form.sale_price) : null,
     cost_price: form.cost_price ? Number(form.cost_price) : null,
@@ -326,6 +345,9 @@ function readLocalDraft(key: string): DressFormState | null {
           : [],
         experience_config: normalizeProductExperienceConfig(
           form.experience_config ?? {}
+        ),
+        features_config: normalizeProductFeaturesConfig(
+          form.features_config
         ),
       };
     }
@@ -884,8 +906,8 @@ export function ProductEditorModal({
                 options={productCommerceTypeOptions()}
               />
               <p className="sm:col-span-2 text-xs text-muted">
-                يحدد زر الواجهة (أضف إلى السلة / احجزي موعد / احجز الآن) —
-                مستقل عن التصنيف.
+                يحدد زر الواجهة (أضف إلى السلة / احجزي موعد / اطلبي تصميم) —
+                مستقل عن التصنيف. يُدار أيضًا من محرك التجربة ← مسارات الشراء.
               </p>
               <Select
                 label="المجموعة"
@@ -942,6 +964,14 @@ export function ProductEditorModal({
             </div>
           )}
 
+          {tab === "features" && (
+            <ProductFeaturesPanel
+              value={form.features_config}
+              onChange={(features_config) => patch({ features_config })}
+              productType={form.product_type}
+            />
+          )}
+
           {tab === "experience" && (
             <ExperienceDesignerPanel
               value={form.experience_config}
@@ -977,7 +1007,18 @@ export function ProductEditorModal({
             />
           )}
 
-          {tab === "status" && (
+          {tab === "seo" && (
+            <div className="rounded-2xl border border-dashed border-beige-dark bg-beige/20 px-5 py-8 text-center">
+              <p className="text-sm font-medium text-charcoal">
+                تحسين محركات البحث
+              </p>
+              <p className="mt-2 text-sm text-muted">
+                قريباً — عنوان ووصف وOG لكل منتج من قاعدة البيانات.
+              </p>
+            </div>
+          )}
+
+          {tab === "advanced" && (
             <div className="grid gap-5 sm:grid-cols-2">
               <Select
                 label="الحالة"

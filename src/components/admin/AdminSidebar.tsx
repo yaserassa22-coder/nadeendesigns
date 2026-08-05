@@ -22,7 +22,7 @@ import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { ADMIN_CATEGORIES_CHANGED_EVENT } from "@/lib/admin/category-events";
 import {
-  orderAdminProductSidebarCategories,
+  groupAdminProductSidebarCategories,
   type Category,
 } from "@/types/category";
 
@@ -73,6 +73,22 @@ const CUSTOM_DESIGN_LINKS = [
     label: "الإعدادات",
     kind: "placeholder" as const,
   },
+] as const;
+
+const EXPERIENCE_ENGINE_LINKS = [
+  { href: "/admin/experience", label: "نظرة عامة", exact: true },
+  { href: "/admin/experience/features", label: "الميزات" },
+  { href: "/admin/experience/services", label: "الخدمات" },
+  { href: "/admin/experience/product-types", label: "أنواع المنتجات" },
+  { href: "/admin/experience/purchase-flows", label: "مسارات الشراء" },
+  { href: "/admin/experience/templates", label: "القوالب" },
+  { href: "/admin/experience/preview", label: "معاينة" },
+] as const;
+
+const EXPERIENCE_ENGINE_FUTURE = [
+  { label: "قواعد متقدمة" },
+  { label: "الشروط" },
+  { label: "قواعد الذكاء" },
 ] as const;
 
 function categoryProductsHref(categoryId: string): string {
@@ -281,10 +297,12 @@ function ProductsNavSection({
     if (routeWantsProductsOpen) setProductsOpen(true);
   }
 
-  const flatCategories = useMemo(() => {
-    return orderAdminProductSidebarCategories(
-      categories
-    ) as CategoryWithCount[];
+  const grouped = useMemo(() => {
+    return groupAdminProductSidebarCategories(categories) as {
+      rental: CategoryWithCount[];
+      accessories: CategoryWithCount[];
+      rest: CategoryWithCount[];
+    };
   }, [categories]);
 
   const allProductsActive = isLinkActive(
@@ -297,6 +315,33 @@ function ProductsNavSection({
   const manageActive = pathname.startsWith("/admin/categories");
   const collectionsActive =
     pathname === "/admin/dresses" && collectionParam === "1";
+
+  const renderCategoryLink = (c: CategoryWithCount) => {
+    const active = isCategoryNavActive(c, pathname, categoryParam);
+    const count = c.product_count ?? 0;
+    return (
+      <NavLink
+        key={c.id}
+        href={categoryProductsHref(c.id)}
+        label={
+          <>
+            {c.name_ar}
+            <span
+              className={cn(
+                "ms-1",
+                active ? "text-white/80" : "text-muted"
+              )}
+            >
+              ({count})
+            </span>
+          </>
+        }
+        active={active}
+        onNavigate={onNavigate}
+        className="px-3 py-2 text-sm"
+      />
+    );
+  };
 
   return (
     <div className="space-y-1">
@@ -337,38 +382,54 @@ function ProductsNavSection({
             <p className="px-3 py-2 text-xs text-muted">جاري التحميل…</p>
           )}
 
-          {loaded && flatCategories.length === 0 && (
-            <p className="px-3 py-2 text-xs text-muted">
-              لا توجد تصنيفات ظاهرة
-            </p>
+          {loaded &&
+            grouped.rental.length === 0 &&
+            grouped.accessories.length === 0 &&
+            grouped.rest.length === 0 && (
+              <p className="px-3 py-2 text-xs text-muted">
+                لا توجد تصنيفات ظاهرة
+              </p>
+            )}
+
+          {grouped.rental.length > 0 && (
+            <>
+              <p className="px-3 pt-2 pb-0.5 text-[11px] font-medium text-muted">
+                فساتين الإيجار
+              </p>
+              {grouped.rental.map(renderCategoryLink)}
+            </>
           )}
 
-          {flatCategories.map((c) => {
-            const active = isCategoryNavActive(c, pathname, categoryParam);
-            const count = c.product_count ?? 0;
-            return (
-              <NavLink
-                key={c.id}
-                href={categoryProductsHref(c.id)}
-                label={
-                  <>
-                    {c.name_ar}
-                    <span
-                      className={cn(
-                        "ms-1",
-                        active ? "text-white/80" : "text-muted"
-                      )}
-                    >
-                      ({count})
-                    </span>
-                  </>
-                }
-                active={active}
-                onNavigate={onNavigate}
-                className="px-3 py-2 text-sm"
-              />
-            );
-          })}
+          {grouped.accessories.length > 0 && (
+            <>
+              <p className="px-3 pt-2 pb-0.5 text-[11px] font-medium text-muted">
+                إكسسوارات العروس
+              </p>
+              {grouped.accessories.map(renderCategoryLink)}
+            </>
+          )}
+
+          {grouped.rest.map(renderCategoryLink)}
+
+          <NavLink
+            href="/admin/bookings?service=custom_design"
+            label="تصميم فستان خاص"
+            active={
+              pathname === "/admin/bookings" &&
+              serviceParam === "custom_design"
+            }
+            onNavigate={onNavigate}
+            className="px-3 py-2 text-sm"
+          />
+
+          <span
+            title="قريباً"
+            aria-disabled="true"
+            className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted/70"
+          >
+            الخدمات
+            <span className="text-[10px] text-muted/60">قريباً</span>
+          </span>
 
           <NavLink
             href="/admin/dresses?collection=1"
@@ -377,6 +438,65 @@ function ProductsNavSection({
             onNavigate={onNavigate}
             className="px-3 py-2 text-sm"
           />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExperienceEngineNavSection({
+  pathname,
+  onNavigate,
+}: {
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const sectionActive = pathname.startsWith("/admin/experience");
+  const [open, setOpen] = useState(sectionActive);
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (prevPath !== pathname) {
+    setPrevPath(pathname);
+    if (sectionActive) setOpen(true);
+  }
+
+  return (
+    <div className="space-y-1">
+      <SectionToggle
+        label="✨ محرك التجربة"
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+        active={sectionActive}
+      />
+      {open && (
+        <div className="ms-1 space-y-0.5 border-r border-beige-dark/70 pe-1">
+          {EXPERIENCE_ENGINE_LINKS.map((item) => {
+            const active =
+              "exact" in item && item.exact
+                ? pathname === item.href
+                : pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+            return (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                active={active}
+                onNavigate={onNavigate}
+                className="px-3 py-2 text-sm"
+              />
+            );
+          })}
+          {EXPERIENCE_ENGINE_FUTURE.map((item) => (
+            <span
+              key={item.label}
+              title="قريباً"
+              aria-disabled="true"
+              className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted/70"
+            >
+              {item.label}
+              <span className="text-[10px] text-muted/60">قريباً</span>
+            </span>
+          ))}
         </div>
       )}
     </div>
@@ -521,6 +641,11 @@ function AdminSidebarInner() {
           categoryParam={category}
           collectionParam={collection}
           serviceParam={service}
+          onNavigate={closeMobile}
+        />
+
+        <ExperienceEngineNavSection
+          pathname={pathname}
           onNavigate={closeMobile}
         />
 

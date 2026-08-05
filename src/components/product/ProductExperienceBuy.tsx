@@ -39,6 +39,9 @@ type Props = {
   enablePersonalization?: boolean;
   enableGiftWrapping?: boolean;
   requiresShipping?: boolean;
+  /** Feature gates — default true for backward compatibility */
+  showAddToCart?: boolean;
+  showBuyNow?: boolean;
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -65,6 +68,8 @@ export function ProductExperienceBuy({
   enablePersonalization,
   enableGiftWrapping = false,
   requiresShipping = true,
+  showAddToCart = true,
+  showBuyNow = true,
   disabled = false,
   size = "lg",
   className,
@@ -144,6 +149,8 @@ export function ProductExperienceBuy({
         disabled={disabled || !canBuy}
         size={size}
         message={message}
+        showAddToCart={showAddToCart}
+        showBuyNow={showBuyNow}
       />
 
       {canBuy && unit != null ? (

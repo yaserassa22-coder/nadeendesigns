@@ -103,6 +103,11 @@ export interface Dress {
   order_options_config?: import("@/lib/products/order-experience").ProductOrderOptionsConfig | null;
   experience_config?: import("@/lib/products/experience-designer").ProductExperienceConfig | null;
   /**
+   * Per-product feature library assignment (migration 040).
+   * null = smart defaults from product_type + shop surface.
+   */
+  features_config?: import("@/lib/products/experience-features").ProductFeaturesConfig | null;
+  /**
    * Per-product extra services override (migration 037). null = store defaults.
    * Config only in Phase 1 — not wired into checkout.
    */

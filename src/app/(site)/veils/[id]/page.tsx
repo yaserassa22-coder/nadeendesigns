@@ -54,11 +54,13 @@ export default async function VeilDetailPage({ params }: Props) {
   const experience = await resolveStorefrontProductExperience({
     productId: veil.id,
     productType: veil.product_type ?? "bridal_accessory",
+    shopProductType: "veil",
     categoryId: null,
     collectionId: null,
     order_options_config: veil.order_options_config,
     extra_services_config: veil.extra_services_config,
     experience_config: veil.experience_config,
+    features_config: veil.features_config,
   });
 
   const wishlistProps = {
@@ -115,6 +117,7 @@ export default async function VeilDetailPage({ params }: Props) {
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
+              featuresConfig={experience.featuresConfig}
               wishlist={<WishlistButton {...wishlistProps} />}
             />
           ) : (

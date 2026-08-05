@@ -14,7 +14,13 @@ import {
   type ExperienceSectionConfig,
   type ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
+import {
+  normalizeProductFeaturesConfig,
+  resolveEnabledFeatureIds,
+  type ProductFeaturesConfig,
+} from "@/lib/products/experience-features";
 import { getStoreSettings } from "@/lib/store/settings";
+import type { ShopProductType } from "@/types/shop";
 
 export type ResolvedProductExperience = {
   /**
@@ -26,6 +32,8 @@ export type ResolvedProductExperience = {
   experienceConfig: ProductExperienceConfig;
   /** Storefront-safe sections only (no delivery / notes / order options). */
   sections: ExperienceSectionConfig[];
+  featuresConfig: ProductFeaturesConfig | null;
+  enabledFeatureIds: string[];
 };
 
 /**
@@ -38,9 +46,11 @@ export async function resolveStorefrontProductExperience(input?: {
   productType?: string | null;
   categoryId?: string | null;
   collectionId?: string | null;
+  shopProductType?: ShopProductType | null;
   order_options_config?: ProductOrderOptionsConfig | null;
   extra_services_config?: ProductExtraServicesConfig | null;
   experience_config?: ProductExperienceConfig | null;
+  features_config?: ProductFeaturesConfig | null;
 }): Promise<ResolvedProductExperience> {
   const store = await getStoreSettings(true);
   const ctx: ServiceOfferContext | null = input?.productId
@@ -57,6 +67,15 @@ export async function resolveStorefrontProductExperience(input?: {
     ? normalizeProductExperienceConfig(input.experience_config)
     : defaultProductExperienceConfig();
 
+  const featuresConfig = normalizeProductFeaturesConfig(
+    input?.features_config
+  );
+  const enabledFeatureIds = resolveEnabledFeatureIds({
+    features_config: featuresConfig,
+    productType: input?.productType,
+    shopProductType: input?.shopProductType,
+  });
+
   return {
     orderOptions: enabledOrderOptions(
       store.order_options,
@@ -69,5 +88,7 @@ export async function resolveStorefrontProductExperience(input?: {
     ),
     experienceConfig,
     sections: storefrontExperienceSections(experienceConfig),
+    featuresConfig,
+    enabledFeatureIds,
   };
 }

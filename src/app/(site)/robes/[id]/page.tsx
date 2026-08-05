@@ -54,11 +54,13 @@ export default async function RobeDetailPage({ params }: Props) {
   const experience = await resolveStorefrontProductExperience({
     productId: robe.id,
     productType: robe.product_type ?? "bridal_accessory",
+    shopProductType: "bridal_robe",
     categoryId: null,
     collectionId: null,
     order_options_config: robe.order_options_config,
     extra_services_config: robe.extra_services_config,
     experience_config: robe.experience_config,
+    features_config: robe.features_config,
   });
 
   const wishlistProps = {
@@ -120,6 +122,7 @@ export default async function RobeDetailPage({ params }: Props) {
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
+              featuresConfig={experience.featuresConfig}
               wishlist={<WishlistButton {...wishlistProps} />}
             />
           ) : (

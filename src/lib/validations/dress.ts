@@ -143,6 +143,16 @@ export const dressPayloadBaseSchema = z.object({
   experience_config: z
     .union([z.null(), z.record(z.string(), z.unknown())])
     .optional(),
+  /** Feature library assignment — { use_custom, enabled_ids } */
+  features_config: z
+    .union([
+      z.null(),
+      z.object({
+        use_custom: z.boolean().optional(),
+        enabled_ids: z.array(z.string()).optional(),
+      }),
+    ])
+    .optional(),
   price: optionalNullableNumber("السعر").optional(),
   sale_price: optionalNullableNumber("سعر التخفيض").optional(),
   cost_price: optionalNullableNumber("سعر التكلفة").optional(),

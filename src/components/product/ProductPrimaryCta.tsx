@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Calendar } from "lucide-react";
+import { Calendar, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
 import {
@@ -15,6 +15,13 @@ import type {
   ExperienceSectionConfig,
   ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
+import type { ProductFeaturesConfig } from "@/lib/products/experience-features";
+import {
+  featuresAllowGiftWrap,
+  featuresAllowPersonalization,
+  isFeatureEnabled,
+  resolveEnabledFeatureIds,
+} from "@/lib/products/experience-features";
 import type { ShopProductType } from "@/types/shop";
 
 export type ProductPrimaryCtaProps = {
@@ -33,6 +40,7 @@ export type ProductPrimaryCtaProps = {
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];
+  featuresConfig?: ProductFeaturesConfig | null;
   /** Compact wishlist — aligned with Add to Cart / Buy Now when purchasable. */
   wishlist?: ReactNode;
   /** Booking deep-link extras */
@@ -43,8 +51,8 @@ export type ProductPrimaryCtaProps = {
 };
 
 /**
- * Primary product CTA. Action/label come ONLY from product commerce type.
- * Add-to-cart products use ProductExperienceBuy (Add to Cart + Buy Now + modal).
+ * Primary product CTA. Action/label come ONLY from product commerce type
+ * (and purchase-flow defaults). Feature library gates wishlist / personalization.
  */
 export function ProductPrimaryCta({
   productType,
@@ -58,6 +66,7 @@ export function ProductPrimaryCta({
   extraServices = [],
   experienceConfig = null,
   sections = [],
+  featuresConfig = null,
   wishlist,
   bookingHref,
   disabled = false,
@@ -66,8 +75,31 @@ export function ProductPrimaryCta({
 }: ProductPrimaryCtaProps) {
   const commerceType = resolveProductCommerceType(productType, fallbackType);
   const action = getProductPrimaryAction(commerceType);
+  const enabledFeatures = resolveEnabledFeatureIds({
+    features_config: featuresConfig,
+    productType: commerceType,
+    shopProductType,
+  });
 
-  if (action.kind === "add_to_cart") {
+  const showWishlist =
+    isFeatureEnabled(enabledFeatures, "wishlist") ? wishlist : null;
+
+  if (action.kind === "add_to_cart" && !action.hideCart) {
+    const allowPersonalization =
+      featuresAllowPersonalization(enabledFeatures, shopProductType);
+    const allowGift = featuresAllowGiftWrap(enabledFeatures);
+    const gatedServices = extraServices.filter((s) => {
+      // Map known service IDs to feature flags when present
+      if (s.id === "gift_wrap") return allowGift;
+      if (s.id === "greeting_card")
+        return isFeatureEnabled(enabledFeatures, "gift_message");
+      if (s.id === "luxury_box")
+        return isFeatureEnabled(enabledFeatures, "luxury_box");
+      if (s.id === "express_delivery")
+        return isFeatureEnabled(enabledFeatures, "express_delivery");
+      return true;
+    });
+
     return (
       <ProductExperienceBuy
         shopProductType={shopProductType}
@@ -76,11 +108,17 @@ export function ProductPrimaryCta({
         price={price}
         salePrice={salePrice}
         image={image}
-        extraServices={extraServices}
+        extraServices={gatedServices}
         experienceConfig={experienceConfig}
         sections={sections}
-        wishlist={wishlist}
+        wishlist={showWishlist}
+        enablePersonalization={allowPersonalization}
+        enableGiftWrapping={allowGift}
         requiresShipping={action.requiresShipping}
+        showBuyNow={
+          !action.hideBuyNow && isFeatureEnabled(enabledFeatures, "buy_now")
+        }
+        showAddToCart={isFeatureEnabled(enabledFeatures, "add_to_cart")}
         disabled={disabled}
         size={size}
         className={className}
@@ -92,14 +130,24 @@ export function ProductPrimaryCta({
     bookingHref ??
     (action.kind === "book_now"
       ? "/booking"
-      : `/booking?dress=${encodeURIComponent(productId)}`);
+      : action.kind === "request_design"
+        ? `/booking?service=custom_design&dress=${encodeURIComponent(productId)}`
+        : `/booking?dress=${encodeURIComponent(productId)}`);
+
+  const Icon = action.kind === "request_design" ? Sparkles : Calendar;
 
   return (
-    <div className={className ? `flex flex-wrap items-center gap-3 ${className}` : "flex flex-wrap items-center gap-3"}>
-      {wishlist}
+    <div
+      className={
+        className
+          ? `flex flex-wrap items-center gap-3 ${className}`
+          : "flex flex-wrap items-center gap-3"
+      }
+    >
+      {showWishlist}
       <Link href={href}>
         <Button size={size} disabled={disabled}>
-          <Calendar className="h-4 w-4" />
+          <Icon className="h-4 w-4" />
           {action.label}
         </Button>
       </Link>

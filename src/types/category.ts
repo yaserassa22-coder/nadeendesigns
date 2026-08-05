@@ -370,6 +370,72 @@ export function orderAdminProductSidebarCategories(
   return [...pinned, ...rest];
 }
 
+/** Rental dress category keys (Wedding + Nouf) — resolved from DB. */
+export const RENTAL_SIDEBAR_CATEGORY_KEYS = [
+  "wedding",
+  "wedding_dress",
+  "wedding-dresses",
+  "nouf_dresses",
+  "nouf_dress",
+  "nouf-dresses",
+  "rental",
+  "rental-dresses",
+  "rental_dresses",
+] as const;
+
+/** Bridal accessories group + children keys. */
+export const ACCESSORY_SIDEBAR_CATEGORY_KEYS = [
+  "bridal_accessories",
+  "bridal-accessories",
+  "accessories",
+  "veils",
+  "veil",
+  "bridal_robes",
+  "bridal_robe",
+  "bridal_cape",
+  "robes",
+  "robe",
+] as const;
+
+export function isRentalSidebarCategory(
+  category: Pick<Category, "legacy_key" | "slug">
+): boolean {
+  return categoryMatchesLegacyKeys(category, RENTAL_SIDEBAR_CATEGORY_KEYS);
+}
+
+export function isAccessorySidebarCategory(
+  category: Pick<Category, "legacy_key" | "slug" | "product_kind" | "parent_id">
+): boolean {
+  if (isAccessoriesGroupCategory(category)) return true;
+  const kind = resolveCategoryProductKind(category);
+  if (kind === "veil" || kind === "bridal_robe") return true;
+  return categoryMatchesLegacyKeys(category, ACCESSORY_SIDEBAR_CATEGORY_KEYS);
+}
+
+/**
+ * Grouped Products sidebar for Enterprise PM:
+ * Rental Dresses (Wedding, Nouf, …) · Bridal Accessories · rest
+ * Custom Design stays a separate top-level module (linked, not duplicated).
+ */
+export function groupAdminProductSidebarCategories(
+  categories: readonly Category[]
+): {
+  rental: Category[];
+  accessories: Category[];
+  rest: Category[];
+} {
+  const ordered = orderAdminProductSidebarCategories(categories);
+  const rental: Category[] = [];
+  const accessories: Category[] = [];
+  const rest: Category[] = [];
+  for (const c of ordered) {
+    if (isRentalSidebarCategory(c)) rental.push(c);
+    else if (isAccessorySidebarCategory(c)) accessories.push(c);
+    else rest.push(c);
+  }
+  return { rental, accessories, rest };
+}
+
 export function isDressProductCategory(
   category: Pick<Category, "product_kind" | "legacy_key">
 ): boolean {

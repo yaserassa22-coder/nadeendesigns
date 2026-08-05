@@ -12,7 +12,10 @@ describe("getProductPrimaryAction", () => {
       "أضف إلى السلة"
     );
     expect(getProductPrimaryAction("rental_dress").label).toBe("احجزي موعد");
-    expect(getProductPrimaryAction("custom_design").label).toBe("احجزي موعد");
+    expect(getProductPrimaryAction("custom_design").label).toBe("اطلبي تصميم");
+    expect(getProductPrimaryAction("custom_design").kind).toBe(
+      "request_design"
+    );
     expect(getProductPrimaryAction("service").label).toBe("احجز الآن");
   });
 
@@ -23,6 +26,12 @@ describe("getProductPrimaryAction", () => {
     expect(getProductPrimaryAction("rental_dress").kind).toBe(
       "book_appointment"
     );
+  });
+
+  it("hides cart for rental and custom design", () => {
+    expect(getProductPrimaryAction("rental_dress").hideCart).toBe(true);
+    expect(getProductPrimaryAction("custom_design").hideCart).toBe(true);
+    expect(getProductPrimaryAction("bridal_accessory").hideCart).toBe(false);
   });
 
   it("normalizes legacy accessory/rental aliases", () => {
@@ -45,8 +54,12 @@ describe("inferProductCommerceTypeFromLegacyCategory", () => {
     expect(inferProductCommerceTypeFromLegacyCategory("custom_design")).toBe(
       "custom_design"
     );
+    // Wedding + Nouf → rental_dress (appointment behavior)
     expect(inferProductCommerceTypeFromLegacyCategory("wedding")).toBe(
-      "ready_to_buy"
+      "rental_dress"
+    );
+    expect(inferProductCommerceTypeFromLegacyCategory("nouf_dresses")).toBe(
+      "rental_dress"
     );
   });
 });

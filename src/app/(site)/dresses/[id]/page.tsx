@@ -63,11 +63,13 @@ export default async function DressDetailPage({ params }: Props) {
   const experience = await resolveStorefrontProductExperience({
     productId: dress.id,
     productType: commerceType,
+    shopProductType: "dress",
     categoryId: dress.category_id ?? category?.id ?? null,
     collectionId: dress.collection_id ?? null,
     order_options_config: dress.order_options_config,
     extra_services_config: dress.extra_services_config,
     experience_config: dress.experience_config,
+    features_config: dress.features_config,
   });
   const related = (
     await getDresses(
@@ -149,11 +151,14 @@ export default async function DressDetailPage({ params }: Props) {
               extraServices={experience.extraServices}
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
+              featuresConfig={experience.featuresConfig}
               wishlist={<WishlistButton {...wishlistProps} />}
               bookingHref={
                 primaryAction.kind === "book_now"
                   ? "/booking"
-                  : `/booking?dress=${dress.id}`
+                  : primaryAction.kind === "request_design"
+                    ? `/booking?service=custom_design&dress=${dress.id}`
+                    : `/booking?dress=${dress.id}`
               }
             />
           ) : (

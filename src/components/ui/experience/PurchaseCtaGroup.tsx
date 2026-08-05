@@ -20,6 +20,9 @@ type Props = {
   message?: string;
   /** Show cancel / tertiary ghost action (modal). */
   secondaryAction?: ReactNode;
+  /** Feature / purchase-flow gates — default true (backward compatible). */
+  showAddToCart?: boolean;
+  showBuyNow?: boolean;
 };
 
 const heightClass: Record<PurchaseCtaSize, string> = {
@@ -45,6 +48,8 @@ export function PurchaseCtaGroup({
   className,
   message,
   secondaryAction,
+  showAddToCart = true,
+  showBuyNow = true,
 }: Props) {
   const h = heightClass[size];
 
@@ -68,37 +73,41 @@ export function PurchaseCtaGroup({
           </div>
         ) : null}
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onAddToCart}
-          className={cn(
-            "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] border-2 border-gold bg-transparent px-6 font-medium text-gold transition-colors duration-300",
-            "hover:bg-gold hover:text-white",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            h
-          )}
-        >
-          <ShoppingBag className={iconClass} strokeWidth={1.75} />
-          {addLabel}
-        </button>
+        {showAddToCart ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onAddToCart}
+            className={cn(
+              "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] border-2 border-gold bg-transparent px-6 font-medium text-gold transition-colors duration-300",
+              "hover:bg-gold hover:text-white",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              h
+            )}
+          >
+            <ShoppingBag className={iconClass} strokeWidth={1.75} />
+            {addLabel}
+          </button>
+        ) : null}
 
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onBuyNow}
-          className={cn(
-            "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] bg-gold px-6 font-medium text-white shadow-md shadow-gold/20 transition-colors duration-300",
-            "hover:bg-gold-dark",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            h
-          )}
-        >
-          <Zap className={iconClass} strokeWidth={1.75} />
-          {buyLabel}
-        </button>
+        {showBuyNow ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onBuyNow}
+            className={cn(
+              "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] bg-gold px-6 font-medium text-white shadow-md shadow-gold/20 transition-colors duration-300",
+              "hover:bg-gold-dark",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              h
+            )}
+          >
+            <Zap className={iconClass} strokeWidth={1.75} />
+            {buyLabel}
+          </button>
+        ) : null}
 
         {secondaryAction ? (
           <div className="flex shrink-0 sm:order-last">{secondaryAction}</div>
