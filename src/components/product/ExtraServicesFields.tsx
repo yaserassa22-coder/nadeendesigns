@@ -1,9 +1,11 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { ExtraServiceConfig } from "@/lib/products/order-experience";
+import {
+  formatExtraServicePriceLabel,
+  type ExtraServiceConfig,
+} from "@/lib/products/order-experience";
 
 type Props = {
   services: ExtraServiceConfig[];
@@ -13,6 +15,7 @@ type Props = {
 
 /**
  * Dynamic paid extra services from store / product config.
+ * Shows FREE vs +₪N; selection updates live price summary in the modal.
  */
 export function ExtraServicesFields({
   services,
@@ -37,12 +40,13 @@ export function ExtraServicesFields({
           <h3 className="text-lg font-semibold text-charcoal">خدمات إضافية</h3>
         </div>
         <p className="text-sm text-muted">
-          اختاري الخدمات المدفوعة التي ترغبين بإضافتها.
+          اختاري الخدمات التي ترغبين بإضافتها إلى طلبكِ.
         </p>
       </div>
       <div className="space-y-3">
         {services.map((svc) => {
           const checked = selectedIds.includes(svc.id);
+          const desc = svc.description_ar || svc.description;
           return (
             <label
               key={svc.id}
@@ -64,6 +68,11 @@ export function ExtraServicesFields({
                   <span className="block text-sm font-medium text-charcoal">
                     {svc.name_ar || svc.name}
                   </span>
+                  {desc ? (
+                    <span className="mt-0.5 block text-xs text-muted">
+                      {desc}
+                    </span>
+                  ) : null}
                   {svc.name_ar && svc.name && svc.name !== svc.name_ar ? (
                     <span className="mt-0.5 block text-xs text-muted" dir="ltr">
                       {svc.name}
@@ -71,8 +80,8 @@ export function ExtraServicesFields({
                   ) : null}
                 </span>
               </span>
-              <span className="shrink-0 text-sm text-gold" dir="ltr">
-                {svc.price > 0 ? formatPrice(svc.price) : "مجاني"}
+              <span className="shrink-0 text-sm font-medium text-gold" dir="ltr">
+                {formatExtraServicePriceLabel(svc)}
               </span>
             </label>
           );

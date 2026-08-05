@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/Button";
 import { RelatedProducts } from "@/components/dresses/RelatedProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
 import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
-import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Ruler, Palette } from "lucide-react";
@@ -63,9 +62,6 @@ export default async function DressDetailPage({ params }: Props) {
     order_options_config: dress.order_options_config,
     extra_services_config: dress.extra_services_config,
   });
-  const useExperienceBuy =
-    primaryAction.kind === "add_to_cart" &&
-    (experience.orderOptions.length > 0 || experience.extraServices.length > 0);
   const related = (
     await getDresses(
       dress.category_id
@@ -130,35 +126,23 @@ export default async function DressDetailPage({ params }: Props) {
             productImageUrl={featuredImage(dress.images)}
           />
           {dress.is_available ? (
-            useExperienceBuy ? (
-              <ProductExperienceBuy
-                shopProductType="dress"
-                productId={dress.id}
-                nameAr={dress.name_ar}
-                price={dress.price}
-                salePrice={dress.sale_price}
-                image={featuredImage(dress.images)}
-                orderOptions={experience.orderOptions}
-                extraServices={experience.extraServices}
-                requiresShipping={primaryAction.requiresShipping}
-              />
-            ) : (
-              <ProductPrimaryCta
-                productType={commerceType}
-                shopProductType="dress"
-                productId={dress.id}
-                nameAr={dress.name_ar}
-                price={dress.price}
-                salePrice={dress.sale_price}
-                rentalPrice={dress.rental_price}
-                image={featuredImage(dress.images)}
-                bookingHref={
-                  primaryAction.kind === "book_now"
-                    ? "/booking"
-                    : `/booking?dress=${dress.id}`
-                }
-              />
-            )
+            <ProductPrimaryCta
+              productType={commerceType}
+              shopProductType="dress"
+              productId={dress.id}
+              nameAr={dress.name_ar}
+              price={dress.price}
+              salePrice={dress.sale_price}
+              rentalPrice={dress.rental_price}
+              image={featuredImage(dress.images)}
+              orderOptions={experience.orderOptions}
+              extraServices={experience.extraServices}
+              bookingHref={
+                primaryAction.kind === "book_now"
+                  ? "/booking"
+                  : `/booking?dress=${dress.id}`
+              }
+            />
           ) : null}
           <Link href={categoryHref}>
             <Button variant="outline" size="lg">

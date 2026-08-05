@@ -1,7 +1,10 @@
 "use client";
 
 import { formatPrice } from "@/lib/utils";
-import type { LineExtraService } from "@/lib/products/order-experience";
+import {
+  effectiveServiceUnitPrice,
+  type LineExtraService,
+} from "@/lib/products/order-experience";
 
 type Props = {
   services: LineExtraService[] | null | undefined;
@@ -37,19 +40,22 @@ export function ExtraServicesSummary({
         {title}
       </h3>
       <ul className="space-y-2">
-        {services.map((svc) => (
-          <li
-            key={svc.id}
-            className="flex items-start justify-between gap-3 font-medium text-charcoal"
-          >
-            <span>{svc.name_ar || svc.name}</span>
-            {!hidePrice && (
-              <span className="shrink-0 text-gold" dir="ltr">
-                {svc.price > 0 ? formatPrice(svc.price) : "مجاني"}
-              </span>
-            )}
-          </li>
-        ))}
+        {services.map((svc) => {
+          const amount = effectiveServiceUnitPrice(svc);
+          return (
+            <li
+              key={svc.id}
+              className="flex items-start justify-between gap-3 font-medium text-charcoal"
+            >
+              <span>{svc.name_ar || svc.name}</span>
+              {!hidePrice && (
+                <span className="shrink-0 text-gold" dir="ltr">
+                  {amount > 0 ? formatPrice(amount) : "مجاني"}
+                </span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

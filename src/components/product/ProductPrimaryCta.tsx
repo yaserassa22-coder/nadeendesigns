@@ -1,17 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Calendar, ShoppingBag } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useCart } from "@/components/shop/CartProvider";
+import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
 import {
   getProductPrimaryAction,
   resolveProductCommerceType,
   type ProductCommerceType,
 } from "@/lib/products/primary-action";
-import { resolveProductPricing } from "@/lib/products/pricing";
+import type { ExtraServiceConfig, OrderOptionConfig } from "@/lib/products/order-experience";
 import type { ShopProductType } from "@/types/shop";
 
 export type ProductPrimaryCtaProps = {
@@ -27,6 +25,8 @@ export type ProductPrimaryCtaProps = {
   salePrice?: number | null;
   rentalPrice?: number | null;
   image?: string | null;
+  orderOptions?: OrderOptionConfig[];
+  extraServices?: ExtraServiceConfig[];
   /** Booking deep-link extras */
   bookingHref?: string;
   disabled?: boolean;
@@ -36,6 +36,7 @@ export type ProductPrimaryCtaProps = {
 
 /**
  * Primary product CTA. Action/label come ONLY from product commerce type.
+ * Add-to-cart products use ProductExperienceBuy (Add to Cart + Buy Now + modal).
  */
 export function ProductPrimaryCta({
   productType,
@@ -45,61 +46,33 @@ export function ProductPrimaryCta({
   nameAr,
   price,
   salePrice,
-  rentalPrice,
   image,
+  orderOptions = [],
+  extraServices = [],
   bookingHref,
   disabled = false,
   size = "lg",
   className,
 }: ProductPrimaryCtaProps) {
-  const router = useRouter();
-  const { addItem } = useCart();
-  const [message, setMessage] = useState("");
   const commerceType = resolveProductCommerceType(productType, fallbackType);
   const action = getProductPrimaryAction(commerceType);
 
   if (action.kind === "add_to_cart") {
-    const pricing = resolveProductPricing({
-      price,
-      salePrice,
-      rentalPrice,
-      forceRental: false,
-    });
-    const unit = pricing.currentPrice;
-    const canBuy = unit != null && Number.isFinite(unit) && unit >= 0;
-
     return (
-      <div className={className}>
-        <Button
-          size={size}
-          disabled={disabled || !canBuy}
-          onClick={() => {
-            if (!canBuy || unit == null) return;
-            addItem({
-              product_type: shopProductType,
-              product_id: productId,
-              name_ar: nameAr,
-              unit_price: unit,
-              compare_at_price: pricing.onSale ? pricing.regularPrice : null,
-              quantity: 1,
-              image: image ?? undefined,
-              personalization: null,
-              gift_options: null,
-              requires_shipping: action.requiresShipping,
-            });
-            setMessage("تمت الإضافة إلى السلة");
-            router.push("/cart");
-          }}
-        >
-          <ShoppingBag className="h-4 w-4" />
-          {action.label}
-        </Button>
-        {message ? (
-          <p className="mt-2 text-sm text-gold" role="status">
-            {message}
-          </p>
-        ) : null}
-      </div>
+      <ProductExperienceBuy
+        shopProductType={shopProductType}
+        productId={productId}
+        nameAr={nameAr}
+        price={price}
+        salePrice={salePrice}
+        image={image}
+        orderOptions={orderOptions}
+        extraServices={extraServices}
+        requiresShipping={action.requiresShipping}
+        disabled={disabled}
+        size={size}
+        className={className}
+      />
     );
   }
 

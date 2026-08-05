@@ -1026,7 +1026,14 @@ export function ProductEditorModal({
                           key={svc.id}
                           className="flex items-center justify-between gap-3 border-b border-border/60 pb-3 text-sm"
                         >
-                          <span>{svc.name_ar}</span>
+                          <span>
+                            {svc.name_ar}
+                            <span className="ms-2 text-xs text-muted">
+                              {svc.pricing_mode === "FREE"
+                                ? "مجاني"
+                                : `₪${svc.price}`}
+                            </span>
+                          </span>
                           <input
                             type="checkbox"
                             className="accent-gold"

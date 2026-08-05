@@ -861,44 +861,25 @@ export function StoreSettingsPanel({
         {active === "extra_services" && (
           <Section
             title="خدمات إضافية"
-            description="خدمات مدفوعة اختيارية. المرحلة 1 — إعداد فقط بدون ربط بالدفع."
+            description="اسم، وصف، حالة التسعير (مجاني / سعر ثابت)، والسعر — بدون تعديل كود."
             onSave={() => saveSection("extra_services")}
             saving={saving}
           >
-            <div className="space-y-3">
+            <div className="space-y-4">
               {settings.extra_services.services.map((svc, idx) => (
                 <div
                   key={svc.id}
-                  className="grid gap-3 rounded-xl border border-beige-dark/70 p-4 sm:grid-cols-[1fr_auto_auto]"
+                  className="space-y-3 rounded-xl border border-beige-dark/70 p-4"
                 >
-                  <div>
-                    <p className="font-semibold text-charcoal">{svc.name_ar}</p>
-                    <p className="text-xs text-muted" dir="ltr">
-                      {svc.id}
-                    </p>
-                  </div>
-                  <Input
-                    label="السعر"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    dir="ltr"
-                    value={svc.price}
-                    onChange={(e) =>
-                      setSettings((s) => {
-                        const services = [...s.extra_services.services];
-                        services[idx] = {
-                          ...services[idx],
-                          price: Math.max(0, Number(e.target.value) || 0),
-                        };
-                        return {
-                          ...s,
-                          extra_services: { services },
-                        };
-                      })
-                    }
-                  />
-                  <div className="flex items-end pb-1">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-charcoal">
+                        {svc.name_ar}
+                      </p>
+                      <p className="text-xs text-muted" dir="ltr">
+                        {svc.id}
+                      </p>
+                    </div>
                     <Toggle
                       label="مفعّل"
                       checked={svc.enabled}
@@ -914,6 +895,132 @@ export function StoreSettingsPanel({
                       }
                     />
                   </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input
+                      label="الاسم (عربي)"
+                      value={svc.name_ar}
+                      onChange={(e) =>
+                        setSettings((s) => {
+                          const services = [...s.extra_services.services];
+                          services[idx] = {
+                            ...services[idx],
+                            name_ar: e.target.value,
+                          };
+                          return { ...s, extra_services: { services } };
+                        })
+                      }
+                    />
+                    <Input
+                      label="Name (EN)"
+                      dir="ltr"
+                      value={svc.name}
+                      onChange={(e) =>
+                        setSettings((s) => {
+                          const services = [...s.extra_services.services];
+                          services[idx] = {
+                            ...services[idx],
+                            name: e.target.value,
+                          };
+                          return { ...s, extra_services: { services } };
+                        })
+                      }
+                    />
+                  </div>
+
+                  <Textarea
+                    label="الوصف"
+                    rows={2}
+                    value={svc.description_ar || ""}
+                    onChange={(e) =>
+                      setSettings((s) => {
+                        const services = [...s.extra_services.services];
+                        services[idx] = {
+                          ...services[idx],
+                          description_ar: e.target.value,
+                          description:
+                            services[idx].description || e.target.value,
+                        };
+                        return { ...s, extra_services: { services } };
+                      })
+                    }
+                  />
+
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-charcoal">
+                      وضع التسعير
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <input
+                          type="radio"
+                          name={`pricing_mode_${svc.id}`}
+                          className="accent-[var(--gold)]"
+                          checked={svc.pricing_mode === "FREE"}
+                          onChange={() =>
+                            setSettings((s) => {
+                              const services = [...s.extra_services.services];
+                              services[idx] = {
+                                ...services[idx],
+                                pricing_mode: "FREE",
+                                price: 0,
+                              };
+                              return { ...s, extra_services: { services } };
+                            })
+                          }
+                        />
+                        مجاني (FREE)
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <input
+                          type="radio"
+                          name={`pricing_mode_${svc.id}`}
+                          className="accent-[var(--gold)]"
+                          checked={svc.pricing_mode === "FIXED_PRICE"}
+                          onChange={() =>
+                            setSettings((s) => {
+                              const services = [...s.extra_services.services];
+                              services[idx] = {
+                                ...services[idx],
+                                pricing_mode: "FIXED_PRICE",
+                              };
+                              return { ...s, extra_services: { services } };
+                            })
+                          }
+                        />
+                        سعر ثابت (Fixed Price)
+                      </label>
+                    </div>
+                  </div>
+
+                  {svc.pricing_mode === "FIXED_PRICE" ? (
+                    <Input
+                      label="السعر"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      dir="ltr"
+                      value={svc.price}
+                      onChange={(e) =>
+                        setSettings((s) => {
+                          const services = [...s.extra_services.services];
+                          services[idx] = {
+                            ...services[idx],
+                            pricing_mode: "FIXED_PRICE",
+                            price: Math.max(0, Number(e.target.value) || 0),
+                          };
+                          return {
+                            ...s,
+                            extra_services: { services },
+                          };
+                        })
+                      }
+                    />
+                  ) : (
+                    <p className="text-xs text-muted">
+                      هذه الخدمة مجانية للعميلة (السعر = 0).
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

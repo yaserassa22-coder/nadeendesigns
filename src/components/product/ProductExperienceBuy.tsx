@@ -2,24 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { useCart } from "@/components/shop/CartProvider";
 import {
-  OrderOptionsFields,
-  type OrderOptionValues,
-} from "@/components/product/OrderOptionsFields";
-import { ExtraServicesFields } from "@/components/product/ExtraServicesFields";
+  ProductExperienceModal,
+  type ProductExperienceIntent,
+} from "@/components/product/ProductExperienceModal";
 import {
-  buildLineExtraServices,
-  buildLineOrderOptions,
-  validateOrderOptionValues,
+  productNeedsExperienceModal,
   type ExtraServiceConfig,
   type OrderOptionConfig,
 } from "@/lib/products/order-experience";
 import { resolveProductPricing } from "@/lib/products/pricing";
 import { getProductPrimaryAction } from "@/lib/products/primary-action";
+import {
+  shopProductSupportsPersonalization,
+} from "@/lib/products/personalization";
 import type { ShopProductType } from "@/types/shop";
 
 type Props = {
@@ -31,6 +30,9 @@ type Props = {
   image?: string | null;
   orderOptions?: OrderOptionConfig[];
   extraServices?: ExtraServiceConfig[];
+  /** Open modal with veil/robe personalization (wraps existing UI). */
+  enablePersonalization?: boolean;
+  enableGiftWrapping?: boolean;
   requiresShipping?: boolean;
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
@@ -38,9 +40,10 @@ type Props = {
 };
 
 /**
- * Add-to-cart panel with dynamic order options + extra services.
- * Used when store/product config enables any option or service.
- * Does not replace veil/robe ShopCustomizeAndBuy personalization.
+ * Add to Cart + Buy Now CTAs with Product Experience Modal when configurable.
+ * - Configurable (personalization / options / services) → modal first
+ * - Otherwise → direct cart add; Buy Now → checkout
+ * - After Add to Cart from modal: stay on storefront
  */
 export function ProductExperienceBuy({
   shopProductType = "dress",
@@ -51,6 +54,8 @@ export function ProductExperienceBuy({
   image,
   orderOptions = [],
   extraServices = [],
+  enablePersonalization,
+  enableGiftWrapping = false,
   requiresShipping = true,
   disabled = false,
   size = "lg",
@@ -58,96 +63,120 @@ export function ProductExperienceBuy({
 }: Props) {
   const router = useRouter();
   const { addItem } = useCart();
-  const [quantity, setQuantity] = useState(1);
-  const [orderOptionValues, setOrderOptionValues] = useState<OrderOptionValues>(
-    {}
-  );
-  const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [open, setOpen] = useState(false);
+  const [intent, setIntent] = useState<ProductExperienceIntent>("cart");
   const [message, setMessage] = useState("");
+  /** Remount modal form fresh each open (avoids reset-in-effect). */
+  const [formSession, setFormSession] = useState(0);
 
   const pricing = resolveProductPricing({ price, salePrice });
   const unit = pricing.currentPrice;
   const canBuy = unit != null && Number.isFinite(unit) && unit >= 0;
-  const label = getProductPrimaryAction("ready_to_buy").label;
+  const supportsPersonalization =
+    enablePersonalization ??
+    shopProductSupportsPersonalization(shopProductType);
+  const needsModal = productNeedsExperienceModal({
+    supportsPersonalization,
+    orderOptions,
+    extraServices,
+  });
+  const addLabel = getProductPrimaryAction("ready_to_buy").label;
 
-  const addToCart = () => {
-    setErrors({});
+  const directAdd = (mode: ProductExperienceIntent) => {
     setMessage("");
     if (!canBuy || unit == null) return;
-
-    const optionErrors = validateOrderOptionValues(
-      orderOptions,
-      orderOptionValues
-    );
-    if (Object.keys(optionErrors).length) {
-      setErrors(optionErrors);
-      return;
-    }
-
-    const lineOrderOptions = buildLineOrderOptions(
-      orderOptions,
-      orderOptionValues
-    );
-    const lineExtraServices = buildLineExtraServices(
-      extraServices,
-      selectedExtraIds
-    );
-
     addItem({
       product_type: shopProductType,
       product_id: productId,
       name_ar: nameAr,
       unit_price: unit,
       compare_at_price: pricing.onSale ? pricing.regularPrice : null,
-      quantity,
+      quantity: 1,
       image: image ?? undefined,
       personalization: null,
       gift_options: null,
-      order_options: lineOrderOptions.length ? lineOrderOptions : null,
-      extra_services: lineExtraServices.length ? lineExtraServices : null,
+      order_options: null,
+      extra_services: null,
       requires_shipping: requiresShipping,
     });
+    if (mode === "checkout") {
+      router.push("/checkout");
+      return;
+    }
     setMessage("تمت الإضافة إلى السلة");
-    router.push("/cart");
+  };
+
+  const openModal = (mode: ProductExperienceIntent) => {
+    setMessage("");
+    setIntent(mode);
+    setFormSession((n) => n + 1);
+    setOpen(true);
+  };
+
+  const onAddToCart = () => {
+    if (!canBuy) return;
+    if (needsModal) openModal("cart");
+    else directAdd("cart");
+  };
+
+  const onBuyNow = () => {
+    if (!canBuy) return;
+    if (needsModal) openModal("checkout");
+    else directAdd("checkout");
   };
 
   return (
-    <div className={className ? `space-y-4 ${className}` : "space-y-4"}>
-      <OrderOptionsFields
-        options={orderOptions}
-        values={orderOptionValues}
-        onChange={setOrderOptionValues}
-        errors={errors}
-      />
-      <ExtraServicesFields
-        services={extraServices}
-        selectedIds={selectedExtraIds}
-        onChange={setSelectedExtraIds}
-      />
-      <Input
-        label="الكمية"
-        type="number"
-        min={1}
-        max={20}
-        dir="ltr"
-        value={String(quantity)}
-        onChange={(e) =>
-          setQuantity(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
-        }
-      />
-      <Button
-        size={size}
-        disabled={disabled || !canBuy}
-        onClick={addToCart}
-      >
-        <ShoppingBag className="h-4 w-4" />
-        {label}
-      </Button>
+    <div className={className ? `space-y-3 ${className}` : "space-y-3"}>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button
+          size={size}
+          disabled={disabled || !canBuy}
+          onClick={onAddToCart}
+          className="sm:flex-1"
+        >
+          <ShoppingBag className="h-4 w-4" />
+          {addLabel}
+        </Button>
+        <Button
+          size={size}
+          variant="outline"
+          disabled={disabled || !canBuy}
+          onClick={onBuyNow}
+          className="sm:flex-1"
+        >
+          <Zap className="h-4 w-4" />
+          شراء الآن
+        </Button>
+      </div>
       {message ? (
         <p className="text-sm text-gold" role="status">
           {message}
         </p>
+      ) : null}
+
+      {canBuy && unit != null ? (
+        <ProductExperienceModal
+          key={formSession}
+          open={open}
+          onClose={() => setOpen(false)}
+          intent={intent}
+          shopProductType={shopProductType}
+          productId={productId}
+          nameAr={nameAr}
+          unitPrice={unit}
+          compareAtPrice={pricing.onSale ? pricing.regularPrice : null}
+          image={image}
+          orderOptions={orderOptions}
+          extraServices={extraServices}
+          enablePersonalization={supportsPersonalization}
+          enableGiftWrapping={
+            enableGiftWrapping || supportsPersonalization
+          }
+          requiresShipping={requiresShipping}
+          onSuccess={(mode) => {
+            if (mode === "cart") setMessage("تمت الإضافة إلى السلة");
+          }}
+        />
       ) : null}
     </div>
   );

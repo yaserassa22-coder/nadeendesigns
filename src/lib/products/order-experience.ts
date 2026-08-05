@@ -26,10 +26,27 @@ export type ExtraServiceId =
   | "luxury_box"
   | "express_delivery";
 
+/**
+ * Active Sprint 2A pricing modes.
+ * Future-ready (types only — not implemented): PERCENTAGE | QUANTITY | CONDITIONAL.
+ */
+export type ServicePricingMode = "FREE" | "FIXED_PRICE";
+
+/** Reserved for later pricing engines — do not activate in storefront yet. */
+export type FutureServicePricingMode =
+  | "PERCENTAGE"
+  | "QUANTITY"
+  | "CONDITIONAL";
+
 export type ExtraServiceConfig = {
   id: ExtraServiceId | string;
   name: string;
   name_ar: string;
+  description: string;
+  description_ar: string;
+  /** FREE → 0; FIXED_PRICE → `price`. Extensible for future modes. */
+  pricing_mode: ServicePricingMode;
+  /** Unit price when pricing_mode === FIXED_PRICE; ignored when FREE. */
   price: number;
   enabled: boolean;
   sort_order: number;
@@ -119,6 +136,9 @@ export const DEFAULT_EXTRA_SERVICES: ExtraServiceConfig[] = [
     id: "gift_wrap",
     name: "Gift Wrap",
     name_ar: "تغليف هدية",
+    description: "",
+    description_ar: "",
+    pricing_mode: "FREE",
     price: 0,
     enabled: false,
     sort_order: 0,
@@ -127,6 +147,9 @@ export const DEFAULT_EXTRA_SERVICES: ExtraServiceConfig[] = [
     id: "greeting_card",
     name: "Greeting Card",
     name_ar: "بطاقة تهنئة",
+    description: "",
+    description_ar: "",
+    pricing_mode: "FREE",
     price: 0,
     enabled: false,
     sort_order: 1,
@@ -135,6 +158,9 @@ export const DEFAULT_EXTRA_SERVICES: ExtraServiceConfig[] = [
     id: "luxury_box",
     name: "Luxury Box",
     name_ar: "علبة فاخرة",
+    description: "",
+    description_ar: "",
+    pricing_mode: "FREE",
     price: 0,
     enabled: false,
     sort_order: 2,
@@ -143,11 +169,65 @@ export const DEFAULT_EXTRA_SERVICES: ExtraServiceConfig[] = [
     id: "express_delivery",
     name: "Express Delivery",
     name_ar: "توصيل سريع",
+    description: "",
+    description_ar: "",
+    pricing_mode: "FREE",
     price: 0,
     enabled: false,
     sort_order: 3,
   },
 ];
+
+/**
+ * Idempotent legacy migrate: missing pricing_mode → FREE when price=0, FIXED when price>0.
+ * FREE always forces price 0; FIXED_PRICE keeps admin price (≥0).
+ */
+export function resolveServicePricingMode(
+  rawMode: unknown,
+  price: number
+): ServicePricingMode {
+  if (rawMode === "FREE" || rawMode === "FIXED_PRICE") return rawMode;
+  return price > 0 ? "FIXED_PRICE" : "FREE";
+}
+
+/** Server/client authoritative unit price for a configured service. */
+export function effectiveServiceUnitPrice(svc: {
+  pricing_mode?: ServicePricingMode | null;
+  price?: number | null;
+}): number {
+  const price =
+    typeof svc.price === "number" && Number.isFinite(svc.price)
+      ? Math.max(0, svc.price)
+      : 0;
+  const mode = resolveServicePricingMode(svc.pricing_mode, price);
+  if (mode === "FREE") return 0;
+  return price;
+}
+
+/** Storefront label: مجاني vs +₪40 */
+export function formatExtraServicePriceLabel(svc: {
+  pricing_mode?: ServicePricingMode | null;
+  price?: number | null;
+}): string {
+  const amount = effectiveServiceUnitPrice(svc);
+  if (amount <= 0) return "مجاني";
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(amount);
+  return `+₪ ${formatted}`;
+}
+
+/** Whether PDP must open the Product Experience Modal before cart/checkout. */
+export function productNeedsExperienceModal(input: {
+  supportsPersonalization?: boolean;
+  orderOptions?: OrderOptionConfig[] | null;
+  extraServices?: ExtraServiceConfig[] | null;
+}): boolean {
+  if (input.supportsPersonalization) return true;
+  if ((input.orderOptions?.length ?? 0) > 0) return true;
+  if ((input.extraServices?.length ?? 0) > 0) return true;
+  return false;
+}
 
 export function normalizeOrderOptions(raw: unknown): StoreOrderOptionsSettings {
   const src =
@@ -191,40 +271,58 @@ export function normalizeExtraServices(
       if (typeof row.id === "string") byId.set(row.id, row);
     }
   }
-  const known = DEFAULT_EXTRA_SERVICES.map((def) => {
-    const row = byId.get(def.id);
+
+  const mergeService = (
+    def: ExtraServiceConfig,
+    row: Record<string, unknown> | undefined
+  ): ExtraServiceConfig => {
     if (!row) return { ...def };
-    const price =
+    const rawPrice =
       typeof row.price === "number" && Number.isFinite(row.price)
         ? Math.max(0, row.price)
         : def.price;
+    const pricing_mode = resolveServicePricingMode(row.pricing_mode, rawPrice);
+    const price = pricing_mode === "FREE" ? 0 : rawPrice;
     return {
       ...def,
       name: typeof row.name === "string" ? row.name : def.name,
       name_ar: typeof row.name_ar === "string" ? row.name_ar : def.name_ar,
+      description:
+        typeof row.description === "string" ? row.description : def.description,
+      description_ar:
+        typeof row.description_ar === "string"
+          ? row.description_ar
+          : def.description_ar,
+      pricing_mode,
       price,
       enabled: typeof row.enabled === "boolean" ? row.enabled : def.enabled,
       sort_order:
-        typeof row.sort_order === "number"
-          ? row.sort_order
-          : def.sort_order,
+        typeof row.sort_order === "number" ? row.sort_order : def.sort_order,
     };
-  });
+  };
+
+  const known = DEFAULT_EXTRA_SERVICES.map((def) =>
+    mergeService(def, byId.get(def.id))
+  );
   // Preserve any custom services admin may add later
   for (const [id, row] of byId) {
     if (known.some((s) => s.id === id)) continue;
-    known.push({
-      id,
-      name: typeof row.name === "string" ? row.name : id,
-      name_ar: typeof row.name_ar === "string" ? row.name_ar : id,
-      price:
-        typeof row.price === "number" && Number.isFinite(row.price)
-          ? Math.max(0, row.price)
-          : 0,
-      enabled: typeof row.enabled === "boolean" ? row.enabled : false,
-      sort_order:
-        typeof row.sort_order === "number" ? row.sort_order : known.length,
-    });
+    known.push(
+      mergeService(
+        {
+          id,
+          name: id,
+          name_ar: id,
+          description: "",
+          description_ar: "",
+          pricing_mode: "FREE",
+          price: 0,
+          enabled: false,
+          sort_order: known.length,
+        },
+        row
+      )
+    );
   }
   known.sort((a, b) => a.sort_order - b.sort_order);
   return { services: known };
@@ -267,14 +365,20 @@ export function resolveProductExtraServices(
     .filter((s) => ids.has(s.id))
     .map((s) => {
       const overridePrice = productOverride.price_overrides?.[s.id];
-      return {
-        ...s,
-        enabled: true,
-        price:
-          typeof overridePrice === "number" && Number.isFinite(overridePrice)
-            ? Math.max(0, overridePrice)
-            : s.price,
-      };
+      if (
+        typeof overridePrice === "number" &&
+        Number.isFinite(overridePrice)
+      ) {
+        const price = Math.max(0, overridePrice);
+        const pricing_mode = resolveServicePricingMode(undefined, price);
+        return {
+          ...s,
+          enabled: true,
+          pricing_mode,
+          price: pricing_mode === "FREE" ? 0 : price,
+        };
+      }
+      return { ...s, enabled: true };
     });
 }
 
@@ -303,6 +407,8 @@ export type LineExtraService = {
   name_ar: string;
   /** Server-authoritative unit price for this service. */
   price: number;
+  /** Snapshot of pricing mode at add-to-cart (display / audit). */
+  pricing_mode?: ServicePricingMode;
 };
 
 /** Sum of selected extra-service unit prices (per product unit). */
@@ -311,8 +417,8 @@ export function sumExtraServicePrices(
 ): number {
   if (!services?.length) return 0;
   return services.reduce((sum, s) => {
-    const p = Number(s.price);
-    return sum + (Number.isFinite(p) && p > 0 ? p : 0);
+    const p = effectiveServiceUnitPrice(s);
+    return sum + p;
   }, 0);
 }
 
@@ -409,11 +515,14 @@ export function buildLineExtraServices(
     seen.add(id);
     const svc = byId.get(id);
     if (!svc) continue;
+    const pricing_mode = resolveServicePricingMode(svc.pricing_mode, svc.price);
+    const price = effectiveServiceUnitPrice(svc);
     out.push({
       id: svc.id,
       name: svc.name,
       name_ar: svc.name_ar,
-      price: Math.max(0, Number(svc.price) || 0),
+      pricing_mode,
+      price,
     });
   }
   return out;

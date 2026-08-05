@@ -160,6 +160,9 @@ export type StoreExtraService = {
   id: string;
   name: string;
   name_ar: string;
+  description: string;
+  description_ar: string;
+  pricing_mode: "FREE" | "FIXED_PRICE";
   price: number;
   enabled: boolean;
   sort_order: number;
@@ -535,6 +538,9 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         id: "gift_wrap",
         name: "Gift Wrap",
         name_ar: "تغليف هدية",
+        description: "",
+        description_ar: "",
+        pricing_mode: "FREE",
         price: 0,
         enabled: false,
         sort_order: 0,
@@ -543,6 +549,9 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         id: "greeting_card",
         name: "Greeting Card",
         name_ar: "بطاقة تهنئة",
+        description: "",
+        description_ar: "",
+        pricing_mode: "FREE",
         price: 0,
         enabled: false,
         sort_order: 1,
@@ -551,6 +560,9 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         id: "luxury_box",
         name: "Luxury Box",
         name_ar: "علبة فاخرة",
+        description: "",
+        description_ar: "",
+        pricing_mode: "FREE",
         price: 0,
         enabled: false,
         sort_order: 2,
@@ -559,6 +571,9 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         id: "express_delivery",
         name: "Express Delivery",
         name_ar: "توصيل سريع",
+        description: "",
+        description_ar: "",
+        pricing_mode: "FREE",
         price: 0,
         enabled: false,
         sort_order: 3,

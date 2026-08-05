@@ -36,11 +36,16 @@ function sanitizeExtraServices(raw: unknown): LineExtraService[] | null {
     const o = entry as Record<string, unknown>;
     if (typeof o.id !== "string" || !o.id.trim()) continue;
     const price = Number(o.price);
+    const pricing_mode =
+      o.pricing_mode === "FREE" || o.pricing_mode === "FIXED_PRICE"
+        ? o.pricing_mode
+        : undefined;
     out.push({
       id: o.id.trim(),
       name: typeof o.name === "string" ? o.name : o.id,
       name_ar: typeof o.name_ar === "string" ? o.name_ar : o.id,
       price: Number.isFinite(price) && price >= 0 ? price : 0,
+      ...(pricing_mode ? { pricing_mode } : {}),
     });
   }
   return out.length ? out : null;
