@@ -27,6 +27,8 @@ import {
 } from "@/lib/phone";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
+import { ProductPrice } from "@/components/product/ProductPrice";
+import { cartLineDisplayPrices } from "@/lib/products/pricing";
 import {
   defaultDeliveryMethod,
   formatEstimatedDelivery,
@@ -490,9 +492,12 @@ export default function CheckoutPage() {
                         <p className="font-medium">{item.name_ar}</p>
                         <p className="text-muted">الكمية: {item.quantity}</p>
                         {!hidePrice && (
-                          <p className="mt-1 text-gold" dir="ltr">
-                            {formatPrice(item.unit_price * item.quantity)}
-                          </p>
+                          <ProductPrice
+                            className="mt-1"
+                            size="sm"
+                            {...cartLineDisplayPrices(item)}
+                            showSaleBadge={false}
+                          />
                         )}
                         {item.personalization && (
                           <div className="mt-3">

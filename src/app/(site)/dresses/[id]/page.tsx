@@ -54,7 +54,6 @@ export default async function DressDetailPage({ params }: Props) {
     ? resolveCategoryHref(category)
     : "/wedding-dresses";
 
-  const price = dress.price ?? dress.rental_price;
   const isRental =
     dress.category === "rental" ||
     category?.legacy_key === "rental" ||
@@ -85,8 +84,10 @@ export default async function DressDetailPage({ params }: Props) {
       images={dress.images}
       name={dress.name_ar}
       categoryLabel={categoryLabel}
-      price={price}
-      priceSuffix={isRental ? "/ إيجار" : undefined}
+      price={dress.price}
+      salePrice={dress.sale_price}
+      rentalPrice={dress.rental_price}
+      priceSuffix={isRental && !dress.price ? "/ إيجار" : undefined}
       description={dress.description_ar}
       available={dress.is_available}
       meta={

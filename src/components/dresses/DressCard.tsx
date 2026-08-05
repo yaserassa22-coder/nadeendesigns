@@ -5,9 +5,13 @@ import { motion } from "framer-motion";
 import type { Dress } from "@/types";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
 import { WishlistButton } from "@/components/auth/WishlistButton";
+import {
+  ProductPrice,
+  ProductSaleBadge,
+} from "@/components/product/ProductPrice";
 import { getDressStyleLabel } from "@/lib/styles";
 import { featuredImage } from "@/lib/products/featured-image";
-import { formatPrice } from "@/lib/utils";
+import { resolveProductPricing } from "@/lib/products/pricing";
 
 interface DressCardProps {
   dress: Dress;
@@ -15,9 +19,14 @@ interface DressCardProps {
 }
 
 export function DressCard({ dress, index = 0 }: DressCardProps) {
-  const price = dress.price ?? dress.rental_price;
-  const isRental =
-    dress.category === "rental" || (!dress.price && dress.rental_price);
+  const isRentalCategory =
+    dress.category === "rental" || (!dress.price && !!dress.rental_price);
+  const pricing = resolveProductPricing({
+    price: dress.price,
+    salePrice: dress.sale_price,
+    rentalPrice: dress.rental_price,
+    forceRental: isRentalCategory && dress.price == null,
+  });
   const href = `/dresses/${dress.id}`;
 
   return (
@@ -44,6 +53,7 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
           productTitle={dress.name_ar}
           productImageUrl={featuredImage(dress.images)}
         />
+        <ProductSaleBadge price={dress.price} salePrice={dress.sale_price} />
         {dress.is_featured && (
           <span className="pointer-events-none absolute top-4 end-4 z-20 rounded-full bg-gold px-3 py-1 text-xs font-medium text-white">
             مميز
@@ -66,18 +76,18 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
             {getDressStyleLabel(dress.style)}
           </p>
         )}
-        {price && (
-          <p
-            className="mt-3 font-[family-name:var(--font-cormorant)] text-xl text-gold"
-            dir="ltr"
-          >
-            {formatPrice(price)}
-            {isRental && (
-              <span className="ml-1 text-sm text-muted" dir="rtl">
-                / إيجار
-              </span>
-            )}
-          </p>
+        {pricing.currentPrice != null && (
+          <ProductPrice
+            className="mt-3"
+            price={dress.price}
+            salePrice={dress.sale_price}
+            rentalPrice={dress.rental_price}
+            forceRental={isRentalCategory && dress.price == null}
+            priceSuffix={
+              isRentalCategory && !pricing.onSale ? "/ إيجار" : undefined
+            }
+            showSaleBadge={false}
+          />
         )}
       </Link>
     </motion.article>

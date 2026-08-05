@@ -25,20 +25,5 @@ export function generateProductSku(slug: string): string {
   return `ND-${core}-${suffix}`;
 }
 
-export function discountPercent(
-  regular: number | null | undefined,
-  sale: number | null | undefined
-): number | null {
-  if (
-    regular == null ||
-    sale == null ||
-    !Number.isFinite(regular) ||
-    !Number.isFinite(sale) ||
-    regular <= 0 ||
-    sale < 0 ||
-    sale >= regular
-  ) {
-    return null;
-  }
-  return Math.round(((regular - sale) / regular) * 100);
-}
+/** @deprecated Prefer `@/lib/products/pricing` — kept for existing admin imports. */
+export { discountPercent } from "@/lib/products/pricing";

@@ -39,7 +39,13 @@ export interface CartItem {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
+  /** Charged unit price (sale price when on sale). */
   unit_price: number;
+  /**
+   * Optional list / regular price when the line was added on sale.
+   * When set and greater than unit_price, cart/checkout may show strikethrough.
+   */
+  compare_at_price?: number | null;
   quantity: number;
   image?: string;
   personalization: ProductPersonalization | null;

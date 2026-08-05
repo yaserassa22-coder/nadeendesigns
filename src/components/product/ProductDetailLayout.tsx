@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
-import { formatPrice } from "@/lib/utils";
 import { ProductDescription } from "@/components/product/ProductDescription";
 import { ProductGallery } from "@/components/product/ProductGallery";
+import { ProductPrice } from "@/components/product/ProductPrice";
 
 interface ProductDetailLayoutProps {
   images: string[];
   name: string;
   categoryLabel?: string;
+  /** Regular / list price (`price` column). */
   price: number | null | undefined;
+  /** Optional sale price — when lower than price, shows strikethrough + % OFF. */
+  salePrice?: number | null;
+  rentalPrice?: number | null;
   priceSuffix?: string;
   description?: string | null;
   available?: boolean;
@@ -27,6 +31,8 @@ export function ProductDetailLayout({
   name,
   categoryLabel,
   price,
+  salePrice,
+  rentalPrice,
   priceSuffix,
   description,
   available = true,
@@ -49,19 +55,14 @@ export function ProductDetailLayout({
             <h1 className="mt-2 text-3xl font-bold text-charcoal md:text-4xl">
               {name}
             </h1>
-            {price != null && (
-              <p
-                className="mt-4 font-[family-name:var(--font-cormorant)] text-3xl text-gold"
-                dir="ltr"
-              >
-                {formatPrice(price)}
-                {priceSuffix && (
-                  <span className="ms-2 text-base text-muted" dir="rtl">
-                    {priceSuffix}
-                  </span>
-                )}
-              </p>
-            )}
+            <ProductPrice
+              className="mt-4"
+              size="lg"
+              price={price}
+              salePrice={salePrice}
+              rentalPrice={rentalPrice}
+              priceSuffix={priceSuffix}
+            />
 
             <ProductDescription text={description} />
 

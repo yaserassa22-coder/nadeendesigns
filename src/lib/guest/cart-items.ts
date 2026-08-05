@@ -42,6 +42,12 @@ export function sanitizeGuestCartItems(raw: unknown[]): CartItem[] {
       product_id: productId.trim(),
       name_ar: nameAr.trim(),
       unit_price: unitPrice,
+      compare_at_price:
+        typeof o.compare_at_price === "number" &&
+        Number.isFinite(o.compare_at_price) &&
+        o.compare_at_price >= 0
+          ? o.compare_at_price
+          : null,
       quantity: Math.max(1, Math.min(20, Math.floor(quantity))),
       image: typeof o.image === "string" ? o.image : undefined,
       personalization:

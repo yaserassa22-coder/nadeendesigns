@@ -3,17 +3,22 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { inferWishlistKind } from "@/lib/shop/wishlist";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
 import { WishlistButton } from "@/components/auth/WishlistButton";
+import {
+  ProductPrice,
+  ProductSaleBadge,
+} from "@/components/product/ProductPrice";
 import { Input, Select } from "@/components/ui/Input";
 
 interface ShopCatalogItem {
   id: string;
   name_ar: string;
   price: number;
+  /** Optional — dresses may have sale; veils/robes typically omit. */
+  sale_price?: number | null;
   images: string[];
   color: string | null;
   material: string | null;
@@ -140,6 +145,10 @@ export function ShopCatalog({
                     productTitle={item.name_ar}
                     productImageUrl={featuredImage(item.images)}
                   />
+                  <ProductSaleBadge
+                    price={item.price}
+                    salePrice={item.sale_price}
+                  />
                 </div>
                 {!item.is_available && (
                   <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-3">
@@ -155,12 +164,12 @@ export function ShopCatalog({
                   <p className="mt-1 text-sm text-muted">
                     {item.color || item.material || ""}
                   </p>
-                  <p
-                    className="mt-3 font-[family-name:var(--font-cormorant)] text-xl text-gold"
-                    dir="ltr"
-                  >
-                    {formatPrice(item.price)}
-                  </p>
+                  <ProductPrice
+                    className="mt-3"
+                    price={item.price}
+                    salePrice={item.sale_price}
+                    showSaleBadge={false}
+                  />
                 </Link>
               </motion.article>
             );

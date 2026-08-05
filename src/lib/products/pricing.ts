@@ -1,0 +1,122 @@
+/**
+ * Shared storefront / admin product pricing helpers.
+ * `price` on dresses is the regular (list) price; `sale_price` is optional.
+ * Products without sale_price (veils, robes, etc.) resolve as not on sale.
+ */
+
+export function discountPercent(
+  regular: number | null | undefined,
+  sale: number | null | undefined
+): number | null {
+  if (
+    regular == null ||
+    sale == null ||
+    !Number.isFinite(regular) ||
+    !Number.isFinite(sale) ||
+    regular <= 0 ||
+    sale < 0 ||
+    sale >= regular
+  ) {
+    return null;
+  }
+  return Math.round(((regular - sale) / regular) * 100);
+}
+
+export function isOnSale(
+  regular: number | null | undefined,
+  sale: number | null | undefined
+): boolean {
+  return discountPercent(regular, sale) != null;
+}
+
+export type ResolvedProductPricing = {
+  /** List / regular price when known (purchase products). */
+  regularPrice: number | null;
+  /** Active sale price when on sale; otherwise null. */
+  salePrice: number | null;
+  /** Amount the customer pays (sale if on sale, else regular, else rental). */
+  currentPrice: number | null;
+  /** True when sale_price exists and is strictly less than regular. */
+  onSale: boolean;
+  /** Dynamic discount percent, or null when not on sale. */
+  discountPercent: number | null;
+  /** True when displaying rental-only pricing (no purchase price). */
+  isRental: boolean;
+};
+
+export type ResolveProductPricingInput = {
+  /** Regular / list price (`price` column on dresses). */
+  price?: number | null;
+  salePrice?: number | null;
+  rentalPrice?: number | null;
+  /** Force rental presentation even if price exists. */
+  forceRental?: boolean;
+};
+
+/**
+ * Resolve display pricing from product fields.
+ * Treats missing / invalid sale_price as no sale (safe for veils/robes).
+ */
+export function resolveProductPricing(
+  input: ResolveProductPricingInput
+): ResolvedProductPricing {
+  const regular =
+    input.price != null && Number.isFinite(input.price) && input.price >= 0
+      ? input.price
+      : null;
+  const saleRaw =
+    input.salePrice != null &&
+    Number.isFinite(input.salePrice) &&
+    input.salePrice >= 0
+      ? input.salePrice
+      : null;
+  const rental =
+    input.rentalPrice != null &&
+    Number.isFinite(input.rentalPrice) &&
+    input.rentalPrice >= 0
+      ? input.rentalPrice
+      : null;
+
+  const pct = discountPercent(regular, saleRaw);
+  const onSale = pct != null;
+  const salePrice = onSale ? saleRaw : null;
+
+  const isRental =
+    input.forceRental === true || (regular == null && rental != null);
+
+  const currentPrice = onSale
+    ? salePrice
+    : regular != null
+      ? regular
+      : rental;
+
+  return {
+    regularPrice: regular,
+    salePrice,
+    currentPrice,
+    onSale,
+    discountPercent: pct,
+    isRental,
+  };
+}
+
+/** Line totals for cart / checkout when compare_at was stored at add-to-cart. */
+export function cartLineDisplayPrices(item: {
+  unit_price: number;
+  compare_at_price?: number | null;
+  quantity: number;
+}): { price: number; salePrice: number | null } {
+  const qty = Math.max(1, item.quantity);
+  const compare = item.compare_at_price;
+  const onSale =
+    compare != null &&
+    Number.isFinite(compare) &&
+    compare > item.unit_price;
+  if (onSale) {
+    return {
+      price: compare * qty,
+      salePrice: item.unit_price * qty,
+    };
+  }
+  return { price: item.unit_price * qty, salePrice: null };
+}

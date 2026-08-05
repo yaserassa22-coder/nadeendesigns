@@ -22,7 +22,7 @@ import {
   isHomepageCategory,
 } from "@/types/category";
 import type { AccessoryShopItem } from "@/lib/data/shop-queries";
-import { formatPrice } from "@/lib/utils";
+import { ProductPrice } from "@/components/product/ProductPrice";
 import { featuredImage } from "@/lib/products/featured-image";
 
 function serviceCardClassName(featured: boolean) {
@@ -272,12 +272,11 @@ export function ServicesSection({
                           <h3 className="mt-1 text-lg font-semibold text-charcoal group-hover:text-gold">
                             {product.name_ar}
                           </h3>
-                          <p
-                            className="mt-3 font-[family-name:var(--font-cormorant)] text-xl text-gold"
-                            dir="ltr"
-                          >
-                            {formatPrice(product.price)}
-                          </p>
+                          <ProductPrice
+                            className="mt-3"
+                            price={product.price}
+                            showSaleBadge={false}
+                          />
                         </div>
                       </Link>
                     </Reveal>

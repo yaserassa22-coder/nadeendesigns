@@ -22,7 +22,10 @@ interface AddToCartInput {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
+  /** Charged unit price (use sale when on sale). */
   unit_price: number;
+  /** Regular / list price when charging a sale price. */
+  compare_at_price?: number | null;
   quantity?: number;
   image?: string;
   personalization?: ProductPersonalization | null;
@@ -202,6 +205,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         product_id: input.product_id,
         name_ar: input.name_ar,
         unit_price: input.unit_price,
+        compare_at_price: input.compare_at_price ?? null,
         quantity,
         image: input.image,
         personalization: input.personalization ?? null,

@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
 import { WishlistButton } from "@/components/auth/WishlistButton";
+import {
+  ProductPrice,
+  ProductSaleBadge,
+} from "@/components/product/ProductPrice";
 import { featuredImage } from "@/lib/products/featured-image";
 import { inferWishlistKind } from "@/lib/shop/wishlist";
-import { formatPrice } from "@/lib/utils";
 
 export type RelatedShopItem = {
   id: string;
   name_ar: string;
   price: number;
+  sale_price?: number | null;
   images: string[];
   href: string;
   subtitle?: string;
@@ -56,6 +60,10 @@ export function RelatedShopProducts({
                 productTitle={item.name_ar}
                 productImageUrl={featuredImage(item.images)}
               />
+              <ProductSaleBadge
+                price={item.price}
+                salePrice={item.sale_price}
+              />
             </div>
             <Link href={item.href} className="block p-5">
               <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
@@ -64,9 +72,12 @@ export function RelatedShopProducts({
               {item.subtitle && (
                 <p className="mt-1 text-sm text-muted">{item.subtitle}</p>
               )}
-              <p className="mt-2 text-xl text-gold" dir="ltr">
-                {formatPrice(item.price)}
-              </p>
+              <ProductPrice
+                className="mt-2"
+                price={item.price}
+                salePrice={item.sale_price}
+                showSaleBadge={false}
+              />
             </Link>
           </article>
         ))}

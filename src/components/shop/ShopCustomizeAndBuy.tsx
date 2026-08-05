@@ -31,12 +31,15 @@ import { productPersonalizationSchema } from "@/lib/validations/personalization"
 import type { GiftOptions, ProductPersonalization } from "@/types";
 import type { ShopProductType } from "@/types/shop";
 import { cn } from "@/lib/utils";
+import { resolveProductPricing } from "@/lib/products/pricing";
 
 interface ShopCustomizeAndBuyProps {
   productType: ShopProductType;
   productId: string;
   nameAr: string;
   price: number;
+  /** Optional sale — when lower than price, cart charges sale and keeps compare-at. */
+  salePrice?: number | null;
   image?: string;
 }
 
@@ -45,11 +48,13 @@ export function ShopCustomizeAndBuy({
   productId,
   nameAr,
   price,
+  salePrice,
   image,
 }: ShopCustomizeAndBuyProps) {
   const router = useRouter();
   const { addItem } = useCart();
   const personalizationType = productType === "veil" ? "veils" : "robes";
+  const pricing = resolveProductPricing({ price, salePrice });
 
   const [quantity, setQuantity] = useState(1);
   const [withPersonalization, setWithPersonalization] = useState(true);
@@ -146,7 +151,8 @@ export function ShopCustomizeAndBuy({
       product_type: productType,
       product_id: productId,
       name_ar: nameAr,
-      unit_price: price,
+      unit_price: pricing.currentPrice ?? price,
+      compare_at_price: pricing.onSale ? pricing.regularPrice : null,
       quantity,
       image,
       personalization,

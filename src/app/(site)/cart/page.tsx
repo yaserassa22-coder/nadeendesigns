@@ -8,6 +8,8 @@ import { PersonalizationSummary } from "@/components/dresses/PersonalizationSumm
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { useCart } from "@/components/shop/CartProvider";
 import { Button } from "@/components/ui/Button";
+import { ProductPrice } from "@/components/product/ProductPrice";
+import { cartLineDisplayPrices } from "@/lib/products/pricing";
 import { formatPrice } from "@/lib/utils";
 
 export default function CartPage() {
@@ -66,9 +68,12 @@ export default function CartPage() {
                           </p>
                         </div>
                         {!hidePrice && (
-                          <p className="text-lg text-gold" dir="ltr">
-                            {formatPrice(item.unit_price * item.quantity)}
-                          </p>
+                          <ProductPrice
+                            className="shrink-0"
+                            size="sm"
+                            {...cartLineDisplayPrices(item)}
+                            showSaleBadge={false}
+                          />
                         )}
                       </div>
 
