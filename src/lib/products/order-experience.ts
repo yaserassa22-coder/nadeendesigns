@@ -336,8 +336,11 @@ export function productNeedsExperienceModal(input: {
   /** @deprecated Ignored — order options belong to checkout. */
   orderOptions?: OrderOptionConfig[] | null;
   extraServices?: ExtraServiceConfig[] | null;
+  /** Gift wrapping section (feature-gated) must open the modal too. */
+  enableGiftWrapping?: boolean;
 }): boolean {
   if (input.supportsPersonalization) return true;
+  if (input.enableGiftWrapping) return true;
   if ((input.extraServices?.length ?? 0) > 0) return true;
   return false;
 }

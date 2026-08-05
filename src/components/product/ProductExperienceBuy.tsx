@@ -44,6 +44,8 @@ type Props = {
   showBuyNow?: boolean;
   /** Primary add-to-cart label from purchase flow (Admin sync). */
   addLabel?: string;
+  showFontSelection?: boolean;
+  showColorSelection?: boolean;
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -73,6 +75,8 @@ export function ProductExperienceBuy({
   showAddToCart = true,
   showBuyNow = true,
   addLabel: addLabelProp,
+  showFontSelection = true,
+  showColorSelection = true,
   disabled = false,
   size = "lg",
   className,
@@ -95,6 +99,7 @@ export function ProductExperienceBuy({
   // checkout-only order options / delivery / notes.
   const needsModal = productNeedsExperienceModal({
     supportsPersonalization,
+    enableGiftWrapping,
     extraServices,
   });
   const addLabel =
@@ -175,6 +180,8 @@ export function ProductExperienceBuy({
           enablePersonalization={supportsPersonalization}
           enableGiftWrapping={enableGiftWrapping}
           requiresShipping={requiresShipping}
+          showFontSelection={showFontSelection}
+          showColorSelection={showColorSelection}
           onSuccess={(mode) => {
             if (mode === "cart") setMessage("تمت الإضافة إلى السلة");
           }}

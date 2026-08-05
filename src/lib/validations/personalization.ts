@@ -36,8 +36,9 @@ export const productPersonalizationSchema = z
     dress_id: z.string().min(1),
     dress_name_ar: z.string().min(1),
     writing_language: writingLanguageSchema,
-    text_ar: z.string().max(25).default(""),
-    text_en: z.string().max(25).default(""),
+    // Upper bound; storefront enforces Admin personalization_ui.max_characters.
+    text_ar: z.string().max(200).default(""),
+    text_en: z.string().max(200).default(""),
     font_ar: arabicFontSchema,
     font_en: englishFontSchema,
     color: writingColorSchema,

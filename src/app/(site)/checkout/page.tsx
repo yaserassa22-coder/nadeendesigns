@@ -8,6 +8,10 @@ import { PageHero } from "@/components/dresses/DressCatalog";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { OrderOptionsSummary } from "@/components/product/OrderOptionsSummary";
+import {
+  OrderOptionsFields,
+  type OrderOptionValues,
+} from "@/components/product/OrderOptionsFields";
 import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary";
 import { useCart } from "@/components/shop/CartProvider";
 import {
@@ -31,6 +35,12 @@ import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { cartLineDisplayPrices } from "@/lib/products/pricing";
+import {
+  buildLineOrderOptions,
+  enabledOrderOptions,
+  validateOrderOptionValues,
+  type OrderOptionConfig,
+} from "@/lib/products/order-experience";
 import {
   defaultDeliveryMethod,
   formatEstimatedDelivery,
@@ -102,6 +112,15 @@ export default function CheckoutPage() {
   const [paymentMethods, setPaymentMethods] = useState<
     { id: string; name_ar: string; description_ar: string }[]
   >([]);
+  const [checkoutOrderOptions, setCheckoutOrderOptions] = useState<
+    OrderOptionConfig[]
+  >([]);
+  const [orderOptionValues, setOrderOptionValues] = useState<OrderOptionValues>(
+    {}
+  );
+  const [orderOptionErrors, setOrderOptionErrors] = useState<
+    Record<string, string>
+  >({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
@@ -132,6 +151,11 @@ export default function CheckoutPage() {
               description_ar: "ادفعي عند استلام طلبكِ",
             },
           ]);
+        }
+        if (storeData?.order_options) {
+          setCheckoutOrderOptions(
+            enabledOrderOptions(storeData.order_options)
+          );
         }
       })
       .catch(() => {
@@ -310,12 +334,28 @@ export default function CheckoutPage() {
       }
     }
 
+    if (checkoutOrderOptions.length) {
+      const optErrors = validateOrderOptionValues(
+        checkoutOrderOptions,
+        orderOptionValues
+      );
+      if (Object.keys(optErrors).length) {
+        setOrderOptionErrors(optErrors);
+        setError("أكملي خيارات الطلب المطلوبة.");
+        return;
+      }
+      setOrderOptionErrors({});
+    }
+
     setSaving(true);
     const regionText = regionSel.regionText.trim();
     const recipientName =
       shippingName || (deliveryMethod === "delivery" ? contactName : "");
     const recipientPhone =
       shippingPhone || (deliveryMethod === "delivery" ? contactPhone : "");
+    const lineOrderOptions = checkoutOrderOptions.length
+      ? buildLineOrderOptions(checkoutOrderOptions, orderOptionValues)
+      : null;
     const payload = {
       name: contactName,
       phone: contactPhone,
@@ -352,7 +392,9 @@ export default function CheckoutPage() {
         image: i.image,
         personalization: i.personalization,
         gift_options: i.gift_options,
-        order_options: i.order_options,
+        order_options: lineOrderOptions?.length
+          ? lineOrderOptions
+          : i.order_options,
         extra_services: i.extra_services,
         personalization_fee: i.personalization_fee ?? null,
         requires_shipping: i.requires_shipping,
@@ -616,6 +658,17 @@ export default function CheckoutPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
+
+            {checkoutOrderOptions.length > 0 ? (
+              <div className="border-t border-beige-dark pt-6">
+                <OrderOptionsFields
+                  options={checkoutOrderOptions}
+                  values={orderOptionValues}
+                  onChange={setOrderOptionValues}
+                  errors={orderOptionErrors}
+                />
+              </div>
+            ) : null}
 
             <div className="border-t border-beige-dark pt-6">
               <NotificationPreferences

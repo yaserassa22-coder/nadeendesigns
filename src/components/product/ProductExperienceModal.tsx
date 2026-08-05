@@ -58,6 +58,9 @@ type Props = {
   enablePersonalization?: boolean;
   enableGiftWrapping?: boolean;
   requiresShipping?: boolean;
+  /** Feature library — font/color UI gates. */
+  showFontSelection?: boolean;
+  showColorSelection?: boolean;
   onSuccess?: (intent: ProductExperienceIntent) => void;
 };
 
@@ -118,11 +121,19 @@ export function ProductExperienceModal({
   enablePersonalization = false,
   enableGiftWrapping = false,
   requiresShipping = true,
+  showFontSelection = true,
+  showColorSelection = true,
   onSuccess,
 }: Props) {
   const router = useRouter();
   const { addItem } = useCart();
   const personalizationType = shopTypeToPersonalizationType(shopProductType);
+  const persUi = experienceConfig?.personalization_ui;
+  const personalizationRequired = Boolean(persUi?.required);
+  const personalizationMaxChars = Math.max(
+    1,
+    Math.min(200, Math.floor(persUi?.max_characters ?? 25) || 25)
+  );
 
   const sections = useMemo(() => {
     const source = sectionsProp?.length
@@ -172,7 +183,8 @@ export function ProductExperienceModal({
   );
 
   const personalizationFee =
-    enablePersonalization && personalization.enabled
+    enablePersonalization &&
+    (personalizationRequired || personalization.enabled)
       ? Math.max(0, experienceConfig?.personalization_ui?.extra_price ?? 0)
       : 0;
 
@@ -186,14 +198,27 @@ export function ProductExperienceModal({
     | null
     | undefined => {
     if (!enablePersonalization || !personalizationType) return null;
-    if (!personalization.enabled) return null;
+    const mustPersonalize =
+      personalizationRequired || personalization.enabled;
+    if (!mustPersonalize) return null;
+    const textAr = personalization.textAr.slice(0, personalizationMaxChars);
+    const textEn = personalization.textEn.slice(0, personalizationMaxChars);
+    if (
+      textAr.length > personalizationMaxChars ||
+      textEn.length > personalizationMaxChars
+    ) {
+      setErrors({
+        form: `نص التخصيص يجب ألا يتجاوز ${personalizationMaxChars} حرفاً`,
+      });
+      return undefined;
+    }
     const result = validatePersonalization({
       product_type: personalizationType,
       dress_id: productId,
       dress_name_ar: nameAr,
       writing_language: personalization.writingLanguage,
-      text_ar: personalization.textAr,
-      text_en: personalization.textEn,
+      text_ar: textAr,
+      text_en: textEn,
       font_ar: personalization.fontAr,
       font_en: personalization.fontEn,
       color: personalization.color,
@@ -289,6 +314,10 @@ export function ProductExperienceModal({
               value={personalization}
               onChange={setPersonalization}
               errors={errors}
+              maxCharacters={personalizationMaxChars}
+              required={personalizationRequired}
+              showFontSelection={showFontSelection}
+              showColorSelection={showColorSelection}
             />
           </SectionShell>
         );
@@ -378,6 +407,10 @@ export function ProductExperienceModal({
                   value={personalization}
                   onChange={setPersonalization}
                   errors={errors}
+                  maxCharacters={personalizationMaxChars}
+                  required={personalizationRequired}
+                  showFontSelection={showFontSelection}
+                  showColorSelection={showColorSelection}
                 />
               ) : null}
               {enableGiftWrapping ? (

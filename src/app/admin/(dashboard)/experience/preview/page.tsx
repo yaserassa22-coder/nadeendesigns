@@ -3,19 +3,23 @@ import { ExperienceEngineShell } from "@/components/admin/experience/ExperienceE
 import {
   PRODUCT_COMMERCE_TYPES,
   PRODUCT_COMMERCE_TYPE_LABELS,
+  applyPurchaseFlowOverride,
   getProductPrimaryAction,
 } from "@/lib/products/primary-action";
 import { defaultFeatureIdsForProduct } from "@/lib/products/experience-features";
+import { listPurchaseFlows } from "@/lib/products/purchase-flows";
 
 export const metadata: Metadata = {
   title: "معاينة التجربة",
 };
 
-export default function ExperiencePreviewPage() {
+export default async function ExperiencePreviewPage() {
+  const flows = await listPurchaseFlows();
+
   return (
     <ExperienceEngineShell
       title="معاينة"
-      description="مرجع سريع لسلوك الواجهة حسب نوع المنتج والميزات الافتراضية. المعاينة الحية تتم من صفحة المنتج."
+      description="مرجع لمسارات الشراء المحفوظة (من محرك التجربة). المعاينة الحية للمنتج تتم من محرر المنتج ← تجربة المنتج."
     >
       <div className="overflow-x-auto rounded-2xl border border-beige-dark bg-white">
         <table className="w-full min-w-[640px] text-sm">
@@ -29,7 +33,11 @@ export default function ExperiencePreviewPage() {
           </thead>
           <tbody>
             {PRODUCT_COMMERCE_TYPES.map((type) => {
-              const action = getProductPrimaryAction(type);
+              const flow = flows.find((f) => f.product_type === type);
+              const action = applyPurchaseFlowOverride(
+                getProductPrimaryAction(type),
+                flow
+              );
               const features = defaultFeatureIdsForProduct({
                 productType: type,
               });

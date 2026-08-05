@@ -5,6 +5,7 @@ import {
   Noto_Sans_Arabic,
 } from "next/font/google";
 import { OFFICIAL_INSTAGRAM_URL, SITE_NAME } from "@/lib/constants";
+import { getStoreSettings } from "@/lib/store/settings";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -29,45 +30,61 @@ const notoArabic = Noto_Sans_Arabic({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://nadeendesigns.com"
-  ),
-  title: {
-    default: `${SITE_NAME} | بوتيك فساتين الزفاف الفاخرة`,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description:
-    "Nadeen Designs — بوتيك فاخر لفساتين الزفاف والإيجار وطرحة العروس وبرنص العروس وتصميم الفساتين الخاصة. احجزي موعدك اليوم واكتشفي مجموعتنا الحصرية.",
-  keywords: [
-    "فساتين زفاف",
-    "فساتين للإيجار",
-    "بوتيك عروس",
-    "Nadeen Designs",
-    "nadeendesign_",
-    "إنستغرام Nadeen Designs",
-    "طرحة العروس",
-    "برنص العروس",
-    "اكسسوارات العروس",
-    "تصميم فستان خاص",
-    "فساتين نوف",
-  ],
-  openGraph: {
-    type: "website",
-    locale: "ar_SA",
-    siteName: SITE_NAME,
-    title: `${SITE_NAME} | بوتيك فساتين الزفاف الفاخرة`,
-    description:
-      "اكتشفي مجموعة فساتين الزفاف الفاخرة المصممة لتجعل يومك أكثر أناقة وتميزًا.",
-  },
-  alternates: {
-    canonical: "/",
-  },
-  other: {
-    "instagram:profile": OFFICIAL_INSTAGRAM_URL,
-  },
-  robots: { index: true, follow: true },
-};
+const FALLBACK_DESCRIPTION =
+  "Nadeen Designs — بوتيك فاخر لفساتين الزفاف والإيجار وطرحة العروس وبرنص العروس وتصميم الفساتين الخاصة. احجزي موعدك اليوم واكتشفي مجموعتنا الحصرية.";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const store = await getStoreSettings();
+  const seo = store.seo;
+  const title =
+    seo.title?.trim() || `${SITE_NAME} | بوتيك فساتين الزفاف الفاخرة`;
+  const description = seo.description?.trim() || FALLBACK_DESCRIPTION;
+  const keywords = seo.keywords
+    ? seo.keywords
+        .split(/[,،]/)
+        .map((k) => k.trim())
+        .filter(Boolean)
+    : [
+        "فساتين زفاف",
+        "فساتين للإيجار",
+        "بوتيك عروس",
+        "Nadeen Designs",
+        "طرحة العروس",
+        "برنص العروس",
+      ];
+
+  return {
+    metadataBase: new URL(
+      process.env.NEXT_PUBLIC_SITE_URL ?? "https://nadeendesigns.com"
+    ),
+    title: {
+      default: title,
+      template: `%s | ${SITE_NAME}`,
+    },
+    description,
+    keywords,
+    openGraph: {
+      type: "website",
+      locale: "ar_SA",
+      siteName: SITE_NAME,
+      title,
+      description,
+      ...(seo.og_image_url
+        ? { images: [{ url: seo.og_image_url }] }
+        : {}),
+    },
+    alternates: {
+      canonical: "/",
+    },
+    other: {
+      "instagram:profile": OFFICIAL_INSTAGRAM_URL,
+    },
+    robots: {
+      index: seo.robots_index !== false,
+      follow: seo.robots_follow !== false,
+    },
+  };
+}
 
 export default function RootLayout({
   children,

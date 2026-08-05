@@ -688,10 +688,8 @@ export function StoreSettingsPanel({
                   ["hero", "الهيرو"],
                   ["featured_categories", "التصنيفات المميزة"],
                   ["featured_products", "المنتجات المميزة"],
-                  ["collections", "المجموعات"],
-                  ["testimonials", "آراء العملاء"],
+                  ["collections", "قسم التصميم الخاص"],
                   ["instagram", "إنستغرام"],
-                  ["newsletter", "النشرة البريدية"],
                 ] as const
               ).map(([key, label]) => (
                 <Toggle
@@ -806,7 +804,7 @@ export function StoreSettingsPanel({
         {active === "order_options" && (
           <Section
             title="خيارات الطلب"
-            description="إعدادات افتراضية لخيارات الطلب (المرحلة 1 — إعداد فقط، بدون تغيير الدفع)."
+            description="خيارات تُجمع من العميلة عند إتمام الطلب (تاريخ التوصيل، ملاحظات، …)."
             onSave={() => saveSection("order_options")}
             saving={saving}
           >
@@ -881,7 +879,7 @@ export function StoreSettingsPanel({
         {active === "seo" && (
           <Section
             title="SEO والتحليلات"
-            description="عناوين وصفية ومعرّفات التحليلات (بدون أسرار)."
+            description="العنوان والوصف وOG والـ robots تُطبَّق على المتجر. معرّفات التحليلات تُحفظ للمرحلة التالية (لا تُحقَن تلقائياً بعد)."
             onSave={() => saveSection("seo")}
             saving={saving}
           >
@@ -1011,7 +1009,7 @@ export function StoreSettingsPanel({
               }
             />
             <Toggle
-              label="وضع الصيانة"
+              label="وضع الصيانة (قريباً)"
               checked={settings.security.maintenance_mode}
               onChange={(v) =>
                 setSettings((s) => ({
@@ -1019,7 +1017,7 @@ export function StoreSettingsPanel({
                   security: { ...s.security, maintenance_mode: v },
                 }))
               }
-              hint="عند التفعيل يمكن إظهار صفحة صيانة في المتجر لاحقاً"
+              hint="محفوظ في الإعدادات — صفحة الصيانة للمتجر غير مفعّلة بعد"
             />
             <div className="rounded-xl border border-beige-dark/60 bg-beige/30 px-4 py-3 text-sm">
               <p className="font-medium text-charcoal">حالة النسخ الاحتياطي</p>

@@ -128,6 +128,11 @@ export function ProductPrimaryCta({
         enableGiftWrapping={allowGift}
         requiresShipping={action.requiresShipping}
         addLabel={action.label}
+        showFontSelection={isFeatureEnabled(enabledFeatures, "font_selection")}
+        showColorSelection={isFeatureEnabled(
+          enabledFeatures,
+          "color_selection"
+        )}
         showBuyNow={
           !action.hideBuyNow && isFeatureEnabled(enabledFeatures, "buy_now")
         }
