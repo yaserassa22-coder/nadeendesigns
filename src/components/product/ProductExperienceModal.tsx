@@ -6,10 +6,6 @@ import { ChevronDown, ShoppingBag, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCart } from "@/components/shop/CartProvider";
-import {
-  OrderOptionsFields,
-  type OrderOptionValues,
-} from "@/components/product/OrderOptionsFields";
 import { ExtraServicesFields } from "@/components/product/ExtraServicesFields";
 import { ProductExperiencePriceSummary } from "@/components/product/ProductExperiencePriceSummary";
 import {
@@ -25,17 +21,12 @@ import {
 import { PersonalizationFonts } from "@/components/dresses/PersonalizationFonts";
 import {
   buildLineExtraServices,
-  buildLineOrderOptions,
   defaultSelectedServiceIds,
   enforceRequiredServiceIds,
-  validateOrderOptionValues,
   type ExtraServiceConfig,
-  type OrderOptionConfig,
-  type OrderOptionKey,
 } from "@/lib/products/order-experience";
 import {
-  DELIVERY_OPTION_KEYS,
-  enabledExperienceSections,
+  storefrontExperienceSections,
   type ExperienceSectionConfig,
   type ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
@@ -60,7 +51,8 @@ type Props = {
   unitPrice: number;
   compareAtPrice?: number | null;
   image?: string | null;
-  orderOptions?: OrderOptionConfig[];
+  /** @deprecated Order options belong to checkout — ignored on PDP/modal. */
+  orderOptions?: unknown;
   extraServices?: ExtraServiceConfig[];
   experienceConfig?: ProductExperienceConfig | null;
   sections?: ExperienceSectionConfig[];
@@ -107,8 +99,9 @@ function SectionShell({
 }
 
 /**
- * Single reusable Product Experience Modal (Sprint 2A MASTER).
- * Section order/titles come from Product Experience Designer config.
+ * Luxury Product Experience Modal (Sprint 2A MASTER — Final).
+ * PDP content ONLY: Personalization · Extra Services · Gift · Quantity · sticky Summary · CTAs.
+ * Delivery / order notes / order options never render here (checkout only).
  */
 export function ProductExperienceModal({
   open,
@@ -120,7 +113,6 @@ export function ProductExperienceModal({
   unitPrice,
   compareAtPrice = null,
   image,
-  orderOptions = [],
   extraServices = [],
   experienceConfig = null,
   sections: sectionsProp,
@@ -134,24 +126,18 @@ export function ProductExperienceModal({
   const personalizationType = shopTypeToPersonalizationType(shopProductType);
 
   const sections = useMemo(() => {
-    if (sectionsProp?.length) return sectionsProp;
-    return enabledExperienceSections(experienceConfig);
+    const source = sectionsProp?.length
+      ? sectionsProp
+      : storefrontExperienceSections(experienceConfig);
+    // Hard gate — never surface checkout-only sections even from stale props.
+    return source.filter((s) =>
+      ["personalization", "extra_services", "gift_options", "summary"].includes(
+        s.id
+      )
+    );
   }, [sectionsProp, experienceConfig]);
 
-  const deliveryKeys = useMemo(
-    () => new Set<string>(DELIVERY_OPTION_KEYS),
-    []
-  );
-  const deliveryOptions = orderOptions.filter((o) => deliveryKeys.has(o.key));
-  const notesOptions = orderOptions.filter((o) => o.key === "order_notes");
-  const generalOptions = orderOptions.filter(
-    (o) => !deliveryKeys.has(o.key) && o.key !== "order_notes"
-  );
-
   const [quantity, setQuantity] = useState(1);
-  const [orderOptionValues, setOrderOptionValues] = useState<OrderOptionValues>(
-    {}
-  );
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>(() =>
     defaultSelectedServiceIds(extraServices)
   );
@@ -180,6 +166,10 @@ export function ProductExperienceModal({
         (s) => selectedExtraIds.includes(s.id) || s.required
       ),
     [extraServices, selectedExtraIds]
+  );
+
+  const summaryEnabled = sections.some(
+    (s) => s.id === "summary" && s.enabled
   );
 
   const buildPersonalizationPayload = ():
@@ -246,23 +236,9 @@ export function ProductExperienceModal({
       return;
     }
 
-    const optionErrors = validateOrderOptionValues(
-      orderOptions,
-      orderOptionValues
-    );
-    if (Object.keys(optionErrors).length) {
-      setErrors(optionErrors);
-      setSubmitting(false);
-      return;
-    }
-
     const selected = enforceRequiredServiceIds(
       extraServices,
       selectedExtraIds
-    );
-    const lineOrderOptions = buildLineOrderOptions(
-      orderOptions,
-      orderOptionValues
     );
     const lineExtraServices = buildLineExtraServices(extraServices, selected);
 
@@ -276,7 +252,8 @@ export function ProductExperienceModal({
       image: image ?? undefined,
       personalization: pers,
       gift_options: giftOptions,
-      order_options: lineOrderOptions.length ? lineOrderOptions : null,
+      // Delivery / notes / order options collected at checkout only.
+      order_options: null,
       extra_services: lineExtraServices.length ? lineExtraServices : null,
       requires_shipping: requiresShipping,
     });
@@ -328,62 +305,19 @@ export function ProductExperienceModal({
             />
           </SectionShell>
         );
-      case "order_options":
-        if (!generalOptions.length) return null;
-        return (
-          <SectionShell key={section.id} section={section}>
-            <OrderOptionsFields
-              options={generalOptions}
-              values={orderOptionValues}
-              onChange={setOrderOptionValues}
-              errors={errors}
-            />
-          </SectionShell>
-        );
-      case "delivery":
-        if (!deliveryOptions.length) return null;
-        return (
-          <SectionShell key={section.id} section={section}>
-            <OrderOptionsFields
-              options={deliveryOptions}
-              values={orderOptionValues}
-              onChange={setOrderOptionValues}
-              errors={errors}
-            />
-          </SectionShell>
-        );
-      case "order_notes":
-        if (!notesOptions.length) return null;
-        return (
-          <SectionShell key={section.id} section={section}>
-            <OrderOptionsFields
-              options={notesOptions}
-              values={orderOptionValues}
-              onChange={setOrderOptionValues}
-              errors={errors}
-            />
-          </SectionShell>
-        );
       case "summary":
-        return (
-          <SectionShell key={section.id} section={section}>
-            <ProductExperiencePriceSummary
-              baseUnitPrice={unitPrice}
-              quantity={quantity}
-              selectedServices={selectedServices}
-            />
-          </SectionShell>
-        );
+        // Sticky footer owns the live summary — skip accordion duplicate.
+        return null;
       default:
+        // order_options / delivery / order_notes — never on PDP
         return null;
     }
   };
 
   if (!open) return null;
 
-  const hasAnyDesignerSection = sections.some((s) => s.enabled);
-  const fallbackOptions = orderOptions.length > 0;
-  const fallbackServices = extraServices.length > 0;
+  const contentSections = sections.filter((s) => s.id !== "summary");
+  const hasDesignerContent = contentSections.some((s) => s.enabled);
 
   return (
     <div
@@ -423,12 +357,12 @@ export function ProductExperienceModal({
         </div>
 
         <PersonalizationFonts className="flex-1 space-y-4 overflow-y-auto px-5 py-5 md:px-6">
-          {hasAnyDesignerSection
-            ? sections.map((s) => renderSection(s))
+          {hasDesignerContent
+            ? contentSections.map((s) => renderSection(s))
             : null}
 
-          {/* Backward-compatible fallback if designer disabled all content sections */}
-          {!hasAnyDesignerSection ? (
+          {/* Fallback when designer disabled all content sections */}
+          {!hasDesignerContent ? (
             <>
               {enablePersonalization && personalizationType ? (
                 <VeilRobePersonalizationFields
@@ -445,26 +379,13 @@ export function ProductExperienceModal({
                   errors={errors}
                 />
               ) : null}
-              {fallbackOptions ? (
-                <OrderOptionsFields
-                  options={orderOptions}
-                  values={orderOptionValues}
-                  onChange={setOrderOptionValues}
-                  errors={errors}
-                />
-              ) : null}
-              {fallbackServices ? (
+              {extraServices.length > 0 ? (
                 <ExtraServicesFields
                   services={extraServices}
                   selectedIds={selectedExtraIds}
                   onChange={setSelectedExtraIds}
                 />
               ) : null}
-              <ProductExperiencePriceSummary
-                baseUnitPrice={unitPrice}
-                quantity={quantity}
-                selectedServices={selectedServices}
-              />
             </>
           ) : null}
 
@@ -489,40 +410,48 @@ export function ProductExperienceModal({
           ) : null}
         </PersonalizationFonts>
 
-        <div className="flex flex-col gap-2 border-t border-beige-dark/70 bg-ivory/80 px-5 py-4 sm:flex-row sm:items-center md:px-6">
-          <Button
-            variant="outline"
-            size="lg"
-            className="sm:order-3"
-            onClick={onClose}
-            disabled={submitting}
-          >
-            إلغاء
-          </Button>
-          <Button
-            size="lg"
-            className="sm:order-1 sm:flex-1"
-            disabled={submitting}
-            onClick={() => commit("cart")}
-          >
-            <ShoppingBag className="h-4 w-4" />
-            أضيفي للسلة
-          </Button>
-          <Button
-            size="lg"
-            variant={intent === "checkout" ? "primary" : "outline"}
-            className="sm:order-2 sm:flex-1"
-            disabled={submitting}
-            onClick={() => commit("checkout")}
-          >
-            <Zap className="h-4 w-4" />
-            شراء الآن
-          </Button>
+        {/* Sticky live summary + purchase actions (mobile + desktop) */}
+        <div className="sticky bottom-0 border-t border-beige-dark/70 bg-ivory/95 px-5 py-4 backdrop-blur-sm md:px-6">
+          {summaryEnabled || !hasDesignerContent ? (
+            <ProductExperiencePriceSummary
+              className="mb-3 rounded-2xl border border-gold/30 bg-white/80 p-3 text-sm md:p-4"
+              baseUnitPrice={unitPrice}
+              quantity={quantity}
+              selectedServices={selectedServices}
+            />
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              variant="outline"
+              size="lg"
+              className="sm:order-3"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              إلغاء
+            </Button>
+            <Button
+              size="lg"
+              className="sm:order-1 sm:flex-1"
+              disabled={submitting}
+              onClick={() => commit("cart")}
+            >
+              <ShoppingBag className="h-4 w-4" />
+              أضيفي للسلة
+            </Button>
+            <Button
+              size="lg"
+              variant={intent === "checkout" ? "primary" : "outline"}
+              className="sm:order-2 sm:flex-1"
+              disabled={submitting}
+              onClick={() => commit("checkout")}
+            >
+              <Zap className="h-4 w-4" />
+              شراء الآن
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-// Keep type export used by option value maps
-export type { OrderOptionKey };

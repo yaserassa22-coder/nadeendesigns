@@ -47,9 +47,10 @@ type Props = {
 
 /**
  * Add to Cart + Buy Now CTAs with Product Experience Modal when configurable.
- * - Configurable (personalization / options / services) → modal first
+ * - Personalization or extra services → modal first
  * - Otherwise → direct cart add; Buy Now → checkout
  * - After Add to Cart from modal: stay on storefront
+ * - Order options / delivery / notes are never collected here (checkout only)
  */
 export function ProductExperienceBuy({
   shopProductType = "dress",
@@ -58,7 +59,8 @@ export function ProductExperienceBuy({
   price,
   salePrice,
   image,
-  orderOptions = [],
+  // orderOptions accepted for backward-compatible call sites; never used on PDP.
+  orderOptions: _unusedOrderOptions,
   extraServices = [],
   experienceConfig = null,
   sections = [],
@@ -83,9 +85,10 @@ export function ProductExperienceBuy({
   const supportsPersonalization =
     enablePersonalization ??
     shopProductSupportsPersonalization(shopProductType);
+  // Modal opens only for personalization or extra services — never for
+  // checkout-only order options / delivery / notes.
   const needsModal = productNeedsExperienceModal({
     supportsPersonalization,
-    orderOptions,
     extraServices,
   });
   const addLabel = getProductPrimaryAction("ready_to_buy").label;
@@ -174,7 +177,6 @@ export function ProductExperienceBuy({
           unitPrice={unit}
           compareAtPrice={pricing.onSale ? pricing.regularPrice : null}
           image={image}
-          orderOptions={orderOptions}
           extraServices={extraServices}
           experienceConfig={experienceConfig}
           sections={sections}

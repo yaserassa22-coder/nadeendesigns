@@ -327,14 +327,17 @@ export function formatExtraServicePriceLabel(svc: {
   return `+₪ ${formatted}`;
 }
 
-/** Whether PDP must open the Product Experience Modal before cart/checkout. */
+/**
+ * Whether PDP must open the Product Experience Modal before cart/checkout.
+ * Order options / delivery / notes are checkout-only — they never gate the modal.
+ */
 export function productNeedsExperienceModal(input: {
   supportsPersonalization?: boolean;
+  /** @deprecated Ignored — order options belong to checkout. */
   orderOptions?: OrderOptionConfig[] | null;
   extraServices?: ExtraServiceConfig[] | null;
 }): boolean {
   if (input.supportsPersonalization) return true;
-  if ((input.orderOptions?.length ?? 0) > 0) return true;
   if ((input.extraServices?.length ?? 0) > 0) return true;
   return false;
 }

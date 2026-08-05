@@ -9,22 +9,28 @@ import {
 } from "@/lib/products/order-experience";
 import {
   defaultProductExperienceConfig,
-  enabledExperienceSections,
   normalizeProductExperienceConfig,
+  storefrontExperienceSections,
   type ExperienceSectionConfig,
   type ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
 import { getStoreSettings } from "@/lib/store/settings";
 
 export type ResolvedProductExperience = {
+  /**
+   * Resolved for Admin/checkout pipelines. Never rendered on PDP/modal.
+   * Kept for backward-compatible cart/order persistence if checkout uses them later.
+   */
   orderOptions: OrderOptionConfig[];
   extraServices: ExtraServiceConfig[];
   experienceConfig: ProductExperienceConfig;
+  /** Storefront-safe sections only (no delivery / notes / order options). */
   sections: ExperienceSectionConfig[];
 };
 
 /**
- * Resolve storefront order options + extra services + designer sections.
+ * Resolve storefront extra services + designer sections for the PDP/modal.
+ * Order options are resolved for checkout/admin continuity but never shown on PDP.
  * Serializable — safe to pass Server → Client as props.
  */
 export async function resolveStorefrontProductExperience(input?: {
@@ -62,6 +68,6 @@ export async function resolveStorefrontProductExperience(input?: {
       ctx
     ),
     experienceConfig,
-    sections: enabledExperienceSections(experienceConfig),
+    sections: storefrontExperienceSections(experienceConfig),
   };
 }

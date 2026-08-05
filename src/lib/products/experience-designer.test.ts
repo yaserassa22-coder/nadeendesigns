@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHECKOUT_ONLY_SECTION_IDS,
   defaultProductExperienceConfig,
   enabledExperienceSections,
+  isCheckoutOnlyExperienceSection,
   moveExperienceSection,
   normalizeProductExperienceConfig,
+  storefrontExperienceSections,
 } from "./experience-designer";
 import {
   defaultSelectedServiceIds,
@@ -13,13 +16,62 @@ import {
 } from "./order-experience";
 
 describe("experience designer", () => {
-  it("fills default sections", () => {
+  it("fills default sections with checkout-only disabled", () => {
     const cfg = normalizeProductExperienceConfig({});
     expect(cfg.sections.length).toBe(7);
     expect(cfg.sections.map((s) => s.id)).toContain("summary");
+    for (const id of CHECKOUT_ONLY_SECTION_IDS) {
+      const section = cfg.sections.find((s) => s.id === id);
+      expect(section?.enabled).toBe(false);
+      expect(isCheckoutOnlyExperienceSection(id)).toBe(true);
+    }
   });
 
-  it("preserves custom titles and order", () => {
+  it("storefrontExperienceSections strips checkout-only even if enabled in legacy config", () => {
+    const cfg = normalizeProductExperienceConfig({
+      sections: [
+        {
+          id: "extra_services",
+          enabled: true,
+          sort_order: 0,
+          title_ar: "خدمات",
+        },
+        {
+          id: "order_options",
+          enabled: true,
+          sort_order: 1,
+          title_ar: "خيارات",
+        },
+        {
+          id: "delivery",
+          enabled: true,
+          sort_order: 2,
+        },
+        {
+          id: "order_notes",
+          enabled: true,
+          sort_order: 3,
+        },
+        {
+          id: "summary",
+          enabled: true,
+          sort_order: 4,
+          title_ar: "الإجمالي",
+        },
+      ],
+    });
+    const storefront = storefrontExperienceSections(cfg);
+    expect(storefront.map((s) => s.id)).toEqual(["extra_services", "summary"]);
+    expect(storefront.some((s) => CHECKOUT_ONLY_SECTION_IDS.includes(s.id))).toBe(
+      false
+    );
+    // Admin-facing list may still include them when enabled
+    expect(
+      enabledExperienceSections(cfg).some((s) => s.id === "order_options")
+    ).toBe(true);
+  });
+
+  it("preserves custom titles and order for storefront sections", () => {
     const cfg = normalizeProductExperienceConfig({
       sections: [
         {
@@ -36,7 +88,7 @@ describe("experience designer", () => {
         },
       ],
     });
-    const enabled = enabledExperienceSections(cfg);
+    const enabled = storefrontExperienceSections(cfg);
     expect(enabled[0].id).toBe("summary");
     expect(enabled[0].title_ar).toBe("الإجمالي");
   });

@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import {
+  isCheckoutOnlyExperienceSection,
   moveExperienceSection,
   normalizeProductExperienceConfig,
+  storefrontExperienceSections,
   type ExperienceSectionConfig,
   type ExperienceSectionId,
   type ExperienceTemplateRow,
@@ -164,9 +166,13 @@ export function ExperienceDesignerPanel({
         <h3 className="font-medium text-foreground">ترتيب الأقسام</h3>
         <p className="text-xs text-muted">
           فعّلي/عطّلي الأقسام، خصصي العنوان، وغيّري الترتيب. المعاينة تتحدث فوراً.
+          أقسام التوصيل / الملاحظات / خيارات الطلب تُحفظ للمستقبل ولا تظهر أبداً في
+          صفحة المنتج أو نافذة التجربة — تُسأل عند الدفع فقط.
         </p>
         <div className="space-y-3">
-          {sorted.map((section) => (
+          {sorted.map((section) => {
+            const checkoutOnly = isCheckoutOnlyExperienceSection(section.id);
+            return (
             <div
               key={section.id}
               className="space-y-2 rounded-xl border border-beige-dark/70 p-3"
@@ -185,6 +191,11 @@ export function ExperienceDesignerPanel({
                   <span className="text-xs text-muted" dir="ltr">
                     ({section.id})
                   </span>
+                  {checkoutOnly ? (
+                    <span className="rounded-full bg-beige px-2 py-0.5 text-[10px] font-medium text-muted">
+                      عند الدفع فقط
+                    </span>
+                  ) : null}
                 </label>
                 <div className="flex gap-1">
                   <Button
@@ -225,6 +236,12 @@ export function ExperienceDesignerPanel({
               </div>
               {section.enabled ? (
                 <div className="grid gap-2 sm:grid-cols-2">
+                  {checkoutOnly ? (
+                    <p className="sm:col-span-2 text-xs text-muted">
+                      هذا القسم لا يُعرض في صفحة المنتج أو نافذة التجربة. العنوان
+                      محفوظ للتكامل المستقبلي مع صفحة الدفع.
+                    </p>
+                  ) : null}
                   <Input
                     label="العنوان (عربي)"
                     value={section.title_ar}
@@ -266,20 +283,22 @@ export function ExperienceDesignerPanel({
                 </div>
               ) : null}
             </div>
-          ))}
+          );
+          })}
         </div>
       </section>
 
       <section className="space-y-3">
-        <h3 className="font-medium text-foreground">معاينة فورية</h3>
+        <h3 className="font-medium text-foreground">معاينة فورية (صفحة المنتج)</h3>
         <div className="rounded-2xl border border-gold/30 bg-ivory/60 p-4">
           <p className="mb-3 text-xs text-gold">تجربة المنتج · {productNameAr}</p>
           <ol className="space-y-2">
-            {sorted
-              .filter((s) => s.enabled)
+            {storefrontExperienceSections(config)
               .filter(
                 (s) =>
-                  s.id !== "personalization" || supportsPersonalization || s.enabled
+                  s.id !== "personalization" ||
+                  supportsPersonalization ||
+                  s.enabled
               )
               .map((s, i) => (
                 <li
@@ -302,6 +321,9 @@ export function ExperienceDesignerPanel({
                 </li>
               ))}
           </ol>
+          <p className="mt-3 text-[11px] text-muted">
+            الكمية وأزرار الشراء تظهر دائماً. التوصيل والملاحظات تُسأل عند الدفع فقط.
+          </p>
         </div>
       </section>
     </div>

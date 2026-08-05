@@ -1,6 +1,10 @@
 /**
  * Product Experience Designer — section layout config (Sprint 2A MASTER).
  * Per-product `experience_config` JSONB + reusable DB templates.
+ *
+ * Storefront PDP / Experience Modal render ONLY purchase-config sections.
+ * Delivery / address / notes / order options are checkout-only and never
+ * appear on the product page (kept in Admin for future use).
  */
 
 export type ExperienceSectionId =
@@ -52,6 +56,39 @@ export const EXPERIENCE_SECTION_IDS: ExperienceSectionId[] = [
   "summary",
 ];
 
+/**
+ * Sections allowed on Product Page / Experience Modal.
+ * Quantity + purchase buttons are always present (not designer sections).
+ */
+export const STOREFRONT_EXPERIENCE_SECTION_IDS: ExperienceSectionId[] = [
+  "personalization",
+  "extra_services",
+  "gift_options",
+  "summary",
+];
+
+/**
+ * Checkout-only — never render on PDP / Experience Modal.
+ * Kept in Admin designer for future checkout wiring.
+ */
+export const CHECKOUT_ONLY_SECTION_IDS: ExperienceSectionId[] = [
+  "order_options",
+  "delivery",
+  "order_notes",
+];
+
+export function isCheckoutOnlyExperienceSection(
+  id: ExperienceSectionId
+): boolean {
+  return CHECKOUT_ONLY_SECTION_IDS.includes(id);
+}
+
+export function isStorefrontExperienceSection(
+  id: ExperienceSectionId
+): boolean {
+  return STOREFRONT_EXPERIENCE_SECTION_IDS.includes(id);
+}
+
 /** Delivery-related order option keys (split from generic order_options). */
 export const DELIVERY_OPTION_KEYS = [
   "delivery_address",
@@ -91,46 +128,153 @@ export const DEFAULT_EXPERIENCE_SECTIONS: ExperienceSectionConfig[] = [
     description_ar: "",
   },
   {
-    id: "order_options",
-    enabled: true,
-    collapsed: false,
-    sort_order: 3,
-    title: "Order Options",
-    title_ar: "خيارات الطلب",
-    description: "",
-    description_ar: "",
-  },
-  {
-    id: "delivery",
-    enabled: true,
-    collapsed: true,
-    sort_order: 4,
-    title: "Delivery",
-    title_ar: "التوصيل",
-    description: "",
-    description_ar: "",
-  },
-  {
-    id: "order_notes",
-    enabled: true,
-    collapsed: true,
-    sort_order: 5,
-    title: "Order Notes",
-    title_ar: "ملاحظات الطلب",
-    description: "",
-    description_ar: "",
-  },
-  {
     id: "summary",
     enabled: true,
     collapsed: false,
-    sort_order: 6,
+    sort_order: 3,
     title: "Summary",
     title_ar: "ملخص السعر",
     description: "",
     description_ar: "",
   },
+  // Checkout-only — disabled by default; never rendered on PDP/modal.
+  {
+    id: "order_options",
+    enabled: false,
+    collapsed: true,
+    sort_order: 4,
+    title: "Order Options",
+    title_ar: "خيارات الطلب",
+    description: "Checkout only — not shown on product page",
+    description_ar: "عند الدفع فقط — لا يظهر في صفحة المنتج",
+  },
+  {
+    id: "delivery",
+    enabled: false,
+    collapsed: true,
+    sort_order: 5,
+    title: "Delivery",
+    title_ar: "التوصيل",
+    description: "Checkout only — not shown on product page",
+    description_ar: "عند الدفع فقط — لا يظهر في صفحة المنتج",
+  },
+  {
+    id: "order_notes",
+    enabled: false,
+    collapsed: true,
+    sort_order: 6,
+    title: "Order Notes",
+    title_ar: "ملاحظات الطلب",
+    description: "Checkout only — not shown on product page",
+    description_ar: "عند الدفع فقط — لا يظهر في صفحة المنتج",
+  },
 ];
+
+/** Canonical storefront template section lists (no checkout fields). */
+export const STOREFRONT_TEMPLATE_SECTIONS = {
+  gift: [
+    {
+      id: "extra_services",
+      enabled: true,
+      collapsed: false,
+      sort_order: 0,
+      title_ar: "خدمات إضافية",
+      title: "Extra Services",
+    },
+    {
+      id: "gift_options",
+      enabled: true,
+      collapsed: false,
+      sort_order: 1,
+      title_ar: "تغليف هدية",
+      title: "Gift Options",
+    },
+    {
+      id: "personalization",
+      enabled: false,
+      collapsed: true,
+      sort_order: 2,
+      title_ar: "تخصيص الكتابة",
+      title: "Personalization",
+    },
+    {
+      id: "summary",
+      enabled: true,
+      collapsed: false,
+      sort_order: 3,
+      title_ar: "ملخص السعر",
+      title: "Summary",
+    },
+  ],
+  accessory: [
+    {
+      id: "personalization",
+      enabled: true,
+      collapsed: false,
+      sort_order: 0,
+      title_ar: "تخصيص الكتابة",
+      title: "Personalization",
+    },
+    {
+      id: "gift_options",
+      enabled: true,
+      collapsed: true,
+      sort_order: 1,
+      title_ar: "تغليف هدية",
+      title: "Gift Options",
+    },
+    {
+      id: "extra_services",
+      enabled: true,
+      collapsed: false,
+      sort_order: 2,
+      title_ar: "خدمات إضافية",
+      title: "Extra Services",
+    },
+    {
+      id: "summary",
+      enabled: true,
+      collapsed: false,
+      sort_order: 3,
+      title_ar: "ملخص السعر",
+      title: "Summary",
+    },
+  ],
+  ready_to_buy: [
+    {
+      id: "extra_services",
+      enabled: true,
+      collapsed: false,
+      sort_order: 0,
+      title_ar: "خدمات إضافية",
+      title: "Extra Services",
+    },
+    {
+      id: "gift_options",
+      enabled: false,
+      collapsed: true,
+      sort_order: 1,
+      title_ar: "تغليف هدية",
+      title: "Gift Options",
+    },
+    {
+      id: "personalization",
+      enabled: false,
+      collapsed: true,
+      sort_order: 2,
+      title_ar: "تخصيص الكتابة",
+      title: "Personalization",
+    },
+    {
+      id: "summary",
+      enabled: true,
+      collapsed: false,
+      sort_order: 3,
+      title_ar: "ملخص السعر",
+      title: "Summary",
+    },
+  ],
+} as const;
 
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -161,9 +305,16 @@ export function normalizeExperienceSection(
     EXPERIENCE_SECTION_IDS.includes(row.id as ExperienceSectionId)
       ? (row.id as ExperienceSectionId)
       : fallback.id;
+
+  // Checkout-only sections stay in config for Admin, but never force-enabled
+  // for storefront when missing from legacy saves — default disabled.
+  const defaultEnabled = isCheckoutOnlyExperienceSection(id)
+    ? false
+    : fallback.enabled;
+
   return {
     id,
-    enabled: bool(row.enabled, fallback.enabled),
+    enabled: bool(row.enabled, defaultEnabled),
     collapsed: bool(row.collapsed, fallback.collapsed),
     sort_order: Math.floor(num(row.sort_order, fallback.sort_order)),
     title: str(row.title, fallback.title),
@@ -227,7 +378,9 @@ export function defaultProductExperienceConfig(): ProductExperienceConfig {
   return normalizeProductExperienceConfig({});
 }
 
-/** Ordered enabled sections for the modal. */
+/**
+ * Ordered enabled sections for Admin (includes checkout-only when enabled).
+ */
 export function enabledExperienceSections(
   config?: ProductExperienceConfig | null
 ): ExperienceSectionConfig[] {
@@ -235,6 +388,18 @@ export function enabledExperienceSections(
   return normalized.sections
     .filter((s) => s.enabled)
     .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+/**
+ * Storefront PDP / Experience Modal sections only.
+ * Checkout-only ids are stripped even if a legacy template left them enabled.
+ */
+export function storefrontExperienceSections(
+  config?: ProductExperienceConfig | null
+): ExperienceSectionConfig[] {
+  return enabledExperienceSections(config).filter((s) =>
+    isStorefrontExperienceSection(s.id)
+  );
 }
 
 export function moveExperienceSection(

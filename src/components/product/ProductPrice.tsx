@@ -8,7 +8,11 @@ export type ProductPriceSize = "sm" | "md" | "lg";
 
 export type ProductPriceProps = ResolveProductPricingInput & {
   size?: ProductPriceSize;
-  /** Show “SALE” pill next to the price row (cards / PDP). */
+  /**
+   * SALE belongs on the image overlay (ProductCardOverlay), never beside price.
+   * Kept for API compatibility; always ignored.
+   * @deprecated
+   */
   showSaleBadge?: boolean;
   /** Append rental suffix when pricing is rental-only. */
   priceSuffix?: string;
@@ -39,7 +43,8 @@ const sizeClasses: Record<
 };
 
 /**
- * Single storefront pricing UI: regular only, or strikethrough + sale + % OFF + SALE.
+ * Single storefront pricing UI: Original · Sale · Discount % only.
+ * SALE badge lives on ProductCardOverlay (top-left), never beside price.
  */
 export function ProductPrice({
   price,
@@ -47,7 +52,6 @@ export function ProductPrice({
   rentalPrice,
   forceRental,
   size = "md",
-  showSaleBadge = true,
   priceSuffix,
   className,
 }: ProductPriceProps) {
@@ -83,11 +87,6 @@ export function ProductPrice({
         {pricing.discountPercent != null && (
           <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-xs font-medium text-gold">
             {pricing.discountPercent}% OFF
-          </span>
-        )}
-        {showSaleBadge && (
-          <span className="rounded-full bg-charcoal px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase">
-            SALE
           </span>
         )}
       </div>

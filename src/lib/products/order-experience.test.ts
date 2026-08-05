@@ -93,7 +93,7 @@ describe("pricing mode helpers", () => {
     ).toContain("40");
   });
 
-  it("productNeedsExperienceModal gates modal", () => {
+  it("productNeedsExperienceModal gates on personalization/services only", () => {
     expect(
       productNeedsExperienceModal({
         supportsPersonalization: false,
@@ -133,6 +133,22 @@ describe("pricing mode helpers", () => {
         ],
       })
     ).toBe(true);
+    // Order options alone must NOT open the PDP experience modal
+    expect(
+      productNeedsExperienceModal({
+        supportsPersonalization: false,
+        orderOptions: [
+          {
+            key: "order_notes",
+            label: "Notes",
+            label_ar: "ملاحظات",
+            enabled: true,
+            required: false,
+          },
+        ],
+        extraServices: [],
+      })
+    ).toBe(false);
   });
 });
 

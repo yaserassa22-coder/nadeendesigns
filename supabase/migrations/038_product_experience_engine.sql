@@ -114,7 +114,8 @@ CREATE POLICY "experience_templates_public_read" ON product_experience_templates
   FOR SELECT
   USING (TRUE);
 
--- Seed system templates when missing (idempotent by slug)
+-- Seed system templates when missing (idempotent by slug).
+-- PDP/modal sections only — order_options/delivery/order_notes are checkout-only (disabled).
 INSERT INTO product_experience_templates (
   slug, name, name_ar, description_ar, is_system, sort_order, config
 )
@@ -123,18 +124,18 @@ VALUES
     'gift',
     'Gift',
     'هدية',
-    'تجربة شراء مناسبة للهدايا — خدمات + خيارات طلب + ملخص',
+    'تجربة شراء مناسبة للهدايا — خدمات + تغليف + ملخص السعر',
     TRUE,
     0,
     '{
       "sections": [
         {"id":"extra_services","enabled":true,"collapsed":false,"sort_order":0,"title_ar":"خدمات إضافية","title":"Extra Services"},
         {"id":"gift_options","enabled":true,"collapsed":false,"sort_order":1,"title_ar":"تغليف هدية","title":"Gift Options"},
-        {"id":"order_options","enabled":true,"collapsed":false,"sort_order":2,"title_ar":"خيارات الطلب","title":"Order Options"},
-        {"id":"delivery","enabled":true,"collapsed":true,"sort_order":3,"title_ar":"التوصيل","title":"Delivery"},
-        {"id":"order_notes","enabled":true,"collapsed":true,"sort_order":4,"title_ar":"ملاحظات","title":"Order Notes"},
-        {"id":"personalization","enabled":false,"collapsed":true,"sort_order":5,"title_ar":"تخصيص الكتابة","title":"Personalization"},
-        {"id":"summary","enabled":true,"collapsed":false,"sort_order":6,"title_ar":"ملخص السعر","title":"Summary"}
+        {"id":"personalization","enabled":false,"collapsed":true,"sort_order":2,"title_ar":"تخصيص الكتابة","title":"Personalization"},
+        {"id":"summary","enabled":true,"collapsed":false,"sort_order":3,"title_ar":"ملخص السعر","title":"Summary"},
+        {"id":"order_options","enabled":false,"collapsed":true,"sort_order":4,"title_ar":"خيارات الطلب","title":"Order Options"},
+        {"id":"delivery","enabled":false,"collapsed":true,"sort_order":5,"title_ar":"التوصيل","title":"Delivery"},
+        {"id":"order_notes","enabled":false,"collapsed":true,"sort_order":6,"title_ar":"ملاحظات الطلب","title":"Order Notes"}
       ]
     }'::jsonb
   ),
@@ -150,10 +151,10 @@ VALUES
         {"id":"personalization","enabled":true,"collapsed":false,"sort_order":0,"title_ar":"تخصيص الكتابة","title":"Personalization"},
         {"id":"gift_options","enabled":true,"collapsed":true,"sort_order":1,"title_ar":"تغليف هدية","title":"Gift Options"},
         {"id":"extra_services","enabled":true,"collapsed":false,"sort_order":2,"title_ar":"خدمات إضافية","title":"Extra Services"},
-        {"id":"order_options","enabled":true,"collapsed":true,"sort_order":3,"title_ar":"خيارات الطلب","title":"Order Options"},
-        {"id":"delivery","enabled":false,"collapsed":true,"sort_order":4,"title_ar":"التوصيل","title":"Delivery"},
-        {"id":"order_notes","enabled":true,"collapsed":true,"sort_order":5,"title_ar":"ملاحظات","title":"Order Notes"},
-        {"id":"summary","enabled":true,"collapsed":false,"sort_order":6,"title_ar":"ملخص السعر","title":"Summary"}
+        {"id":"summary","enabled":true,"collapsed":false,"sort_order":3,"title_ar":"ملخص السعر","title":"Summary"},
+        {"id":"order_options","enabled":false,"collapsed":true,"sort_order":4,"title_ar":"خيارات الطلب","title":"Order Options"},
+        {"id":"delivery","enabled":false,"collapsed":true,"sort_order":5,"title_ar":"التوصيل","title":"Delivery"},
+        {"id":"order_notes","enabled":false,"collapsed":true,"sort_order":6,"title_ar":"ملاحظات الطلب","title":"Order Notes"}
       ]
     }'::jsonb
   ),
@@ -161,18 +162,18 @@ VALUES
     'ready_to_buy',
     'Ready to Buy',
     'جاهز للشراء',
-    'تجربة بسيطة للمنتجات الجاهزة',
+    'تجربة بسيطة للمنتجات الجاهزة — خدمات + ملخص',
     TRUE,
     2,
     '{
       "sections": [
         {"id":"extra_services","enabled":true,"collapsed":false,"sort_order":0,"title_ar":"خدمات إضافية","title":"Extra Services"},
-        {"id":"order_options","enabled":true,"collapsed":false,"sort_order":1,"title_ar":"خيارات الطلب","title":"Order Options"},
-        {"id":"delivery","enabled":true,"collapsed":true,"sort_order":2,"title_ar":"التوصيل","title":"Delivery"},
-        {"id":"order_notes","enabled":true,"collapsed":true,"sort_order":3,"title_ar":"ملاحظات","title":"Order Notes"},
-        {"id":"gift_options","enabled":false,"collapsed":true,"sort_order":4,"title_ar":"تغليف هدية","title":"Gift Options"},
-        {"id":"personalization","enabled":false,"collapsed":true,"sort_order":5,"title_ar":"تخصيص الكتابة","title":"Personalization"},
-        {"id":"summary","enabled":true,"collapsed":false,"sort_order":6,"title_ar":"ملخص السعر","title":"Summary"}
+        {"id":"gift_options","enabled":false,"collapsed":true,"sort_order":1,"title_ar":"تغليف هدية","title":"Gift Options"},
+        {"id":"personalization","enabled":false,"collapsed":true,"sort_order":2,"title_ar":"تخصيص الكتابة","title":"Personalization"},
+        {"id":"summary","enabled":true,"collapsed":false,"sort_order":3,"title_ar":"ملخص السعر","title":"Summary"},
+        {"id":"order_options","enabled":false,"collapsed":true,"sort_order":4,"title_ar":"خيارات الطلب","title":"Order Options"},
+        {"id":"delivery","enabled":false,"collapsed":true,"sort_order":5,"title_ar":"التوصيل","title":"Delivery"},
+        {"id":"order_notes","enabled":false,"collapsed":true,"sort_order":6,"title_ar":"ملاحظات الطلب","title":"Order Notes"}
       ]
     }'::jsonb
   )
