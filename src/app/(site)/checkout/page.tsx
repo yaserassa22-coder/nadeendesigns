@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
+import { OrderOptionsSummary } from "@/components/product/OrderOptionsSummary";
+import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary";
 import { useCart } from "@/components/shop/CartProvider";
 import {
   RegionAutocomplete,
@@ -351,6 +353,10 @@ export default function CheckoutPage() {
         quantity: Number(i.quantity),
         image: i.image,
         personalization: i.personalization,
+        gift_options: i.gift_options,
+        order_options: i.order_options,
+        extra_services: i.extra_services,
+        personalization_fee: i.personalization_fee ?? null,
         requires_shipping: i.requires_shipping,
       })),
     };
@@ -507,6 +513,17 @@ export default function CheckoutPage() {
                             />
                           </div>
                         )}
+                        <div className="mt-3 space-y-2">
+                          <OrderOptionsSummary
+                            options={item.order_options}
+                            compact
+                          />
+                          <ExtraServicesSummary
+                            services={item.extra_services}
+                            compact
+                            hidePrice={hidePrice}
+                          />
+                        </div>
                       </div>
                     </div>
                   );

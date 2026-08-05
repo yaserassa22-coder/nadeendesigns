@@ -1,10 +1,50 @@
 import type { CartItem, ShopProductType } from "@/types/shop";
+import type {
+  LineExtraService,
+  LineOrderOptionValue,
+} from "@/lib/products/order-experience";
 
 const PRODUCT_TYPES = new Set<ShopProductType>([
   "veil",
   "bridal_robe",
   "dress",
 ]);
+
+function sanitizeOrderOptions(raw: unknown): LineOrderOptionValue[] | null {
+  if (!Array.isArray(raw) || !raw.length) return null;
+  const out: LineOrderOptionValue[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const o = entry as Record<string, unknown>;
+    if (typeof o.key !== "string" || !o.key.trim()) continue;
+    if (typeof o.value !== "string" || !o.value.trim()) continue;
+    out.push({
+      key: o.key as LineOrderOptionValue["key"],
+      label: typeof o.label === "string" ? o.label : o.key,
+      label_ar: typeof o.label_ar === "string" ? o.label_ar : o.key,
+      value: o.value.trim(),
+    });
+  }
+  return out.length ? out : null;
+}
+
+function sanitizeExtraServices(raw: unknown): LineExtraService[] | null {
+  if (!Array.isArray(raw) || !raw.length) return null;
+  const out: LineExtraService[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const o = entry as Record<string, unknown>;
+    if (typeof o.id !== "string" || !o.id.trim()) continue;
+    const price = Number(o.price);
+    out.push({
+      id: o.id.trim(),
+      name: typeof o.name === "string" ? o.name : o.id,
+      name_ar: typeof o.name_ar === "string" ? o.name_ar : o.id,
+      price: Number.isFinite(price) && price >= 0 ? price : 0,
+    });
+  }
+  return out.length ? out : null;
+}
 
 /**
  * Normalize client cart payloads before guest_carts JSONB upsert.
@@ -21,12 +61,19 @@ export function sanitizeGuestCartItems(raw: unknown[]): CartItem[] {
     const nameAr = o.name_ar;
     const unitPrice = o.unit_price;
     const quantity = o.quantity;
-    if (typeof productType !== "string" || !PRODUCT_TYPES.has(productType as ShopProductType)) {
+    if (
+      typeof productType !== "string" ||
+      !PRODUCT_TYPES.has(productType as ShopProductType)
+    ) {
       continue;
     }
     if (typeof productId !== "string" || !productId.trim()) continue;
     if (typeof nameAr !== "string" || !nameAr.trim()) continue;
-    if (typeof unitPrice !== "number" || !Number.isFinite(unitPrice) || unitPrice < 0) {
+    if (
+      typeof unitPrice !== "number" ||
+      !Number.isFinite(unitPrice) ||
+      unitPrice < 0
+    ) {
       continue;
     }
     if (typeof quantity !== "number" || !Number.isFinite(quantity)) continue;
@@ -35,6 +82,8 @@ export function sanitizeGuestCartItems(raw: unknown[]): CartItem[] {
       typeof o.line_id === "string" && o.line_id.trim()
         ? o.line_id
         : crypto.randomUUID();
+
+    const persFee = Number(o.personalization_fee);
 
     out.push({
       line_id: lineId,
@@ -58,6 +107,10 @@ export function sanitizeGuestCartItems(raw: unknown[]): CartItem[] {
         o.gift_options && typeof o.gift_options === "object"
           ? (o.gift_options as CartItem["gift_options"])
           : null,
+      order_options: sanitizeOrderOptions(o.order_options),
+      extra_services: sanitizeExtraServices(o.extra_services),
+      personalization_fee:
+        Number.isFinite(persFee) && persFee > 0 ? persFee : null,
       requires_shipping:
         typeof o.requires_shipping === "boolean"
           ? o.requires_shipping

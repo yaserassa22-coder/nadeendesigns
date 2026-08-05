@@ -1,4 +1,8 @@
 import type { GiftOptions, ProductPersonalization } from "@/types/customization";
+import type {
+  LineExtraService,
+  LineOrderOptionValue,
+} from "@/lib/products/order-experience";
 
 export interface Veil {
   id: string;
@@ -14,6 +18,8 @@ export interface Veil {
   is_featured: boolean;
   /** Always bridal_accessory (migration 036/037) — storefront CTA source of truth */
   product_type?: "bridal_accessory" | null;
+  order_options_config?: import("@/lib/products/order-experience").ProductOrderOptionsConfig | null;
+  extra_services_config?: import("@/lib/products/order-experience").ProductExtraServicesConfig | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +38,8 @@ export interface BridalRobe {
   is_available: boolean;
   /** Always bridal_accessory (migration 036/037) — storefront CTA source of truth */
   product_type?: "bridal_accessory" | null;
+  order_options_config?: import("@/lib/products/order-experience").ProductOrderOptionsConfig | null;
+  extra_services_config?: import("@/lib/products/order-experience").ProductExtraServicesConfig | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,7 +51,10 @@ export interface CartItem {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
-  /** Charged unit price (sale price when on sale). */
+  /**
+   * Base product unit price (sale-aware). Extra services are separate —
+   * use chargedUnitPrice / lineChargedTotal for display totals.
+   */
   unit_price: number;
   /**
    * Optional list / regular price when the line was added on sale.
@@ -54,6 +65,12 @@ export interface CartItem {
   image?: string;
   personalization: ProductPersonalization | null;
   gift_options: GiftOptions | null;
+  /** Sprint 2A — dynamic order options selected on PDP */
+  order_options?: LineOrderOptionValue[] | null;
+  /** Sprint 2A — paid extra services selected on PDP */
+  extra_services?: LineExtraService[] | null;
+  /** Reserved for future personalization fees (currently 0 / omitted). */
+  personalization_fee?: number | null;
   /**
    * Explicit shipping flag for future accessory products.
    * Defaults via product_type when omitted (veil/bridal_robe → ship).
@@ -218,10 +235,15 @@ export interface ShopOrderItem {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
+  /** Base product unit price (server-recalculated; extras stored separately). */
   unit_price: number;
   quantity: number;
   image?: string;
   personalization?: ProductPersonalization | null;
+  gift_options?: GiftOptions | null;
+  order_options?: LineOrderOptionValue[] | null;
+  extra_services?: LineExtraService[] | null;
+  personalization_fee?: number | null;
   requires_shipping?: boolean;
 }
 

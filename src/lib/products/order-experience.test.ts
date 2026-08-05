@@ -63,3 +63,33 @@ describe("resolve helpers", () => {
     expect(resolved[0].price).toBe(55);
   });
 });
+
+describe("line pricing", () => {
+  it("sums extras into charged unit and line total", async () => {
+    const { chargedUnitPrice, lineChargedTotal, buildLineExtraServices } =
+      await import("./order-experience");
+    const extras = buildLineExtraServices(
+      [
+        {
+          id: "gift_wrap",
+          name: "Gift Wrap",
+          name_ar: "تغليف",
+          price: 15,
+          enabled: true,
+          sort_order: 0,
+        },
+      ],
+      ["gift_wrap"]
+    );
+    expect(chargedUnitPrice({ baseUnitPrice: 100, extraServices: extras })).toBe(
+      115
+    );
+    expect(
+      lineChargedTotal({
+        baseUnitPrice: 100,
+        quantity: 2,
+        extraServices: extras,
+      })
+    ).toBe(230);
+  });
+});

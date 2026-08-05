@@ -33,6 +33,18 @@ import type { ShopProductType } from "@/types/shop";
 import { cn } from "@/lib/utils";
 import { resolveProductPricing } from "@/lib/products/pricing";
 import { getProductPrimaryAction } from "@/lib/products/primary-action";
+import {
+  OrderOptionsFields,
+  type OrderOptionValues,
+} from "@/components/product/OrderOptionsFields";
+import { ExtraServicesFields } from "@/components/product/ExtraServicesFields";
+import {
+  buildLineExtraServices,
+  buildLineOrderOptions,
+  validateOrderOptionValues,
+  type ExtraServiceConfig,
+  type OrderOptionConfig,
+} from "@/lib/products/order-experience";
 
 interface ShopCustomizeAndBuyProps {
   productType: ShopProductType;
@@ -42,6 +54,10 @@ interface ShopCustomizeAndBuyProps {
   /** Optional sale — when lower than price, cart charges sale and keeps compare-at. */
   salePrice?: number | null;
   image?: string;
+  /** Resolved enabled order options (store + product). Empty = none. */
+  orderOptions?: OrderOptionConfig[];
+  /** Resolved available extra services (store + product). Empty = none. */
+  extraServices?: ExtraServiceConfig[];
 }
 
 export function ShopCustomizeAndBuy({
@@ -51,6 +67,8 @@ export function ShopCustomizeAndBuy({
   price,
   salePrice,
   image,
+  orderOptions = [],
+  extraServices = [],
 }: ShopCustomizeAndBuyProps) {
   const router = useRouter();
   const { addItem } = useCart();
@@ -73,6 +91,10 @@ export function ShopCustomizeAndBuy({
     personalizationType === "robes" ? "back" : "bottom_corner"
   );
   const [gift, setGift] = useState<GiftWrappingState>(DEFAULT_GIFT_STATE);
+  const [orderOptionValues, setOrderOptionValues] = useState<OrderOptionValues>(
+    {}
+  );
+  const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
 
@@ -144,6 +166,24 @@ export function ShopCustomizeAndBuy({
     const giftOptions = buildGift();
     if (giftOptions === undefined) return;
 
+    const optionErrors = validateOrderOptionValues(
+      orderOptions,
+      orderOptionValues
+    );
+    if (Object.keys(optionErrors).length) {
+      setErrors((prev) => ({ ...prev, ...optionErrors }));
+      return;
+    }
+
+    const lineOrderOptions = buildLineOrderOptions(
+      orderOptions,
+      orderOptionValues
+    );
+    const lineExtraServices = buildLineExtraServices(
+      extraServices,
+      selectedExtraIds
+    );
+
     addItem({
       product_type: productType,
       product_id: productId,
@@ -154,6 +194,8 @@ export function ShopCustomizeAndBuy({
       image,
       personalization,
       gift_options: giftOptions,
+      order_options: lineOrderOptions.length ? lineOrderOptions : null,
+      extra_services: lineExtraServices.length ? lineExtraServices : null,
       requires_shipping: true,
     });
 
@@ -309,6 +351,19 @@ export function ShopCustomizeAndBuy({
       )}
 
       <GiftWrappingSection value={gift} onChange={setGift} errors={errors} />
+
+      <OrderOptionsFields
+        options={orderOptions}
+        values={orderOptionValues}
+        onChange={setOrderOptionValues}
+        errors={errors}
+      />
+
+      <ExtraServicesFields
+        services={extraServices}
+        selectedIds={selectedExtraIds}
+        onChange={setSelectedExtraIds}
+      />
 
       <Input
         label="الكمية"

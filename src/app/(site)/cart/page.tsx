@@ -6,6 +6,8 @@ import { Trash2 } from "lucide-react";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
+import { OrderOptionsSummary } from "@/components/product/OrderOptionsSummary";
+import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary";
 import { useCart } from "@/components/shop/CartProvider";
 import { Button } from "@/components/ui/Button";
 import { ProductPrice } from "@/components/product/ProductPrice";
@@ -64,7 +66,9 @@ export default function CartPage() {
                           <p className="text-sm text-muted">
                             {item.product_type === "veil"
                               ? "طرحة العروس"
-                              : "برنص العروس"}
+                              : item.product_type === "bridal_robe"
+                                ? "برنص العروس"
+                                : "منتج"}
                           </p>
                         </div>
                         {!hidePrice && (
@@ -120,6 +124,15 @@ export default function CartPage() {
                       {item.gift_options && (
                         <GiftOptionsSummary giftOptions={item.gift_options} />
                       )}
+                      <OrderOptionsSummary
+                        options={item.order_options}
+                        compact
+                      />
+                      <ExtraServicesSummary
+                        services={item.extra_services}
+                        compact
+                        hidePrice={hidePrice}
+                      />
                     </div>
                   </div>
                 </div>

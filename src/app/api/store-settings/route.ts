@@ -31,6 +31,10 @@ export async function GET() {
         icon: p.icon,
         sort_order: p.sort_order,
       })),
+      order_options: settings.order_options,
+      extra_services: {
+        services: settings.extra_services.services.filter((s) => s.enabled),
+      },
       maintenance_mode: settings.security.maintenance_mode,
       seo: {
         title: settings.seo.title,

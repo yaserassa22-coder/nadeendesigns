@@ -9,6 +9,7 @@ import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getVeilById, getVeils } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
+import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -46,6 +47,10 @@ export default async function VeilDetailPage({ params }: Props) {
     }));
 
   const inStock = veil.is_available && veil.stock_quantity > 0;
+  const experience = await resolveStorefrontProductExperience({
+    order_options_config: veil.order_options_config,
+    extra_services_config: veil.extra_services_config,
+  });
 
   return (
     <>
@@ -104,6 +109,8 @@ export default async function VeilDetailPage({ params }: Props) {
             nameAr={veil.name_ar}
             price={veil.price}
             image={featuredImage(veil.images)}
+            orderOptions={experience.orderOptions}
+            extraServices={experience.extraServices}
           />
         ) : null
       }

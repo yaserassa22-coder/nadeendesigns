@@ -9,6 +9,7 @@ import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
 import { getBridalRobeById, getBridalRobes } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
+import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -46,6 +47,10 @@ export default async function RobeDetailPage({ params }: Props) {
     }));
 
   const inStock = robe.is_available && robe.stock_quantity > 0;
+  const experience = await resolveStorefrontProductExperience({
+    order_options_config: robe.order_options_config,
+    extra_services_config: robe.extra_services_config,
+  });
 
   return (
     <>
@@ -109,6 +114,8 @@ export default async function RobeDetailPage({ params }: Props) {
             nameAr={robe.name_ar}
             price={robe.price}
             image={featuredImage(robe.images)}
+            orderOptions={experience.orderOptions}
+            extraServices={experience.extraServices}
           />
         ) : null
       }

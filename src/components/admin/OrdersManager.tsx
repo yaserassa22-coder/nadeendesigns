@@ -33,6 +33,9 @@ import { Select, Textarea, Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
+import { OrderOptionsSummary } from "@/components/product/OrderOptionsSummary";
+import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary";
+import { shopLineDisplayTotal } from "@/lib/products/order-experience";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 import Image from "next/image";
@@ -749,7 +752,7 @@ export function OrdersManager({
                                         </p>
                                         <p className="text-xs text-gold" dir="ltr">
                                           {formatPrice(
-                                            item.unit_price * item.quantity
+                                            shopLineDisplayTotal(item)
                                           )}
                                         </p>
                                         {item.personalization && (
@@ -760,6 +763,16 @@ export function OrdersManager({
                                             />
                                           </div>
                                         )}
+                                        <div className="mt-2 space-y-2">
+                                          <OrderOptionsSummary
+                                            options={item.order_options}
+                                            compact
+                                          />
+                                          <ExtraServicesSummary
+                                            services={item.extra_services}
+                                            compact
+                                          />
+                                        </div>
                                       </div>
                                     </div>
                                   );
@@ -930,8 +943,7 @@ export function OrdersManager({
                                     <dd dir="ltr">
                                       {formatPrice(
                                         (order.items ?? []).reduce(
-                                          (s, i) =>
-                                            s + i.unit_price * i.quantity,
+                                          (s, i) => s + shopLineDisplayTotal(i),
                                           0
                                         )
                                       )}

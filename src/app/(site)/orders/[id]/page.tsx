@@ -7,6 +7,9 @@ import { useParams } from "next/navigation";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
+import { OrderOptionsSummary } from "@/components/product/OrderOptionsSummary";
+import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary";
+import { shopLineDisplayTotal } from "@/lib/products/order-experience";
 import {
   orderToShippingDisplay,
   ShippingDetailsBlock,
@@ -180,7 +183,7 @@ export default function CustomerOrderPage() {
   const ship = orderToShippingDisplay(order);
   const hidePrice = Boolean(order.gift_options?.hide_price);
   const itemsSubtotal = (order.items ?? []).reduce(
-    (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
+    (sum, i) => sum + shopLineDisplayTotal(i),
     0
   );
   const shippingCost = Number(order.shipping_cost ?? 0);
@@ -363,7 +366,7 @@ export default function CustomerOrderPage() {
                       </p>
                       {!hidePrice && (
                         <p className="text-sm text-gold" dir="ltr">
-                          {formatPrice(item.unit_price * item.quantity)}
+                          {formatPrice(shopLineDisplayTotal(item))}
                         </p>
                       )}
                       {item.personalization && (
@@ -374,6 +377,17 @@ export default function CustomerOrderPage() {
                           />
                         </div>
                       )}
+                      <div className="mt-2 space-y-2">
+                        <OrderOptionsSummary
+                          options={item.order_options}
+                          compact
+                        />
+                        <ExtraServicesSummary
+                          services={item.extra_services}
+                          compact
+                          hidePrice={hidePrice}
+                        />
+                      </div>
                     </div>
                   </li>
                 );

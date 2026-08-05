@@ -11,6 +11,11 @@ import {
 } from "react";
 import type { GiftOptions, ProductPersonalization } from "@/types/customization";
 import type { CartItem, ShopProductType } from "@/types/shop";
+import type {
+  LineExtraService,
+  LineOrderOptionValue,
+} from "@/lib/products/order-experience";
+import { cartExperienceSubtotal } from "@/lib/products/order-experience";
 import {
   cartNeedsShipping,
   lineRequiresShipping,
@@ -22,7 +27,7 @@ interface AddToCartInput {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
-  /** Charged unit price (use sale when on sale). */
+  /** Base charged unit price (use sale when on sale). */
   unit_price: number;
   /** Regular / list price when charging a sale price. */
   compare_at_price?: number | null;
@@ -30,6 +35,9 @@ interface AddToCartInput {
   image?: string;
   personalization?: ProductPersonalization | null;
   gift_options?: GiftOptions | null;
+  order_options?: LineOrderOptionValue[] | null;
+  extra_services?: LineExtraService[] | null;
+  personalization_fee?: number | null;
   /** Set true for future accessory products under اكسسوارات العروس */
   requires_shipping?: boolean;
 }
@@ -57,6 +65,19 @@ function loadCart(): CartItem[] {
   }
 }
 
+function sameLineCustomizations(a: CartItem, b: Partial<CartItem>): boolean {
+  return (
+    JSON.stringify(a.personalization) ===
+      JSON.stringify(b.personalization ?? null) &&
+    JSON.stringify(a.gift_options) ===
+      JSON.stringify(b.gift_options ?? null) &&
+    JSON.stringify(a.order_options ?? null) ===
+      JSON.stringify(b.order_options ?? null) &&
+    JSON.stringify(a.extra_services ?? null) ===
+      JSON.stringify(b.extra_services ?? null)
+  );
+}
+
 function mergeCartLines(a: CartItem[], b: CartItem[]): CartItem[] {
   const out = [...a];
   for (const item of b) {
@@ -64,10 +85,7 @@ function mergeCartLines(a: CartItem[], b: CartItem[]): CartItem[] {
       (i) =>
         i.product_id === item.product_id &&
         i.product_type === item.product_type &&
-        JSON.stringify(i.personalization) ===
-          JSON.stringify(item.personalization ?? null) &&
-        JSON.stringify(i.gift_options) ===
-          JSON.stringify(item.gift_options ?? null)
+        sameLineCustomizations(i, item)
     );
     if (existing) {
       existing.quantity = Math.min(20, existing.quantity + item.quantity);
@@ -187,10 +205,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         (i) =>
           i.product_id === input.product_id &&
           i.product_type === input.product_type &&
-          JSON.stringify(i.personalization) ===
-            JSON.stringify(input.personalization ?? null) &&
-          JSON.stringify(i.gift_options) ===
-            JSON.stringify(input.gift_options ?? null)
+          sameLineCustomizations(i, {
+            personalization: input.personalization ?? null,
+            gift_options: input.gift_options ?? null,
+            order_options: input.order_options ?? null,
+            extra_services: input.extra_services ?? null,
+          })
       );
       if (existing) {
         return prev.map((i) =>
@@ -210,6 +230,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         image: input.image,
         personalization: input.personalization ?? null,
         gift_options: input.gift_options ?? null,
+        order_options: input.order_options?.length
+          ? input.order_options
+          : null,
+        extra_services: input.extra_services?.length
+          ? input.extra_services
+          : null,
+        personalization_fee:
+          input.personalization_fee != null &&
+          Number(input.personalization_fee) > 0
+            ? Number(input.personalization_fee)
+            : null,
         requires_shipping:
           input.requires_shipping ??
           lineRequiresShipping({
@@ -241,10 +272,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => {
     const count = items.reduce((sum, i) => sum + i.quantity, 0);
-    const subtotal = items.reduce(
-      (sum, i) => sum + i.unit_price * i.quantity,
-      0
-    );
+    const subtotal = cartExperienceSubtotal(items);
     return {
       items,
       count,

@@ -44,6 +44,10 @@ export const shopOrderItemSchema = z.object({
   image: z.string().nullable().optional(),
   // Accept stored cart personalization without re-blocking checkout
   personalization: z.any().nullable().optional(),
+  gift_options: z.any().nullable().optional(),
+  order_options: z.any().nullable().optional(),
+  extra_services: z.any().nullable().optional(),
+  personalization_fee: z.number().min(0).nullable().optional(),
   requires_shipping: z.boolean().optional(),
 });
 

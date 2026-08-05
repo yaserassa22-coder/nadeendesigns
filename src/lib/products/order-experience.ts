@@ -1,7 +1,7 @@
 /**
- * Order options + extra services config (Sprint 2 Phase 1).
+ * Order options + extra services config + line pricing helpers (Sprint 2 / 2A).
  * Stored under settings.key = "store" JSON sections.
- * Checkout wiring is intentionally NOT implemented in Phase 1.
+ * Selections persist on cart / shop_orders.items JSON (no schema migration).
  */
 
 export type OrderOptionKey =
@@ -232,7 +232,6 @@ export function normalizeExtraServices(
 
 /**
  * Resolve effective order options for a product (store defaults + optional override).
- * Phase 1: config resolution only — not wired into checkout UI.
  */
 export function resolveProductOrderOptions(
   storeDefaults: StoreOrderOptionsSettings,
@@ -253,7 +252,7 @@ export function resolveProductOrderOptions(
 
 /**
  * Resolve effective extra services for a product.
- * Phase 1: config resolution only — not wired into checkout UI.
+ * Returns only services available to the customer (enabled / override-selected).
  */
 export function resolveProductExtraServices(
   storeDefaults: StoreExtraServicesSettings,
@@ -277,4 +276,188 @@ export function resolveProductExtraServices(
             : s.price,
       };
     });
+}
+
+/** Enabled order options for storefront forms (inherits store + product override). */
+export function enabledOrderOptions(
+  storeDefaults: StoreOrderOptionsSettings,
+  productOverride?: ProductOrderOptionsConfig | null
+): OrderOptionConfig[] {
+  return resolveProductOrderOptions(storeDefaults, productOverride).filter(
+    (o) => o.enabled
+  );
+}
+
+/** Customer-selected order option values persisted on cart / order line items. */
+export type LineOrderOptionValue = {
+  key: OrderOptionKey;
+  label: string;
+  label_ar: string;
+  value: string;
+};
+
+/** Customer-selected paid extra service persisted on cart / order line items. */
+export type LineExtraService = {
+  id: string;
+  name: string;
+  name_ar: string;
+  /** Server-authoritative unit price for this service. */
+  price: number;
+};
+
+/** Sum of selected extra-service unit prices (per product unit). */
+export function sumExtraServicePrices(
+  services: LineExtraService[] | null | undefined
+): number {
+  if (!services?.length) return 0;
+  return services.reduce((sum, s) => {
+    const p = Number(s.price);
+    return sum + (Number.isFinite(p) && p > 0 ? p : 0);
+  }, 0);
+}
+
+/**
+ * Charged unit price: base (sale-aware) + personalization fees (if any) + extras.
+ * Personalization currently has no fee — keep hook for future admin pricing.
+ */
+export function chargedUnitPrice(input: {
+  baseUnitPrice: number;
+  personalizationFee?: number | null;
+  extraServices?: LineExtraService[] | null;
+}): number {
+  const base = Number(input.baseUnitPrice);
+  const baseSafe = Number.isFinite(base) && base >= 0 ? base : 0;
+  const pers = Number(input.personalizationFee ?? 0);
+  const persSafe = Number.isFinite(pers) && pers > 0 ? pers : 0;
+  return baseSafe + persSafe + sumExtraServicePrices(input.extraServices);
+}
+
+export function lineChargedTotal(input: {
+  baseUnitPrice: number;
+  quantity: number;
+  personalizationFee?: number | null;
+  extraServices?: LineExtraService[] | null;
+}): number {
+  const qty = Math.max(1, Math.floor(Number(input.quantity) || 1));
+  return (
+    chargedUnitPrice({
+      baseUnitPrice: input.baseUnitPrice,
+      personalizationFee: input.personalizationFee,
+      extraServices: input.extraServices,
+    }) * qty
+  );
+}
+
+/** Cart / checkout items subtotal including extras (client display). */
+export function cartExperienceSubtotal(
+  items: Array<{
+    unit_price: number;
+    quantity: number;
+    personalization_fee?: number | null;
+    extra_services?: LineExtraService[] | null;
+  }>
+): number {
+  return items.reduce(
+    (sum, i) =>
+      sum +
+      lineChargedTotal({
+        baseUnitPrice: i.unit_price,
+        quantity: i.quantity,
+        personalizationFee: i.personalization_fee,
+        extraServices: i.extra_services,
+      }),
+    0
+  );
+}
+
+/**
+ * Build persisted line option rows from form values + enabled config.
+ * Drops empty optional values; required emptiness is validated separately.
+ */
+export function buildLineOrderOptions(
+  enabled: OrderOptionConfig[],
+  values: Partial<Record<OrderOptionKey, string>>
+): LineOrderOptionValue[] {
+  const out: LineOrderOptionValue[] = [];
+  for (const opt of enabled) {
+    const raw = values[opt.key];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) continue;
+    out.push({
+      key: opt.key,
+      label: opt.label,
+      label_ar: opt.label_ar,
+      value,
+    });
+  }
+  return out;
+}
+
+/**
+ * Map selected service ids → line rows using server/config prices only.
+ * Unknown ids are dropped (never trust client prices).
+ */
+export function buildLineExtraServices(
+  available: ExtraServiceConfig[],
+  selectedIds: string[]
+): LineExtraService[] {
+  const byId = new Map(available.map((s) => [s.id, s]));
+  const out: LineExtraService[] = [];
+  const seen = new Set<string>();
+  for (const id of selectedIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const svc = byId.get(id);
+    if (!svc) continue;
+    out.push({
+      id: svc.id,
+      name: svc.name,
+      name_ar: svc.name_ar,
+      price: Math.max(0, Number(svc.price) || 0),
+    });
+  }
+  return out;
+}
+
+/** Validate required order options; returns Arabic field errors keyed by option key. */
+export function validateOrderOptionValues(
+  enabled: OrderOptionConfig[],
+  values: Partial<Record<OrderOptionKey, string>>
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const opt of enabled) {
+    if (!opt.required) continue;
+    const value = (values[opt.key] ?? "").trim();
+    if (!value) {
+      errors[opt.key] = `${opt.label_ar || opt.label} مطلوب`;
+    }
+  }
+  return errors;
+}
+
+/** Display helper: charged amount for one order/cart line (client-safe). */
+export function shopLineDisplayTotal(item: {
+  unit_price: number;
+  quantity: number;
+  personalization_fee?: number | null;
+  extra_services?: LineExtraService[] | null;
+}): number {
+  return lineChargedTotal({
+    baseUnitPrice: item.unit_price,
+    quantity: item.quantity,
+    personalizationFee: item.personalization_fee,
+    extraServices: item.extra_services,
+  });
+}
+
+export function shopLineDisplayUnit(item: {
+  unit_price: number;
+  personalization_fee?: number | null;
+  extra_services?: LineExtraService[] | null;
+}): number {
+  return chargedUnitPrice({
+    baseUnitPrice: item.unit_price,
+    personalizationFee: item.personalization_fee,
+    extraServices: item.extra_services,
+  });
 }

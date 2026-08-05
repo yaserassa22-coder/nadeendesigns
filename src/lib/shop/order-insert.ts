@@ -30,6 +30,10 @@ export type CheckoutOrderBody = {
     quantity: number;
     image?: string | null;
     personalization?: ShopOrderItem["personalization"];
+    gift_options?: ShopOrderItem["gift_options"];
+    order_options?: ShopOrderItem["order_options"];
+    extra_services?: ShopOrderItem["extra_services"];
+    personalization_fee?: number | null;
     requires_shipping?: boolean | null;
   }>;
   gift_options?: ShopOrder["gift_options"];
@@ -171,10 +175,21 @@ export function resolveDeliveryShipping(input: {
     siteSettings,
   } = input;
 
-  const itemsSubtotal = body.items.reduce(
-    (sum, i) => sum + Number(i.unit_price) * Number(i.quantity),
-    0
-  );
+  // Prefer caller-supplied server-recalculated subtotal when present via
+  // unit_price + extras already baked into a pre-pass; still sum from lines.
+  const itemsSubtotal = body.items.reduce((sum, i) => {
+    const base = Number(i.unit_price) || 0;
+    const qty = Number(i.quantity) || 0;
+    const extras = Array.isArray(i.extra_services)
+      ? i.extra_services.reduce((s, e) => {
+          const p = Number(e?.price);
+          return s + (Number.isFinite(p) && p > 0 ? p : 0);
+        }, 0)
+      : 0;
+    const pers = Number(i.personalization_fee ?? 0);
+    const persSafe = Number.isFinite(pers) && pers > 0 ? pers : 0;
+    return sum + (base + extras + persSafe) * qty;
+  }, 0);
 
   let regionId: string | null = null;
   let regionNameAr: string | null = null;
@@ -275,6 +290,13 @@ export function buildShopOrderRow(
       quantity: Number(i.quantity),
       image: i.image ?? undefined,
       personalization: i.personalization ?? null,
+      gift_options: i.gift_options ?? null,
+      order_options: i.order_options?.length ? i.order_options : null,
+      extra_services: i.extra_services?.length ? i.extra_services : null,
+      personalization_fee:
+        i.personalization_fee != null && Number(i.personalization_fee) > 0
+          ? Number(i.personalization_fee)
+          : null,
       requires_shipping:
         i.requires_shipping === true
           ? true

@@ -31,6 +31,7 @@ import {
   resolveNeedsShipping,
   type RegionMatch,
 } from "@/lib/shop/order-insert";
+import { recalculateCheckoutLines } from "@/lib/shop/order-pricing";
 import { isValidCheckoutPhone, isValidPersonName } from "@/lib/phone";
 import { normalizeSiteSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
@@ -203,11 +204,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = parsed.data;
+    // Server-authoritative line pricing: base (sale) + extras. Never trust client totals.
+    const priced = await recalculateCheckoutLines(body.items);
+    const pricedBody = { ...body, items: priced.items };
+
     // Accessories from line items, OR an explicit checkout delivery choice.
     // Never trust client shipping_required:false to skip accessories — but DO
     // honor delivery_method when the customer selected pickup/delivery so we
     // never drop shipping fields after a false-negative accessory detection.
-    const needsShipping = resolveNeedsShipping(body);
+    const needsShipping = resolveNeedsShipping(pricedBody);
     const siteSettings = await loadSiteSettingsForShipping();
 
     let deliveryMethod: DeliveryMethod | null = null;
@@ -293,7 +298,7 @@ export async function POST(request: NextRequest) {
     }
 
     const resolved = resolveDeliveryShipping({
-      body,
+      body: pricedBody,
       needsShipping,
       deliveryMethod,
       matched,
@@ -327,7 +332,7 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get("user-agent"),
     });
 
-    const row = buildShopOrderRow(body, resolved, undefined, {
+    const row = buildShopOrderRow(pricedBody, resolved, undefined, {
       customer_id: customerId,
       guest_id: authUser ? null : guestEnsured.guestId,
     });
@@ -339,6 +344,7 @@ export async function POST(request: NextRequest) {
       shipping_cost: row.shipping_cost,
       shipping_fee_pending: row.shipping_fee_pending,
       total: row.total,
+      items_subtotal: priced.itemsSubtotal,
       region_id: row.shipping_region_id,
     });
 

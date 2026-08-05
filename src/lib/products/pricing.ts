@@ -105,8 +105,17 @@ export function cartLineDisplayPrices(item: {
   unit_price: number;
   compare_at_price?: number | null;
   quantity: number;
+  personalization_fee?: number | null;
+  extra_services?: Array<{ price: number }> | null;
 }): { price: number; salePrice: number | null } {
   const qty = Math.max(1, item.quantity);
+  const extras = (item.extra_services ?? []).reduce((sum, s) => {
+    const p = Number(s.price);
+    return sum + (Number.isFinite(p) && p > 0 ? p : 0);
+  }, 0);
+  const pers = Number(item.personalization_fee ?? 0);
+  const persSafe = Number.isFinite(pers) && pers > 0 ? pers : 0;
+  const chargedUnit = item.unit_price + extras + persSafe;
   const compare = item.compare_at_price;
   const onSale =
     compare != null &&
@@ -114,9 +123,9 @@ export function cartLineDisplayPrices(item: {
     compare > item.unit_price;
   if (onSale) {
     return {
-      price: compare * qty,
-      salePrice: item.unit_price * qty,
+      price: (compare + extras + persSafe) * qty,
+      salePrice: chargedUnit * qty,
     };
   }
-  return { price: item.unit_price * qty, salePrice: null };
+  return { price: chargedUnit * qty, salePrice: null };
 }
