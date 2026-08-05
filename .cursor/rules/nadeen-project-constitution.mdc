@@ -1,0 +1,66 @@
+---
+description: NadEEN Designs Project Constitution v1.0 — architecture and development rules that override implementation convenience
+alwaysApply: true
+---
+
+# NADEEN DESIGNS – PROJECT CONSTITUTION v1.0
+
+These rules override implementation convenience.
+
+## Mission
+
+Build a luxury bridal ecommerce platform — scalable, maintainable, and fully manageable from the Admin Panel. Not just a website.
+
+## Rule #1 — No hardcoded business data
+
+Never hardcode: categories, products, collections, homepage sections, payment methods, shipping methods, store information, social links, contact information, SEO, or business texts.
+
+Everything comes from the database.
+
+## Rule #2 — Admin-manageable by default
+
+Anything the business owner may want to change in the future belongs in the Admin Panel. Never require code edits for business operations.
+
+## Rule #3 — Module quality
+
+Every new module must be: Dynamic, Reusable, Scalable, Production Ready.
+
+## Rule #4 — Admin First
+
+The business owner should manage the store without touching code.
+
+## Rule #5 — Customer Experience first
+
+Never sacrifice UX for implementation simplicity.
+
+## Rule #6 — Definition of done
+
+Every module must pass: Manual QA, TypeScript, ESLint, Production Build, Responsive, RTL, Accessibility, No Console Errors.
+
+## Rule #7 — Root cause only
+
+Do not create temporary fixes. Always solve the root cause.
+
+## Rule #8 — Design for growth
+
+Every feature must support future growth: 5,000+ products, 300+ categories, thousands of customers.
+
+## Rule #9 — Module independence
+
+Modules must remain independent. Avoid tight coupling.
+
+## Rule #10 — Luxury UX
+
+Minimal. Elegant. Fast. Clean.
+
+## Current development order
+
+1. Store Settings
+2. Navigation
+3. Product Management
+4. Checkout
+5. Orders
+6. Homepage Builder
+7. Analytics
+
+No unrelated work before completing the current module.
