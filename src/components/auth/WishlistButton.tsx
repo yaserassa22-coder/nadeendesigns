@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWishlist } from "@/components/shop/WishlistProvider";
 
 const ACCENT = "#C9A14A";
 
@@ -13,6 +14,8 @@ type Props = {
   productTitle?: string | null;
   productImageUrl?: string | null;
   className?: string;
+  /** Full PDP control vs compact card heart */
+  variant?: "button" | "icon";
 };
 
 export function WishlistButton({
@@ -22,46 +25,62 @@ export function WishlistButton({
   productTitle,
   productImageUrl,
   className,
+  variant = "button",
 }: Props) {
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { isSaved, toggle } = useWishlist();
+  const saved = isSaved(productKind, productId);
+  const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
 
-  async function handleClick() {
+  async function handleClick(e?: MouseEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (busy) return;
     setHint(null);
-    setSaving(true);
-    // Optimistic UI — guests and registered customers share the same API
-    setSaved(true);
-    setHint("❤️ تمت الإضافة إلى قائمة الأمنيات");
+    setBusy(true);
     try {
-      const res = await fetch("/api/guest/wishlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          product_kind: productKind,
-          product_id: productId,
-          product_slug: productSlug ?? null,
-          product_title: productTitle ?? null,
-          product_image_url: productImageUrl ?? null,
-        }),
+      const nowSaved = await toggle({
+        productKind,
+        productId,
+        productSlug,
+        productTitle,
+        productImageUrl,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setSaved(false);
-        throw new Error(data.error || "تعذّر الحفظ");
+      if (variant === "button") {
+        setHint(
+          nowSaved
+            ? "❤️ تمت الإضافة إلى قائمة الأمنيات"
+            : "تمت الإزالة من قائمة الأمنيات"
+        );
       }
-      setHint(
-        data.message || "❤️ تمت الإضافة إلى قائمة الأمنيات"
-      );
-      if (data.tip) {
-        window.setTimeout(() => setHint(data.tip), 2200);
-      }
-    } catch (e) {
-      setHint(e instanceof Error ? e.message : "تعذّر الحفظ");
+    } catch {
+      if (variant === "button") setHint("تعذّر تحديث قائمة الأمنيات");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
+  }
+
+  if (variant === "icon") {
+    return (
+      <button
+        type="button"
+        onClick={(e) => void handleClick(e)}
+        disabled={busy}
+        aria-label={saved ? "إزالة من قائمة الأمنيات" : "أضيفي إلى قائمة الأمنيات"}
+        aria-pressed={saved}
+        className={cn(
+          "absolute top-3 start-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-charcoal shadow-sm transition hover:bg-gold hover:text-white disabled:opacity-60",
+          saved && "text-gold",
+          className
+        )}
+      >
+        <Heart
+          className="h-4 w-4"
+          strokeWidth={1.75}
+          fill={saved ? "currentColor" : "none"}
+        />
+      </button>
+    );
   }
 
   return (
@@ -69,8 +88,9 @@ export function WishlistButton({
       <button
         type="button"
         onClick={() => void handleClick()}
-        disabled={saving}
-        aria-label="أضيفي إلى قائمة الأمنيات"
+        disabled={busy}
+        aria-label={saved ? "إزالة من قائمة الأمنيات" : "أضيفي إلى قائمة الأمنيات"}
+        aria-pressed={saved}
         className={cn(
           "inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm transition",
           saved

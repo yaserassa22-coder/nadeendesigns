@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { formatPrice } from "@/lib/utils";
+import { featuredImage } from "@/lib/products/featured-image";
+import { inferWishlistKind } from "@/lib/shop/wishlist";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
+import { WishlistButton } from "@/components/auth/WishlistButton";
 import { Input, Select } from "@/components/ui/Input";
 
 interface ShopCatalogItem {
@@ -19,6 +22,7 @@ interface ShopCatalogItem {
   size?: string | null;
   /** When set (e.g. mixed Bridal Accessories), used instead of basePath/id */
   href?: string;
+  kind?: "veil" | "bridal_robe" | "dress" | string;
 }
 
 interface ShopCatalogProps {
@@ -106,22 +110,37 @@ export function ShopCatalog({
             const href =
               item.href?.trim() ||
               (basePath ? `${basePath}/${item.id}` : `/${item.id}`);
+            const productKind = inferWishlistKind({
+              kind: item.kind,
+              basePath,
+              href,
+            });
             return (
               <motion.article
-                key={item.id}
+                key={`${productKind}-${item.id}`}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
                 className="group relative overflow-hidden rounded-2xl bg-white p-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
               >
-                <ProductCardImageCarousel
-                  images={item.images}
-                  alt={item.name_ar}
-                  href={href}
-                  roundedClassName="rounded-none"
-                  priority={i < 3}
-                />
+                <div className="relative">
+                  <ProductCardImageCarousel
+                    images={item.images}
+                    alt={item.name_ar}
+                    href={href}
+                    roundedClassName="rounded-none"
+                    priority={i < 3}
+                  />
+                  <WishlistButton
+                    variant="icon"
+                    productKind={productKind}
+                    productId={item.id}
+                    productSlug={item.id}
+                    productTitle={item.name_ar}
+                    productImageUrl={featuredImage(item.images)}
+                  />
+                </div>
                 {!item.is_available && (
                   <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-3">
                     <span className="rounded-full bg-charcoal/80 px-3 py-1 text-xs text-white">

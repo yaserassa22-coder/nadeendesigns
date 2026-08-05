@@ -9,7 +9,7 @@ const NAV = [
   { href: "/account", label: "نظرة عامة", exact: true },
   { href: "/account/orders", label: "الطلبات" },
   { href: "/account/appointments", label: "المواعيد" },
-  { href: "/account/wishlist", label: "قائمة الأمنيات" },
+  { href: "/wishlist", label: "قائمة الأمنيات" },
   { href: "/account/designs", label: "التصاميم المحفوظة" },
   { href: "/account/addresses", label: "العناوين" },
   { href: "/account/reviews", label: "المراجعات" },

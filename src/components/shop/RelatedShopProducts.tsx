@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
+import { WishlistButton } from "@/components/auth/WishlistButton";
+import { featuredImage } from "@/lib/products/featured-image";
+import { inferWishlistKind } from "@/lib/shop/wishlist";
 import { formatPrice } from "@/lib/utils";
 
 export type RelatedShopItem = {
@@ -9,6 +12,7 @@ export type RelatedShopItem = {
   images: string[];
   href: string;
   subtitle?: string;
+  kind?: string;
 };
 
 interface RelatedShopProductsProps {
@@ -34,12 +38,25 @@ export function RelatedShopProducts({
             className="group overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-xl"
             style={{ animationDelay: `${i * 0.05}s` }}
           >
-            <ProductCardImageCarousel
-              images={item.images}
-              alt={item.name_ar}
-              href={item.href}
-              sizes="(max-width: 768px) 100vw, 33vw"
-            />
+            <div className="relative">
+              <ProductCardImageCarousel
+                images={item.images}
+                alt={item.name_ar}
+                href={item.href}
+                sizes="(max-width: 768px) 100vw, 33vw"
+              />
+              <WishlistButton
+                variant="icon"
+                productKind={inferWishlistKind({
+                  kind: item.kind,
+                  href: item.href,
+                })}
+                productId={item.id}
+                productSlug={item.id}
+                productTitle={item.name_ar}
+                productImageUrl={featuredImage(item.images)}
+              />
+            </div>
             <Link href={item.href} className="block p-5">
               <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
                 {item.name_ar}

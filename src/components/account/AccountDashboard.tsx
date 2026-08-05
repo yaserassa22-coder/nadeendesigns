@@ -62,7 +62,7 @@ export function AccountDashboard() {
     {
       title: "قائمة الأمنيات",
       count: wishlist.length,
-      href: "/account/wishlist",
+      href: "/wishlist",
       empty: "أضيفي قطعاً إلى الأمنيات لحفظها هنا.",
     },
   ];

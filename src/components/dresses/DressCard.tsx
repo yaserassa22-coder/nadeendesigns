@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Dress } from "@/types";
 import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCarousel";
+import { WishlistButton } from "@/components/auth/WishlistButton";
 import { getDressStyleLabel } from "@/lib/styles";
+import { featuredImage } from "@/lib/products/featured-image";
 import { formatPrice } from "@/lib/utils";
 
 interface DressCardProps {
@@ -34,8 +36,16 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
           roundedClassName="rounded-none"
           priority={index < 3}
         />
+        <WishlistButton
+          variant="icon"
+          productKind="dress"
+          productId={dress.id}
+          productSlug={dress.id}
+          productTitle={dress.name_ar}
+          productImageUrl={featuredImage(dress.images)}
+        />
         {dress.is_featured && (
-          <span className="pointer-events-none absolute top-4 right-4 z-20 rounded-full bg-gold px-3 py-1 text-xs font-medium text-white">
+          <span className="pointer-events-none absolute top-4 end-4 z-20 rounded-full bg-gold px-3 py-1 text-xs font-medium text-white">
             مميز
           </span>
         )}
