@@ -28,11 +28,47 @@ export type ExperienceSectionConfig = {
   description_ar: string;
 };
 
+/** Admin UI settings for the Personalization card (stored in experience_config JSON). */
+export type ExperiencePersonalizationUi = {
+  required: boolean;
+  max_characters: number;
+  /** Preview / catalog fee — server order pricing does not charge this today. */
+  extra_price: number;
+};
+
 export type ProductExperienceConfig = {
   sections: ExperienceSectionConfig[];
   /** Optional link to product_experience_templates.id */
   template_id?: string | null;
+  /** Luxury admin v2 personalization card fields */
+  personalization_ui?: ExperiencePersonalizationUi;
 };
+
+export const DEFAULT_PERSONALIZATION_UI: ExperiencePersonalizationUi = {
+  required: false,
+  max_characters: 40,
+  extra_price: 0,
+};
+
+/** Friendly Arabic labels for store-owner UI (never show raw ids). */
+export const EXPERIENCE_SECTION_LABELS_AR: Record<ExperienceSectionId, string> =
+  {
+    personalization: "التخصيص",
+    extra_services: "خدمات إضافية",
+    gift_options: "تغليف هدية",
+    summary: "الملخص",
+    delivery: "التوصيل",
+    order_notes: "ملاحظات الطلب",
+    order_options: "خيارات الطلب",
+  };
+
+/** Primary customer-journey steps shown in the visual builder. */
+export const JOURNEY_SECTION_IDS: ExperienceSectionId[] = [
+  "personalization",
+  "extra_services",
+  "gift_options",
+  "summary",
+];
 
 export type ExperienceTemplateRow = {
   id: string;
@@ -371,7 +407,23 @@ export function normalizeProductExperienceConfig(
       : typeof src.template_id === "string"
         ? src.template_id
         : null;
-  return { sections: ordered, template_id };
+
+  const persRaw = asObject(src.personalization_ui);
+  const personalization_ui: ExperiencePersonalizationUi = {
+    required: bool(persRaw.required, DEFAULT_PERSONALIZATION_UI.required),
+    max_characters: Math.max(
+      1,
+      Math.floor(
+        num(persRaw.max_characters, DEFAULT_PERSONALIZATION_UI.max_characters)
+      )
+    ),
+    extra_price: Math.max(
+      0,
+      num(persRaw.extra_price, DEFAULT_PERSONALIZATION_UI.extra_price)
+    ),
+  };
+
+  return { sections: ordered, template_id, personalization_ui };
 }
 
 export function defaultProductExperienceConfig(): ProductExperienceConfig {
@@ -415,4 +467,36 @@ export function moveExperienceSection(
   const next = [...sorted];
   [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
   return next.map((s, i) => ({ ...s, sort_order: i }));
+}
+
+/**
+ * Move a journey section before another (or to end) while keeping
+ * checkout-only sections after storefront ones.
+ */
+export function reorderJourneySection(
+  sections: ExperienceSectionConfig[],
+  draggedId: ExperienceSectionId,
+  targetId: ExperienceSectionId
+): ExperienceSectionConfig[] {
+  if (draggedId === targetId) return sections;
+  if (
+    !JOURNEY_SECTION_IDS.includes(draggedId) ||
+    !JOURNEY_SECTION_IDS.includes(targetId)
+  ) {
+    return sections;
+  }
+
+  const sorted = [...sections].sort((a, b) => a.sort_order - b.sort_order);
+  const journey = sorted.filter((s) => JOURNEY_SECTION_IDS.includes(s.id));
+  const rest = sorted.filter((s) => !JOURNEY_SECTION_IDS.includes(s.id));
+
+  const from = journey.findIndex((s) => s.id === draggedId);
+  const to = journey.findIndex((s) => s.id === targetId);
+  if (from < 0 || to < 0) return sorted;
+
+  const nextJourney = [...journey];
+  const [item] = nextJourney.splice(from, 1);
+  nextJourney.splice(to, 0, item);
+
+  return [...nextJourney, ...rest].map((s, i) => ({ ...s, sort_order: i }));
 }

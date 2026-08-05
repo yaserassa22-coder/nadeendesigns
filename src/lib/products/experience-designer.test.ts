@@ -6,6 +6,7 @@ import {
   isCheckoutOnlyExperienceSection,
   moveExperienceSection,
   normalizeProductExperienceConfig,
+  reorderJourneySection,
   storefrontExperienceSections,
 } from "./experience-designer";
 import {
@@ -100,6 +101,29 @@ describe("experience designer", () => {
     expect(summaryIdx).toBeLessThan(
       base.findIndex((s) => s.id === "summary")
     );
+  });
+
+  it("reorders journey sections via drag target", () => {
+    const base = defaultProductExperienceConfig().sections;
+    const next = reorderJourneySection(base, "summary", "personalization");
+    const journey = next.filter((s) =>
+      ["personalization", "extra_services", "gift_options", "summary"].includes(
+        s.id
+      )
+    );
+    expect(journey[0].id).toBe("summary");
+    expect(journey.map((s) => s.id)).toContain("personalization");
+  });
+
+  it("normalizes personalization_ui defaults", () => {
+    const cfg = normalizeProductExperienceConfig({
+      personalization_ui: { required: true, max_characters: 12, extra_price: 5 },
+    });
+    expect(cfg.personalization_ui).toEqual({
+      required: true,
+      max_characters: 12,
+      extra_price: 5,
+    });
   });
 });
 

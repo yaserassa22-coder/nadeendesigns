@@ -593,7 +593,11 @@ export function ProductEditorModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-charcoal/40 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[100dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[92vh] sm:rounded-2xl">
+      <div
+        className={`flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[92vh] sm:rounded-2xl ${
+          tab === "experience" ? "max-w-4xl" : "max-w-3xl"
+        }`}
+      >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-beige-dark px-5 py-4 sm:px-6">
           <div>
@@ -939,158 +943,38 @@ export function ProductEditorModal({
           )}
 
           {tab === "experience" && (
-            <div className="space-y-8">
-              <p className="text-sm text-muted">
-                مصمم تجربة المنتج: ترتيب الأقسام، القوالب، وخيارات الطلب
-                والخدمات. الإعدادات تُحفظ مع المنتج وتظهر في مودال الشراء.
-              </p>
-
-              <ExperienceDesignerPanel
-                value={form.experience_config}
-                onChange={(experience_config) => patch({ experience_config })}
-                productNameAr={form.name_ar || "المنتج"}
-                supportsPersonalization={false}
-              />
-
-              <section className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="font-medium text-foreground">خيارات الطلب</h3>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="accent-gold"
-                      checked={form.order_options_use_custom}
-                      onChange={(e) =>
-                        patch({
-                          order_options_use_custom: e.target.checked,
-                        })
-                      }
-                    />
-                    تخصيص لهذا المنتج
-                  </label>
-                </div>
-                {!form.order_options_use_custom ? (
-                  <p className="text-xs text-muted">
-                    يُستخدم إعداد المتجر الافتراضي.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {DEFAULT_ORDER_OPTIONS.map((opt) => {
-                      const row = form.order_options[opt.key];
-                      return (
-                        <div
-                          key={opt.key}
-                          className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3"
-                        >
-                          <span className="text-sm">{opt.label_ar}</span>
-                          <div className="flex items-center gap-4 text-sm">
-                            <label className="flex items-center gap-1.5">
-                              <input
-                                type="checkbox"
-                                className="accent-gold"
-                                checked={row.enabled}
-                                onChange={(e) =>
-                                  patch({
-                                    order_options: {
-                                      ...form.order_options,
-                                      [opt.key]: {
-                                        ...row,
-                                        enabled: e.target.checked,
-                                      },
-                                    },
-                                  })
-                                }
-                              />
-                              مفعّل
-                            </label>
-                            <label className="flex items-center gap-1.5">
-                              <input
-                                type="checkbox"
-                                className="accent-gold"
-                                checked={row.required}
-                                disabled={!row.enabled}
-                                onChange={(e) =>
-                                  patch({
-                                    order_options: {
-                                      ...form.order_options,
-                                      [opt.key]: {
-                                        ...row,
-                                        required: e.target.checked,
-                                      },
-                                    },
-                                  })
-                                }
-                              />
-                              إلزامي
-                            </label>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-
-              <section className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="font-medium text-foreground">
-                    خدمات إضافية
-                  </h3>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="accent-gold"
-                      checked={form.extra_services_use_custom}
-                      onChange={(e) =>
-                        patch({
-                          extra_services_use_custom: e.target.checked,
-                        })
-                      }
-                    />
-                    تخصيص لهذا المنتج
-                  </label>
-                </div>
-                {!form.extra_services_use_custom ? (
-                  <p className="text-xs text-muted">
-                    تُستخدم الخدمات المفعّلة في إعدادات المتجر.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {libraryServices.map((svc) => {
-                      const checked = form.extra_service_ids.includes(svc.id);
-                      return (
-                        <label
-                          key={svc.id}
-                          className="flex items-center justify-between gap-3 border-b border-border/60 pb-3 text-sm"
-                        >
-                          <span>
-                            {svc.name_ar || svc.name}
-                            <span className="ms-2 text-xs text-muted">
-                              {svc.pricing_mode === "FREE"
-                                ? "مجاني"
-                                : `₪${svc.price}`}
-                            </span>
-                          </span>
-                          <input
-                            type="checkbox"
-                            className="accent-gold"
-                            checked={checked}
-                            onChange={(e) => {
-                              const next = e.target.checked
-                                ? [...form.extra_service_ids, svc.id]
-                                : form.extra_service_ids.filter(
-                                    (id) => id !== svc.id
-                                  );
-                              patch({ extra_service_ids: next });
-                            }}
-                          />
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            </div>
+            <ExperienceDesignerPanel
+              value={form.experience_config}
+              onChange={(experience_config) => patch({ experience_config })}
+              productNameAr={form.name_ar || "المنتج"}
+              supportsPersonalization
+              libraryServices={libraryServices}
+              onLibraryServicesChange={setLibraryServices}
+              extraServicesUseCustom={form.extra_services_use_custom}
+              extraServiceIds={form.extra_service_ids}
+              onExtraServicesUseCustomChange={(extra_services_use_custom) =>
+                patch({ extra_services_use_custom })
+              }
+              onExtraServiceIdsChange={(extra_service_ids) =>
+                patch({ extra_service_ids })
+              }
+              orderOptionsUseCustom={form.order_options_use_custom}
+              orderOptions={form.order_options}
+              onOrderOptionsUseCustomChange={(order_options_use_custom) =>
+                patch({ order_options_use_custom })
+              }
+              onOrderOptionsChange={(order_options) =>
+                patch({ order_options })
+              }
+              savedIndicator={autosaveStatus}
+              unitPrice={
+                form.sale_price
+                  ? Number(form.sale_price) || 0
+                  : form.price
+                    ? Number(form.price) || 0
+                    : 0
+              }
+            />
           )}
 
           {tab === "status" && (

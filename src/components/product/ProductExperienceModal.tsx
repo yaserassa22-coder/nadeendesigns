@@ -104,7 +104,7 @@ function SectionShell({
 export function ProductExperienceModal({
   open,
   onClose,
-  intent = "cart",
+  // `intent` retained on Props for callers; Buy Now is always primary gold.
   shopProductType,
   productId,
   nameAr,
@@ -420,7 +420,7 @@ export function ProductExperienceModal({
           ) : null}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
-              variant="outline"
+              variant="ghost"
               size="lg"
               className="sm:order-3"
               onClick={onClose}
@@ -430,7 +430,8 @@ export function ProductExperienceModal({
             </Button>
             <Button
               size="lg"
-              className="sm:order-1 sm:flex-1"
+              variant="outline"
+              className="sm:order-2 sm:flex-1"
               disabled={submitting}
               onClick={() => commit("cart")}
             >
@@ -439,8 +440,8 @@ export function ProductExperienceModal({
             </Button>
             <Button
               size="lg"
-              variant={intent === "checkout" ? "primary" : "outline"}
-              className="sm:order-2 sm:flex-1"
+              variant="primary"
+              className="sm:order-1 sm:flex-1"
               disabled={submitting}
               onClick={() => commit("checkout")}
             >

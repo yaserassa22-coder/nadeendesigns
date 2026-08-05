@@ -78,7 +78,11 @@ export function ProductExperiencePriceSummary({
         ) : null}
         <li className="flex justify-between gap-3 border-t border-gold/20 pt-2 text-base font-semibold">
           <span>الإجمالي</span>
-          <span className="text-gold" dir="ltr">
+          <span
+            key={lineTotal}
+            className="text-gold animate-in fade-in zoom-in-95 duration-300"
+            dir="ltr"
+          >
             {formatPrice(lineTotal)}
           </span>
         </li>

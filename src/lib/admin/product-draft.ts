@@ -8,6 +8,6 @@ export type AutosaveUiStatus = "idle" | "saving" | "saved" | "failed";
 export const AUTOSAVE_STATUS_LABEL: Record<AutosaveUiStatus, string> = {
   idle: "",
   saving: "جاري الحفظ…",
-  saved: "تم الحفظ",
+  saved: "✓ تم الحفظ",
   failed: "فشل الحفظ",
 };
