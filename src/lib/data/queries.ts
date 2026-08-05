@@ -8,6 +8,7 @@ import {
   categoryQueryValues,
   normalizeDressList,
   withNormalizedDressCategory,
+  withResolvedProductType,
 } from "@/lib/dresses/category";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -231,11 +232,13 @@ export async function getDressById(id: string): Promise<Dress | null> {
         archived_at?: string | null;
       };
       if (row.is_deleted || row.archived_at) return null;
-      return withNormalizedDressCategory(row);
+      return withResolvedProductType(withNormalizedDressCategory(row));
     }
   }
   const seed = SEED_DRESSES.find((d) => d.id === id);
-  return seed ? withNormalizedDressCategory(seed) : null;
+  return seed
+    ? withResolvedProductType(withNormalizedDressCategory(seed))
+    : null;
 }
 
 export async function getGalleryItems(): Promise<GalleryItem[]> {

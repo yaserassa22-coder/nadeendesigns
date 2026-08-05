@@ -66,6 +66,9 @@ export type DeliveryStatus =
 /** Product visibility — migration 035. Dual-writes to is_available. */
 export type DressStatus = "published" | "draft" | "hidden";
 
+import type { ProductCommerceType } from "@/lib/products/primary-action";
+export type { ProductCommerceType };
+
 export interface Dress {
   id: string;
   name_ar: string;
@@ -86,6 +89,23 @@ export interface Dress {
   category_id?: string | null;
   /** Optional collection category (featured_collection) — migration 035 */
   collection_id?: string | null;
+  /**
+   * Commerce / primary-action type (migration 036 / 037).
+   * Storefront CTAs must use this only — never category name/slug.
+   * Values: ready_to_buy | bridal_accessory | rental_dress | custom_design | service
+   * Not the same as cart ShopProductType (veil|bridal_robe|dress).
+   */
+  product_type?: ProductCommerceType | null;
+  /**
+   * Per-product order options override (migration 037). null = store defaults.
+   * Config only in Phase 1 — not wired into checkout.
+   */
+  order_options_config?: import("@/lib/products/order-experience").ProductOrderOptionsConfig | null;
+  /**
+   * Per-product extra services override (migration 037). null = store defaults.
+   * Config only in Phase 1 — not wired into checkout.
+   */
+  extra_services_config?: import("@/lib/products/order-experience").ProductExtraServicesConfig | null;
   price: number | null;
   sale_price?: number | null;
   /** Admin-only cost (migration 035) */

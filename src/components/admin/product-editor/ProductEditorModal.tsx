@@ -38,12 +38,25 @@ import {
   dressAssignableFrom,
   fetchAdminCategories,
 } from "@/lib/admin/fetch-admin-categories";
+import {
+  productCommerceTypeOptions,
+  resolveProductCommerceType,
+  type ProductCommerceType,
+} from "@/lib/products/primary-action";
+import {
+  DEFAULT_EXTRA_SERVICES,
+  DEFAULT_ORDER_OPTIONS,
+  type OrderOptionKey,
+  type ProductExtraServicesConfig,
+  type ProductOrderOptionsConfig,
+} from "@/lib/products/order-experience";
 
 export type ProductEditorTab =
   | "general"
   | "pricing"
   | "media"
   | "organization"
+  | "experience"
   | "status";
 
 export type DressFormState = {
@@ -55,6 +68,8 @@ export type DressFormState = {
   sku: string;
   category_id: string;
   collection_id: string;
+  /** Commerce type — drives storefront CTA (not category) */
+  product_type: ProductCommerceType;
   price: string;
   sale_price: string;
   cost_price: string;
@@ -69,6 +84,14 @@ export type DressFormState = {
   images: string[];
   slugTouched: boolean;
   skuTouched: boolean;
+  /** Phase 1 config — null inherits store defaults */
+  order_options_use_custom: boolean;
+  order_options: Record<
+    OrderOptionKey,
+    { enabled: boolean; required: boolean }
+  >;
+  extra_services_use_custom: boolean;
+  extra_service_ids: string[];
 };
 
 const TABS: { id: ProductEditorTab; label: string }[] = [
@@ -76,10 +99,62 @@ const TABS: { id: ProductEditorTab; label: string }[] = [
   { id: "pricing", label: "التسعير" },
   { id: "media", label: "الوسائط" },
   { id: "organization", label: "التنظيم" },
+  { id: "experience", label: "تجربة المنتج" },
   { id: "status", label: "الحالة" },
 ];
 
 const AUTOSAVE_MS = 1400;
+
+function defaultOrderOptionsForm(): Record<
+  OrderOptionKey,
+  { enabled: boolean; required: boolean }
+> {
+  const out = {} as Record<
+    OrderOptionKey,
+    { enabled: boolean; required: boolean }
+  >;
+  for (const opt of DEFAULT_ORDER_OPTIONS) {
+    out[opt.key] = { enabled: opt.enabled, required: opt.required };
+  }
+  return out;
+}
+
+function orderOptionsFromConfig(
+  config: ProductOrderOptionsConfig | null | undefined
+): Pick<DressFormState, "order_options_use_custom" | "order_options"> {
+  const base = defaultOrderOptionsForm();
+  if (!config?.use_custom) {
+    return { order_options_use_custom: false, order_options: base };
+  }
+  const merged = { ...base };
+  for (const key of Object.keys(base) as OrderOptionKey[]) {
+    const o = config.options?.[key];
+    if (!o) continue;
+    merged[key] = {
+      enabled: typeof o.enabled === "boolean" ? o.enabled : base[key].enabled,
+      required:
+        typeof o.required === "boolean" ? o.required : base[key].required,
+    };
+  }
+  return { order_options_use_custom: true, order_options: merged };
+}
+
+function extraServicesFromConfig(
+  config: ProductExtraServicesConfig | null | undefined
+): Pick<DressFormState, "extra_services_use_custom" | "extra_service_ids"> {
+  if (!config?.use_custom) {
+    return {
+      extra_services_use_custom: false,
+      extra_service_ids: DEFAULT_EXTRA_SERVICES.filter((s) => s.enabled).map(
+        (s) => s.id
+      ),
+    };
+  }
+  return {
+    extra_services_use_custom: true,
+    extra_service_ids: [...(config.enabled_ids ?? [])],
+  };
+}
 
 export function emptyDressForm(categoryId = ""): DressFormState {
   return {
@@ -91,6 +166,7 @@ export function emptyDressForm(categoryId = ""): DressFormState {
     sku: "",
     category_id: categoryId,
     collection_id: "",
+    product_type: "ready_to_buy",
     price: "",
     sale_price: "",
     cost_price: "",
@@ -105,6 +181,10 @@ export function emptyDressForm(categoryId = ""): DressFormState {
     images: [],
     slugTouched: false,
     skuTouched: false,
+    order_options_use_custom: false,
+    order_options: defaultOrderOptionsForm(),
+    extra_services_use_custom: false,
+    extra_service_ids: [],
   };
 }
 
@@ -145,6 +225,7 @@ export function dressToForm(
     sku: dress.sku ?? "",
     category_id: resolveDressCategoryId(dress, categories),
     collection_id: dress.collection_id ?? "",
+    product_type: resolveProductCommerceType(dress.product_type),
     price: dress.price?.toString() ?? "",
     sale_price: dress.sale_price?.toString() ?? "",
     cost_price: dress.cost_price?.toString() ?? "",
@@ -159,6 +240,8 @@ export function dressToForm(
     images: dress.images ?? [],
     slugTouched: Boolean(dress.slug),
     skuTouched: Boolean(dress.sku),
+    ...orderOptionsFromConfig(dress.order_options_config),
+    ...extraServicesFromConfig(dress.extra_services_config),
   };
 }
 
@@ -167,6 +250,20 @@ export function buildDressPayload(
   categoryId: string
 ) {
   const status = form.status;
+  const order_options_config: ProductOrderOptionsConfig | null =
+    form.order_options_use_custom
+      ? {
+          use_custom: true,
+          options: form.order_options,
+        }
+      : null;
+  const extra_services_config: ProductExtraServicesConfig | null =
+    form.extra_services_use_custom
+      ? {
+          use_custom: true,
+          enabled_ids: form.extra_service_ids,
+        }
+      : null;
   return {
     name_ar: form.name_ar.trim(),
     name_en: form.name_en.trim() || null,
@@ -176,6 +273,9 @@ export function buildDressPayload(
     sku: form.sku.trim() || null,
     category_id: categoryId,
     collection_id: form.collection_id || null,
+    product_type: form.product_type,
+    order_options_config,
+    extra_services_config,
     price: form.price ? Number(form.price) : null,
     sale_price: form.sale_price ? Number(form.sale_price) : null,
     cost_price: form.cost_price ? Number(form.cost_price) : null,
@@ -200,7 +300,17 @@ function readLocalDraft(key: string): DressFormState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { form?: DressFormState; savedAt?: string };
     if (parsed?.form && typeof parsed.form.name_ar === "string") {
-      return parsed.form;
+      const form = parsed.form;
+      return {
+        ...form,
+        product_type: resolveProductCommerceType(form.product_type),
+        order_options_use_custom: Boolean(form.order_options_use_custom),
+        order_options: form.order_options ?? defaultOrderOptionsForm(),
+        extra_services_use_custom: Boolean(form.extra_services_use_custom),
+        extra_service_ids: Array.isArray(form.extra_service_ids)
+          ? form.extra_service_ids
+          : [],
+      };
     }
   } catch {
     /* ignore corrupt drafts */
@@ -293,7 +403,9 @@ export function ProductEditorModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setCategoriesLoading(true);
+    queueMicrotask(() => {
+      if (!cancelled) setCategoriesLoading(true);
+    });
     void (async () => {
       try {
         const rows = await fetchAdminCategories();
@@ -727,6 +839,20 @@ export function ProductEditorModal({
                 />
               )}
               <Select
+                label="نوع المنتج"
+                value={form.product_type}
+                onChange={(e) =>
+                  patch({
+                    product_type: e.target.value as ProductCommerceType,
+                  })
+                }
+                options={productCommerceTypeOptions()}
+              />
+              <p className="sm:col-span-2 text-xs text-muted">
+                يحدد زر الواجهة (أضف إلى السلة / احجزي موعد / احجز الآن) —
+                مستقل عن التصنيف.
+              </p>
+              <Select
                 label="المجموعة"
                 value={form.collection_id}
                 onChange={(e) => patch({ collection_id: e.target.value })}
@@ -778,6 +904,148 @@ export function ProductEditorModal({
                   منتج مميز في الواجهة
                 </label>
               </div>
+            </div>
+          )}
+
+          {tab === "experience" && (
+            <div className="space-y-8">
+              <p className="text-sm text-muted">
+                إعدادات خيارات الطلب والخدمات الإضافية لهذا المنتج فقط.
+                الافتراضيات تُدار من إعدادات المتجر. لن تُطبَّق على الدفع
+                حتى المرحلة التالية.
+              </p>
+
+              <section className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-medium text-foreground">خيارات الطلب</h3>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="accent-gold"
+                      checked={form.order_options_use_custom}
+                      onChange={(e) =>
+                        patch({
+                          order_options_use_custom: e.target.checked,
+                        })
+                      }
+                    />
+                    تخصيص لهذا المنتج
+                  </label>
+                </div>
+                {!form.order_options_use_custom ? (
+                  <p className="text-xs text-muted">
+                    يُستخدم إعداد المتجر الافتراضي.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {DEFAULT_ORDER_OPTIONS.map((opt) => {
+                      const row = form.order_options[opt.key];
+                      return (
+                        <div
+                          key={opt.key}
+                          className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3"
+                        >
+                          <span className="text-sm">{opt.label_ar}</span>
+                          <div className="flex items-center gap-4 text-sm">
+                            <label className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                className="accent-gold"
+                                checked={row.enabled}
+                                onChange={(e) =>
+                                  patch({
+                                    order_options: {
+                                      ...form.order_options,
+                                      [opt.key]: {
+                                        ...row,
+                                        enabled: e.target.checked,
+                                      },
+                                    },
+                                  })
+                                }
+                              />
+                              مفعّل
+                            </label>
+                            <label className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                className="accent-gold"
+                                checked={row.required}
+                                disabled={!row.enabled}
+                                onChange={(e) =>
+                                  patch({
+                                    order_options: {
+                                      ...form.order_options,
+                                      [opt.key]: {
+                                        ...row,
+                                        required: e.target.checked,
+                                      },
+                                    },
+                                  })
+                                }
+                              />
+                              إلزامي
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-medium text-foreground">
+                    خدمات إضافية
+                  </h3>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="accent-gold"
+                      checked={form.extra_services_use_custom}
+                      onChange={(e) =>
+                        patch({
+                          extra_services_use_custom: e.target.checked,
+                        })
+                      }
+                    />
+                    تخصيص لهذا المنتج
+                  </label>
+                </div>
+                {!form.extra_services_use_custom ? (
+                  <p className="text-xs text-muted">
+                    تُستخدم الخدمات المفعّلة في إعدادات المتجر.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {DEFAULT_EXTRA_SERVICES.map((svc) => {
+                      const checked = form.extra_service_ids.includes(svc.id);
+                      return (
+                        <label
+                          key={svc.id}
+                          className="flex items-center justify-between gap-3 border-b border-border/60 pb-3 text-sm"
+                        >
+                          <span>{svc.name_ar}</span>
+                          <input
+                            type="checkbox"
+                            className="accent-gold"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...form.extra_service_ids, svc.id]
+                                : form.extra_service_ids.filter(
+                                    (id) => id !== svc.id
+                                  );
+                              patch({ extra_service_ids: next });
+                            }}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
             </div>
           )}
 

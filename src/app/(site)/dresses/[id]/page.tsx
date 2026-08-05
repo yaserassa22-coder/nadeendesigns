@@ -6,19 +6,19 @@ import { getCategories, getCategoryById } from "@/lib/data/categories";
 import { resolveCategoryHref } from "@/lib/categories/href";
 import { findCategoryMatch } from "@/lib/dresses/category";
 import { featuredImage } from "@/lib/products/featured-image";
+import {
+  getProductPrimaryAction,
+  resolveProductCommerceType,
+} from "@/lib/products/primary-action";
 import { getDressColorLabel } from "@/lib/colors";
 import { getDressStyleLabel } from "@/lib/styles";
-import {
-  categoryToServiceType,
-  supportsPersonalization,
-} from "@/lib/personalization";
 import { Button } from "@/components/ui/Button";
-import { PersonalizationForm } from "@/components/dresses/PersonalizationForm";
 import { RelatedProducts } from "@/components/dresses/RelatedProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
+import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
-import { Calendar, Ruler, Palette } from "lucide-react";
+import { Ruler, Palette } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -54,13 +54,9 @@ export default async function DressDetailPage({ params }: Props) {
     ? resolveCategoryHref(category)
     : "/wedding-dresses";
 
-  const isRental =
-    dress.category === "rental" ||
-    category?.legacy_key === "rental" ||
-    (!dress.price && !!dress.rental_price);
-  const personalizationType = supportsPersonalization(dress.category)
-    ? dress.category
-    : null;
+  // CTA + rental presentation from product_type ONLY (never category name/slug)
+  const commerceType = resolveProductCommerceType(dress.product_type);
+  const primaryAction = getProductPrimaryAction(commerceType);
   const related = (
     await getDresses(
       dress.category_id
@@ -87,7 +83,11 @@ export default async function DressDetailPage({ params }: Props) {
       price={dress.price}
       salePrice={dress.sale_price}
       rentalPrice={dress.rental_price}
-      priceSuffix={isRental && !dress.price ? "/ إيجار" : undefined}
+      priceSuffix={
+        primaryAction.isRentalPresentation && !dress.price
+          ? "/ إيجار"
+          : undefined
+      }
       description={dress.description_ar}
       available={dress.is_available}
       meta={
@@ -120,48 +120,29 @@ export default async function DressDetailPage({ params }: Props) {
             productTitle={dress.name_ar}
             productImageUrl={featuredImage(dress.images)}
           />
-          {!personalizationType && (
-            <>
-              <Link href={`/booking?dress=${dress.id}`}>
-                <Button size="lg">
-                  <Calendar className="h-4 w-4" />
-                  احجزي موعدًا
-                </Button>
-              </Link>
-              <Link href={categoryHref}>
-                <Button variant="outline" size="lg">
-                  العودة للمجموعة
-                </Button>
-              </Link>
-            </>
-          )}
-          {personalizationType && (
-            <Link href={categoryHref}>
-              <Button variant="outline" size="lg">
-                العودة للمجموعة
-              </Button>
-            </Link>
-          )}
-        </>
-      }
-      below={
-        personalizationType ? (
-          <div className="mx-auto mt-4 max-w-3xl lg:mt-8">
-            <PersonalizationForm
-              dress={dress}
-              productType={personalizationType}
+          {dress.is_available ? (
+            <ProductPrimaryCta
+              productType={commerceType}
+              shopProductType="dress"
+              productId={dress.id}
+              nameAr={dress.name_ar}
+              price={dress.price}
+              salePrice={dress.sale_price}
+              rentalPrice={dress.rental_price}
+              image={featuredImage(dress.images)}
+              bookingHref={
+                primaryAction.kind === "book_now"
+                  ? "/booking"
+                  : `/booking?dress=${dress.id}`
+              }
             />
-            <p className="mt-4 text-center text-xs text-muted">
-              أو{" "}
-              <Link
-                href={`/booking?dress=${dress.id}&service=${categoryToServiceType(personalizationType)}`}
-                className="text-gold underline-offset-2 hover:underline"
-              >
-                انتقلي للحجز مباشرة
-              </Link>
-            </p>
-          </div>
-        ) : null
+          ) : null}
+          <Link href={categoryHref}>
+            <Button variant="outline" size="lg">
+              العودة للمجموعة
+            </Button>
+          </Link>
+        </>
       }
       related={<RelatedProducts dresses={related} />}
     />

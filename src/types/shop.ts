@@ -12,6 +12,8 @@ export interface Veil {
   stock_quantity: number;
   is_available: boolean;
   is_featured: boolean;
+  /** Always bridal_accessory (migration 036/037) — storefront CTA source of truth */
+  product_type?: "bridal_accessory" | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +30,8 @@ export interface BridalRobe {
   stock_quantity: number;
   is_featured: boolean;
   is_available: boolean;
+  /** Always bridal_accessory (migration 036/037) — storefront CTA source of truth */
+  product_type?: "bridal_accessory" | null;
   created_at: string;
   updated_at: string;
 }

@@ -65,7 +65,11 @@ export async function POST(request: Request) {
     const supabase = await createPrivilegedClient();
     const { data, error } = await supabase
       .from("bridal_robes")
-      .insert({ ...body, updated_at: new Date().toISOString() })
+      .insert({
+        ...body,
+        product_type: "bridal_accessory",
+        updated_at: new Date().toISOString(),
+      })
       .select()
       .single();
     if (error) {
@@ -105,7 +109,11 @@ export async function PUT(request: Request) {
     const supabase = await createPrivilegedClient();
     const { data, error } = await supabase
       .from("bridal_robes")
-      .update({ ...body, updated_at: new Date().toISOString() })
+      .update({
+        ...body,
+        product_type: "bridal_accessory",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id)
       .select()
       .single();

@@ -1,6 +1,11 @@
 import type { Dress } from "@/types";
 import type { Category } from "@/types/category";
 import { SEED_CATEGORIES } from "@/types/category";
+import {
+  inferProductCommerceTypeFromLegacyCategory,
+  isProductCommerceType,
+  type ProductCommerceType,
+} from "@/lib/products/primary-action";
 
 /**
  * Historical TEXT aliases for seeded dress categories.
@@ -44,8 +49,23 @@ export function withNormalizedDressCategory<T extends { category: string }>(
   return { ...dress, category: dress.category || "wedding" };
 }
 
+/** Ensure product_type is set (hydrate from legacy category TEXT only when missing). */
+export function withResolvedProductType<
+  T extends { category: string; product_type?: ProductCommerceType | null },
+>(dress: T): T & { product_type: ProductCommerceType } {
+  if (isProductCommerceType(dress.product_type)) {
+    return { ...dress, product_type: dress.product_type };
+  }
+  return {
+    ...dress,
+    product_type: inferProductCommerceTypeFromLegacyCategory(dress.category),
+  };
+}
+
 export function normalizeDressList(dresses: Dress[]): Dress[] {
-  return dresses.map((d) => withNormalizedDressCategory(d));
+  return dresses.map((d) =>
+    withResolvedProductType(withNormalizedDressCategory(d))
+  );
 }
 
 /** Resolve TEXT key used when dual-writing dresses.category */

@@ -4,10 +4,12 @@ import {
   DEFAULT_STORE_SETTINGS,
   type StoreAuthSettings,
   type StoreContactSettings,
+  type StoreExtraServicesSettings,
   type StoreGeneralSettings,
   type StoreHomepageSettings,
   type StoreIntegrationStub,
   type StoreNotificationChannelSettings,
+  type StoreOrderOptionsSettings,
   type StorePaymentProvider,
   type StoreSecuritySettings,
   type StoreSeoSettings,
@@ -16,6 +18,10 @@ import {
   type StoreShippingSettings,
   type StoreSocialSettings,
 } from "@/types/store";
+import {
+  normalizeExtraServices,
+  normalizeOrderOptions,
+} from "@/lib/products/order-experience";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
@@ -314,6 +320,12 @@ export function normalizeStoreSettings(
     seo: normalizeSeo(src.seo),
     security: normalizeSecurity(src.security),
     integrations: normalizeIntegrations(src.integrations),
+    order_options: normalizeOrderOptions(
+      src.order_options
+    ) as StoreOrderOptionsSettings,
+    extra_services: normalizeExtraServices(
+      src.extra_services
+    ) as StoreExtraServicesSettings,
   };
 }
 
@@ -362,6 +374,17 @@ export function mergeStoreSettingsPatch(
     integrations: patch.integrations
       ? normalizeIntegrations(patch.integrations)
       : current.integrations,
+    order_options: patch.order_options
+      ? (normalizeOrderOptions({
+          options: patch.order_options.options ?? current.order_options.options,
+        }) as StoreOrderOptionsSettings)
+      : current.order_options,
+    extra_services: patch.extra_services
+      ? (normalizeExtraServices({
+          services:
+            patch.extra_services.services ?? current.extra_services.services,
+        }) as StoreExtraServicesSettings)
+      : current.extra_services,
   };
   return normalizeStoreSettings(next);
 }

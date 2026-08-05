@@ -136,6 +136,39 @@ export type StoreIntegrationStub = {
   notes: string;
 };
 
+export type StoreOrderOptionKey =
+  | "recipient_name"
+  | "gift_message"
+  | "delivery_address"
+  | "delivery_date"
+  | "delivery_time"
+  | "order_notes";
+
+export type StoreOrderOption = {
+  key: StoreOrderOptionKey;
+  label: string;
+  label_ar: string;
+  enabled: boolean;
+  required: boolean;
+};
+
+export type StoreOrderOptionsSettings = {
+  options: StoreOrderOption[];
+};
+
+export type StoreExtraService = {
+  id: string;
+  name: string;
+  name_ar: string;
+  price: number;
+  enabled: boolean;
+  sort_order: number;
+};
+
+export type StoreExtraServicesSettings = {
+  services: StoreExtraService[];
+};
+
 export type StoreSettings = {
   general: StoreGeneralSettings;
   payments: {
@@ -150,6 +183,9 @@ export type StoreSettings = {
   seo: StoreSeoSettings;
   security: StoreSecuritySettings;
   integrations: StoreIntegrationStub[];
+  /** Sprint 2 Phase 1 — config only; checkout wiring is Phase 2 */
+  order_options: StoreOrderOptionsSettings;
+  extra_services: StoreExtraServicesSettings;
 };
 
 export type StoreSettingsSection =
@@ -163,7 +199,9 @@ export type StoreSettingsSection =
   | "notifications"
   | "seo"
   | "security"
-  | "integrations";
+  | "integrations"
+  | "order_options"
+  | "extra_services";
 
 export type SystemHealthStatus = "green" | "yellow" | "red";
 
@@ -445,4 +483,86 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     backup_note: "النسخ الاحتياطي يُدار عبر Supabase — الحالة للعرض فقط",
   },
   integrations: DEFAULT_STORE_INTEGRATIONS,
+  order_options: {
+    options: [
+      {
+        key: "recipient_name",
+        label: "Recipient Name",
+        label_ar: "اسم المستلم",
+        enabled: false,
+        required: false,
+      },
+      {
+        key: "gift_message",
+        label: "Gift Message",
+        label_ar: "رسالة هدية",
+        enabled: false,
+        required: false,
+      },
+      {
+        key: "delivery_address",
+        label: "Delivery Address",
+        label_ar: "عنوان التوصيل",
+        enabled: true,
+        required: false,
+      },
+      {
+        key: "delivery_date",
+        label: "Delivery Date",
+        label_ar: "تاريخ التوصيل",
+        enabled: false,
+        required: false,
+      },
+      {
+        key: "delivery_time",
+        label: "Delivery Time",
+        label_ar: "وقت التوصيل",
+        enabled: false,
+        required: false,
+      },
+      {
+        key: "order_notes",
+        label: "Order Notes",
+        label_ar: "ملاحظات الطلب",
+        enabled: true,
+        required: false,
+      },
+    ],
+  },
+  extra_services: {
+    services: [
+      {
+        id: "gift_wrap",
+        name: "Gift Wrap",
+        name_ar: "تغليف هدية",
+        price: 0,
+        enabled: false,
+        sort_order: 0,
+      },
+      {
+        id: "greeting_card",
+        name: "Greeting Card",
+        name_ar: "بطاقة تهنئة",
+        price: 0,
+        enabled: false,
+        sort_order: 1,
+      },
+      {
+        id: "luxury_box",
+        name: "Luxury Box",
+        name_ar: "علبة فاخرة",
+        price: 0,
+        enabled: false,
+        sort_order: 2,
+      },
+      {
+        id: "express_delivery",
+        name: "Express Delivery",
+        name_ar: "توصيل سريع",
+        price: 0,
+        enabled: false,
+        sort_order: 3,
+      },
+    ],
+  },
 };

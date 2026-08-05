@@ -1,5 +1,5 @@
 ---
-description: NadEEN Designs Project Constitution v1.0 — architecture and development rules that override implementation convenience
+description: NadEEN Designs Project Constitution — architecture, DoD, RSC boundary, and backward-compatibility (stabilization) rules
 alwaysApply: true
 ---
 
@@ -33,9 +33,50 @@ The business owner should manage the store without touching code.
 
 Never sacrifice UX for implementation simplicity.
 
-## Rule #6 — Definition of done
+## Rule #6 — Definition of Done (DoD)
 
-Every module must pass: Manual QA, TypeScript, ESLint, Production Build, Responsive, RTL, Accessibility, No Console Errors.
+Applies to **every Sprint**. A task is NOT complete unless ALL checks pass.
+
+### 1. Code quality
+- TypeScript passes
+- ESLint passes
+- Production Build passes
+
+### 2. Runtime QA
+Run the application. No runtime errors, hydration errors, Server/Client boundary errors, or console errors.
+
+### 3. Storefront QA (manual)
+Homepage, Collections, Category Pages, Product Details, Wishlist, Cart, Checkout, Search, Customer Dashboard.
+
+### 4. Admin QA (manual)
+Dashboard, Products, Categories, Orders, Bookings, Gallery, Settings, Reports.
+
+### 5. CRUD QA
+For every new entity: Create, Read, Update, Delete must all work.
+
+### 6. Dynamic QA
+Nothing may require code edits for business changes. Every business object must be manageable from Admin.
+
+### 7. Regression QA
+Verify existing features still work. Do not introduce regressions.
+
+### 8. Performance
+No unnecessary re-renders, duplicated queries, or duplicate business logic.
+
+### 9. Architecture
+Single Source of Truth. No hardcoded business data. No duplicated services.
+
+### 10. Sprint output (required)
+Every Sprint must end with:
+1. Root Cause
+2. Architecture Decisions
+3. Files Changed
+4. Database Migrations
+5. Manual QA Results
+6. Git Commit
+7. Known Limitations (if any)
+
+A Sprint is NOT complete until every item above passes.
 
 ## Rule #7 — Root cause only
 
@@ -64,6 +105,41 @@ Allowed props: serializable data (strings, numbers, booleans, plain objects/arra
 Custom rendering that needs live client state (e.g. carousel slide index) must live **inside** the Client Component. Pass data + elements in; compose UI there.
 
 Client → Client callbacks remain fine.
+
+## Rule #12 — BACKWARD COMPATIBILITY (Stabilization Phase)
+
+The project is in the **stabilization phase**.
+
+From now on:
+
+- **NO** existing working feature may be removed.
+- **NO** existing customer workflow may change.
+- **NO** existing admin workflow may change.
+- New features must **EXTEND** existing functionality.
+- Never **REPLACE**. Never **REMOVE**. Never **BREAK**.
+
+Examples that must continue to work exactly as before:
+
+- Veil personalization
+- Robe customization
+- Appointments / bookings
+- Wishlist
+- Cart
+- Checkout, orders, shipping, notifications, and other shipped flows
+
+A Dynamic Product Experience (or any new module) must **wrap around** existing features — never replace them.
+
+### Pre-merge regression gate
+
+Before every merge, run regression QA on **ALL** existing product types (dresses, veils, bridal robes / برنص, accessories, rental, custom design as applicable).
+
+Return with every merge-ready change:
+
+1. Regression report
+2. List of verified existing features
+3. List of newly added features
+
+**Do not merge if any previous feature is broken.**
 
 ## Current development order
 

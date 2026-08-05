@@ -16,8 +16,9 @@ import { useCart } from "@/components/shop/CartProvider";
 import {
   ARABIC_FONT_OPTIONS,
   ENGLISH_FONT_OPTIONS,
-  ROBE_POSITION_OPTIONS,
-  VEIL_POSITION_OPTIONS,
+  getPersonalizationPositionOptions,
+  shopTypeToPersonalizationType,
+  validatePersonalization,
   WRITING_COLOR_OPTIONS,
   WRITING_LANGUAGE_OPTIONS,
   type ArabicFont,
@@ -25,13 +26,13 @@ import {
   type WritingColor,
   type WritingLanguage,
   type WritingPosition,
-} from "@/lib/personalization";
+} from "@/lib/products/personalization";
 import { giftOptionsSchema } from "@/lib/validations/gift";
-import { productPersonalizationSchema } from "@/lib/validations/personalization";
 import type { GiftOptions, ProductPersonalization } from "@/types";
 import type { ShopProductType } from "@/types/shop";
 import { cn } from "@/lib/utils";
 import { resolveProductPricing } from "@/lib/products/pricing";
+import { getProductPrimaryAction } from "@/lib/products/primary-action";
 
 interface ShopCustomizeAndBuyProps {
   productType: ShopProductType;
@@ -53,8 +54,11 @@ export function ShopCustomizeAndBuy({
 }: ShopCustomizeAndBuyProps) {
   const router = useRouter();
   const { addItem } = useCart();
-  const personalizationType = productType === "veil" ? "veils" : "robes";
+  const personalizationType =
+    shopTypeToPersonalizationType(productType) ?? "robes";
   const pricing = resolveProductPricing({ price, salePrice });
+  /** Veils/robes are always bridal_accessory → Add to Cart label */
+  const addToCartLabel = getProductPrimaryAction("bridal_accessory").label;
 
   const [quantity, setQuantity] = useState(1);
   const [withPersonalization, setWithPersonalization] = useState(true);
@@ -73,10 +77,7 @@ export function ShopCustomizeAndBuy({
   const [message, setMessage] = useState("");
 
   const positionOptions = useMemo(
-    () =>
-      personalizationType === "robes"
-        ? ROBE_POSITION_OPTIONS
-        : VEIL_POSITION_OPTIONS,
+    () => getPersonalizationPositionOptions(personalizationType),
     [personalizationType]
   );
 
@@ -87,7 +88,7 @@ export function ShopCustomizeAndBuy({
 
   const buildPersonalization = (): ProductPersonalization | null => {
     if (!withPersonalization) return null;
-    const parsed = productPersonalizationSchema.safeParse({
+    const result = validatePersonalization({
       product_type: personalizationType,
       dress_id: productId,
       dress_name_ar: nameAr,
@@ -99,16 +100,12 @@ export function ShopCustomizeAndBuy({
       color,
       position,
     });
-    if (!parsed.success) {
-      const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = String(issue.path[0] ?? "form");
-        if (!next[key]) next[key] = issue.message;
-      }
-      setErrors(next);
+    if (!result.ok) {
+      setErrors(result.fieldErrors);
       return null;
     }
-    return parsed.data;
+    setErrors({});
+    return result.data;
   };
 
   const buildGift = (): GiftOptions | null | undefined => {
@@ -337,7 +334,7 @@ export function ShopCustomizeAndBuy({
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button size="lg" onClick={() => addToCart(false)}>
           <ShoppingBag className="h-4 w-4" />
-          أضيفي إلى السلة
+          {addToCartLabel}
         </Button>
         <Button size="lg" variant="outline" onClick={() => addToCart(true)}>
           شراء الآن

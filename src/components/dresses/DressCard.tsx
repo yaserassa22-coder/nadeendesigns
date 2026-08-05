@@ -9,6 +9,10 @@ import { ProductPrice } from "@/components/product/ProductPrice";
 import { getDressStyleLabel } from "@/lib/styles";
 import { featuredImage } from "@/lib/products/featured-image";
 import { resolveProductPricing } from "@/lib/products/pricing";
+import {
+  getProductPrimaryAction,
+  resolveProductCommerceType,
+} from "@/lib/products/primary-action";
 
 interface DressCardProps {
   dress: Dress;
@@ -16,13 +20,15 @@ interface DressCardProps {
 }
 
 export function DressCard({ dress, index = 0 }: DressCardProps) {
-  const isRentalCategory =
-    dress.category === "rental" || (!dress.price && !!dress.rental_price);
+  // Rental presentation from product_type ONLY — never category name
+  const commerceType = resolveProductCommerceType(dress.product_type);
+  const primaryAction = getProductPrimaryAction(commerceType);
+  const isRental = primaryAction.isRentalPresentation;
   const pricing = resolveProductPricing({
     price: dress.price,
     salePrice: dress.sale_price,
     rentalPrice: dress.rental_price,
-    forceRental: isRentalCategory && dress.price == null,
+    forceRental: isRental && dress.price == null,
   });
   const href = `/dresses/${dress.id}`;
 
@@ -81,9 +87,9 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
             price={dress.price}
             salePrice={dress.sale_price}
             rentalPrice={dress.rental_price}
-            forceRental={isRentalCategory && dress.price == null}
+            forceRental={isRental && dress.price == null}
             priceSuffix={
-              isRentalCategory && !pricing.onSale ? "/ إيجار" : undefined
+              isRental && !pricing.onSale ? "/ إيجار" : undefined
             }
             showSaleBadge={false}
           />

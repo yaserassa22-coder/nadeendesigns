@@ -113,6 +113,8 @@ export type AccessoryShopItem = {
   size?: string | null;
   href: string;
   kind: "veil" | "bridal_robe";
+  /** Always bridal_accessory — storefront CTA source of truth */
+  product_type: "bridal_accessory";
   created_at: string;
 };
 
@@ -134,6 +136,8 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     category: v.category?.trim() || "طرحة العروس",
     href: `/veils/${v.id}`,
     kind: "veil",
+    /** Commerce type always bridal_accessory for veils */
+    product_type: "bridal_accessory" as const,
     created_at: v.created_at,
   }));
 
@@ -149,6 +153,7 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     size: r.size,
     href: `/robes/${r.id}`,
     kind: "bridal_robe",
+    product_type: "bridal_accessory" as const,
     created_at: r.created_at,
   }));
 

@@ -4,6 +4,7 @@ import { requireAdminApi } from "@/lib/auth";
 import {
   normalizeDressList,
   withNormalizedDressCategory,
+  withResolvedProductType,
 } from "@/lib/dresses/category";
 import { assertSameKindMove } from "@/lib/categories/kind";
 import { resolveDressCategory } from "@/lib/categories/resolve-dress";
@@ -18,7 +19,7 @@ import {
 } from "@/lib/products/status";
 import type { Dress } from "@/types";
 
-/** Columns introduced in migration 035 — strip on PGRST204 retry. */
+/** Columns introduced in migration 035 / 036 — strip on PGRST204 retry. */
 const P11_COLUMNS = [
   "name_en",
   "short_description",
@@ -29,6 +30,7 @@ const P11_COLUMNS = [
   "status",
   "tags",
   "collection_id",
+  "product_type",
 ] as const;
 
 function emptyToNull(value: string | null | undefined): string | null {
@@ -226,6 +228,9 @@ export async function POST(request: Request) {
       category: resolved.textKey,
       category_id: resolved.category.id,
       collection_id: body.collection_id ?? null,
+      product_type: body.product_type ?? "ready_to_buy",
+      order_options_config: body.order_options_config ?? null,
+      extra_services_config: body.extra_services_config ?? null,
       price: body.price ?? null,
       sale_price: body.sale_price ?? null,
       cost_price: body.cost_price ?? null,
@@ -256,7 +261,7 @@ export async function POST(request: Request) {
     // Graceful if category_id / P1.1 columns not yet migrated
     if (
       error &&
-      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|PGRST204|42703/i.test(
+      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|product_type|order_options_config|extra_services_config|PGRST204|42703/i.test(
         `${error.message}${error.code}`
       )
     ) {
@@ -278,7 +283,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
 
-    return NextResponse.json(withNormalizedDressCategory(data as Dress));
+    return NextResponse.json(
+      withResolvedProductType(withNormalizedDressCategory(data as Dress))
+    );
   } catch (e) {
     const mapped = mapDressWriteError(e);
     return NextResponse.json({ error: mapped.message }, { status: mapped.status });
@@ -386,7 +393,7 @@ export async function PUT(request: Request) {
 
     if (
       error &&
-      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|PGRST204|42703/i.test(
+      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|product_type|order_options_config|extra_services_config|PGRST204|42703/i.test(
         `${error.message}${error.code}`
       )
     ) {
@@ -409,7 +416,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
 
-    return NextResponse.json(withNormalizedDressCategory(data as Dress));
+    return NextResponse.json(
+      withResolvedProductType(withNormalizedDressCategory(data as Dress))
+    );
   } catch (e) {
     const mapped = mapDressWriteError(e);
     return NextResponse.json({ error: mapped.message }, { status: mapped.status });

@@ -19,6 +19,8 @@ const SECTIONS: StoreSettingsSection[] = [
   "homepage",
   "authentication",
   "notifications",
+  "order_options",
+  "extra_services",
   "seo",
   "security",
   "integrations",

@@ -1,4 +1,4 @@
--- =============================================================================
+- =============================================================================
 -- APPLY_ALL.sql ? SINGLE-FILE master setup for NadEEN Designs
 --
 -- ONE FILE. Run once or repeatedly. No other APPLY_*.sql required.
@@ -70,7 +70,12 @@
 --       settings.key = 'store' JSONB (payments inside JSON; secrets via env)
 --   38. Sprint P1.1 product management core: APPLY_PRODUCT_MANAGEMENT_CORE (= 035)
 --       dresses: name_en, short_description, slug, sku, sale_price, cost_price,
---       status (published|draft|hidden), tags[], collection_id — dual-write ↔ is_available
+--       status (published|draft|hidden), tags[], collection_id ג€” dual-write ג†” is_available
+--   39. Product commerce type: APPLY_PRODUCT_COMMERCE_TYPE (= 036)
+--       dresses/veils/bridal_robes.product_type for storefront CTA
+--   40. Product experience foundation: APPLY_PRODUCT_EXPERIENCE_FOUNDATION (= 037)
+--       Sprint 2 enums + order_options / extra_services config columns
+--       (ready_to_buy|rental|custom_design|accessory|service); never category-name CTAs
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, settings) must already
 -- exist from the main schema / earlier project setup. This file applies
@@ -2959,7 +2964,7 @@ END $$;
 
 
 -- #############################################################################
--- 34 — Phase G guest customers: APPLY_GUEST_CUSTOMERS.sql (= 031)
+-- 34 ג€” Phase G guest customers: APPLY_GUEST_CUSTOMERS.sql (= 031)
 -- guest_customers, guest_carts, recently_viewed, wishlist guest_id,
 -- guest_id on orders/bookings/designs. Idempotent. Requires customers (31).
 -- #############################################################################
@@ -3145,7 +3150,7 @@ CREATE POLICY "Admin all recently_viewed" ON recently_viewed
   );
 
 -- #############################################################################
--- 35 — Phase G2 guest storefront RLS: APPLY_GUEST_STOREFRONT_RLS.sql (= 032)
+-- 35 ג€” Phase G2 guest storefront RLS: APPLY_GUEST_STOREFRONT_RLS.sql (= 032)
 -- Anon-key path for guest cart/session durability (no SERVICE_ROLE required).
 -- Idempotent. Requires section 34 / guest_customers.
 -- #############################################################################
@@ -3374,9 +3379,9 @@ CREATE INDEX IF NOT EXISTS idx_categories_featured_collection
   WHERE featured_collection = true;
 
 -- =============================================================================
--- 37 — Sprint S1: store settings seed (= 034 / APPLY_STORE_SETTINGS)
+-- 37 ג€” Sprint S1: store settings seed (= 034 / APPLY_STORE_SETTINGS)
 -- settings.key = 'store' JSONB bag. Payment providers live inside JSON
--- (not a separate table). Secrets never stored — env refs + configured flags.
+-- (not a separate table). Secrets never stored ג€” env refs + configured flags.
 -- ON CONFLICT DO NOTHING so re-runs never overwrite admin edits.
 -- =============================================================================
 
@@ -3387,15 +3392,15 @@ VALUES (
     'general', jsonb_build_object(
       'store_name', 'Nadeen Designs',
       'description', 'Luxury bridal boutique',
-      'description_ar', 'بوتيك فاخر لفساتين الزفاف والإكسسوارات',
+      'description_ar', '״¨ˆ״×ƒ ״§״®״± „״³״§״×† ״§„״²״§ ˆ״§„״¥ƒ״³״³ˆ״§״±״§״×',
       'logo_url', '',
       'favicon_url', '',
       'business_email', 'hello@nadeendesigns.com',
       'business_phone', '+966500000000',
       'business_address', 'Riyadh, Saudi Arabia',
-      'business_address_ar', 'الرياض، المملكة العربية السعودية',
-      'working_hours', 'Sat–Thu 10:00–21:00',
-      'working_hours_ar', 'السبت - الخميس: 10:00 ص - 9:00 م',
+      'business_address_ar', '״§„״±״§״¶״ ״§„……„ƒ״© ״§„״¹״±״¨״© ״§„״³״¹ˆ״¯״©',
+      'working_hours', 'Satג€“Thu 10:00ג€“21:00',
+      'working_hours_ar', '״§„״³״¨״× - ״§„״®…״³: 10:00 ״µ - 9:00 …',
       'currency', 'ILS',
       'language', 'ar',
       'timezone', 'Asia/Jerusalem'
@@ -3405,13 +3410,13 @@ VALUES (
         jsonb_build_object(
           'id', 'cod',
           'name', 'Cash on Delivery',
-          'name_ar', 'الدفع عند الاستلام',
+          'name_ar', '״§„״¯״¹ ״¹†״¯ ״§„״§״³״×„״§…',
           'enabled', true,
           'coming_soon', false,
           'sort_order', 0,
           'icon', 'banknote',
           'description', 'Pay when you receive your order',
-          'description_ar', 'ادفعي عند استلام طلبكِ من البوتيك أو مع المندوب',
+          'description_ar', '״§״¯״¹ ״¹†״¯ ״§״³״×„״§… ״·„״¨ƒ …† ״§„״¨ˆ״×ƒ ״£ˆ …״¹ ״§„…†״¯ˆ״¨',
           'configuration', '{}'::jsonb,
           'secret_env_ref', null,
           'configured', true
@@ -3419,13 +3424,13 @@ VALUES (
         jsonb_build_object(
           'id', 'stripe',
           'name', 'Stripe',
-          'name_ar', 'سترايب',
+          'name_ar', '״³״×״±״§״¨',
           'enabled', false,
           'coming_soon', true,
           'sort_order', 1,
           'icon', 'credit-card',
           'description', 'Cards via Stripe',
-          'description_ar', 'بطاقات عبر سترايب — قريباً',
+          'description_ar', '״¨״·״§‚״§״× ״¹״¨״± ״³״×״±״§״¨ ג€” ‚״±״¨״§‹',
           'configuration', '{}'::jsonb,
           'secret_env_ref', 'STRIPE_SECRET_KEY',
           'configured', false
@@ -3433,13 +3438,13 @@ VALUES (
         jsonb_build_object(
           'id', 'paypal',
           'name', 'PayPal',
-          'name_ar', 'باي بال',
+          'name_ar', '״¨״§ ״¨״§„',
           'enabled', false,
           'coming_soon', true,
           'sort_order', 2,
           'icon', 'wallet',
           'description', 'PayPal checkout',
-          'description_ar', 'باي بال — قريباً',
+          'description_ar', '״¨״§ ״¨״§„ ג€” ‚״±״¨״§‹',
           'configuration', '{}'::jsonb,
           'secret_env_ref', 'PAYPAL_CLIENT_SECRET',
           'configured', false
@@ -3447,13 +3452,13 @@ VALUES (
         jsonb_build_object(
           'id', 'tranzila',
           'name', 'Tranzila',
-          'name_ar', 'ترانزيلا',
+          'name_ar', '״×״±״§†״²„״§',
           'enabled', false,
           'coming_soon', true,
           'sort_order', 3,
           'icon', 'credit-card',
           'description', 'Israeli payment gateway',
-          'description_ar', 'بوابة ترانزيلا — قريباً',
+          'description_ar', '״¨ˆ״§״¨״© ״×״±״§†״²„״§ ג€” ‚״±״¨״§‹',
           'configuration', '{}'::jsonb,
           'secret_env_ref', 'TRANZILA_API_KEY',
           'configured', false
@@ -3475,7 +3480,7 @@ VALUES (
       'instagram_url', 'https://www.instagram.com/nadeendesign_/',
       'facebook_url', '',
       'tiktok_url', '',
-      'location_ar', 'الرياض، المملكة العربية السعودية',
+      'location_ar', '״§„״±״§״¶״ ״§„……„ƒ״© ״§„״¹״±״¨״© ״§„״³״¹ˆ״¯״©',
       'google_maps_url', ''
     ),
     'social', jsonb_build_object(
@@ -3509,9 +3514,9 @@ VALUES (
       'sms_coming_soon', true
     ),
     'seo', jsonb_build_object(
-      'title', 'Nadeen Designs | بوتيك فساتين الزفاف الفاخرة',
-      'description', 'Nadeen Designs — بوتيك فاخر لفساتين الزفاف والإيجار.',
-      'keywords', 'فساتين زفاف, بوتيك عروس, Nadeen Designs',
+      'title', 'Nadeen Designs | ״¨ˆ״×ƒ ״³״§״×† ״§„״²״§ ״§„״§״®״±״©',
+      'description', 'Nadeen Designs ג€” ״¨ˆ״×ƒ ״§״®״± „״³״§״×† ״§„״²״§ ˆ״§„״¥״¬״§״±.',
+      'keywords', '״³״§״×† ״²״§, ״¨ˆ״×ƒ ״¹״±ˆ״³, Nadeen Designs',
       'og_image_url', '',
       'robots_index', true,
       'robots_follow', true,
@@ -3523,7 +3528,7 @@ VALUES (
       'maintenance_mode', false,
       'backup_status', 'unknown',
       'backup_last_at', null,
-      'backup_note', 'النسخ الاحتياطي يُدار عبر Supabase — الحالة للعرض فقط'
+      'backup_note', '״§„†״³״® ״§„״§״­״×״§״· ״¯״§״± ״¹״¨״± Supabase ג€” ״§„״­״§„״© „„״¹״±״¶ ‚״·'
     ),
     'integrations', '[]'::jsonb
   ),
@@ -3532,7 +3537,7 @@ VALUES (
 ON CONFLICT (key) DO NOTHING;
 
 -- =============================================================================
--- 38 — Sprint P1.1: product management core (= 035 / APPLY_PRODUCT_MANAGEMENT_CORE)
+-- 38 ג€” Sprint P1.1: product management core (= 035 / APPLY_PRODUCT_MANAGEMENT_CORE)
 -- Additive dresses columns. Safe to re-run. Does not rewrite existing rows beyond
 -- status backfill from is_available.
 -- =============================================================================
@@ -3608,6 +3613,334 @@ CREATE INDEX IF NOT EXISTS idx_dresses_tags ON dresses USING GIN (tags);
 
 ALTER TABLE dresses
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
+
+-- =============================================================================
+-- 39 - Product commerce / primary-action type (= 036 / APPLY_PRODUCT_COMMERCE_TYPE)
+-- Storefront CTAs use product_type only - never category name/slug.
+-- Values: ready_to_buy | bridal_accessory | rental_dress | custom_design | service
+-- Veils + bridal_robes always bridal_accessory. Safe to re-run.
+-- =============================================================================
+
+ALTER TABLE dresses
+  ADD COLUMN IF NOT EXISTS product_type TEXT;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'dresses_product_type_check'
+  ) THEN
+    ALTER TABLE dresses
+      ADD CONSTRAINT dresses_product_type_check
+      CHECK (
+        product_type IS NULL
+        OR product_type IN (
+          'ready_to_buy',
+          'bridal_accessory',
+          'rental_dress',
+          'custom_design',
+          'service',
+          -- legacy aliases accepted until 037 rewrites rows
+          'accessory',
+          'rental'
+        )
+      );
+  END IF;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+ALTER TABLE dresses
+  ALTER COLUMN product_type SET DEFAULT 'ready_to_buy';
+
+-- Backfill from category_id -> categories (legacy_key / slug / product_kind)
+UPDATE dresses d
+SET product_type = CASE
+  WHEN c.legacy_key IN ('rental')
+    OR lower(replace(coalesce(c.slug, ''), '-', '_')) IN ('rental', 'rental_dresses', 'rental_dress')
+    THEN 'rental_dress'
+  WHEN c.legacy_key IN ('custom_design')
+    OR lower(replace(coalesce(c.slug, ''), '-', '_')) IN ('custom_design', 'custom')
+    THEN 'custom_design'
+  WHEN c.product_kind IN ('veil', 'bridal_robe', 'accessories_group')
+    OR c.legacy_key IN (
+      'bridal_accessories',
+      'veils',
+      'veil',
+      'bridal_robes',
+      'bridal_robe',
+      'bridal_cape'
+    )
+    OR lower(replace(coalesce(c.slug, ''), '-', '_')) IN (
+      'bridal_accessories',
+      'bridal_accessory',
+      'veils',
+      'veil',
+      'bridal_robes',
+      'bridal_robe',
+      'robes',
+      'robe'
+    )
+    THEN 'bridal_accessory'
+  WHEN c.legacy_key IN ('wedding', 'nouf_dresses', 'nouf_dress')
+    OR lower(replace(coalesce(c.slug, ''), '-', '_')) IN (
+      'wedding',
+      'wedding_dresses',
+      'nouf_dresses',
+      'nouf_dress'
+    )
+    THEN 'ready_to_buy'
+  ELSE NULL
+END
+FROM categories c
+WHERE d.category_id = c.id
+  AND (d.product_type IS NULL OR btrim(d.product_type) = '');
+
+-- Backfill from legacy dresses.category TEXT when still unset
+UPDATE dresses
+SET product_type = CASE
+  WHEN lower(replace(btrim(category), '-', '_')) IN ('rental', 'rental_dress', 'rental_dresses')
+    THEN 'rental_dress'
+  WHEN lower(replace(btrim(category), '-', '_')) IN (
+      'custom_design',
+      'custom',
+      'custom_designs'
+    )
+    THEN 'custom_design'
+  WHEN lower(replace(btrim(category), '-', '_')) IN (
+      'bridal_accessories',
+      'bridal_accessory',
+      'accessories',
+      'accessory',
+      'veils',
+      'veil',
+      'bridal_robes',
+      'bridal_robe',
+      'bridal_cape',
+      'robes',
+      'robe'
+    )
+    OR category ILIKE '%accessor%'
+    OR category ILIKE '%veil%'
+    OR category ILIKE '%robe%'
+    OR category ILIKE '%طرحة%'
+    OR category ILIKE '%برنص%'
+    OR category ILIKE '%اكسسوار%'
+    OR category ILIKE '%إكسسوار%'
+    THEN 'bridal_accessory'
+  WHEN lower(replace(btrim(category), '-', '_')) IN (
+      'wedding',
+      'wedding_dress',
+      'wedding_dresses',
+      'nouf_dresses',
+      'nouf_dress'
+    )
+    THEN 'ready_to_buy'
+  WHEN price IS NULL AND rental_price IS NOT NULL
+    THEN 'rental_dress'
+  ELSE 'ready_to_buy'
+END
+WHERE product_type IS NULL OR btrim(product_type) = '';
+
+UPDATE dresses SET product_type = 'ready_to_buy' WHERE product_type IS NULL;
+
+DO $$
+BEGIN
+  ALTER TABLE dresses
+    ALTER COLUMN product_type SET NOT NULL;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_dresses_product_type ON dresses (product_type);
+
+-- ---------------------------------------------------------------------------
+-- veils.product_type -- always bridal_accessory
+-- ---------------------------------------------------------------------------
+ALTER TABLE veils
+  ADD COLUMN IF NOT EXISTS product_type TEXT;
+
+UPDATE veils
+SET product_type = 'bridal_accessory'
+WHERE product_type IS NULL
+   OR btrim(product_type) = ''
+   OR product_type NOT IN ('bridal_accessory', 'accessory');
+
+ALTER TABLE veils
+  ALTER COLUMN product_type SET DEFAULT 'bridal_accessory';
+
+DO $$
+BEGIN
+  ALTER TABLE veils
+    ALTER COLUMN product_type SET NOT NULL;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'veils_product_type_check'
+  ) THEN
+    ALTER TABLE veils
+      ADD CONSTRAINT veils_product_type_check
+      CHECK (product_type IN ('bridal_accessory', 'accessory'));
+  END IF;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- bridal_robes.product_type -- always bridal_accessory
+-- ---------------------------------------------------------------------------
+ALTER TABLE bridal_robes
+  ADD COLUMN IF NOT EXISTS product_type TEXT;
+
+UPDATE bridal_robes
+SET product_type = 'bridal_accessory'
+WHERE product_type IS NULL
+   OR btrim(product_type) = ''
+   OR product_type NOT IN ('bridal_accessory', 'accessory');
+
+ALTER TABLE bridal_robes
+  ALTER COLUMN product_type SET DEFAULT 'bridal_accessory';
+
+DO $$
+BEGIN
+  ALTER TABLE bridal_robes
+    ALTER COLUMN product_type SET NOT NULL;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'bridal_robes_product_type_check'
+  ) THEN
+    ALTER TABLE bridal_robes
+      ADD CONSTRAINT bridal_robes_product_type_check
+      CHECK (product_type IN ('bridal_accessory', 'accessory'));
+  END IF;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+
+-- =============================================================================
+-- 40 - Product experience foundation (= 037 / APPLY_PRODUCT_EXPERIENCE_FOUNDATION)
+-- Align legacy accessory/rental -> bridal_accessory/rental_dress.
+-- Order options + extra services config columns (checkout wiring = Phase 2).
+-- =============================================================================
+
+UPDATE dresses SET product_type = 'bridal_accessory' WHERE product_type = 'accessory';
+UPDATE dresses SET product_type = 'rental_dress' WHERE product_type = 'rental';
+
+UPDATE veils SET product_type = 'bridal_accessory'
+WHERE product_type IS NULL OR btrim(product_type) = '' OR product_type = 'accessory';
+
+UPDATE bridal_robes SET product_type = 'bridal_accessory'
+WHERE product_type IS NULL OR btrim(product_type) = '' OR product_type = 'accessory';
+
+-- ---------------------------------------------------------------------------
+-- 2) Rebuild CHECK constraints with Sprint 2 enums only
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_product_type_check;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE dresses
+    ADD CONSTRAINT dresses_product_type_check
+    CHECK (
+      product_type IN (
+        'ready_to_buy',
+        'bridal_accessory',
+        'rental_dress',
+        'custom_design',
+        'service'
+      )
+    );
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE veils DROP CONSTRAINT IF EXISTS veils_product_type_check;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE veils
+    ADD CONSTRAINT veils_product_type_check
+    CHECK (product_type = 'bridal_accessory');
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+ALTER TABLE veils
+  ALTER COLUMN product_type SET DEFAULT 'bridal_accessory';
+
+DO $$
+BEGIN
+  ALTER TABLE bridal_robes DROP CONSTRAINT IF EXISTS bridal_robes_product_type_check;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE bridal_robes
+    ADD CONSTRAINT bridal_robes_product_type_check
+    CHECK (product_type = 'bridal_accessory');
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+ALTER TABLE bridal_robes
+  ALTER COLUMN product_type SET DEFAULT 'bridal_accessory';
+
+-- ---------------------------------------------------------------------------
+-- 3) Per-product order options / extra services overrides (config only)
+-- NULL = inherit store defaults. Checkout wiring is Phase 2.
+-- ---------------------------------------------------------------------------
+ALTER TABLE dresses
+  ADD COLUMN IF NOT EXISTS order_options_config JSONB;
+
+ALTER TABLE dresses
+  ADD COLUMN IF NOT EXISTS extra_services_config JSONB;
+
+ALTER TABLE veils
+  ADD COLUMN IF NOT EXISTS order_options_config JSONB;
+
+ALTER TABLE veils
+  ADD COLUMN IF NOT EXISTS extra_services_config JSONB;
+
+ALTER TABLE bridal_robes
+  ADD COLUMN IF NOT EXISTS order_options_config JSONB;
+
+ALTER TABLE bridal_robes
+  ADD COLUMN IF NOT EXISTS extra_services_config JSONB;
+
+-- ---------------------------------------------------------------------------
+-- 4) Ensure store settings row exists (order_options / extra_services live in JSON)
+-- App normalize merges defaults; this only ensures the key exists.
+-- ---------------------------------------------------------------------------
+INSERT INTO settings (key, value, updated_at)
+VALUES (
+  'store',
+  '{}'::jsonb,
+  NOW()
+)
+ON CONFLICT (key) DO NOTHING;
+
 
 -- =============================================================================
 -- END APPLY_ALL.sql

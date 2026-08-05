@@ -24,6 +24,8 @@ const SECTIONS: { id: StoreSettingsSection | "health"; label: string }[] = [
   { id: "homepage", label: "الرئيسية" },
   { id: "authentication", label: "المصادقة" },
   { id: "notifications", label: "الإشعارات" },
+  { id: "order_options", label: "خيارات الطلب" },
+  { id: "extra_services", label: "خدمات إضافية" },
   { id: "seo", label: "SEO" },
   { id: "security", label: "الأمان" },
   { id: "integrations", label: "التكاملات" },
@@ -797,6 +799,124 @@ export function StoreSettingsPanel({
                 الإشعارات
               </Link>
             </p>
+          </Section>
+        )}
+
+        {active === "order_options" && (
+          <Section
+            title="خيارات الطلب"
+            description="إعدادات افتراضية لخيارات الطلب (المرحلة 1 — إعداد فقط، بدون تغيير الدفع)."
+            onSave={() => saveSection("order_options")}
+            saving={saving}
+          >
+            <div className="space-y-3">
+              {settings.order_options.options.map((opt, idx) => (
+                <div
+                  key={opt.key}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-beige-dark/70 p-4"
+                >
+                  <div>
+                    <p className="font-semibold text-charcoal">{opt.label_ar}</p>
+                    <p className="text-xs text-muted" dir="ltr">
+                      {opt.key}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Toggle
+                      label="مفعّل"
+                      checked={opt.enabled}
+                      onChange={(v) =>
+                        setSettings((s) => {
+                          const options = [...s.order_options.options];
+                          options[idx] = { ...options[idx], enabled: v };
+                          return {
+                            ...s,
+                            order_options: { options },
+                          };
+                        })
+                      }
+                    />
+                    <Toggle
+                      label="إلزامي"
+                      checked={opt.required}
+                      disabled={!opt.enabled}
+                      onChange={(v) =>
+                        setSettings((s) => {
+                          const options = [...s.order_options.options];
+                          options[idx] = { ...options[idx], required: v };
+                          return {
+                            ...s,
+                            order_options: { options },
+                          };
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {active === "extra_services" && (
+          <Section
+            title="خدمات إضافية"
+            description="خدمات مدفوعة اختيارية. المرحلة 1 — إعداد فقط بدون ربط بالدفع."
+            onSave={() => saveSection("extra_services")}
+            saving={saving}
+          >
+            <div className="space-y-3">
+              {settings.extra_services.services.map((svc, idx) => (
+                <div
+                  key={svc.id}
+                  className="grid gap-3 rounded-xl border border-beige-dark/70 p-4 sm:grid-cols-[1fr_auto_auto]"
+                >
+                  <div>
+                    <p className="font-semibold text-charcoal">{svc.name_ar}</p>
+                    <p className="text-xs text-muted" dir="ltr">
+                      {svc.id}
+                    </p>
+                  </div>
+                  <Input
+                    label="السعر"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    dir="ltr"
+                    value={svc.price}
+                    onChange={(e) =>
+                      setSettings((s) => {
+                        const services = [...s.extra_services.services];
+                        services[idx] = {
+                          ...services[idx],
+                          price: Math.max(0, Number(e.target.value) || 0),
+                        };
+                        return {
+                          ...s,
+                          extra_services: { services },
+                        };
+                      })
+                    }
+                  />
+                  <div className="flex items-end pb-1">
+                    <Toggle
+                      label="مفعّل"
+                      checked={svc.enabled}
+                      onChange={(v) =>
+                        setSettings((s) => {
+                          const services = [...s.extra_services.services];
+                          services[idx] = { ...services[idx], enabled: v };
+                          return {
+                            ...s,
+                            extra_services: { services },
+                          };
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </Section>
         )}
 

@@ -2,6 +2,11 @@ import { z } from "zod";
 import { DRESS_COLORS, DRESS_STYLES } from "@/lib/constants";
 import { normalizeDressColor } from "@/lib/colors";
 import { normalizeDressStyle } from "@/lib/styles";
+import { PRODUCT_COMMERCE_TYPES, resolveProductCommerceType } from "@/lib/products/primary-action";
+import type {
+  ProductExtraServicesConfig,
+  ProductOrderOptionsConfig,
+} from "@/lib/products/order-experience";
 
 const optionalUuid = z
   .union([z.string().uuid("معرّف التصنيف غير صالح"), z.literal(""), z.null()])
@@ -71,6 +76,39 @@ export const dressColorSchema = optionalStyleOrColor("color");
 
 const productStatusSchema = z.enum(["published", "draft", "hidden"]);
 
+/** Accepts Sprint 2 enums + legacy accessory/rental aliases. */
+const productCommerceTypeSchema = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    return resolveProductCommerceType(value, "ready_to_buy");
+  },
+  z.enum(PRODUCT_COMMERCE_TYPES).optional()
+);
+
+const orderOptionsConfigSchema = z
+  .union([
+    z.null(),
+    z.object({
+      use_custom: z.boolean().optional(),
+      options: z.record(z.string(), z.object({
+        enabled: z.boolean().optional(),
+        required: z.boolean().optional(),
+      })).optional(),
+    }),
+  ])
+  .optional() as z.ZodType<ProductOrderOptionsConfig | null | undefined>;
+
+const extraServicesConfigSchema = z
+  .union([
+    z.null(),
+    z.object({
+      use_custom: z.boolean().optional(),
+      enabled_ids: z.array(z.string()).optional(),
+      price_overrides: z.record(z.string(), z.number()).optional(),
+    }),
+  ])
+  .optional() as z.ZodType<ProductExtraServicesConfig | null | undefined>;
+
 const optionalTags = z.preprocess((value) => {
   if (value === undefined || value === null) return [];
   if (typeof value === "string") {
@@ -98,6 +136,9 @@ export const dressPayloadBaseSchema = z.object({
   category_id: optionalUuid,
   category: dressCategoryTextSchema.optional(),
   collection_id: optionalUuid,
+  product_type: productCommerceTypeSchema.optional(),
+  order_options_config: orderOptionsConfigSchema,
+  extra_services_config: extraServicesConfigSchema,
   price: optionalNullableNumber("السعر").optional(),
   sale_price: optionalNullableNumber("سعر التخفيض").optional(),
   cost_price: optionalNullableNumber("سعر التكلفة").optional(),
