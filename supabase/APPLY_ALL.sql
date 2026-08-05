@@ -68,6 +68,9 @@
 --       visible_in_navigation / show_on_homepage / featured_collection
 --   37. Sprint S1 store settings: APPLY_STORE_SETTINGS (= 034)
 --       settings.key = 'store' JSONB (payments inside JSON; secrets via env)
+--   38. Sprint P1.1 product management core: APPLY_PRODUCT_MANAGEMENT_CORE (= 035)
+--       dresses: name_en, short_description, slug, sku, sale_price, cost_price,
+--       status (published|draft|hidden), tags[], collection_id — dual-write ↔ is_available
 --
 -- Prerequisite: core tables (dresses, bookings, profiles, settings) must already
 -- exist from the main schema / earlier project setup. This file applies
@@ -3527,6 +3530,84 @@ VALUES (
   now()
 )
 ON CONFLICT (key) DO NOTHING;
+
+-- =============================================================================
+-- 38 — Sprint P1.1: product management core (= 035 / APPLY_PRODUCT_MANAGEMENT_CORE)
+-- Additive dresses columns. Safe to re-run. Does not rewrite existing rows beyond
+-- status backfill from is_available.
+-- =============================================================================
+
+ALTER TABLE dresses
+  ADD COLUMN IF NOT EXISTS name_en TEXT,
+  ADD COLUMN IF NOT EXISTS short_description TEXT,
+  ADD COLUMN IF NOT EXISTS slug TEXT,
+  ADD COLUMN IF NOT EXISTS sku TEXT,
+  ADD COLUMN IF NOT EXISTS sale_price NUMERIC,
+  ADD COLUMN IF NOT EXISTS cost_price NUMERIC,
+  ADD COLUMN IF NOT EXISTS status TEXT,
+  ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'::text[],
+  ADD COLUMN IF NOT EXISTS collection_id UUID;
+
+UPDATE dresses
+SET status = CASE
+  WHEN COALESCE(is_available, true) THEN 'published'
+  ELSE 'hidden'
+END
+WHERE status IS NULL OR btrim(status) = '';
+
+ALTER TABLE dresses
+  ALTER COLUMN status SET DEFAULT 'published';
+
+UPDATE dresses SET status = 'published' WHERE status IS NULL;
+
+DO $$
+BEGIN
+  ALTER TABLE dresses
+    ALTER COLUMN status SET NOT NULL;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'dresses_status_check'
+  ) THEN
+    ALTER TABLE dresses
+      ADD CONSTRAINT dresses_status_check
+      CHECK (status IN ('published', 'draft', 'hidden'));
+  END IF;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'dresses_collection_id_fkey'
+  ) THEN
+    ALTER TABLE dresses
+      ADD CONSTRAINT dresses_collection_id_fkey
+      FOREIGN KEY (collection_id) REFERENCES categories(id) ON DELETE SET NULL;
+  END IF;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dresses_slug_unique
+  ON dresses (slug)
+  WHERE slug IS NOT NULL AND btrim(slug) <> '';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dresses_sku_unique
+  ON dresses (sku)
+  WHERE sku IS NOT NULL AND btrim(sku) <> '';
+
+CREATE INDEX IF NOT EXISTS idx_dresses_status ON dresses (status);
+CREATE INDEX IF NOT EXISTS idx_dresses_collection_id ON dresses (collection_id);
+CREATE INDEX IF NOT EXISTS idx_dresses_tags ON dresses USING GIN (tags);
+
+ALTER TABLE dresses
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- =============================================================================
 -- END APPLY_ALL.sql

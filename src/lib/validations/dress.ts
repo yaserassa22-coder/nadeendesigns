@@ -69,17 +69,44 @@ function optionalStyleOrColor(
 export const dressStyleSchema = optionalStyleOrColor("style");
 export const dressColorSchema = optionalStyleOrColor("color");
 
+const productStatusSchema = z.enum(["published", "draft", "hidden"]);
+
+const optionalTags = z.preprocess((value) => {
+  if (value === undefined || value === null) return [];
+  if (typeof value === "string") {
+    return value
+      .split(/[,،]/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((t) => (typeof t === "string" ? t.trim() : ""))
+      .filter(Boolean);
+  }
+  return value;
+}, z.array(z.string()));
+
 /** Base object (supports .partial() for PUT). */
 export const dressPayloadBaseSchema = z.object({
   name_ar: z.string().trim().min(2, "اسم الفستان يجب أن يكون حرفين على الأقل"),
+  name_en: z.union([z.string(), z.null()]).optional(),
   description_ar: z.string().optional().default(""),
+  short_description: z.union([z.string(), z.null()]).optional(),
+  slug: z.union([z.string(), z.null()]).optional(),
+  sku: z.union([z.string(), z.null()]).optional(),
   category_id: optionalUuid,
   category: dressCategoryTextSchema.optional(),
+  collection_id: optionalUuid,
   price: optionalNullableNumber("السعر").optional(),
+  sale_price: optionalNullableNumber("سعر التخفيض").optional(),
+  cost_price: optionalNullableNumber("سعر التكلفة").optional(),
   rental_price: optionalNullableNumber("سعر الإيجار").optional(),
   size: z.union([z.string(), z.null()]).optional(),
   color: dressColorSchema.optional(),
   style: dressStyleSchema.optional(),
+  tags: optionalTags.optional(),
+  status: productStatusSchema.optional(),
   is_featured: z.boolean().optional(),
   is_available: z.boolean().optional(),
   images: z.array(z.string()).optional().default([]),

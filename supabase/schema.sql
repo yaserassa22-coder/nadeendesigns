@@ -5,16 +5,28 @@
 CREATE TABLE IF NOT EXISTS dresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name_ar TEXT NOT NULL,
+  name_en TEXT,
   description_ar TEXT NOT NULL DEFAULT '',
+  short_description TEXT,
+  slug TEXT,
+  sku TEXT,
   -- TEXT slug / legacy_key; kept for read compatibility during transition
   category TEXT NOT NULL,
   -- Preferred FK to dynamic categories (migration 027; FK added after categories table)
   category_id UUID,
+  -- Optional collection (categories.featured_collection rows) — migration 035
+  collection_id UUID,
   price NUMERIC,
+  sale_price NUMERIC,
+  cost_price NUMERIC,
   rental_price NUMERIC,
   size TEXT,
   color TEXT,
   style TEXT,
+  tags TEXT[] DEFAULT '{}'::text[],
+  -- published | draft | hidden (migration 035); dual-write with is_available
+  status TEXT NOT NULL DEFAULT 'published'
+    CHECK (status IN ('published', 'draft', 'hidden')),
   is_featured BOOLEAN DEFAULT false,
   is_available BOOLEAN DEFAULT true,
   images JSONB DEFAULT '[]'::jsonb,

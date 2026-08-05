@@ -9,89 +9,32 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Pencil, Plus, X } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import type { Dress } from "@/types";
 import type { Category } from "@/types/category";
 import { selectDressAssignableCategories } from "@/types/category";
-import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
-import { getDressColorLabel } from "@/lib/colors";
-import { getDressStyleLabel } from "@/lib/styles";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
+import { getDressStyleLabel } from "@/lib/styles";
+import {
+  PRODUCT_STATUS_LABELS,
+  deriveProductStatus,
+} from "@/lib/products/status";
 import { Button } from "@/components/ui/Button";
-import { Input, Select, Textarea } from "@/components/ui/Input";
-import { ImageUpload } from "@/components/admin/ImageUpload";
+import { Input, Select } from "@/components/ui/Input";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
-
-type DressFormState = {
-  name_ar: string;
-  description_ar: string;
-  category_id: string;
-  price: string;
-  rental_price: string;
-  size: string;
-  color: string;
-  style: string;
-  is_featured: boolean;
-  is_available: boolean;
-  images: string[];
-  imageUrlInput: string;
-};
-
-const emptyForm = (categoryId = ""): DressFormState => ({
-  name_ar: "",
-  description_ar: "",
-  category_id: categoryId,
-  price: "",
-  rental_price: "",
-  size: "",
-  color: "",
-  style: "",
-  is_featured: false,
-  is_available: true,
-  images: [],
-  imageUrlInput: "",
-});
-
-function resolveDressCategoryId(
-  dress: Dress,
-  categories: Category[]
-): string {
-  if (dress.category_id) {
-    const byId = categories.find((c) => c.id === dress.category_id);
-    if (byId) return byId.id;
-  }
-  const key = dress.category?.trim().toLowerCase();
-  if (!key) return categories[0]?.id ?? "";
-  const match = categories.find(
-    (c) =>
-      c.legacy_key?.toLowerCase() === key ||
-      c.slug?.toLowerCase() === key ||
-      (key === "wedding_dress" && c.legacy_key === "wedding") ||
-      (key === "nouf_dress" && c.legacy_key === "nouf_dresses")
-  );
-  return match?.id ?? categories[0]?.id ?? "";
-}
-
-function toForm(dress: Dress, categories: Category[]): DressFormState {
-  return {
-    name_ar: dress.name_ar,
-    description_ar: dress.description_ar,
-    category_id: resolveDressCategoryId(dress, categories),
-    price: dress.price?.toString() ?? "",
-    rental_price: dress.rental_price?.toString() ?? "",
-    size: dress.size ?? "",
-    color: getDressColorLabel(dress.color) || "",
-    style: getDressStyleLabel(dress.style) || "",
-    is_featured: dress.is_featured,
-    is_available: dress.is_available,
-    images: dress.images ?? [],
-    imageUrlInput: "",
-  };
-}
+import {
+  ProductEditorModal,
+  dressToForm,
+  emptyDressForm,
+  loadDressFormDraft,
+  resolveDressCategoryId,
+  type DressFormState,
+} from "@/components/admin/product-editor/ProductEditorModal";
+import { DEFAULT_STORE_SETTINGS } from "@/types/store";
 
 function labelForCategory(
   dress: Dress,
@@ -126,6 +69,9 @@ function DressesManagerInner({
   const [dresses, setDresses] = useState(initialDresses);
   const [categories, setCategories] = useState(initialCategories);
   const [search, setSearch] = useState("");
+  const [currencyCode, setCurrencyCode] = useState(
+    DEFAULT_STORE_SETTINGS.general.currency
+  );
 
   // Sync when server props refresh after category create / router.refresh().
   const [categoriesProp, setCategoriesProp] = useState(initialCategories);
@@ -141,6 +87,14 @@ function DressesManagerInner({
 
   const dressCategories = useMemo(
     () => selectDressAssignableCategories(categories),
+    [categories]
+  );
+
+  const collectionCategories = useMemo(
+    () =>
+      categories.filter(
+        (c) => c.featured_collection || c.show_on_homepage
+      ),
     [categories]
   );
 
@@ -190,12 +144,14 @@ function DressesManagerInner({
   const [featuredFilter, setFeaturedFilter] = useState<"all" | "yes" | "no">(
     "all"
   );
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "published" | "draft" | "hidden"
+  >("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Dress | null>(null);
   const [form, setForm] = useState<DressFormState>(
-    emptyForm(resolvedLockId ?? dressCategories[0]?.id ?? "")
+    emptyDressForm(resolvedLockId ?? dressCategories[0]?.id ?? "")
   );
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [visibility, setVisibility] = useState<ListVisibility>("active");
 
@@ -226,10 +182,20 @@ function DressesManagerInner({
     });
   }, [setCategories]);
 
-  // Live list on mount + when returning to the tab (no rebuild/restart).
   useEffect(() => {
     const t = window.setTimeout(() => {
       void refetchCategories();
+      fetch("/api/admin/store-settings")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const code = data?.general?.currency;
+          if (typeof code === "string" && code.trim()) {
+            setCurrencyCode(code.trim());
+          }
+        })
+        .catch(() => {
+          /* keep default */
+        });
     }, 0);
     const onFocus = () => {
       void refetchCategories();
@@ -261,10 +227,21 @@ function DressesManagerInner({
       if (availabilityFilter === "no" && d.is_available) return false;
       if (featuredFilter === "yes" && !d.is_featured) return false;
       if (featuredFilter === "no" && d.is_featured) return false;
+      if (statusFilter !== "all") {
+        const st = deriveProductStatus({
+          status: d.status,
+          is_available: d.is_available,
+        });
+        if (st !== statusFilter) return false;
+      }
       if (!q) return true;
       const label = labelForCategory(d, dressCategories).toLowerCase();
+      const nameEn = (d.name_en ?? "").toLowerCase();
+      const sku = (d.sku ?? "").toLowerCase();
       return (
         d.name_ar.toLowerCase().includes(q) ||
+        nameEn.includes(q) ||
+        sku.includes(q) ||
         label.includes(q) ||
         (d.style?.toLowerCase().includes(q) ?? false)
       );
@@ -277,6 +254,7 @@ function DressesManagerInner({
     resolvedLockId,
     availabilityFilter,
     featuredFilter,
+    statusFilter,
     dressCategories,
   ]);
 
@@ -287,7 +265,8 @@ function DressesManagerInner({
     const defaultCategory =
       resolvedLockId ??
       (categoryFilter !== "all" ? categoryFilter : fresh[0]?.id ?? "");
-    setForm(emptyForm(defaultCategory));
+    const base = emptyDressForm(defaultCategory);
+    setForm(loadDressFormDraft("new") ?? base);
     setOpen(true);
   };
 
@@ -295,7 +274,8 @@ function DressesManagerInner({
     setEditing(dress);
     setError("");
     const fresh = selectDressAssignableCategories(await refetchCategories());
-    setForm(toForm(dress, fresh));
+    const base = dressToForm(dress, fresh);
+    setForm(loadDressFormDraft(dress.id) ?? base);
     setOpen(true);
   };
 
@@ -305,72 +285,23 @@ function DressesManagerInner({
     setError("");
   };
 
-  const payload = () => ({
-    name_ar: form.name_ar.trim(),
-    description_ar: form.description_ar.replace(/^\s+|\s+$/g, ""),
-    category_id: resolvedLockId ?? form.category_id,
-    price: form.price ? Number(form.price) : null,
-    rental_price: form.rental_price ? Number(form.rental_price) : null,
-    size: form.size || null,
-    color: form.color || null,
-    style: form.style || null,
-    is_featured: form.is_featured,
-    is_available: form.is_available,
-    images: form.images,
-  });
-
-  const save = async () => {
-    if (!form.name_ar.trim()) {
-      setError("اسم الفستان مطلوب");
-      return;
-    }
-    if (!(resolvedLockId ?? form.category_id)) {
-      setError("التصنيف مطلوب");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const res = await fetch("/api/dresses", {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editing ? { id: editing.id, ...payload() } : payload()),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        console.error("[DressesManager] save failed", {
-          status: res.status,
-          data,
-        });
-        throw new Error(data.error ?? "فشل الحفظ");
+  const handleSaved = useCallback((dress: Dress) => {
+    setDresses((prev) => {
+      const exists = prev.some((d) => d.id === dress.id);
+      if (exists) {
+        return prev.map((d) => (d.id === dress.id ? dress : d));
       }
+      return [dress, ...prev];
+    });
+  }, []);
 
-      if (editing) {
-        setDresses((prev) => prev.map((d) => (d.id === editing.id ? data : d)));
-      } else {
-        setDresses((prev) => [data, ...prev]);
-      }
-      close();
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "فشل حفظ الفستان. راجعي اتصال Supabase ورفع الصور."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const addImageUrl = () => {
-    const url = form.imageUrlInput.trim();
-    if (!url) return;
-    setForm((f) => ({
-      ...f,
-      images: [...f.images, url],
-      imageUrlInput: "",
-    }));
-  };
+  const handleCreated = useCallback(
+    (dress: Dress) => {
+      setEditing(dress);
+      setForm(dressToForm(dress, dressCategories));
+    },
+    [dressCategories]
+  );
 
   const lockedLabel =
     dressCategories.find((c) => c.id === resolvedLockId)?.name_ar ?? "تصنيف مقفل";
@@ -381,7 +312,7 @@ function DressesManagerInner({
         <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Input
             label="بحث"
-            placeholder="بحث عن فستان..."
+            placeholder="بحث عن منتج، SKU…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -401,6 +332,21 @@ function DressesManagerInner({
               ]}
             />
           )}
+          <Select
+            label="الحالة"
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(
+                e.target.value as "all" | "published" | "draft" | "hidden"
+              )
+            }
+            options={[
+              { value: "all", label: "الكل" },
+              { value: "published", label: PRODUCT_STATUS_LABELS.published },
+              { value: "draft", label: PRODUCT_STATUS_LABELS.draft },
+              { value: "hidden", label: PRODUCT_STATUS_LABELS.hidden },
+            ]}
+          />
           <Select
             label="التوفر"
             value={availabilityFilter}
@@ -443,7 +389,7 @@ function DressesManagerInner({
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">الفستان</th>
+                <th className="px-4 py-3 text-right font-medium">المنتج</th>
                 <th className="px-4 py-3 text-right font-medium">التصنيف</th>
                 <th className="px-4 py-3 text-right font-medium">السعر</th>
                 <th className="px-4 py-3 text-right font-medium">الحالة</th>
@@ -454,264 +400,161 @@ function DressesManagerInner({
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    لا توجد فساتين
+                    لا توجد منتجات
                   </td>
                 </tr>
               ) : (
-                filtered.map((dress) => (
-                  <tr key={dress.id} className="border-t border-beige-dark">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-beige">
-                          {featuredImage(dress.images) && (
-                            <Image
-                              src={featuredImage(dress.images)!}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              sizes="48px"
-                            />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium text-charcoal">{dress.name_ar}</p>
-                          {dress.style && (
-                            <p className="text-xs text-muted">
-                              {getDressStyleLabel(dress.style)}
+                filtered.map((dress) => {
+                  const status = deriveProductStatus({
+                    status: dress.status,
+                    is_available: dress.is_available,
+                  });
+                  const displayPrice =
+                    dress.sale_price != null &&
+                    dress.price != null &&
+                    dress.sale_price < dress.price
+                      ? dress.sale_price
+                      : dress.price;
+                  return (
+                    <tr key={dress.id} className="border-t border-beige-dark">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-beige">
+                            {featuredImage(dress.images) && (
+                              <Image
+                                src={featuredImage(dress.images)!}
+                                alt=""
+                                fill
+                                className="object-cover"
+                                sizes="48px"
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-charcoal">
+                              {dress.name_ar}
                             </p>
-                          )}
+                            <p className="text-xs text-muted">
+                              {[
+                                dress.sku,
+                                dress.style
+                                  ? getDressStyleLabel(dress.style)
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || null}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {labelForCategory(dress, dressCategories)}
-                    </td>
-                    <td className="px-4 py-3" dir="ltr">
-                      {dress.price
-                        ? formatPrice(dress.price)
-                        : dress.rental_price
-                          ? `${formatPrice(dress.rental_price)} / إيجار`
-                          : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs ${
-                          dress.is_available
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-red-50 text-red-600"
-                        }`}
-                      >
-                        {dress.is_available ? "متوفر" : "غير متوفر"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(dress)}
-                          className="rounded-lg p-2 text-gold hover:bg-gold/10"
-                          aria-label="تعديل"
+                      </td>
+                      <td className="px-4 py-3">
+                        {labelForCategory(dress, dressCategories)}
+                      </td>
+                      <td className="px-4 py-3" dir="ltr">
+                        {displayPrice != null ? (
+                          <span className="inline-flex flex-col gap-0.5">
+                            {dress.sale_price != null &&
+                            dress.price != null &&
+                            dress.sale_price < dress.price ? (
+                              <>
+                                <span className="text-xs text-muted line-through">
+                                  {formatPrice(dress.price)}
+                                </span>
+                                <span>{formatPrice(dress.sale_price)}</span>
+                              </>
+                            ) : (
+                              formatPrice(displayPrice)
+                            )}
+                          </span>
+                        ) : dress.rental_price ? (
+                          `${formatPrice(dress.rental_price)} / إيجار`
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs ${
+                            status === "published"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : status === "draft"
+                                ? "bg-amber-50 text-amber-800"
+                                : "bg-red-50 text-red-600"
+                          }`}
                         >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <RowLifecycleActions
-                          module="dresses"
-                          id={dress.id}
-                          archived={Boolean(
-                            (dress as Dress & { archived_at?: string | null })
-                              .archived_at
-                          )}
-                          onChanged={(kind) => {
-                            if (kind === "soft_delete") {
+                          {PRODUCT_STATUS_LABELS[status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(dress)}
+                            className="rounded-lg p-2 text-gold hover:bg-gold/10"
+                            aria-label="تعديل"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <RowLifecycleActions
+                            module="dresses"
+                            id={dress.id}
+                            archived={Boolean(
+                              (dress as Dress & { archived_at?: string | null })
+                                .archived_at
+                            )}
+                            onChanged={(kind) => {
+                              if (kind === "soft_delete") {
+                                setDresses((prev) =>
+                                  prev.filter((d) => d.id !== dress.id)
+                                );
+                                return;
+                              }
                               setDresses((prev) =>
-                                prev.filter((d) => d.id !== dress.id)
+                                prev.map((d) =>
+                                  d.id === dress.id
+                                    ? ({
+                                        ...d,
+                                        archived_at:
+                                          kind === "archive"
+                                            ? new Date().toISOString()
+                                            : null,
+                                      } as Dress)
+                                    : d
+                                )
                               );
-                              return;
-                            }
-                            setDresses((prev) =>
-                              prev.map((d) =>
-                                d.id === dress.id
-                                  ? ({
-                                      ...d,
-                                      archived_at:
-                                        kind === "archive"
-                                          ? new Date().toISOString()
-                                          : null,
-                                    } as Dress)
-                                  : d
-                              )
-                            );
-                          }}
-                          onError={(msg) => alert(msg)}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                            }}
+                            onError={(msg) => alert(msg)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-charcoal/40 p-4 sm:items-center">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
-                {editing ? "تعديل الفستان" : "إضافة فستان"}
-              </h2>
-              <button type="button" onClick={close} aria-label="إغلاق">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="الاسم *"
-                value={form.name_ar}
-                onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
-              />
-              {resolvedLockId ? (
-                <Input label="التصنيف" value={lockedLabel} disabled />
-              ) : (
-                <Select
-                  label="التصنيف"
-                  value={form.category_id}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      category_id: e.target.value,
-                    })
-                  }
-                  options={dressCategories.map((c) => ({
-                    value: c.id,
-                    label: c.name_ar,
-                  }))}
-                />
-              )}
-              <Input
-                label="السعر (₪)"
-                type="number"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                dir="ltr"
-              />
-              <Input
-                label="سعر الإيجار (₪)"
-                type="number"
-                value={form.rental_price}
-                onChange={(e) =>
-                  setForm({ ...form, rental_price: e.target.value })
-                }
-                dir="ltr"
-              />
-              <Select
-                label="النمط"
-                value={form.style}
-                onChange={(e) => setForm({ ...form, style: e.target.value })}
-                dir="rtl"
-                options={[
-                  { value: "", label: "— اختاري النمط —" },
-                  ...DRESS_STYLES.map((s) => ({ value: s, label: s })),
-                ]}
-              />
-              <Select
-                label="اللون"
-                value={form.color}
-                onChange={(e) => setForm({ ...form, color: e.target.value })}
-                dir="rtl"
-                options={[
-                  { value: "", label: "— اختاري اللون —" },
-                  ...DRESS_COLORS.map((c) => ({ value: c, label: c })),
-                ]}
-              />
-              <Select
-                label="المقاس"
-                value={form.size}
-                onChange={(e) => setForm({ ...form, size: e.target.value })}
-                options={[
-                  { value: "", label: "—" },
-                  ...DRESS_SIZES.map((s) => ({ value: s, label: s })),
-                ]}
-              />
-              <div className="flex items-end gap-4 pb-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.is_featured}
-                    onChange={(e) =>
-                      setForm({ ...form, is_featured: e.target.checked })
-                    }
-                  />
-                  مميز
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.is_available}
-                    onChange={(e) =>
-                      setForm({ ...form, is_available: e.target.checked })
-                    }
-                  />
-                  متوفر
-                </label>
-              </div>
-              <div className="sm:col-span-2">
-                <Textarea
-                  label="الوصف"
-                  rows={10}
-                  value={form.description_ar}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description_ar: e.target.value }))
-                  }
-                  placeholder="وصف المنتج… Enter لسطر جديد (عربي / English) — بدون حد للطول"
-                  className="min-h-[12rem] resize-y whitespace-pre-wrap font-normal"
-                />
-                <p className="mt-1 text-xs text-muted">
-                  وصف غير محدود الطول. يُحفظ التنسيق (الأسطر الجديدة) ويظهر كما هو
-                  في صفحة المنتج.
-                </p>
-              </div>
-              <div className="sm:col-span-2">
-                <p className="mb-2 text-sm font-medium">الصور</p>
-                <ImageUpload
-                  value={form.images}
-                  onChange={(images) => setForm({ ...form, images })}
-                />
-                <div className="mt-3 flex gap-2">
-                  <Input
-                    placeholder="أو الصقي رابط صورة"
-                    value={form.imageUrlInput}
-                    onChange={(e) =>
-                      setForm({ ...form, imageUrlInput: e.target.value })
-                    }
-                    dir="ltr"
-                  />
-                  <Button type="button" variant="outline" onClick={addImageUrl}>
-                    إضافة
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-                {error}
-              </p>
-            )}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <Button variant="ghost" onClick={close}>
-                إلغاء
-              </Button>
-              <Button loading={saving} onClick={save}>
-                حفظ
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {open ? (
+        <ProductEditorModal
+          key={editing?.id ?? "new"}
+          open={open}
+          editing={editing}
+          form={form}
+          setForm={setForm}
+          dressCategories={dressCategories}
+          collectionCategories={collectionCategories}
+          lockedCategoryId={resolvedLockId}
+          lockedLabel={lockedLabel}
+          currencyCode={currencyCode}
+          error={error}
+          setError={setError}
+          onClose={close}
+          onSaved={handleSaved}
+          onCreated={handleCreated}
+        />
+      ) : null}
     </div>
   );
 }

@@ -11,7 +11,75 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import { dressPayloadSchema, dressPayloadBaseSchema } from "@/lib/validations/dress";
+import {
+  deriveProductStatus,
+  isAvailableFromStatus,
+  type ProductStatus,
+} from "@/lib/products/status";
 import type { Dress } from "@/types";
+
+/** Columns introduced in migration 035 — strip on PGRST204 retry. */
+const P11_COLUMNS = [
+  "name_en",
+  "short_description",
+  "slug",
+  "sku",
+  "sale_price",
+  "cost_price",
+  "status",
+  "tags",
+  "collection_id",
+] as const;
+
+function emptyToNull(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+function normalizeTags(tags: string[] | undefined): string[] {
+  if (!tags?.length) return [];
+  return [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
+}
+
+function applyStatusDualWrite(
+  row: Record<string, unknown>,
+  statusInput: ProductStatus | undefined,
+  isAvailableInput: boolean | undefined
+) {
+  const status = deriveProductStatus({
+    status: statusInput,
+    is_available:
+      isAvailableInput !== undefined
+        ? isAvailableInput
+        : statusInput
+          ? isAvailableFromStatus(statusInput)
+          : true,
+  });
+  row.status = status;
+  row.is_available =
+    isAvailableInput !== undefined
+      ? isAvailableInput
+      : isAvailableFromStatus(status);
+}
+
+function stripMissingColumns(
+  row: Record<string, unknown>,
+  errorMessage: string
+): Record<string, unknown> {
+  const next = { ...row };
+  delete next.category_id;
+  for (const col of P11_COLUMNS) {
+    if (new RegExp(col, "i").test(errorMessage)) {
+      delete next[col];
+    }
+  }
+  // If schema cache is stale for any P1.1 field, strip all additive cols once
+  if (/PGRST204|42703/i.test(errorMessage)) {
+    for (const col of P11_COLUMNS) delete next[col];
+  }
+  return next;
+}
 
 function extractErrorMessage(error: unknown): string {
   if (error instanceof z.ZodError) {
@@ -148,26 +216,35 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createPrivilegedClient();
-    const insertRow = {
+    const insertRow: Record<string, unknown> = {
       name_ar: body.name_ar,
+      name_en: emptyToNull(body.name_en ?? null),
       description_ar: body.description_ar ?? "",
+      short_description: emptyToNull(body.short_description ?? null),
+      slug: emptyToNull(body.slug ?? null),
+      sku: emptyToNull(body.sku ?? null),
       category: resolved.textKey,
       category_id: resolved.category.id,
+      collection_id: body.collection_id ?? null,
       price: body.price ?? null,
+      sale_price: body.sale_price ?? null,
+      cost_price: body.cost_price ?? null,
       rental_price: body.rental_price ?? null,
       size: body.size ?? null,
       color: body.color ?? null,
       style: body.style ?? null,
+      tags: normalizeTags(body.tags),
       is_featured: body.is_featured ?? false,
-      is_available: body.is_available ?? true,
       images: body.images ?? [],
       updated_at: new Date().toISOString(),
     };
+    applyStatusDualWrite(insertRow, body.status, body.is_available);
 
     console.info("[dresses API] inserting", {
       category: insertRow.category,
       category_id: insertRow.category_id,
       name_ar: insertRow.name_ar,
+      status: insertRow.status,
     });
 
     let { data, error } = await supabase
@@ -176,28 +253,20 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    // Graceful if category_id column not yet migrated
+    // Graceful if category_id / P1.1 columns not yet migrated
     if (
       error &&
-      /category_id|PGRST204|42703/i.test(`${error.message}${error.code}`)
+      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|PGRST204|42703/i.test(
+        `${error.message}${error.code}`
+      )
     ) {
-      const withoutFk = {
-        name_ar: insertRow.name_ar,
-        description_ar: insertRow.description_ar,
-        category: insertRow.category,
-        price: insertRow.price,
-        rental_price: insertRow.rental_price,
-        size: insertRow.size,
-        color: insertRow.color,
-        style: insertRow.style,
-        is_featured: insertRow.is_featured,
-        is_available: insertRow.is_available,
-        images: insertRow.images,
-        updated_at: insertRow.updated_at,
-      };
+      const withoutNew = stripMissingColumns(
+        insertRow,
+        `${error.message}${error.code}`
+      );
       const retry = await supabase
         .from("dresses")
-        .insert(withoutFk)
+        .insert(withoutNew)
         .select()
         .single();
       data = retry.data;
@@ -249,6 +318,32 @@ export async function PUT(request: Request) {
       updated_at: new Date().toISOString(),
     };
 
+    if (parsed.data.name_en !== undefined) {
+      update.name_en = emptyToNull(parsed.data.name_en);
+    }
+    if (parsed.data.short_description !== undefined) {
+      update.short_description = emptyToNull(parsed.data.short_description);
+    }
+    if (parsed.data.slug !== undefined) {
+      update.slug = emptyToNull(parsed.data.slug);
+    }
+    if (parsed.data.sku !== undefined) {
+      update.sku = emptyToNull(parsed.data.sku);
+    }
+    if (parsed.data.tags !== undefined) {
+      update.tags = normalizeTags(parsed.data.tags);
+    }
+    if (
+      parsed.data.status !== undefined ||
+      parsed.data.is_available !== undefined
+    ) {
+      applyStatusDualWrite(
+        update,
+        parsed.data.status,
+        parsed.data.is_available
+      );
+    }
+
     const touchingCategory =
       parsed.data.category_id !== undefined ||
       parsed.data.category !== undefined;
@@ -291,13 +386,17 @@ export async function PUT(request: Request) {
 
     if (
       error &&
-      /category_id|PGRST204|42703/i.test(`${error.message}${error.code}`)
+      /category_id|name_en|short_description|slug|sku|sale_price|cost_price|status|tags|collection_id|PGRST204|42703/i.test(
+        `${error.message}${error.code}`
+      )
     ) {
-      const withoutFk = { ...update };
-      delete withoutFk.category_id;
+      const withoutNew = stripMissingColumns(
+        update,
+        `${error.message}${error.code}`
+      );
       const retry = await supabase
         .from("dresses")
-        .update(withoutFk)
+        .update(withoutNew)
         .eq("id", id)
         .select()
         .single();

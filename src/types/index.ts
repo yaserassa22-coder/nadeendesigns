@@ -63,10 +63,20 @@ export type DeliveryStatus =
   | "out_for_delivery"
   | "delivered";
 
+/** Product visibility — migration 035. Dual-writes to is_available. */
+export type DressStatus = "published" | "draft" | "hidden";
+
 export interface Dress {
   id: string;
   name_ar: string;
+  /** English name (migration 035) */
+  name_en?: string | null;
   description_ar: string;
+  /** Short blurb (migration 035) */
+  short_description?: string | null;
+  /** URL slug (migration 035) — storefront still uses /dresses/[id] */
+  slug?: string | null;
+  sku?: string | null;
   /**
    * Legacy TEXT (legacy_key / slug) — kept for transition reads.
    * Prefer category_id for new writes and filtering.
@@ -74,11 +84,19 @@ export interface Dress {
   category: string;
   /** FK to categories.id (migration 027) */
   category_id?: string | null;
+  /** Optional collection category (featured_collection) — migration 035 */
+  collection_id?: string | null;
   price: number | null;
+  sale_price?: number | null;
+  /** Admin-only cost (migration 035) */
+  cost_price?: number | null;
   rental_price: number | null;
   size: string | null;
   color: string | null;
   style: string | null;
+  tags?: string[] | null;
+  /** published | draft | hidden — prefer over raw is_available for admin */
+  status?: DressStatus | null;
   is_featured: boolean;
   is_available: boolean;
   images: string[];
