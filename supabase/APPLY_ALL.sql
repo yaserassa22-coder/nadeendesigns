@@ -3829,88 +3829,84 @@ END $$;
 
 -- =============================================================================
 -- 40 - Product experience foundation (= 037 / APPLY_PRODUCT_EXPERIENCE_FOUNDATION)
--- Align legacy accessory/rental -> bridal_accessory/rental_dress.
--- Order options + extra services config columns (checkout wiring = Phase 2).
+-- CRITICAL ORDER: DROP CHECK → normalize data → ADD CHECK → validate
+-- Never UPDATE to bridal_accessory while old CHECK still rejects it.
 -- =============================================================================
+
+ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_product_type_check;
+ALTER TABLE veils DROP CONSTRAINT IF EXISTS veils_product_type_check;
+ALTER TABLE bridal_robes DROP CONSTRAINT IF EXISTS bridal_robes_product_type_check;
 
 UPDATE dresses SET product_type = 'bridal_accessory' WHERE product_type = 'accessory';
 UPDATE dresses SET product_type = 'rental_dress' WHERE product_type = 'rental';
+UPDATE dresses SET product_type = 'custom_design' WHERE product_type = 'custom';
+UPDATE dresses SET product_type = 'ready_to_buy'
+WHERE product_type IS NULL OR btrim(product_type) = '';
 
-UPDATE veils SET product_type = 'bridal_accessory'
-WHERE product_type IS NULL OR btrim(product_type) = '' OR product_type = 'accessory';
+UPDATE veils SET product_type = 'bridal_accessory';
+UPDATE bridal_robes SET product_type = 'bridal_accessory';
 
-UPDATE bridal_robes SET product_type = 'bridal_accessory'
-WHERE product_type IS NULL OR btrim(product_type) = '' OR product_type = 'accessory';
+ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_product_type_check;
+ALTER TABLE dresses
+  ADD CONSTRAINT dresses_product_type_check
+  CHECK (
+    product_type IN (
+      'ready_to_buy',
+      'bridal_accessory',
+      'rental_dress',
+      'custom_design',
+      'service'
+    )
+  );
 
--- ---------------------------------------------------------------------------
--- 2) Rebuild CHECK constraints with Sprint 2 enums only
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  ALTER TABLE dresses DROP CONSTRAINT IF EXISTS dresses_product_type_check;
-EXCEPTION
-  WHEN others THEN NULL;
-END $$;
+ALTER TABLE veils DROP CONSTRAINT IF EXISTS veils_product_type_check;
+ALTER TABLE veils
+  ADD CONSTRAINT veils_product_type_check
+  CHECK (product_type = 'bridal_accessory');
 
-DO $$
-BEGIN
-  ALTER TABLE dresses
-    ADD CONSTRAINT dresses_product_type_check
-    CHECK (
-      product_type IN (
-        'ready_to_buy',
-        'bridal_accessory',
-        'rental_dress',
-        'custom_design',
-        'service'
-      )
-    );
-EXCEPTION
-  WHEN others THEN NULL;
-END $$;
-
-DO $$
-BEGIN
-  ALTER TABLE veils DROP CONSTRAINT IF EXISTS veils_product_type_check;
-EXCEPTION
-  WHEN others THEN NULL;
-END $$;
-
-DO $$
-BEGIN
-  ALTER TABLE veils
-    ADD CONSTRAINT veils_product_type_check
-    CHECK (product_type = 'bridal_accessory');
-EXCEPTION
-  WHEN others THEN NULL;
-END $$;
+ALTER TABLE bridal_robes DROP CONSTRAINT IF EXISTS bridal_robes_product_type_check;
+ALTER TABLE bridal_robes
+  ADD CONSTRAINT bridal_robes_product_type_check
+  CHECK (product_type = 'bridal_accessory');
 
 ALTER TABLE veils
   ALTER COLUMN product_type SET DEFAULT 'bridal_accessory';
 
-DO $$
-BEGIN
-  ALTER TABLE bridal_robes DROP CONSTRAINT IF EXISTS bridal_robes_product_type_check;
-EXCEPTION
-  WHEN others THEN NULL;
-END $$;
-
-DO $$
-BEGIN
-  ALTER TABLE bridal_robes
-    ADD CONSTRAINT bridal_robes_product_type_check
-    CHECK (product_type = 'bridal_accessory');
-EXCEPTION
-  WHEN others THEN NULL;
-END $$;
-
 ALTER TABLE bridal_robes
   ALTER COLUMN product_type SET DEFAULT 'bridal_accessory';
 
--- ---------------------------------------------------------------------------
--- 3) Per-product order options / extra services overrides (config only)
--- NULL = inherit store defaults. Checkout wiring is Phase 2.
--- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  bad_dresses INT;
+  bad_veils INT;
+  bad_robes INT;
+BEGIN
+  SELECT COUNT(*) INTO bad_dresses
+  FROM dresses
+  WHERE product_type IS NULL
+     OR product_type NOT IN (
+       'ready_to_buy',
+       'bridal_accessory',
+       'rental_dress',
+       'custom_design',
+       'service'
+     );
+
+  SELECT COUNT(*) INTO bad_veils
+  FROM veils
+  WHERE product_type IS DISTINCT FROM 'bridal_accessory';
+
+  SELECT COUNT(*) INTO bad_robes
+  FROM bridal_robes
+  WHERE product_type IS DISTINCT FROM 'bridal_accessory';
+
+  IF bad_dresses > 0 OR bad_veils > 0 OR bad_robes > 0 THEN
+    RAISE EXCEPTION
+      '037 product_type validation failed: dresses=% veils=% bridal_robes=%',
+      bad_dresses, bad_veils, bad_robes;
+  END IF;
+END $$;
+
 ALTER TABLE dresses
   ADD COLUMN IF NOT EXISTS order_options_config JSONB;
 
@@ -3929,10 +3925,6 @@ ALTER TABLE bridal_robes
 ALTER TABLE bridal_robes
   ADD COLUMN IF NOT EXISTS extra_services_config JSONB;
 
--- ---------------------------------------------------------------------------
--- 4) Ensure store settings row exists (order_options / extra_services live in JSON)
--- App normalize merges defaults; this only ensures the key exists.
--- ---------------------------------------------------------------------------
 INSERT INTO settings (key, value, updated_at)
 VALUES (
   'store',
