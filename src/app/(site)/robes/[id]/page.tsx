@@ -94,17 +94,17 @@ export default async function RobeDetailPage({ params }: Props) {
         meta={
           <>
             {robe.color && (
-              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
                 {robe.color}
               </span>
             )}
             {robe.size && (
-              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
                 {robe.size}
               </span>
             )}
             {robe.material && (
-              <span className="rounded-full bg-beige px-4 py-2 text-sm">
+              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
                 {robe.material}
               </span>
             )}
@@ -123,14 +123,11 @@ export default async function RobeDetailPage({ params }: Props) {
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
-              wishlist={<WishlistButton {...wishlistProps} />}
             />
-          ) : (
-            <WishlistButton {...wishlistProps} />
-          )
+          ) : null
         }
         below={
-          <div className="mt-8">
+          <div className="mt-6">
             <Link href="/robes" className="inline-block">
               <Button variant="ghost" size="md">
                 العودة لبرنص العروس

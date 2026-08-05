@@ -5,8 +5,6 @@ import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWishlist } from "@/components/shop/WishlistProvider";
 
-const ACCENT = "#C9A14A";
-
 type Props = {
   productKind: string;
   productId: string;
@@ -49,7 +47,7 @@ export function WishlistButton({
       if (variant === "button") {
         setHint(
           nowSaved
-            ? "❤️ تمت الإضافة إلى قائمة الأمنيات"
+            ? "تمت الإضافة إلى قائمة الأمنيات"
             : "تمت الإزالة من قائمة الأمنيات"
         );
       }
@@ -95,14 +93,13 @@ export function WishlistButton({
         className={cn(
           "inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm transition",
           saved
-            ? "border-[color:#C9A14A] bg-[color:#C9A14A]/10 text-charcoal"
-            : "border-beige-dark bg-white text-charcoal hover:border-[color:#C9A14A]"
+            ? "border-gold bg-gold/10 text-charcoal"
+            : "border-beige-dark bg-white text-charcoal hover:border-gold"
         )}
       >
         <Heart
-          className="h-4 w-4"
-          style={{ color: ACCENT }}
-          fill={saved ? ACCENT : "none"}
+          className="h-4 w-4 text-gold"
+          fill={saved ? "currentColor" : "none"}
         />
         {saved ? "في الأمنيات" : "أضيفي للأمنيات"}
       </button>

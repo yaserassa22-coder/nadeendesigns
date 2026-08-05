@@ -46,7 +46,7 @@ export function ProductDetailLayout({
   priceSuffix,
   description,
   available = true,
-  unavailableMessage = "✓ نفد المخزون",
+  unavailableMessage = "نفد المخزون",
   availabilityLabel,
   isFeatured,
   tags,
@@ -58,7 +58,7 @@ export function ProductDetailLayout({
 }: ProductDetailLayoutProps) {
   const showAvailability =
     availabilityLabel ??
-    (available ? "✓ جاهز للطلب" : unavailableMessage);
+    (available ? "✓ متوفر" : unavailableMessage);
 
   return (
     <section className="pt-28 pb-16 md:pt-36 md:pb-24">
@@ -88,7 +88,7 @@ export function ProductDetailLayout({
               {name}
             </h1>
 
-            <div className="mt-6">
+            <div className="mt-5">
               <ProductPrice
                 size="lg"
                 price={price}
@@ -100,8 +100,8 @@ export function ProductDetailLayout({
               <p
                 className={
                   available
-                    ? "mt-3 text-sm text-charcoal/80"
-                    : "mt-3 text-sm font-medium text-red-600"
+                    ? "mt-2 text-sm text-charcoal/70"
+                    : "mt-2 text-sm font-medium text-red-600"
                 }
               >
                 {showAvailability}
@@ -109,15 +109,15 @@ export function ProductDetailLayout({
             </div>
 
             {actions && (
-              <div className="mt-8 w-full">{actions}</div>
+              <div className="mt-7 w-full">{actions}</div>
             )}
 
             {meta && (
-              <div className="mt-10 flex flex-wrap gap-2.5">{meta}</div>
+              <div className="mt-8 flex flex-wrap gap-2">{meta}</div>
             )}
 
             {description ? (
-              <div className="mt-12 border-t border-beige-dark/60 pt-10">
+              <div className="mt-10 border-t border-beige-dark/60 pt-8">
                 <ProductDescription text={description} className="mt-0" />
               </div>
             ) : null}

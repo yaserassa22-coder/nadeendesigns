@@ -171,6 +171,11 @@ export function ProductExperienceModal({
     (s) => s.id === "summary" && s.enabled
   );
 
+  const personalizationFee =
+    enablePersonalization && personalization.enabled
+      ? Math.max(0, experienceConfig?.personalization_ui?.extra_price ?? 0)
+      : 0;
+
   const buildPersonalizationPayload = ():
     | ProductPersonalization
     | null
@@ -299,8 +304,8 @@ export function ProductExperienceModal({
               services={extraServices}
               selectedIds={selectedExtraIds}
               onChange={setSelectedExtraIds}
-              title={section.title_ar || section.title}
-              description={section.description_ar || section.description}
+              title=""
+              description=""
             />
           </SectionShell>
         );
@@ -336,15 +341,12 @@ export function ProductExperienceModal({
         className="relative z-10 flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-beige-dark bg-white shadow-[0_24px_80px_rgba(44,36,25,0.2)] sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-beige-dark/70 px-5 py-4 md:px-6">
-          <div>
-            <p className="text-xs text-gold">تجربة المنتج</p>
-            <h2
-              id="product-experience-title"
-              className="text-lg font-bold text-charcoal md:text-xl"
-            >
-              {nameAr}
-            </h2>
-          </div>
+          <h2
+            id="product-experience-title"
+            className="text-lg font-semibold text-charcoal md:text-xl"
+          >
+            {nameAr}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -388,19 +390,21 @@ export function ProductExperienceModal({
             </>
           ) : null}
 
-          <Input
-            label="الكمية"
-            type="number"
-            min={1}
-            max={20}
-            dir="ltr"
-            value={String(quantity)}
-            onChange={(e) =>
-              setQuantity(
-                Math.max(1, Math.min(20, Number(e.target.value) || 1))
-              )
-            }
-          />
+          <div className="max-w-[8rem]">
+            <Input
+              label="الكمية"
+              type="number"
+              min={1}
+              max={20}
+              dir="ltr"
+              value={String(quantity)}
+              onChange={(e) =>
+                setQuantity(
+                  Math.max(1, Math.min(20, Number(e.target.value) || 1))
+                )
+              }
+            />
+          </div>
 
           {errors.form ? (
             <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
@@ -417,6 +421,7 @@ export function ProductExperienceModal({
               baseUnitPrice={unitPrice}
               quantity={quantity}
               selectedServices={selectedServices}
+              personalizationFee={personalizationFee}
             />
           ) : null}
           <PurchaseCtaGroup

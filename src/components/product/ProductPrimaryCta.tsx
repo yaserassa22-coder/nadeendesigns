@@ -141,13 +141,17 @@ export function ProductPrimaryCta({
       className={
         className
           ? `flex flex-wrap items-center gap-3 ${className}`
-          : "flex flex-wrap items-center gap-3"
+          : "flex w-full flex-wrap items-center gap-3"
       }
     >
       {showWishlist}
-      <Link href={href}>
-        <Button size={size} disabled={disabled}>
-          <Icon className="h-4 w-4" />
+      <Link href={href} className="min-w-0 flex-1 sm:flex-none">
+        <Button
+          size={size}
+          disabled={disabled}
+          className="h-[var(--xp-cta-height)] w-full rounded-[var(--xp-cta-radius)] px-8 py-0 sm:w-auto"
+        >
+          <Icon className="h-[var(--xp-cta-icon)] w-[var(--xp-cta-icon)]" />
           {action.label}
         </Button>
       </Link>

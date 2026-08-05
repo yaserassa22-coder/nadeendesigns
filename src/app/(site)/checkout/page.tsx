@@ -42,8 +42,6 @@ import { normalizeSiteSettings } from "@/lib/settings";
 import type { SiteSettings } from "@/types";
 import type { ShippingRegion, ShopOrder } from "@/types/shop";
 
-const ACCENT = "#C9A14A";
-
 type ShippingForm = {
   full_name: string;
   phone: string;
@@ -549,27 +547,23 @@ export default function CheckoutPage() {
                       {shippingFeeLabel}
                     </span>
                   </div>
-                  {feePending && (
-                    <p className="text-xs text-amber-800">
-                      سيتم تحديد رسوم التوصيل بعد مراجعة المنطقة.
-                    </p>
-                  )}
-                  {needsShipping &&
-                    deliveryMethod === "delivery" &&
-                    !feePending &&
-                    freeShipping &&
-                    (settings?.shipping_free_threshold ?? 0) > 0 && (
-                      <p className="text-xs text-muted">
-                        تم تطبيق الشحن المجاني (حد{" "}
-                        <span dir="ltr">
-                          {formatPrice(settings?.shipping_free_threshold ?? 0)}
-                        </span>
-                        )
-                      </p>
-                    )}
-                  {estimatedLabel && !feePending && (
+                  {(feePending ||
+                    (estimatedLabel && !feePending) ||
+                    (needsShipping &&
+                      deliveryMethod === "delivery" &&
+                      !feePending &&
+                      freeShipping)) && (
                     <p className="text-xs text-muted">
-                      مدة التوصيل المتوقعة: {estimatedLabel}
+                      {feePending
+                        ? "رسوم التوصيل تُحدَّد بعد اختيار المنطقة."
+                        : [
+                            freeShipping ? "شحن مجاني" : null,
+                            estimatedLabel
+                              ? `التوصيل خلال ${estimatedLabel}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                     </p>
                   )}
                   {!hidePrice && (
@@ -582,23 +576,13 @@ export default function CheckoutPage() {
                       </span>
                     </div>
                   )}
-                  {feePending && !hidePrice && (
-                    <p className="text-xs text-muted">
-                      الإجمالي النهائي يُحدَّث بعد تحديد رسوم الشحن من الإدارة.
-                    </p>
-                  )}
-                  {hidePrice && needsShipping && shippingCost > 0 && (
-                    <p className="text-xs text-muted">
-                      رسوم الشحن تُحتسب عند تأكيد الطلب حتى مع إخفاء أسعار المنتجات.
-                    </p>
-                  )}
                 </div>
               </div>
             )}
           </div>
 
           <form
-            className="space-y-4 rounded-3xl border border-beige-dark bg-white p-6 lg:col-span-3"
+            className="space-y-4 rounded-2xl border border-beige-dark bg-white p-6 lg:col-span-3"
             onSubmit={(e) => {
               e.preventDefault();
               void submit();
@@ -648,8 +632,7 @@ export default function CheckoutPage() {
                     طريقة استلام الطلب
                   </h2>
                   <p className="mt-1 text-sm text-muted">
-                    مطلوب لطلب اكسسوارات العروس (طرحة العروس، برنص العروس، وأي
-                    اكسسوارات مستقبلية).
+                    اختاري الاستلام من البوتيك أو التوصيل.
                   </p>
                 </div>
 
@@ -841,13 +824,8 @@ export default function CheckoutPage() {
             className="absolute inset-0 bg-charcoal/40 backdrop-blur-sm"
             onClick={() => setAuthPromptOpen(false)}
           />
-          <div className="relative z-10 m-4 w-full max-w-md rounded-3xl border border-[#e7dfd3] bg-white p-6 shadow-[0_24px_80px_rgba(44,36,25,0.18)]">
-            <div
-              className="mb-4 h-1 w-full rounded-full"
-              style={{
-                background: `linear-gradient(90deg, ${ACCENT}, #d4bc8e, ${ACCENT})`,
-              }}
-            />
+          <div className="relative z-10 m-4 w-full max-w-md rounded-2xl border border-beige-dark bg-white p-6 shadow-[0_24px_80px_rgba(44,36,25,0.18)]">
+            <div className="mb-4 h-1 w-full rounded-full bg-gradient-to-l from-gold via-gold/60 to-gold" />
             <h3 className="font-[family-name:var(--font-amiri)] text-xl text-charcoal">
               هل ترغبين بإنشاء حساب لحفظ طلباتك وتتبع الشحن بسهولة؟
             </h3>
@@ -858,7 +836,6 @@ export default function CheckoutPage() {
               <Button
                 type="button"
                 className="flex-1"
-                style={{ backgroundColor: ACCENT }}
                 onClick={() => {
                   setAuthPromptOpen(false);
                   openLogin({

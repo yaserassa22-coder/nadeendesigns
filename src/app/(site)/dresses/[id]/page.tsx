@@ -152,7 +152,6 @@ export default async function DressDetailPage({ params }: Props) {
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
-              wishlist={<WishlistButton {...wishlistProps} />}
               bookingHref={
                 primaryAction.kind === "book_now"
                   ? "/booking"
@@ -161,12 +160,10 @@ export default async function DressDetailPage({ params }: Props) {
                     : `/booking?dress=${dress.id}`
               }
             />
-          ) : (
-            <WishlistButton {...wishlistProps} />
-          )
+          ) : null
         }
         below={
-          <div className="mt-8">
+          <div className="mt-6">
             <Link href={categoryHref} className="inline-block">
               <Button variant="ghost" size="md">
                 العودة للمجموعة

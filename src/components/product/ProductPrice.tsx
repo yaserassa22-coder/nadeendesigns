@@ -84,7 +84,8 @@ export function ProductPrice({
         <span className={cn("text-gold", sizes.current)}>
           {formatPrice(pricing.salePrice)}
         </span>
-        {pricing.discountPercent != null && (
+        {/* PDP (lg): SALE lives on the gallery overlay — skip % OFF pill. */}
+        {size !== "lg" && pricing.discountPercent != null && (
           <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-xs font-medium text-gold">
             {pricing.discountPercent}% OFF
           </span>

@@ -37,17 +37,21 @@ export function ExtraServicesFields({
     onChange(enforceRequiredServiceIds(services, next));
   };
 
+  const showHeader = Boolean(title);
+
   return (
     <div className="space-y-4">
-      <div>
-        <div className="mb-1 inline-flex items-center gap-2 text-gold">
-          <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-          <h3 className="text-lg font-semibold text-charcoal">{title}</h3>
+      {showHeader ? (
+        <div>
+          <div className="mb-1 inline-flex items-center gap-2 text-gold">
+            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+            <h3 className="text-lg font-semibold text-charcoal">{title}</h3>
+          </div>
+          {description ? (
+            <p className="text-sm text-muted">{description}</p>
+          ) : null}
         </div>
-        {description ? (
-          <p className="text-sm text-muted">{description}</p>
-        ) : null}
-      </div>
+      ) : null}
       <div className="space-y-3">
         {services.map((svc) => {
           const checked = selectedIds.includes(svc.id) || Boolean(svc.required);

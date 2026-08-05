@@ -14,12 +14,6 @@ const LINKS = [
   { href: "/admin/experience/preview", label: "معاينة" },
 ] as const;
 
-const FUTURE = [
-  { label: "قواعد متقدمة", note: "قريباً" },
-  { label: "الشروط", note: "قريباً" },
-  { label: "قواعد الذكاء", note: "قريباً" },
-] as const;
-
 export function ExperienceEngineNav() {
   const pathname = usePathname();
 
@@ -45,17 +39,6 @@ export function ExperienceEngineNav() {
           </Link>
         );
       })}
-      {FUTURE.map((item) => (
-        <span
-          key={item.label}
-          title={item.note}
-          aria-disabled="true"
-          className="cursor-not-allowed rounded-full px-3.5 py-1.5 text-sm font-medium text-muted/60"
-        >
-          {item.label}
-          <span className="ms-1 text-[10px]">{item.note}</span>
-        </span>
-      ))}
     </nav>
   );
 }

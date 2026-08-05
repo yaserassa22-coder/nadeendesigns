@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ShoppingBag, Zap } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 export type PurchaseCtaSize = "sm" | "md" | "lg";
@@ -26,16 +27,16 @@ type Props = {
 };
 
 const heightClass: Record<PurchaseCtaSize, string> = {
-  sm: "h-[var(--xp-cta-height-sm)] text-sm",
-  md: "h-[var(--xp-cta-height)] text-sm",
-  lg: "h-[var(--xp-cta-height)] text-base",
+  sm: "h-[var(--xp-cta-height-sm)] px-5 text-sm",
+  md: "h-[var(--xp-cta-height)] px-6 text-sm",
+  lg: "h-[var(--xp-cta-height)] px-6 text-base",
 };
 
 const iconClass = "h-[var(--xp-cta-icon)] w-[var(--xp-cta-icon)] shrink-0";
 
 /**
  * Unified luxury purchase chrome: Wishlist · Add to Cart · Buy Now.
- * Same height, icon weight, padding rhythm, and typography across surfaces.
+ * Composes shared Button for consistent hover/focus/disabled behavior.
  */
 export function PurchaseCtaGroup({
   wishlist,
@@ -74,39 +75,35 @@ export function PurchaseCtaGroup({
         ) : null}
 
         {showAddToCart ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
             disabled={disabled}
             onClick={onAddToCart}
             className={cn(
-              "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] border-2 border-gold bg-transparent px-6 font-medium text-gold transition-colors duration-300",
-              "hover:bg-gold hover:text-white",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
-              "disabled:cursor-not-allowed disabled:opacity-50",
+              "flex-1 rounded-[var(--xp-cta-radius)] py-0 shadow-none",
               h
             )}
           >
             <ShoppingBag className={iconClass} strokeWidth={1.75} />
             {addLabel}
-          </button>
+          </Button>
         ) : null}
 
         {showBuyNow ? (
-          <button
+          <Button
             type="button"
+            variant="primary"
             disabled={disabled}
             onClick={onBuyNow}
             className={cn(
-              "inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--xp-cta-radius)] bg-gold px-6 font-medium text-white shadow-md shadow-gold/20 transition-colors duration-300",
-              "hover:bg-gold-dark",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-2",
-              "disabled:cursor-not-allowed disabled:opacity-50",
+              "flex-1 rounded-[var(--xp-cta-radius)] py-0",
               h
             )}
           >
             <Zap className={iconClass} strokeWidth={1.75} />
             {buyLabel}
-          </button>
+          </Button>
         ) : null}
 
         {secondaryAction ? (

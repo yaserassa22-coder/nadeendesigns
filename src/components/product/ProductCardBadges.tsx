@@ -124,9 +124,11 @@ export function resolveProductCardBadges(input: {
     items.push({ kind: "featured", label: "FEATURED" });
   }
 
-  return items.sort(
+  const sorted = items.sort(
     (a, b) => BADGE_ORDER.indexOf(a.kind) - BADGE_ORDER.indexOf(b.kind)
   );
+  // Keep the corner calm: SALE + at most one secondary badge.
+  return sorted.slice(0, 2);
 }
 
 export function ProductCardBadgePill({

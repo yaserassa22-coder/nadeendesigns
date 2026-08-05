@@ -34,44 +34,32 @@ const PRIMARY_LINKS = [
 ] as const;
 
 const MODULE_LINKS = [
-  { href: "/admin/gallery", label: "🖼️ المعرض" },
-  { href: "/admin/bookings", label: "📅 الحجوزات" },
-  { href: "/admin/calendar", label: "🗓️ تقويم المواعيد" },
-  { href: "/admin/appointments/analytics", label: "📈 تحليلات المواعيد" },
-  { href: "/admin/orders", label: "🛒 الطلبات" },
-  { href: "/admin/customers", label: "👥 العملاء" },
-  { href: "/admin/guests", label: "🕊️ ضيوف المتجر" },
-  { href: "/admin/shipping", label: "🚚 إعدادات الشحن" },
-  { href: "/admin/notifications", label: "🔔 الإشعارات" },
-  { href: "/admin/messages", label: "💬 الرسائل" },
-  { href: "/admin/activity", label: "📋 سجل النشاط" },
-  { href: "/admin/trash", label: "🗑️ سلة المحذوفات" },
-  { href: "/admin/content/home", label: "🏠 محتوى الرئيسية" },
-  { href: "/admin/content/about", label: "📖 محتوى من نحن" },
-  { href: "/admin/reports", label: "📊 التقارير" },
-  { href: "/admin/settings", label: "⚙️ إعدادات المتجر" },
+  { href: "/admin/gallery", label: "المعرض" },
+  { href: "/admin/bookings", label: "الحجوزات" },
+  { href: "/admin/calendar", label: "تقويم المواعيد" },
+  { href: "/admin/appointments/analytics", label: "تحليلات المواعيد" },
+  { href: "/admin/orders", label: "الطلبات" },
+  { href: "/admin/customers", label: "العملاء" },
+  { href: "/admin/guests", label: "ضيوف المتجر" },
+  { href: "/admin/shipping", label: "إعدادات الشحن" },
+  { href: "/admin/notifications", label: "الإشعارات" },
+  { href: "/admin/messages", label: "الرسائل" },
+  { href: "/admin/activity", label: "سجل النشاط" },
+  { href: "/admin/trash", label: "سلة المحذوفات" },
+  { href: "/admin/content/home", label: "محتوى الرئيسية" },
+  { href: "/admin/content/about", label: "محتوى من نحن" },
+  { href: "/admin/reports", label: "التقارير" },
+  { href: "/admin/settings", label: "إعدادات المتجر" },
 ] as const;
 
 const CUSTOM_DESIGN_LINKS = [
   {
     href: "/admin/bookings?service=custom_design",
     label: "طلبات التصميم",
-    kind: "link" as const,
   },
   {
     href: "/admin/calendar",
     label: "المواعيد",
-    kind: "link" as const,
-  },
-  {
-    href: "#",
-    label: "القوالب",
-    kind: "placeholder" as const,
-  },
-  {
-    href: "#",
-    label: "الإعدادات",
-    kind: "placeholder" as const,
   },
 ] as const;
 
@@ -83,12 +71,6 @@ const EXPERIENCE_ENGINE_LINKS = [
   { href: "/admin/experience/purchase-flows", label: "مسارات الشراء" },
   { href: "/admin/experience/templates", label: "القوالب" },
   { href: "/admin/experience/preview", label: "معاينة" },
-] as const;
-
-const EXPERIENCE_ENGINE_FUTURE = [
-  { label: "قواعد متقدمة" },
-  { label: "الشروط" },
-  { label: "قواعد الذكاء" },
 ] as const;
 
 function categoryProductsHref(categoryId: string): string {
@@ -422,15 +404,6 @@ function ProductsNavSection({
             className="px-3 py-2 text-sm"
           />
 
-          <span
-            title="قريباً"
-            aria-disabled="true"
-            className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted/70"
-          >
-            الخدمات
-            <span className="text-[10px] text-muted/60">قريباً</span>
-          </span>
-
           <NavLink
             href="/admin/dresses?collection=1"
             label="المجموعات"
@@ -462,7 +435,7 @@ function ExperienceEngineNavSection({
   return (
     <div className="space-y-1">
       <SectionToggle
-        label="✨ محرك التجربة"
+        label="محرك التجربة"
         open={open}
         onToggle={() => setOpen((o) => !o)}
         active={sectionActive}
@@ -486,17 +459,6 @@ function ExperienceEngineNavSection({
               />
             );
           })}
-          {EXPERIENCE_ENGINE_FUTURE.map((item) => (
-            <span
-              key={item.label}
-              title="قريباً"
-              aria-disabled="true"
-              className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted/70"
-            >
-              {item.label}
-              <span className="text-[10px] text-muted/60">قريباً</span>
-            </span>
-          ))}
         </div>
       )}
     </div>
@@ -532,7 +494,7 @@ function CustomDesignNavSection({
   return (
     <div className="space-y-1">
       <SectionToggle
-        label="✨ تصميم فستان خاص"
+        label="تصميم فستان خاص"
         open={open}
         onToggle={() => setOpen((o) => !o)}
         active={sectionActive}
@@ -541,20 +503,6 @@ function CustomDesignNavSection({
       {open && (
         <div className="ms-1 space-y-0.5 border-r border-beige-dark/70 pe-1">
           {CUSTOM_DESIGN_LINKS.map((item) => {
-            if (item.kind === "placeholder") {
-              return (
-                <span
-                  key={item.label}
-                  title="قريباً"
-                  aria-disabled="true"
-                  className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted/70"
-                >
-                  {item.label}
-                  <span className="text-[10px] text-muted/60">قريباً</span>
-                </span>
-              );
-            }
-
             const active =
               item.href === "/admin/calendar"
                 ? appointmentsActive

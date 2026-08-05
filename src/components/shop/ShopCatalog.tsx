@@ -164,9 +164,11 @@ export function ShopCatalog({
                   <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
                     {item.name_ar}
                   </h3>
-                  <p className="mt-1 text-sm text-muted">
-                    {item.color || item.material || ""}
-                  </p>
+                  {(item.color || item.material) && (
+                    <p className="mt-1 text-sm text-muted">
+                      {item.color || item.material}
+                    </p>
+                  )}
                   <ProductPrice
                     className="mt-3"
                     price={item.price}

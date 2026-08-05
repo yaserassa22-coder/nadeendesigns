@@ -62,7 +62,12 @@ describe("experience designer", () => {
       ],
     });
     const storefront = storefrontExperienceSections(cfg);
-    expect(storefront.map((s) => s.id)).toEqual(["extra_services", "summary"]);
+    const ids = storefront.map((s) => s.id);
+    expect(ids).toContain("extra_services");
+    expect(ids).toContain("summary");
+    // Missing storefront sections are filled from defaults (enabled).
+    expect(ids).toContain("personalization");
+    expect(ids).toContain("gift_options");
     expect(storefront.some((s) => CHECKOUT_ONLY_SECTION_IDS.includes(s.id))).toBe(
       false
     );

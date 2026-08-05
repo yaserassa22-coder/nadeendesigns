@@ -13,32 +13,32 @@ const CARDS = [
   {
     href: "/admin/experience/features",
     title: "الميزات",
-    body: "مكتبة ميزات قابلة لإعادة الاستخدام — تُفعَّل لكل منتج من محرر المنتج.",
+    body: "تفعيل لكل منتج من المحرر.",
   },
   {
     href: "/admin/experience/services",
     title: "الخدمات",
-    body: "مكتبة الخدمات العامة (تغليف، توصيل، …) — نفس مدير الخدمات العالمي.",
+    body: "مكتبة الخدمات العامة.",
   },
   {
     href: "/admin/experience/product-types",
     title: "أنواع المنتجات",
-    body: "سلوك التجارة (إيجار / إكسسوار / تصميم) — مستقل عن أسماء التصنيفات.",
+    body: "إيجار · إكسسوار · تصميم.",
   },
   {
     href: "/admin/experience/purchase-flows",
     title: "مسارات الشراء",
-    body: "ترتيب الأزرار والخطوات لكل نوع منتج — يقود واجهة المتجر.",
+    body: "أزرار وخطوات الواجهة.",
   },
   {
     href: "/admin/experience/templates",
     title: "القوالب",
-    body: "قوالب تجربة المنتج من Sprint 2A — دون تكرار المحرك.",
+    body: "قوالب تجربة المنتج.",
   },
   {
     href: "/admin/experience/preview",
     title: "معاينة",
-    body: "مرجع سريع لسلوك كل نوع منتج على الواجهة.",
+    body: "سلوك كل نوع على الواجهة.",
   },
 ] as const;
 
@@ -52,7 +52,7 @@ export default async function ExperienceEngineHomePage() {
   return (
     <ExperienceEngineShell
       title="محرك التجربة"
-      description="مركز إدارة تجربة المنتج — ميزات، خدمات، أنواع، مسارات شراء، وقوالب. يلف المحركات الحالية دون استبدالها."
+      description="ميزات · خدمات · أنواع · مسارات شراء · قوالب."
     >
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-beige-dark bg-white px-5 py-4">

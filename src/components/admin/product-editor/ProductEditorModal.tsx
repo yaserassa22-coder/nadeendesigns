@@ -19,7 +19,6 @@ import {
   type AutosaveUiStatus,
 } from "@/lib/admin/product-draft";
 import {
-  discountPercent,
   generateProductSku,
   generateProductSlug,
 } from "@/lib/products/slug-sku";
@@ -28,10 +27,11 @@ import {
   deriveProductStatus,
   type ProductStatus,
 } from "@/lib/products/status";
-import { formatDateTimeWestern, formatPrice } from "@/lib/utils";
+import { formatDateTimeWestern } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { ProductPrice } from "@/components/product/ProductPrice";
 import { X } from "lucide-react";
 import {
   collectionCategoriesFrom,
@@ -70,7 +70,6 @@ export type ProductEditorTab =
   | "organization"
   | "features"
   | "experience"
-  | "seo"
   | "advanced";
 
 export type DressFormState = {
@@ -119,7 +118,6 @@ const TABS: { id: ProductEditorTab; label: string }[] = [
   { id: "organization", label: "التنظيم" },
   { id: "features", label: "الميزات" },
   { id: "experience", label: "تجربة المنتج" },
-  { id: "seo", label: "SEO" },
   { id: "advanced", label: "متقدم" },
 ];
 
@@ -610,7 +608,6 @@ export function ProductEditorModal({
 
   const regular = form.price ? Number(form.price) : null;
   const sale = form.sale_price ? Number(form.sale_price) : null;
-  const pct = discountPercent(regular, sale);
   const statusLabel = AUTOSAVE_STATUS_LABEL[autosaveStatus];
 
   return (
@@ -622,17 +619,9 @@ export function ProductEditorModal({
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-beige-dark px-5 py-4 sm:px-6">
-          <div>
-            <h2 className="text-xl font-semibold text-charcoal">
-              {editing ? "تعديل المنتج" : "إضافة منتج"}
-            </h2>
-            <p className="mt-0.5 text-xs text-muted">
-              {statusLabel ||
-                (form.status === "draft"
-                  ? "مسودة — يُحفظ تلقائياً"
-                  : "احفظي عند الانتهاء أو غيّري الحالة إلى مسودة للحفظ التلقائي على الخادم")}
-            </p>
-          </div>
+          <h2 className="text-xl font-semibold text-charcoal">
+            {editing ? "تعديل المنتج" : "إضافة منتج"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -825,32 +814,22 @@ export function ProductEditorModal({
                 <p className="mb-3 text-sm font-medium text-muted">
                   معاينة السعر
                 </p>
-                <div className="flex flex-wrap items-baseline gap-3" dir="ltr">
-                  {sale != null &&
-                  Number.isFinite(sale) &&
-                  regular != null &&
-                  sale < regular ? (
-                    <>
-                      <span className="text-lg text-muted line-through">
-                        {formatPrice(regular)}
-                      </span>
-                      <span className="text-2xl font-semibold text-charcoal">
-                        {formatPrice(sale)}
-                      </span>
-                      {pct != null && (
-                        <span className="rounded-full bg-gold/15 px-2.5 py-1 text-xs font-medium text-gold">
-                          {pct}% OFF
-                        </span>
-                      )}
-                    </>
-                  ) : regular != null && Number.isFinite(regular) ? (
-                    <span className="text-2xl font-semibold text-charcoal">
-                      {formatPrice(regular)}
-                    </span>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </div>
+                {regular != null && Number.isFinite(regular) ? (
+                  <ProductPrice
+                    size="md"
+                    price={regular}
+                    salePrice={
+                      sale != null && Number.isFinite(sale) ? sale : null
+                    }
+                    rentalPrice={
+                      form.rental_price
+                        ? Number(form.rental_price) || null
+                        : null
+                    }
+                  />
+                ) : (
+                  <span className="text-muted">—</span>
+                )}
               </div>
             </div>
           )}
@@ -906,8 +885,7 @@ export function ProductEditorModal({
                 options={productCommerceTypeOptions()}
               />
               <p className="sm:col-span-2 text-xs text-muted">
-                يحدد زر الواجهة (أضف إلى السلة / احجزي موعد / اطلبي تصميم) —
-                مستقل عن التصنيف. يُدار أيضًا من محرك التجربة ← مسارات الشراء.
+                يحدد زر الواجهة — مستقل عن التصنيف.
               </p>
               <Select
                 label="المجموعة"
@@ -996,7 +974,6 @@ export function ProductEditorModal({
               onOrderOptionsChange={(order_options) =>
                 patch({ order_options })
               }
-              savedIndicator={autosaveStatus}
               unitPrice={
                 form.sale_price
                   ? Number(form.sale_price) || 0
@@ -1007,38 +984,17 @@ export function ProductEditorModal({
             />
           )}
 
-          {tab === "seo" && (
-            <div className="rounded-2xl border border-dashed border-beige-dark bg-beige/20 px-5 py-8 text-center">
-              <p className="text-sm font-medium text-charcoal">
-                تحسين محركات البحث
-              </p>
-              <p className="mt-2 text-sm text-muted">
-                قريباً — عنوان ووصف وOG لكل منتج من قاعدة البيانات.
-              </p>
-            </div>
-          )}
-
           {tab === "advanced" && (
             <div className="grid gap-5 sm:grid-cols-2">
-              <Select
-                label="الحالة"
-                value={form.status}
-                onChange={(e) =>
-                  patch({ status: e.target.value as ProductStatus })
-                }
-                options={(
-                  Object.keys(PRODUCT_STATUS_LABELS) as ProductStatus[]
-                ).map((s) => ({
-                  value: s,
-                  label: PRODUCT_STATUS_LABELS[s],
-                }))}
-              />
               <div className="rounded-xl border border-beige-dark bg-beige/20 px-4 py-3 text-sm">
                 <p className="text-muted">التوفر في المتجر</p>
                 <p className="mt-1 font-medium text-charcoal">
                   {form.status === "published"
                     ? "متاح للعرض والشراء"
                     : "غير ظاهر للعملاء"}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  غيّري الظهور من تبويب التنظيم.
                 </p>
               </div>
               <div className="rounded-xl border border-beige-dark px-4 py-3 text-sm">
@@ -1049,7 +1005,7 @@ export function ProductEditorModal({
                     : "— عند الحفظ لأول مرة"}
                 </p>
               </div>
-              <div className="rounded-xl border border-beige-dark px-4 py-3 text-sm">
+              <div className="rounded-xl border border-beige-dark px-4 py-3 text-sm sm:col-span-2">
                 <p className="text-muted">آخر تحديث</p>
                 <p className="mt-1 font-medium text-charcoal" dir="ltr">
                   {editing?.updated_at

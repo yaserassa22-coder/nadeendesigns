@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Check,
   ChevronDown,
   Copy,
   GripVertical,
@@ -172,6 +171,7 @@ export function ExperienceDesignerPanel({
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
     "desktop"
   );
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
   const [servicesModalOpen, setServicesModalOpen] = useState(false);
@@ -368,37 +368,11 @@ export function ExperienceDesignerPanel({
       s.enabled
   );
 
+  // savedIndicator retained on Props for callers; footer owns autosave status.
+  void savedIndicator;
+
   return (
     <div className="relative space-y-5">
-      {/* Autosave chip */}
-      <div className="flex justify-end">
-        <span
-          className={cn(
-            "inline-flex min-h-[1.5rem] items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-opacity",
-            savedIndicator === "saved"
-              ? "bg-emerald-50 text-emerald-700 opacity-100"
-              : savedIndicator === "saving"
-                ? "bg-beige text-muted opacity-100"
-                : savedIndicator === "failed"
-                  ? "bg-red-50 text-red-600 opacity-100"
-                  : "opacity-0"
-          )}
-          aria-live="polite"
-        >
-          {savedIndicator === "saved" ? (
-            <>
-              <Check className="h-3.5 w-3.5" /> تم الحفظ
-            </>
-          ) : savedIndicator === "saving" ? (
-            "جاري الحفظ…"
-          ) : savedIndicator === "failed" ? (
-            "فشل الحفظ"
-          ) : (
-            " "
-          )}
-        </span>
-      </div>
-
       {/* 1. Experience Template */}
       <Card
         title="قالب التجربة"
@@ -770,85 +744,96 @@ export function ExperienceDesignerPanel({
         </div>
       </Card>
 
-      {/* 5. Live Preview */}
-      <Card
-        title="معاينة مباشرة"
-        action={
-          <div className="flex rounded-full border border-beige-dark p-0.5">
-            <button
-              type="button"
-              onClick={() => setPreviewMode("desktop")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
-                previewMode === "desktop"
-                  ? "bg-gold text-white"
-                  : "text-muted hover:text-charcoal"
-              )}
-            >
-              <Monitor className="h-3.5 w-3.5" />
-              سطح المكتب
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreviewMode("mobile")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
-                previewMode === "mobile"
-                  ? "bg-gold text-white"
-                  : "text-muted hover:text-charcoal"
-              )}
-            >
-              <Smartphone className="h-3.5 w-3.5" />
-              جوال
-            </button>
-          </div>
-        }
-      >
-        <div
-          className={cn(
-            "mx-auto rounded-2xl border border-gold/30 bg-gradient-to-b from-ivory to-white p-4 shadow-inner transition-all",
-            previewMode === "mobile" ? "max-w-[320px]" : "max-w-full"
-          )}
+      {/* 5. Live Preview — collapsed by default */}
+      <section className="rounded-2xl border border-beige-dark/60 bg-white">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start"
+          onClick={() => setPreviewOpen((v) => !v)}
         >
-          <p className="mb-3 text-xs text-gold">{productNameAr}</p>
-          <ol className="space-y-2">
-            {previewSections.map((s, i) => (
-              <li
-                key={s.id}
-                className="rounded-xl border border-beige-dark/50 bg-white px-3 py-2.5 text-sm"
-              >
-                <span className="font-medium text-charcoal">
-                  {i + 1}. {s.title_ar || EXPERIENCE_SECTION_LABELS_AR[s.id]}
-                </span>
-                {s.id === "personalization" && persUi.extra_price > 0 ? (
-                  <span className="ms-2 text-xs text-gold" dir="ltr">
-                    +{formatPrice(persUi.extra_price)}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-          <div className="mt-4 space-y-2 border-t border-beige-dark/50 pt-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">الإجمالي</span>
-              <span className="font-semibold text-gold transition-all" dir="ltr">
-                {formatPrice(
-                  Math.max(0, unitPrice) +
-                    (persSection.enabled ? persUi.extra_price : 0)
+          <span className="text-base font-semibold text-charcoal">
+            معاينة مباشرة
+          </span>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted transition-transform",
+              previewOpen ? "rotate-180" : ""
+            )}
+          />
+        </button>
+        {previewOpen ? (
+          <div className="space-y-4 border-t border-beige-dark/50 px-5 pb-5 pt-4">
+            <div className="flex rounded-full border border-beige-dark p-0.5 w-fit">
+              <button
+                type="button"
+                onClick={() => setPreviewMode("desktop")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
+                  previewMode === "desktop"
+                    ? "bg-gold text-white"
+                    : "text-muted hover:text-charcoal"
                 )}
-              </span>
+              >
+                <Monitor className="h-3.5 w-3.5" />
+                سطح المكتب
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewMode("mobile")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition",
+                  previewMode === "mobile"
+                    ? "bg-gold text-white"
+                    : "text-muted hover:text-charcoal"
+                )}
+              >
+                <Smartphone className="h-3.5 w-3.5" />
+                جوال
+              </button>
             </div>
-            <div className="flex flex-col gap-2">
-              <div className="rounded-full bg-gold py-2 text-center text-xs font-medium text-white">
-                شراء الآن
-              </div>
-              <div className="rounded-full border-2 border-gold py-2 text-center text-xs font-medium text-gold">
-                أضيفي للسلة
+            <div
+              className={cn(
+                "mx-auto rounded-2xl border border-gold/30 bg-gradient-to-b from-ivory to-white p-4 shadow-inner transition-all",
+                previewMode === "mobile" ? "max-w-[320px]" : "max-w-full"
+              )}
+            >
+              <p className="mb-3 text-xs text-gold">{productNameAr}</p>
+              <ol className="space-y-2">
+                {previewSections.map((s, i) => (
+                  <li
+                    key={s.id}
+                    className="rounded-xl border border-beige-dark/50 bg-white px-3 py-2.5 text-sm"
+                  >
+                    <span className="font-medium text-charcoal">
+                      {i + 1}.{" "}
+                      {s.title_ar || EXPERIENCE_SECTION_LABELS_AR[s.id]}
+                    </span>
+                    {s.id === "personalization" && persUi.extra_price > 0 ? (
+                      <span className="ms-2 text-xs text-gold" dir="ltr">
+                        +{formatPrice(persUi.extra_price)}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-4 space-y-2 border-t border-beige-dark/50 pt-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">الإجمالي</span>
+                  <span
+                    className="font-semibold text-gold transition-all"
+                    dir="ltr"
+                  >
+                    {formatPrice(
+                      Math.max(0, unitPrice) +
+                        (persSection.enabled ? persUi.extra_price : 0)
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </Card>
+        ) : null}
+      </section>
 
       {/* 6. Advanced Settings (collapsed) */}
       <section className="rounded-2xl border border-beige-dark/60 bg-beige/20">

@@ -21,8 +21,8 @@ export function WishlistPage() {
         description={
           ready
             ? count
-              ? `${count} قطعة محفوظة — متاحة للزائرات ولحسابكِ.`
-              : "احفظي القطع التي تحبينها من الصفحة الرئيسية أو صفحة المنتج."
+              ? `${count} قطعة محفوظة`
+              : "احفظي القطع التي تحبينها."
             : "جاري التحميل…"
         }
       />
@@ -86,30 +86,22 @@ export function WishlistPage() {
                       <p className="mt-1 text-xs text-muted">
                         {wishlistKindLabel(item.product_kind)}
                       </p>
-                      <div className="mt-3 flex flex-wrap gap-3">
-                        <Link
-                          href={href}
-                          className="text-xs font-medium text-gold hover:underline"
-                        >
-                          عرض القطعة
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void remove({
-                              id: item.id.startsWith("tmp-")
-                                ? undefined
-                                : item.id,
-                              productKind: item.product_kind,
-                              productId: item.product_id,
-                            })
-                          }
-                          className="inline-flex items-center gap-1 text-xs text-red-700/80 hover:underline"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          إزالة
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void remove({
+                            id: item.id.startsWith("tmp-")
+                              ? undefined
+                              : item.id,
+                            productKind: item.product_kind,
+                            productId: item.product_id,
+                          })
+                        }
+                        className="mt-3 inline-flex items-center gap-1 text-xs text-red-700/80 hover:underline"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        إزالة
+                      </button>
                     </div>
                   </li>
                 );

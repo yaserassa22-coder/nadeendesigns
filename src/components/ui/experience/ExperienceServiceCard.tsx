@@ -74,7 +74,7 @@ export function ExperienceServiceCard({
           ) : null}
         </span>
         {description ? (
-          <span className="mt-0.5 block text-xs text-muted md:text-sm">
+          <span className="mt-0.5 block truncate text-xs text-muted md:text-sm">
             {description}
           </span>
         ) : null}

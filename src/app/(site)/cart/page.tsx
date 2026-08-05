@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { ShoppingBag, Trash2 } from "lucide-react";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
@@ -10,9 +10,17 @@ import { OrderOptionsSummary } from "@/components/product/OrderOptionsSummary";
 import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary";
 import { useCart } from "@/components/shop/CartProvider";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { cartLineDisplayPrices } from "@/lib/products/pricing";
 import { formatPrice } from "@/lib/utils";
+
+function cartLineTypeLabel(productType: string): string {
+  if (productType === "veil") return "طرحة العروس";
+  if (productType === "bridal_robe") return "برنص العروس";
+  if (productType === "dress") return "فستان";
+  return "منتج";
+}
 
 export default function CartPage() {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
@@ -20,21 +28,27 @@ export default function CartPage() {
 
   return (
     <>
-      <PageHero
-        title="السلة"
-        description="راجعي منتجاتكِ وتفاصيل التخصيص قبل إتمام الطلب."
-      />
+      <PageHero title="السلة" description="راجعي طلبكِ قبل الإتمام." />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4 md:px-8">
           {items.length === 0 ? (
-            <div className="rounded-3xl border border-beige-dark bg-white p-10 text-center">
-              <p className="text-muted">سلتكِ فارغة حاليًا</p>
+            <div className="rounded-2xl border border-dashed border-beige-dark bg-white/70 px-6 py-14 text-center">
+              <ShoppingBag
+                className="mx-auto h-8 w-8 text-gold/70"
+                strokeWidth={1.5}
+              />
+              <p className="mt-4 font-[family-name:var(--font-amiri)] text-xl text-charcoal">
+                سلتكِ فارغة
+              </p>
+              <p className="mt-2 text-sm text-muted">
+                ابدئي من مجموعة فساتين الزفاف أو إكسسوارات العروس.
+              </p>
               <div className="mt-6 flex flex-wrap justify-center gap-3">
-                <Link href="/veils">
-                  <Button>تسوّقي طرحة العروس</Button>
+                <Link href="/wedding-dresses">
+                  <Button>فساتين الزفاف</Button>
                 </Link>
-                <Link href="/robes">
-                  <Button variant="outline">تسوّقي برنص العروس</Button>
+                <Link href="/veils">
+                  <Button variant="outline">طرحة العروس</Button>
                 </Link>
               </div>
             </div>
@@ -43,7 +57,7 @@ export default function CartPage() {
               {items.map((item) => (
                 <div
                   key={item.line_id}
-                  className="rounded-3xl border border-beige-dark bg-white p-5 md:p-6"
+                  className="rounded-2xl border border-beige-dark bg-white p-5 md:p-6"
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                     <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-2xl bg-beige">
@@ -64,11 +78,7 @@ export default function CartPage() {
                             {item.name_ar}
                           </h3>
                           <p className="text-sm text-muted">
-                            {item.product_type === "veil"
-                              ? "طرحة العروس"
-                              : item.product_type === "bridal_robe"
-                                ? "برنص العروس"
-                                : "منتج"}
+                            {cartLineTypeLabel(item.product_type)}
                           </p>
                         </div>
                         {!hidePrice && (
@@ -81,32 +91,28 @@ export default function CartPage() {
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-3">
-                        <label
-                          htmlFor={`qty-${item.line_id}`}
-                          className="text-sm text-muted"
-                        >
-                          الكمية
-                        </label>
-                        <input
-                          id={`qty-${item.line_id}`}
-                          type="number"
-                          min={1}
-                          max={20}
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateQuantity(
-                              item.line_id,
-                              Number(e.target.value) || 1
-                            )
-                          }
-                          className="w-20 rounded-xl border border-beige-dark px-3 py-2 text-charcoal transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20"
-                          dir="ltr"
-                        />
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div className="w-24">
+                          <Input
+                            id={`qty-${item.line_id}`}
+                            label="الكمية"
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={String(item.quantity)}
+                            onChange={(e) =>
+                              updateQuantity(
+                                item.line_id,
+                                Number(e.target.value) || 1
+                              )
+                            }
+                            dir="ltr"
+                          />
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeItem(item.line_id)}
-                          className="inline-flex items-center gap-1 rounded-md text-sm text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 focus-visible:ring-offset-2"
+                          className="mb-2 inline-flex items-center gap-1 rounded-md text-sm text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50 focus-visible:ring-offset-2"
                           aria-label={`حذف ${item.name_ar}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -138,7 +144,7 @@ export default function CartPage() {
                 </div>
               ))}
 
-              <div className="rounded-3xl border border-gold/25 bg-beige/40 p-6">
+              <div className="rounded-2xl border border-gold/25 bg-beige/40 p-6">
                 {!hidePrice && (
                   <div className="mb-4 flex items-center justify-between">
                     <span className="text-muted">المجموع</span>

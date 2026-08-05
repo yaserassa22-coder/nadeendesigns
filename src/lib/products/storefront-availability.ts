@@ -10,8 +10,8 @@ export type StorefrontAvailabilityKind =
 
 const LABELS: Record<StorefrontAvailabilityKind, string> = {
   in_stock: "✓ متوفر",
-  ready_to_order: "✓ جاهز للطلب",
-  out_of_stock: "✓ نفد المخزون",
+  ready_to_order: "✓ متوفر",
+  out_of_stock: "نفد المخزون",
 };
 
 export function storefrontAvailabilityLabel(
