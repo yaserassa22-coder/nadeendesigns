@@ -140,17 +140,29 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("login") !== "1") return;
-    const redirect = params.get("redirect") || undefined;
-    params.delete("login");
-    params.delete("error");
-    const clean = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
-    window.history.replaceState({}, "", clean);
-    const timer = window.setTimeout(() => {
-      setRedirectAfter(redirect);
-      setLoginOpen(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
+    if (params.get("login") === "1") {
+      // Persist across React Strict Mode remount (replaceState alone loses the intent).
+      sessionStorage.setItem("nadeen_open_login", "1");
+      const redirect = params.get("redirect") || "";
+      if (redirect) sessionStorage.setItem("nadeen_login_redirect", redirect);
+      else sessionStorage.removeItem("nadeen_login_redirect");
+      params.delete("login");
+      params.delete("error");
+      const clean = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState({}, "", clean);
+    }
+    if (sessionStorage.getItem("nadeen_open_login") !== "1") return;
+
+    const redirect =
+      sessionStorage.getItem("nadeen_login_redirect") || undefined;
+    setRedirectAfter(redirect);
+    setLoginOpen(true);
+
+    const clear = window.setTimeout(() => {
+      sessionStorage.removeItem("nadeen_open_login");
+      sessionStorage.removeItem("nadeen_login_redirect");
+    }, 300);
+    return () => window.clearTimeout(clear);
   }, []);
 
   const openLogin = useCallback((opts?: OpenLoginOptions) => {

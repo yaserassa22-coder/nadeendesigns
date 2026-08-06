@@ -891,11 +891,13 @@ export default function CheckoutPage() {
                 className="flex-1"
                 onClick={() => {
                   setAuthPromptOpen(false);
-                  openLogin({
-                    redirect: "/checkout",
-                    message:
-                      "أنشئي حساباً لحفظ طلباتك وتتبع الشحن بسهولة.",
-                  });
+                  window.setTimeout(() => {
+                    openLogin({
+                      redirect: "/checkout",
+                      message:
+                        "أنشئي حساباً لحفظ طلباتك وتتبع الشحن بسهولة.",
+                    });
+                  }, 0);
                 }}
               >
                 إنشاء حساب

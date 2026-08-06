@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
@@ -95,6 +95,8 @@ export function LoginModal({
   const [activeOtpProvider, setActiveOtpProvider] =
     useState<AuthProviderPublic | null>(null);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  /** Ignore backdrop dismiss for a beat after open (same-gesture / ghost click). */
+  const openedAtRef = useRef(0);
 
   const providers = useMemo(() => {
     if (settings?.providers?.length) {
@@ -140,6 +142,16 @@ export function LoginModal({
     onContinueAsGuest();
   }, [onContinueAsGuest]);
 
+  /** Backdrop only — skips the opening pointer that can land on the new overlay. */
+  const handleBackdropPointerDown = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return;
+      if (Date.now() - openedAtRef.current < 500) return;
+      handleClose();
+    },
+    [handleClose]
+  );
+
   useEffect(() => {
     if (resendIn <= 0) return;
     const t = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
@@ -148,8 +160,12 @@ export function LoginModal({
 
   useEffect(() => {
     if (!open) return;
+    openedAtRef.current = Date.now();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") {
+        if (Date.now() - openedAtRef.current < 500) return;
+        handleClose();
+      }
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -306,11 +322,10 @@ export function LoginModal({
           exit={{ opacity: 0 }}
           dir="rtl"
         >
-          <button
-            type="button"
-            aria-label="إغلاق"
+          <div
+            aria-hidden
             className="absolute inset-0 bg-charcoal/40 backdrop-blur-md"
-            onClick={handleClose}
+            onPointerDown={handleBackdropPointerDown}
           />
           <motion.div
             role="dialog"
@@ -321,6 +336,7 @@ export function LoginModal({
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
             className="relative z-10 m-3 max-h-[92vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-3xl border border-[#e7dfd3] bg-white shadow-[0_24px_80px_rgba(44,36,25,0.18)]"
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <div
               className="h-1.5 w-full"

@@ -468,7 +468,9 @@ export function Header({
                     type="button"
                     onClick={() => {
                       setMobileOpen(false);
-                      openLogin();
+                      // Defer so the closing mobile sheet doesn't deliver its
+                      // click onto the login modal backdrop.
+                      window.setTimeout(() => openLogin(), 0);
                     }}
                     className="w-full rounded-xl px-4 py-3 text-start text-lg font-medium text-charcoal hover:bg-beige"
                   >
