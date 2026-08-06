@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -9,51 +8,19 @@ import {
   useRef,
   useState,
 } from "react";
-import type { GiftOptions, ProductPersonalization } from "@/types/customization";
-import type { CartItem, ShopProductType } from "@/types/shop";
-import type {
-  LineExtraService,
-  LineOrderOptionValue,
-} from "@/lib/products/order-experience";
+import type { CartItem } from "@/types/shop";
 import { cartExperienceSubtotal } from "@/lib/products/order-experience";
 import {
   cartNeedsShipping,
   lineRequiresShipping,
 } from "@/lib/shop/shipping";
+import {
+  CartContext,
+  type CartAddToCartInput as AddToCartInput,
+  type CartContextValue,
+} from "@/components/shop/cart-context";
 
 const CART_KEY = "nadeen_shop_cart";
-
-interface AddToCartInput {
-  product_type: ShopProductType;
-  product_id: string;
-  name_ar: string;
-  /** Base charged unit price (use sale when on sale). */
-  unit_price: number;
-  /** Regular / list price when charging a sale price. */
-  compare_at_price?: number | null;
-  quantity?: number;
-  image?: string;
-  personalization?: ProductPersonalization | null;
-  gift_options?: GiftOptions | null;
-  order_options?: LineOrderOptionValue[] | null;
-  extra_services?: LineExtraService[] | null;
-  personalization_fee?: number | null;
-  /** Set true for future accessory products under اكسسوارات العروس */
-  requires_shipping?: boolean;
-}
-
-interface CartContextValue {
-  items: CartItem[];
-  count: number;
-  subtotal: number;
-  needsShipping: boolean;
-  addItem: (item: AddToCartInput) => void;
-  updateQuantity: (lineId: string, quantity: number) => void;
-  removeItem: (lineId: string) => void;
-  clearCart: () => void;
-}
-
-const CartContext = createContext<CartContextValue | null>(null);
 
 function loadCart(): CartItem[] {
   try {
@@ -293,3 +260,5 @@ export function useCart() {
   if (!ctx) throw new Error("useCart must be used within CartProvider");
   return ctx;
 }
+
+export type { AddToCartInput, CartContextValue };
