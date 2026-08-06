@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo, type PointerEvent } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
@@ -33,7 +33,7 @@ type SettingsWithProviders = CustomerAuthSettings & {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onContinueAsGuest: () => void;
+  onContinueAsGuest: () => void | Promise<void>;
   onSuccess: () => void | Promise<void>;
   message?: string;
   settings: SettingsWithProviders | null;
@@ -137,9 +137,20 @@ export function LoginModal({
     onClose();
   }, [onClose]);
 
-  const handleGuest = useCallback(() => {
-    resetForm();
-    onContinueAsGuest();
+  const handleGuest = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await onContinueAsGuest();
+    } catch (e) {
+      console.error("[LoginModal] continue as guest failed", e);
+      setError(
+        e instanceof Error
+          ? e.message
+          : "تعذّرت المتابعة كزائرة. حاولِي مرة أخرى."
+      );
+      setLoading(false);
+    }
   }, [onContinueAsGuest]);
 
   /** Backdrop only — skips the opening pointer that can land on the new overlay. */
@@ -248,7 +259,7 @@ export function LoginModal({
     }
   }
 
-  function onOtpKeyDown(index: number, e: React.KeyboardEvent) {
+  function onOtpKeyDown(index: number, e: KeyboardEvent) {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputsRef.current[index - 1]?.focus();
     }
@@ -300,11 +311,8 @@ export function LoginModal({
         return;
       }
       await onSuccess();
-      if (typeof window !== "undefined") {
-        window.location.assign("/account");
-      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل");
+      setError(e instanceof Error ? e.message : "فشل تسجيل الدخول");
     } finally {
       setLoading(false);
     }
@@ -335,7 +343,7 @@ export function LoginModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="relative z-10 m-3 max-h-[92vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-3xl border border-[#e7dfd3] bg-white shadow-[0_24px_80px_rgba(44,36,25,0.18)]"
+            className="relative z-10 m-3 h-auto max-h-[92vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-3xl border border-[#e7dfd3] bg-white shadow-[0_24px_80px_rgba(44,36,25,0.18)]"
             onPointerDown={(e) => e.stopPropagation()}
           >
             <div
@@ -428,11 +436,26 @@ export function LoginModal({
                   {guestProvider && (
                     <button
                       type="button"
-                      onClick={handleGuest}
-                      className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-beige-dark bg-ivory/80 px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/40"
+                      disabled={loading}
+                      onClick={() => void handleGuest()}
+                      className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-beige-dark bg-ivory/80 px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/40 disabled:opacity-60"
                     >
                       {providerIcon(guestProvider.id)}
-                      {guestProvider.label.ar}
+                      {loading ? "جاري المتابعة…" : guestProvider.label.ar}
+                    </button>
+                  )}
+
+                  {emailProvider && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setStep("email");
+                      }}
+                      className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-[#C9A14A]/40 bg-white px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/30"
+                    >
+                      <Mail className="h-4 w-4" style={{ color: ACCENT }} />
+                      {emailProvider.label.ar}
                     </button>
                   )}
 
@@ -472,16 +495,6 @@ export function LoginModal({
                       {p.label.ar}
                     </button>
                   ))}
-
-                  {emailProvider && (
-                    <button
-                      type="button"
-                      onClick={() => setStep("email")}
-                      className="mt-1 w-full py-2 text-center text-xs text-muted underline-offset-4 hover:text-charcoal hover:underline"
-                    >
-                      أو {emailProvider.label.ar}
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -625,7 +638,10 @@ export function LoginModal({
                 <div className="space-y-3">
                   <button
                     type="button"
-                    onClick={() => setStep("choice")}
+                    onClick={() => {
+                      setError(null);
+                      setStep("choice");
+                    }}
                     className="mb-1 text-sm text-muted hover:underline"
                   >
                     ← رجوع
@@ -634,8 +650,10 @@ export function LoginModal({
                     <button
                       type="button"
                       className={cn(
-                        "flex-1 rounded-lg py-2",
-                        emailMode === "signin" && "bg-white shadow-sm"
+                        "flex-1 rounded-lg py-2.5 font-medium transition",
+                        emailMode === "signin"
+                          ? "bg-white text-charcoal shadow-sm"
+                          : "text-muted hover:text-charcoal"
                       )}
                       onClick={() => setEmailMode("signin")}
                     >
@@ -644,8 +662,10 @@ export function LoginModal({
                     <button
                       type="button"
                       className={cn(
-                        "flex-1 rounded-lg py-2",
-                        emailMode === "signup" && "bg-white shadow-sm"
+                        "flex-1 rounded-lg py-2.5 font-medium transition",
+                        emailMode === "signup"
+                          ? "bg-white text-charcoal shadow-sm"
+                          : "text-muted hover:text-charcoal"
                       )}
                       onClick={() => setEmailMode("signup")}
                     >
@@ -653,30 +673,52 @@ export function LoginModal({
                     </button>
                   </div>
                   {emailMode === "signup" && (
-                    <input
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="الاسم الكامل"
-                      className="w-full rounded-xl border border-beige-dark px-4 py-3 text-sm outline-none focus:border-[color:#C9A14A]"
-                    />
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-medium text-muted">
+                        الاسم الكامل
+                      </span>
+                      <input
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="الاسم الكامل"
+                        autoComplete="name"
+                        className="w-full rounded-xl border border-beige-dark bg-white px-4 py-3 text-sm text-charcoal outline-none focus:border-[color:#C9A14A] focus:ring-2 focus:ring-[color:#C9A14A]/30"
+                      />
+                    </label>
                   )}
-                  <input
-                    type="email"
-                    dir="ltr"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    className="w-full rounded-xl border border-beige-dark px-4 py-3 text-sm outline-none focus:border-[color:#C9A14A]"
-                  />
-                  <input
-                    type="password"
-                    dir="ltr"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="كلمة المرور"
-                    className="w-full rounded-xl border border-beige-dark px-4 py-3 text-sm outline-none focus:border-[color:#C9A14A]"
-                  />
-                  <div className="flex gap-2">
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-medium text-muted">
+                      البريد الإلكتروني
+                    </span>
+                    <input
+                      type="email"
+                      dir="ltr"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      autoComplete="email"
+                      className="w-full rounded-xl border border-beige-dark bg-white px-4 py-3 text-sm text-charcoal outline-none focus:border-[color:#C9A14A] focus:ring-2 focus:ring-[color:#C9A14A]/30"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-medium text-muted">
+                      كلمة المرور
+                    </span>
+                    <input
+                      type="password"
+                      dir="ltr"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete={
+                        emailMode === "signup"
+                          ? "new-password"
+                          : "current-password"
+                      }
+                      className="w-full rounded-xl border border-beige-dark bg-white px-4 py-3 text-sm text-charcoal outline-none focus:border-[color:#C9A14A] focus:ring-2 focus:ring-[color:#C9A14A]/30"
+                    />
+                  </label>
+                  <div className="flex gap-2 pt-1">
                     <Button
                       type="button"
                       variant="outline"
@@ -787,7 +829,7 @@ function OAuthButton({
   primary,
 }: {
   label: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   ready: boolean;
   enabled: boolean;
   loading: boolean;
@@ -796,6 +838,8 @@ function OAuthButton({
   primary?: boolean;
 }) {
   const disabled = !enabled || !ready || loading;
+  // Disabled primary must NOT use white-on-transparent (looks like a blank panel).
+  const lookPrimary = Boolean(primary) && !disabled;
   return (
     <button
       type="button"
@@ -804,22 +848,20 @@ function OAuthButton({
       onClick={onClick}
       className={cn(
         "flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-semibold transition",
-        primary
-          ? "border border-transparent text-white shadow-md"
+        lookPrimary
+          ? "border border-transparent text-white shadow-md hover:brightness-105"
           : "border border-beige-dark bg-white font-medium text-charcoal",
         disabled
-          ? "cursor-not-allowed opacity-50"
-          : primary
-            ? "hover:brightness-105"
-            : "hover:border-[color:#C9A14A] hover:bg-beige/40"
+          ? "cursor-not-allowed border-dashed border-beige-dark bg-beige/40 text-muted opacity-90"
+          : !lookPrimary && "hover:border-[color:#C9A14A] hover:bg-beige/40"
       )}
-      style={primary && !disabled ? { backgroundColor: ACCENT } : undefined}
+      style={lookPrimary ? { backgroundColor: ACCENT } : undefined}
     >
       {icon}
-      {label}
-      {!ready && enabled && (
-        <span className="text-[10px] text-muted">(غير مُعد)</span>
-      )}
+      <span>{label}</span>
+      {!ready && enabled ? (
+        <span className="text-[10px] font-medium text-muted">(غير مُعد)</span>
+      ) : null}
     </button>
   );
 }

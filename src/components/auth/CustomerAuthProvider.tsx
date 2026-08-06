@@ -48,7 +48,7 @@ type AuthContextValue = {
   ensureGuestSession: (opts?: { forceNew?: boolean }) => Promise<string | null>;
   openLogin: (opts?: OpenLoginOptions) => void;
   closeLogin: () => void;
-  continueAsGuest: () => void;
+  continueAsGuest: () => void | Promise<void>;
   clearGuestMode: () => void;
   logout: (allDevices?: boolean) => Promise<void>;
   loginOpen: boolean;
@@ -171,12 +171,20 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     setLoginOpen(true);
   }, []);
 
-  const continueAsGuest = useCallback(() => {
+  const continueAsGuest = useCallback(async () => {
     writeGuestMode(true);
     setGuestMode(true);
     setLoginMessage(undefined);
+    try {
+      const id = await ensureGuestSession();
+      if (!id && process.env.NODE_ENV !== "production") {
+        console.warn("[auth] guest session missing after continueAsGuest");
+      }
+    } catch (e) {
+      console.error("[auth] continueAsGuest session error", e);
+      // Still close — local guest mode is set; browsing must continue.
+    }
     setLoginOpen(false);
-    void ensureGuestSession();
   }, [ensureGuestSession]);
 
   const clearGuestMode = useCallback(() => {
