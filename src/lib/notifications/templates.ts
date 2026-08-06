@@ -626,3 +626,56 @@ export function bookingSubmittedWhatsApp(
   ].join("\n");
 }
 
+/** Admin → customer reply to a contact form message (HTML + plain text). */
+export function adminContactReplyEmail(params: {
+  customerName: string;
+  originalSubject: string;
+  replySubject: string;
+  replyBody: string;
+  settings: NotificationSettings;
+}) {
+  const brand = params.settings.sender_name || SITE_NAME;
+  const safeBody = escapeHtml(params.replyBody).replace(/\n/g, "<br/>");
+  const subject = params.replySubject.trim() || `Re: ${params.originalSubject}`;
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 12px;font-size:22px;color:#2c2419;">مرحباً ${escapeHtml(params.customerName)}</h1>
+    <p style="margin:0 0 18px;line-height:1.85;color:#5c5348;">
+      شكراً لتواصلكِ مع ${escapeHtml(brand)}. إليكِ ردّنا بخصوص:
+      <strong>${escapeHtml(params.originalSubject)}</strong>
+    </p>
+    <div style="margin:0;padding:18px;background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;line-height:1.9;color:#2c2419;text-align:right;">
+      ${safeBody}
+    </div>
+    <p style="margin:22px 0 0;line-height:1.85;color:#5c5348;">
+      مع أطيب التحيات،<br/>
+      فريق ${escapeHtml(brand)}
+    </p>
+    `,
+    params.settings
+  );
+  const text = [
+    `مرحباً ${params.customerName}،`,
+    ``,
+    `شكراً لتواصلكِ مع ${brand}.`,
+    `بخصوص: ${params.originalSubject}`,
+    ``,
+    params.replyBody.trim(),
+    ``,
+    `مع أطيب التحيات،`,
+    `فريق ${brand}`,
+    params.settings.reply_email
+      ? `البريد: ${params.settings.reply_email}`
+      : "",
+    params.settings.business_phone
+      ? `الهاتف: ${params.settings.business_phone}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return { subject, html, text };
+}
+
+

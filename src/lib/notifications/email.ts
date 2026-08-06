@@ -8,6 +8,8 @@ export async function sendEmail(params: {
   to: string;
   subject: string;
   html: string;
+  /** Plain-text fallback for clients that prefer text. */
+  text?: string;
   replyTo?: string;
   fromName?: string;
 }): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
@@ -15,7 +17,7 @@ export async function sendEmail(params: {
     return {
       ok: false,
       error:
-        "Resend غير مُعد. أضيفي RESEND_API_KEY و RESEND_FROM_EMAIL في .env.local",
+        "Resend غير مُعد. أضيفي RESEND_API_KEY و RESEND_FROM_EMAIL (أو FROM_EMAIL) في .env.local",
     };
   }
 
@@ -37,6 +39,7 @@ export async function sendEmail(params: {
       to: [to],
       subject: params.subject,
       html: params.html,
+      ...(params.text ? { text: params.text } : {}),
       ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     });
 

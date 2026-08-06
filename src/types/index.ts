@@ -245,6 +245,11 @@ export interface ContactMessage {
   message: string;
   is_read: boolean;
   created_at: string;
+  /** Last Admin Resend reply (optional until APPLY_CONTACT_MESSAGE_REPLIES.sql). */
+  last_reply_at?: string | null;
+  last_reply_status?: "sent" | "failed" | string | null;
+  last_reply_subject?: string | null;
+  last_reply_error?: string | null;
 }
 
 /** Lucide icon keys used by About values cards */

@@ -13,7 +13,7 @@ export function isNotificationsEnabled() {
 
 export function isResendConfigured() {
   return Boolean(
-    process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()
+    process.env.RESEND_API_KEY?.trim() && getResendFrom()
   );
 }
 
@@ -33,8 +33,22 @@ export function getAdminNotificationEmail() {
   );
 }
 
+/** FROM address — prefer RESEND_FROM_EMAIL, fall back to FROM_EMAIL. */
 export function getResendFrom() {
-  return process.env.RESEND_FROM_EMAIL?.trim() || "";
+  return (
+    process.env.RESEND_FROM_EMAIL?.trim() ||
+    process.env.FROM_EMAIL?.trim() ||
+    ""
+  );
+}
+
+/** Optional Reply-To for outbound mail (admin replies, notifications). */
+export function getReplyToEmail() {
+  return (
+    process.env.REPLY_TO_EMAIL?.trim() ||
+    process.env.RESEND_REPLY_TO_EMAIL?.trim() ||
+    ""
+  );
 }
 
 export function getBoutiquePhone() {
