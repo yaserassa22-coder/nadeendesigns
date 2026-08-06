@@ -27,12 +27,25 @@ async function userHasAdminRole(
       });
       const { data, error } = await admin
         .from("profiles")
-        .select("role")
+        .select("role, is_disabled")
         .eq("id", userId)
         .maybeSingle();
       if (error) {
-        console.warn("[middleware] profile role (service)", error.message);
+        // Pre-migration: column may be missing — fall through to role-only.
+        if (!/is_disabled/i.test(error.message)) {
+          console.warn("[middleware] profile role (service)", error.message);
+        } else {
+          const basic = await admin
+            .from("profiles")
+            .select("role")
+            .eq("id", userId)
+            .maybeSingle();
+          if (!basic.error) {
+            return isAdminRole(basic.data?.role as string | undefined);
+          }
+        }
       } else {
+        if (data?.is_disabled) return false;
         return isAdminRole(data?.role as string | undefined);
       }
     }
@@ -51,13 +64,23 @@ async function userHasAdminRole(
     });
     const { data, error } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, is_disabled")
       .eq("id", userId)
       .maybeSingle();
     if (error) {
+      if (/is_disabled/i.test(error.message)) {
+        const basic = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", userId)
+          .maybeSingle();
+        if (basic.error) return false;
+        return isAdminRole(basic.data?.role as string | undefined);
+      }
       console.warn("[middleware] profile role (session)", error.message);
       return false;
     }
+    if (data?.is_disabled) return false;
     const role = (data?.role as string | undefined)?.toLowerCase();
     return Boolean(role && ADMIN_ROLES.has(role));
   } catch (err) {

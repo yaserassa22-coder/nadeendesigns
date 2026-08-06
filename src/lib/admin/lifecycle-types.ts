@@ -11,7 +11,8 @@ export type LifecycleModule =
   | "shipping_regions"
   | "gallery"
   | "customers"
-  | "reports";
+  | "reports"
+  | "administrators";
 
 export type LifecycleAction =
   | "create"
@@ -26,7 +27,11 @@ export type LifecycleAction =
   | "report_printed"
   | "report_emailed"
   | "force_override"
-  | "appointment_status";
+  | "appointment_status"
+  | "promote"
+  | "demote"
+  | "disable"
+  | "enable";
 
 export type ListVisibility = "active" | "archived" | "deleted" | "all";
 
@@ -44,6 +49,7 @@ export const MODULE_TABLE: Record<LifecycleModule, string> = {
   gallery: "gallery_items",
   customers: "customer_admin_state",
   reports: "report_schedules",
+  administrators: "profiles",
 };
 
 export const MODULE_LABEL_AR: Record<LifecycleModule, string> = {
@@ -60,6 +66,7 @@ export const MODULE_LABEL_AR: Record<LifecycleModule, string> = {
   gallery: "المعرض",
   customers: "العملاء",
   reports: "التقارير",
+  administrators: "المسؤولون",
 };
 
 export const CUSTOMER_KEY_COLUMN = "customer_key";

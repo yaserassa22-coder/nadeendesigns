@@ -62,6 +62,7 @@ const MODULE_LINKS = [
   { href: "/admin/content/about", label: "محتوى من نحن" },
   { href: "/admin/reports", label: "التقارير" },
   { href: "/admin/settings", label: "إعدادات المتجر" },
+  { href: "/admin/administrators", label: "المسؤولون" },
 ] as const;
 
 const CUSTOM_DESIGN_LINKS = [

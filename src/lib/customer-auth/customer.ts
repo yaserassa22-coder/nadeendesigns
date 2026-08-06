@@ -2,7 +2,10 @@ import type { User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { isMissingTableError } from "@/lib/supabase/errors";
+import {
+  isMissingColumnError,
+  isMissingTableError,
+} from "@/lib/supabase/errors";
 import {
   customerKeyFromContact,
   referralCodeFromId,
@@ -22,37 +25,50 @@ export { isAdminRole, ADMIN_ROLES } from "@/lib/auth/roles";
  * Prefer service role (bypasses RLS). Fall back to the cookie-authenticated
  * server client — never a bare anon client without a session (RLS would
  * hide the row and falsely treat admins as non-admin).
+ *
+ * Disabled administrators (`is_disabled`) are treated as non-admin.
  */
 export async function getProfileRole(
   userId: string
 ): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;
   try {
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createAdminClient();
-      const { data, error } = await supabase
+    const read = async (
+      client: Awaited<ReturnType<typeof createClient>> | ReturnType<typeof createAdminClient>
+    ) => {
+      const withDisabled = await client
         .from("profiles")
-        .select("role")
+        .select("role, is_disabled")
         .eq("id", userId)
         .maybeSingle();
-      if (error) {
-        console.warn("[getProfileRole] service", error.message);
-        return null;
+
+      if (!withDisabled.error) {
+        if (withDisabled.data?.is_disabled) return null;
+        return (withDisabled.data?.role as string | null) ?? null;
       }
-      return (data?.role as string | null) ?? null;
+
+      if (isMissingColumnError(withDisabled.error, "is_disabled")) {
+        const basic = await client
+          .from("profiles")
+          .select("role")
+          .eq("id", userId)
+          .maybeSingle();
+        if (basic.error) {
+          console.warn("[getProfileRole]", basic.error.message);
+          return null;
+        }
+        return (basic.data?.role as string | null) ?? null;
+      }
+
+      console.warn("[getProfileRole]", withDisabled.error.message);
+      return null;
+    };
+
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return read(createAdminClient());
     }
 
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) {
-      console.warn("[getProfileRole] session", error.message);
-      return null;
-    }
-    return (data?.role as string | null) ?? null;
+    return read(await createClient());
   } catch {
     return null;
   }

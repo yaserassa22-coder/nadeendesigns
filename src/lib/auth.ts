@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isAdminRole } from "@/lib/auth/roles";
 import { getProfileRole } from "@/lib/customer-auth/customer";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { canManageAdministrators } from "@/lib/admin/permissions";
 
 /**
  * Admin API guard — requires authenticated Supabase user WITH admin profile role.
@@ -13,6 +14,7 @@ export async function requireAdminApi() {
     return {
       user: null,
       error: NextResponse.json({ error: "غير مصرح" }, { status: 401 }),
+      role: null as string | null,
     };
   }
 
@@ -24,8 +26,37 @@ export async function requireAdminApi() {
         { error: "غير مصرح — صلاحيات الإدارة مطلوبة" },
         { status: 403 }
       ),
+      role: null as string | null,
     };
   }
 
-  return { user, error: null };
+  return { user, error: null, role };
+}
+
+/**
+ * Administrator Management guard — owner/admin (super_admin) only.
+ * Always re-reads role on the server; never trusts the client.
+ */
+export async function requireAdminManagersApi() {
+  const gate = await requireAdminApi();
+  if (gate.error || !gate.user) return gate;
+
+  if (
+    !canManageAdministrators({
+      id: gate.user.id,
+      email: gate.user.email,
+      role: gate.role,
+    })
+  ) {
+    return {
+      user: null,
+      error: NextResponse.json(
+        { error: "غير مصرح — إدارة المسؤولين للمالك/المسؤول فقط" },
+        { status: 403 }
+      ),
+      role: null as string | null,
+    };
+  }
+
+  return gate;
 }

@@ -1,6 +1,12 @@
 /** Shared admin-role helpers (Edge + Node safe — no Supabase imports). */
 
-export const ADMIN_ROLES = new Set(["admin", "owner", "manager", "staff"]);
+export const ADMIN_ROLES = new Set([
+  "admin",
+  "owner",
+  "manager",
+  "staff",
+  "super_admin",
+]);
 
 export function isAdminRole(role?: string | null): boolean {
   if (!role) return false;

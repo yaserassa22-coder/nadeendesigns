@@ -12,6 +12,9 @@
 
 export type AdminRole = "owner" | "admin" | "manager" | "staff";
 
+/** Assignable administrator roles (super_admin stored/normalized as owner). */
+export type AssignableAdminRole = AdminRole;
+
 export interface AdminActor {
   id: string;
   email?: string | null;
@@ -21,10 +24,25 @@ export interface AdminActor {
 /** Normalize DB role; unknown → admin (current production behavior). */
 export function normalizeAdminRole(role?: string | null): AdminRole {
   const r = (role ?? "admin").toLowerCase();
-  if (r === "owner" || r === "admin" || r === "manager" || r === "staff") {
+  if (r === "super_admin" || r === "owner") return "owner";
+  if (r === "admin" || r === "manager" || r === "staff") {
     return r;
   }
   return "admin";
+}
+
+/**
+ * Who may open Administrator Management (promote / demote / disable).
+ * Requirement: super_admin / admin — `owner` is the in-app super_admin equivalent.
+ */
+export function canManageAdministrators(actor: AdminActor): boolean {
+  const role = normalizeAdminRole(actor.role);
+  return role === "owner" || role === "admin";
+}
+
+/** Only owner (super_admin) may grant or keep the owner role. */
+export function canAssignOwnerRole(actor: AdminActor): boolean {
+  return normalizeAdminRole(actor.role) === "owner";
 }
 
 export function canArchive(actor: AdminActor): boolean {

@@ -30,6 +30,10 @@ const ACTION_LABELS: Record<string, string> = {
   report_exported: "تصدير تقرير",
   report_printed: "طباعة تقرير",
   report_emailed: "إرسال تقرير",
+  promote: "ترقية مسؤول",
+  demote: "إزالة صلاحيات",
+  disable: "تعطيل مسؤول",
+  enable: "تفعيل مسؤول",
 };
 
 const MODULE_OPTIONS = [
