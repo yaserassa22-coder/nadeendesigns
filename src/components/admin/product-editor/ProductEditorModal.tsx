@@ -60,6 +60,7 @@ import { ExperienceDesignerPanel } from "@/components/admin/product-editor/Exper
 import { ProductFeaturesPanel } from "@/components/admin/product-editor/ProductFeaturesPanel";
 import {
   normalizeProductFeaturesConfig,
+  sanitizeProductFeaturesConfig,
   type ProductFeaturesConfig,
 } from "@/lib/products/experience-features";
 
@@ -265,7 +266,10 @@ export function dressToForm(
     experience_config: normalizeProductExperienceConfig(
       dress.experience_config ?? {}
     ),
-    features_config: normalizeProductFeaturesConfig(dress.features_config),
+    features_config: sanitizeProductFeaturesConfig(
+      normalizeProductFeaturesConfig(dress.features_config),
+      { productType: resolveProductCommerceType(dress.product_type) }
+    ),
   };
 }
 
@@ -301,12 +305,9 @@ export function buildDressPayload(
     order_options_config,
     extra_services_config,
     experience_config: normalizeProductExperienceConfig(form.experience_config),
-    features_config: form.features_config?.use_custom
-      ? {
-          use_custom: true,
-          enabled_ids: form.features_config.enabled_ids ?? [],
-        }
-      : null,
+    features_config: sanitizeProductFeaturesConfig(form.features_config, {
+      productType: form.product_type,
+    }),
     price: form.price ? Number(form.price) : null,
     sale_price: form.sale_price ? Number(form.sale_price) : null,
     cost_price: form.cost_price ? Number(form.cost_price) : null,
@@ -877,11 +878,17 @@ export function ProductEditorModal({
               <Select
                 label="نوع المنتج"
                 value={form.product_type}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const product_type = e.target
+                    .value as ProductCommerceType;
                   patch({
-                    product_type: e.target.value as ProductCommerceType,
-                  })
-                }
+                    product_type,
+                    features_config: sanitizeProductFeaturesConfig(
+                      form.features_config,
+                      { productType: product_type }
+                    ),
+                  });
+                }}
                 options={productCommerceTypeOptions()}
               />
               <p className="sm:col-span-2 text-xs text-muted">

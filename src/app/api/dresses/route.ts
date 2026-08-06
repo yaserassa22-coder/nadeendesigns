@@ -18,6 +18,8 @@ import {
   type ProductStatus,
 } from "@/lib/products/status";
 import type { Dress } from "@/types";
+import { sanitizeProductFeaturesConfig } from "@/lib/products/experience-features";
+import { resolveProductCommerceType } from "@/lib/products/primary-action";
 
 /** Columns introduced in migration 035 / 036 — strip on PGRST204 retry. */
 const P11_COLUMNS = [
@@ -236,7 +238,12 @@ export async function POST(request: Request) {
       order_options_config: body.order_options_config ?? null,
       extra_services_config: body.extra_services_config ?? null,
       experience_config: body.experience_config ?? null,
-      features_config: body.features_config ?? null,
+      features_config: sanitizeProductFeaturesConfig(body.features_config, {
+        productType: resolveProductCommerceType(
+          body.product_type,
+          "ready_to_buy"
+        ),
+      }),
       price: body.price ?? null,
       sale_price: body.sale_price ?? null,
       cost_price: body.cost_price ?? null,
@@ -345,6 +352,17 @@ export async function PUT(request: Request) {
     }
     if (parsed.data.tags !== undefined) {
       update.tags = normalizeTags(parsed.data.tags);
+    }
+    if (parsed.data.features_config !== undefined) {
+      update.features_config = sanitizeProductFeaturesConfig(
+        parsed.data.features_config,
+        {
+          productType: resolveProductCommerceType(
+            parsed.data.product_type ?? update.product_type,
+            "ready_to_buy"
+          ),
+        }
+      );
     }
     if (
       parsed.data.status !== undefined ||

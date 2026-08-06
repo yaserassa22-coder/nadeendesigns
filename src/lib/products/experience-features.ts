@@ -5,8 +5,19 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import type { ProductCommerceType } from "@/lib/products/primary-action";
 import type { ShopProductType } from "@/types/shop";
+
+export type {
+  ProductFeaturesConfig,
+} from "@/lib/products/feature-allowlist";
+export {
+  allowedFeatureIdsForProduct,
+  defaultFeatureIdsForProduct,
+  isFeatureAllowedForProduct,
+  normalizeProductFeaturesConfig,
+  resolveEnabledFeatureIds,
+  sanitizeProductFeaturesConfig,
+} from "@/lib/products/feature-allowlist";
 
 export const FEATURE_GROUP_KEYS = [
   "personalization",
@@ -58,12 +69,6 @@ export type ExperienceFeature = {
   is_system: boolean;
   enabled: boolean;
   sort_order: number;
-};
-
-/** Per-product assignment JSONB. */
-export type ProductFeaturesConfig = {
-  use_custom?: boolean;
-  enabled_ids?: string[];
 };
 
 const FALLBACK_FEATURES: ExperienceFeature[] = [
@@ -245,93 +250,6 @@ function mapRow(row: Record<string, unknown>): ExperienceFeature {
     enabled: row.enabled !== false,
     sort_order: Number(row.sort_order) || 0,
   };
-}
-
-export function normalizeProductFeaturesConfig(
-  raw: unknown
-): ProductFeaturesConfig | null {
-  if (raw == null || typeof raw !== "object") return null;
-  const obj = raw as Record<string, unknown>;
-  const enabled_ids = Array.isArray(obj.enabled_ids)
-    ? obj.enabled_ids.filter((x): x is string => typeof x === "string")
-    : [];
-  return {
-    use_custom: Boolean(obj.use_custom),
-    enabled_ids,
-  };
-}
-
-/**
- * Smart defaults when features_config is null / not custom.
- * Driven by product_type + shop surface — never category names.
- */
-export function defaultFeatureIdsForProduct(input: {
-  productType?: ProductCommerceType | string | null;
-  shopProductType?: ShopProductType | null;
-}): string[] {
-  const shop = input.shopProductType;
-  if (shop === "veil") {
-    return [
-      "veil_writing",
-      "font_selection",
-      "color_selection",
-      "gift_wrap",
-      "gift_message",
-      "luxury_box",
-      "express_delivery",
-      "add_to_cart",
-      "buy_now",
-      "wishlist",
-    ];
-  }
-  if (shop === "bridal_robe") {
-    return [
-      "robe_writing",
-      "font_selection",
-      "color_selection",
-      "gift_wrap",
-      "gift_message",
-      "luxury_box",
-      "express_delivery",
-      "add_to_cart",
-      "buy_now",
-      "wishlist",
-    ];
-  }
-
-  const type = String(input.productType ?? "ready_to_buy");
-  if (type === "rental_dress") {
-    return ["appointment_booking", "wishlist"];
-  }
-  if (type === "custom_design") {
-    return ["request_design", "wishlist"];
-  }
-  if (type === "service") {
-    return ["appointment_booking"];
-  }
-  // bridal_accessory | ready_to_buy (cart alias)
-  return [
-    "gift_wrap",
-    "gift_message",
-    "luxury_box",
-    "express_delivery",
-    "add_to_cart",
-    "buy_now",
-    "wishlist",
-  ];
-}
-
-/** Resolve enabled feature IDs for a product. */
-export function resolveEnabledFeatureIds(input: {
-  features_config?: ProductFeaturesConfig | null;
-  productType?: ProductCommerceType | string | null;
-  shopProductType?: ShopProductType | null;
-}): string[] {
-  const cfg = normalizeProductFeaturesConfig(input.features_config);
-  if (cfg?.use_custom && Array.isArray(cfg.enabled_ids)) {
-    return [...cfg.enabled_ids];
-  }
-  return defaultFeatureIdsForProduct(input);
 }
 
 export function isFeatureEnabled(

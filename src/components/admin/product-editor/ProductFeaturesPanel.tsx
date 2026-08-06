@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  allowedFeatureIdsForProduct,
   defaultFeatureIdsForProduct,
+  sanitizeProductFeaturesConfig,
   type ExperienceFeature,
   type ProductFeaturesConfig,
 } from "@/lib/products/experience-features";
@@ -51,7 +53,7 @@ const PURCHASE_EXPERIENCE_GROUPS: {
 
 /**
  * Product Editor — Purchase Experience visibility.
- * Simple enable/disable switches; no technical jargon.
+ * Only features valid for the selected Product Type are shown.
  */
 export function ProductFeaturesPanel({
   value,
@@ -86,16 +88,38 @@ export function ProductFeaturesPanel({
     };
   }, []);
 
-  const defaults = useMemo(
-    () => defaultFeatureIdsForProduct({ productType }),
-    [productType]
+  const typeInput = useMemo(() => ({ productType }), [productType]);
+
+  const allowedIds = useMemo(
+    () => allowedFeatureIdsForProduct(typeInput),
+    [typeInput]
   );
+  const allowedSet = useMemo(() => new Set(allowedIds), [allowedIds]);
+
+  const defaults = useMemo(
+    () => defaultFeatureIdsForProduct(typeInput),
+    [typeInput]
+  );
+
+  // Drop invalid ids when Product Type changes (never persist impossible combos).
+  useEffect(() => {
+    if (!value?.use_custom) return;
+    const sanitized = sanitizeProductFeaturesConfig(value, typeInput);
+    const prev = value.enabled_ids ?? [];
+    const next = sanitized?.enabled_ids ?? [];
+    const same =
+      sanitized?.use_custom === true &&
+      prev.length === next.length &&
+      prev.every((id, i) => id === next[i]);
+    if (same) return;
+    onChange(sanitized ?? { use_custom: false, enabled_ids: [] });
+  }, [productType]); // eslint-disable-line react-hooks/exhaustive-deps -- type switch only
 
   const useCustom = Boolean(value?.use_custom);
   const enabledSet = useMemo(() => {
     const ids = useCustom ? (value?.enabled_ids ?? []) : defaults;
-    return new Set(ids);
-  }, [useCustom, value?.enabled_ids, defaults]);
+    return new Set(ids.filter((id) => allowedSet.has(id)));
+  }, [useCustom, value?.enabled_ids, defaults, allowedSet]);
 
   const byId = useMemo(() => {
     const map = new Map<string, ExperienceFeature>();
@@ -104,10 +128,11 @@ export function ProductFeaturesPanel({
   }, [library]);
 
   const toggle = (id: string, on: boolean) => {
+    if (!allowedSet.has(id)) return;
     const base = useCustom
       ? [...(value?.enabled_ids ?? [])]
       : [...defaults];
-    const next = new Set(base);
+    const next = new Set(base.filter((x) => allowedSet.has(x)));
     if (on) next.add(id);
     else next.delete(id);
     onChange({ use_custom: true, enabled_ids: [...next] });
@@ -117,18 +142,20 @@ export function ProductFeaturesPanel({
     return PURCHASE_EXPERIENCE_GROUPS.map((group) => ({
       label: group.label,
       items: group.featureIds
+        .filter((id) => allowedSet.has(id))
         .map((id) => byId.get(id))
         .filter((f): f is ExperienceFeature => Boolean(f)),
     })).filter((g) => g.items.length > 0);
-  }, [byId]);
+  }, [byId, allowedSet]);
 
   const knownIds = useMemo(
     () => new Set(PURCHASE_EXPERIENCE_GROUPS.flatMap((g) => g.featureIds)),
     []
   );
   const extraFeatures = useMemo(
-    () => library.filter((f) => !knownIds.has(f.id)),
-    [library, knownIds]
+    () =>
+      library.filter((f) => !knownIds.has(f.id) && allowedSet.has(f.id)),
+    [library, knownIds, allowedSet]
   );
 
   if (loading) {
@@ -139,8 +166,8 @@ export function ProductFeaturesPanel({
     <div className="space-y-6">
       <div className="rounded-2xl border border-beige-dark bg-beige/20 px-5 py-4">
         <p className="text-sm text-muted">
-          أظهري أو أخفي أجزاء تجربة الشراء الموجودة فقط. ما يُعطَّل لن يظهر
-          للعميلة — بدون بطاقات فارغة.
+          تظهر فقط الإجراءات المناسبة لنوع المنتج الحالي. فستان الإيجار يُحجز
+          بموعد — بدون سلة أو شراء فوري.
         </p>
         <label className="mt-3 flex items-center gap-2 text-sm">
           <input
@@ -229,6 +256,12 @@ export function ProductFeaturesPanel({
         <p className="text-sm text-muted">
           مكتبة الميزات فارغة. أضيفي ميزات من محرك التجربة ← الميزات، أو طبّقي
           ترحيل 040.
+        </p>
+      ) : null}
+
+      {library.length > 0 && grouped.length === 0 && extraFeatures.length === 0 ? (
+        <p className="text-sm text-muted">
+          لا توجد ميزات متاحة لهذا النوع من المنتج في المكتبة.
         </p>
       ) : null}
     </div>
