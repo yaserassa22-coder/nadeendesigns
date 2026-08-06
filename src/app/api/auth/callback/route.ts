@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { getSiteUrl } from "@/lib/notifications/config";
+import { createRouteHandlerClient } from "@/lib/supabase/route";
+import { safeAuthNextPath } from "@/lib/customer-auth/callback-url";
 import {
   recordCustomerSession,
   recordLoginHistory,
@@ -12,44 +13,86 @@ import {
   readGuestIdFromRequest,
 } from "@/lib/guest";
 
+const OTP_TYPES = new Set<string>([
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "email",
+]);
+
+function loginErrorRedirect(origin: string, error: string) {
+  const url = new URL("/", origin);
+  url.searchParams.set("login", "1");
+  url.searchParams.set("error", error);
+  return NextResponse.redirect(url);
+}
+
 /**
- * OAuth / magic-link callback — exchanges code for session cookies.
- * Merges guest_id cookie data into the registered customer.
+ * OAuth / email-confirm / magic-link / password-recovery callback.
+ * Exchanges `code` (PKCE) or verifies `token_hash`+`type`, then sets session
+ * cookies on the redirect response.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") || "/account";
+  const tokenHash = searchParams.get("token_hash");
+  const typeRaw = searchParams.get("type");
+  const type =
+    typeRaw && OTP_TYPES.has(typeRaw) ? (typeRaw as EmailOtpType) : null;
+  const next = safeAuthNextPath(searchParams.get("next"), "/account");
   const errorParam = searchParams.get("error");
   const errorDesc = searchParams.get("error_description");
 
   if (errorParam) {
-    const url = new URL("/", origin);
-    url.searchParams.set("login", "1");
-    url.searchParams.set("error", errorDesc || errorParam);
-    return NextResponse.redirect(url);
+    return loginErrorRedirect(origin, errorDesc || errorParam);
   }
 
-  if (!code || !isSupabaseConfigured()) {
-    return NextResponse.redirect(new URL("/?login=1", origin));
+  if (!isSupabaseConfigured()) {
+    return loginErrorRedirect(origin, "auth_not_configured");
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error || !data.user) {
-    const url = new URL("/", origin);
-    url.searchParams.set("login", "1");
-    url.searchParams.set("error", error?.message || "oauth_failed");
-    return NextResponse.redirect(url);
+  if (!code && !(tokenHash && type)) {
+    // Email/recovery links that hit Site URL `/` never reach here. When they
+    // do reach the callback without params, surface a real error — do not
+    // silently look like a successful home visit.
+    return loginErrorRedirect(origin, "missing_code_or_token");
   }
 
-  const user = data.user;
+  // Must buffer Set-Cookie onto the redirect response. Using cookies() from
+  // next/headers alone drops the session when returning NextResponse.redirect.
+  const { supabase, applyAuthCookies } = createRouteHandlerClient(request);
+
+  let user: { id: string; email?: string | null; phone?: string | null; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> } | null =
+    null;
+  let authError: { message: string } | null = null;
+
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    authError = error;
+    user = data.user;
+  } else if (tokenHash && type) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      type,
+      token_hash: tokenHash,
+    });
+    authError = error;
+    user = data.user;
+  }
+
+  if (authError || !user) {
+    return loginErrorRedirect(
+      origin,
+      authError?.message || "auth_exchange_failed"
+    );
+  }
+
   // Opaque provider id string for admin display — no business branching on it.
   const providerId =
     (user.app_metadata?.provider as string | undefined) ||
     (user.user_metadata?.provider as string | undefined) ||
-    "oauth";
+    (type === "recovery" ? "recovery" : type === "signup" ? "email" : "oauth");
 
   const guestId = readGuestIdFromRequest(request);
 
@@ -72,13 +115,12 @@ export async function GET(request: NextRequest) {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
   const ua = request.headers.get("user-agent");
-  const provider = providerId;
 
   if (customer) {
     await recordLoginHistory({
       customerId: customer.id,
       authUserId: user.id,
-      method: provider,
+      method: providerId,
       success: true,
       ip,
       userAgent: ua,
@@ -91,15 +133,17 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Avoid open redirects
-  const safeNext =
-    next.startsWith("/") && !next.startsWith("//") ? next : "/account";
-  const site = getSiteUrl();
-  const redirectTo = site
-    ? `${site}${safeNext}`
-    : new URL(safeNext, origin).toString();
-  const response = NextResponse.redirect(redirectTo);
-  // Keep guest cookie until client cart take; do not clear yet
+  // Recovery → profile so password can be changed; otherwise honor `next`.
+  const destination =
+    type === "recovery"
+      ? safeAuthNextPath(searchParams.get("next"), "/account/profile")
+      : next;
+
+  // Redirect on the same origin that served the callback so session cookies
+  // stay on this host (do NOT bounce through a different NEXT_PUBLIC_SITE_URL).
+  const redirectTo = new URL(destination, origin).toString();
+  const response = applyAuthCookies(NextResponse.redirect(redirectTo));
+
   if (guestId) {
     applyGuestCookie(response, guestId, request.url);
   }

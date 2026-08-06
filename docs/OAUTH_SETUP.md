@@ -41,8 +41,19 @@ In **Supabase → Authentication → URL Configuration**:
 | Site URL | `https://your-domain.com` (and `http://localhost:3000` for local) |
 | Redirect URLs | `https://your-domain.com/api/auth/callback` |
 | | `http://localhost:3000/api/auth/callback` |
+| | `https://your-domain.com/api/auth/callback?**` (wildcard query) |
+| | `http://localhost:3000/api/auth/callback?**` |
+
+**Critical:** Email confirmation and password-recovery links must land on
+`/api/auth/callback` (not `/`). The app exchanges `code` or `token_hash`+`type`
+there and sets session cookies on the redirect.
+
+Use Supabase email template `{{ .ConfirmationURL }}` / `{{ .TokenHash }}` flows
+that redirect to the callback. Do **not** set Site URL alone as the only
+destination without allow-listing the callback path above.
 
 The app starts OAuth via `POST /api/auth/oauth` and completes at `GET /api/auth/callback`.
+Sign-up uses `emailRedirectTo = getAuthCallbackUrl("/account")`.
 
 ---
 

@@ -6,7 +6,7 @@ import {
   recordLoginHistory,
   upsertCustomerForAuthUser,
 } from "@/lib/customer-auth/customer";
-import { getSiteUrl } from "@/lib/notifications/config";
+import { getAuthCallbackUrl } from "@/lib/customer-auth/callback-url";
 import { readGuestIdFromRequest } from "@/lib/guest";
 
 /** Email + password sign-in / sign-up (optional path). */
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
             is_customer: true,
             full_name: body.full_name || "",
           },
-          emailRedirectTo: `${getSiteUrl()}/api/auth/callback?next=/account`,
+          emailRedirectTo: getAuthCallbackUrl("/account"),
         },
       });
       if (error) {

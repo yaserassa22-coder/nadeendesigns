@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { getSiteUrl } from "@/lib/notifications/config";
+import {
+  getAuthCallbackUrl,
+  safeAuthNextPath,
+} from "@/lib/customer-auth/callback-url";
 import {
   getAuthEnvFlags,
   getCustomerAuthSettings,
@@ -66,11 +69,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const next =
-      body.next?.startsWith("/") && !body.next.startsWith("//")
-        ? body.next
-        : "/account";
-    const redirectTo = `${getSiteUrl()}/api/auth/callback?next=${encodeURIComponent(next)}`;
+    const next = safeAuthNextPath(body.next, "/account");
+    const redirectTo = getAuthCallbackUrl(next);
 
     const result = await authProvider.startOAuth({ next, redirectTo });
     if (!result.ok) {
