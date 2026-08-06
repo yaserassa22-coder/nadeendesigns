@@ -24,6 +24,7 @@ import { Input, Textarea, Select } from "@/components/ui/Input";
 import { GlobalServicesManager } from "@/components/admin/GlobalServicesManager";
 import {
   DEFAULT_PERSONALIZATION_UI,
+  DEFAULT_PURCHASE_UI,
   EXPERIENCE_SECTION_LABELS_AR,
   JOURNEY_SECTION_IDS,
   isCheckoutOnlyExperienceSection,
@@ -172,7 +173,9 @@ export function ExperienceDesignerPanel({
 }: Props) {
   const config = normalizeProductExperienceConfig(value);
   const persUi = config.personalization_ui ?? DEFAULT_PERSONALIZATION_UI;
+  const purchaseUi = config.purchase_ui ?? DEFAULT_PURCHASE_UI;
   const persSection = config.sections.find((s) => s.id === "personalization")!;
+  const summarySection = config.sections.find((s) => s.id === "summary")!;
 
   const [templates, setTemplates] = useState<ExperienceTemplateRow[]>([]);
   const [templateName, setTemplateName] = useState("");
@@ -223,6 +226,13 @@ export function ExperienceDesignerPanel({
     onChange({
       ...config,
       personalization_ui: { ...persUi, ...patch },
+    });
+  };
+
+  const patchPurchaseUi = (patch: Partial<typeof purchaseUi>) => {
+    onChange({
+      ...config,
+      purchase_ui: { ...purchaseUi, ...patch },
     });
   };
 
@@ -552,6 +562,25 @@ export function ExperienceDesignerPanel({
             </div>
           </div>
         ) : null}
+      </Card>
+
+      {/* Purchase chrome visibility */}
+      <Card title="الشراء">
+        <div className="space-y-3">
+          <LuxuryToggle
+            checked={purchaseUi.show_quantity}
+            onChange={(show_quantity) => patchPurchaseUi({ show_quantity })}
+            label="محدد الكمية"
+          />
+          <LuxuryToggle
+            checked={summarySection.enabled}
+            onChange={(enabled) => patchSection("summary", { enabled })}
+            label="ملخص السعر"
+          />
+          <p className="text-xs text-muted">
+            التعيين والطلب وتصميم خاص تُدار من تبويب الميزات حسب نوع المنتج.
+          </p>
+        </div>
       </Card>
 
       {/* 3. Extra Services */}

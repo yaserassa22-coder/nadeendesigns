@@ -129,6 +129,7 @@ describe("experience designer", () => {
       max_characters: 12,
       extra_price: 5,
     });
+    expect(cfg.purchase_ui).toEqual({ show_quantity: true });
   });
 });
 

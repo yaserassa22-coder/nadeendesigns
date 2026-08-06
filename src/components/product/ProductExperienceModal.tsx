@@ -180,6 +180,8 @@ export function ProductExperienceModal({
   const summaryEnabled = sections.some(
     (s) => s.id === "summary" && s.enabled
   );
+  const showQuantity =
+    experienceConfig?.purchase_ui?.show_quantity !== false;
 
   const personalizationFee =
     enablePersonalization &&
@@ -430,19 +432,21 @@ export function ProductExperienceModal({
           ) : null}
 
           <div className="max-w-[8rem]">
-            <Input
-              label="الكمية"
-              type="number"
-              min={1}
-              max={20}
-              dir="ltr"
-              value={String(quantity)}
-              onChange={(e) =>
-                setQuantity(
-                  Math.max(1, Math.min(20, Number(e.target.value) || 1))
-                )
-              }
-            />
+            {showQuantity ? (
+              <Input
+                label="الكمية"
+                type="number"
+                min={1}
+                max={20}
+                dir="ltr"
+                value={String(quantity)}
+                onChange={(e) =>
+                  setQuantity(
+                    Math.max(1, Math.min(20, Number(e.target.value) || 1))
+                  )
+                }
+              />
+            ) : null}
           </div>
 
           {errors.form ? (
@@ -454,7 +458,7 @@ export function ProductExperienceModal({
 
         {/* Sticky live summary + purchase actions (mobile + desktop) */}
         <div className="sticky bottom-0 border-t border-beige-dark/70 bg-ivory/95 px-5 py-4 backdrop-blur-sm md:px-6">
-          {summaryEnabled || !hasDesignerContent ? (
+          {summaryEnabled || (!hasDesignerContent && allowLegacyFallback) ? (
             <ProductExperiencePriceSummary
               className="mb-3"
               baseUnitPrice={unitPrice}

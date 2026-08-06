@@ -57,7 +57,7 @@ export const SEED_CATEGORIES: Category[] = [
     id: IDS.wedding,
     name_ar: "فساتين الزفاف",
     slug: "wedding-dresses",
-    parent_id: null,
+    parent_id: IDS.rental,
     sort_order: 10,
     is_visible: true,
     visible_in_navigation: true,
@@ -82,8 +82,9 @@ export const SEED_CATEGORIES: Category[] = [
     parent_id: null,
     sort_order: 20,
     is_visible: true,
-    visible_in_navigation: true,
-    show_on_homepage: true,
+    /** Admin parent group only — never a customer browsing category. */
+    visible_in_navigation: false,
+    show_on_homepage: false,
     featured_collection: false,
     icon_url: null,
     cover_image_url: null,
@@ -123,7 +124,7 @@ export const SEED_CATEGORIES: Category[] = [
     id: IDS.nouf,
     name_ar: "فساتين نوف",
     slug: "nouf-dresses",
-    parent_id: null,
+    parent_id: IDS.rental,
     sort_order: 40,
     is_visible: true,
     visible_in_navigation: true,
@@ -383,17 +384,33 @@ export function orderAdminProductSidebarCategories(
   return [...pinned, ...rest];
 }
 
-/** Rental dress category keys (Wedding + Nouf) — resolved from DB. */
-export const RENTAL_SIDEBAR_CATEGORY_KEYS = [
+/**
+ * Rental Dresses parent group only (not a customer browse leaf).
+ * Identified by seed legacy_key/slug — never by Arabic display name.
+ */
+export const RENTAL_GROUP_CATEGORY_KEYS = [
+  "rental",
+  "rental-dresses",
+  "rental_dresses",
+] as const;
+
+/**
+ * @deprecated Prefer parent_id under rental group. Kept for pre-migration
+ * flat wedding/nouf rows that still lack parent_id.
+ */
+export const RENTAL_LEGACY_CHILD_CATEGORY_KEYS = [
   "wedding",
   "wedding_dress",
   "wedding-dresses",
   "nouf_dresses",
   "nouf_dress",
   "nouf-dresses",
-  "rental",
-  "rental-dresses",
-  "rental_dresses",
+] as const;
+
+/** @deprecated Use RENTAL_GROUP + parent_id children. */
+export const RENTAL_SIDEBAR_CATEGORY_KEYS = [
+  ...RENTAL_GROUP_CATEGORY_KEYS,
+  ...RENTAL_LEGACY_CHILD_CATEGORY_KEYS,
 ] as const;
 
 /** Bridal accessories group + children keys. */
@@ -410,10 +427,19 @@ export const ACCESSORY_SIDEBAR_CATEGORY_KEYS = [
   "robe",
 ] as const;
 
-export function isRentalSidebarCategory(
+export function isRentalGroupCategory(
   category: Pick<Category, "legacy_key" | "slug">
 ): boolean {
-  return categoryMatchesLegacyKeys(category, RENTAL_SIDEBAR_CATEGORY_KEYS);
+  return categoryMatchesLegacyKeys(category, RENTAL_GROUP_CATEGORY_KEYS);
+}
+
+export function isRentalSidebarCategory(
+  category: Pick<Category, "legacy_key" | "slug" | "parent_id">,
+  rentalParentId?: string | null
+): boolean {
+  if (isRentalGroupCategory(category)) return true;
+  if (rentalParentId && category.parent_id === rentalParentId) return true;
+  return categoryMatchesLegacyKeys(category, RENTAL_LEGACY_CHILD_CATEGORY_KEYS);
 }
 
 export function isAccessorySidebarCategory(
@@ -425,10 +451,106 @@ export function isAccessorySidebarCategory(
   return categoryMatchesLegacyKeys(category, ACCESSORY_SIDEBAR_CATEGORY_KEYS);
 }
 
+function sortAdminSidebarCategories(a: Category, b: Category): number {
+  return (
+    a.sort_order - b.sort_order || a.name_ar.localeCompare(b.name_ar, "ar")
+  );
+}
+
+export type AdminProductSidebarGroups = {
+  /** Parent group label only — never a product filter link. */
+  rentalParent: Category | null;
+  /** Dynamic children via parent_id (+ legacy flat wedding/nouf until migrated). */
+  rentalChildren: Category[];
+  accessoriesParent: Category | null;
+  accessoriesChildren: Category[];
+  rest: Category[];
+};
+
 /**
- * Grouped Products sidebar for Enterprise PM:
- * Rental Dresses (Wedding, Nouf, …) · Bridal Accessories · rest
- * Custom Design stays a separate top-level module (linked, not duplicated).
+ * Products sidebar model: Rental (collapsible parent + dynamic children),
+ * Bridal Accessories, then remaining categories.
+ * New Admin categories under Rental appear automatically via parent_id.
+ */
+export function buildAdminProductSidebarGroups(
+  categories: readonly Category[]
+): AdminProductSidebarGroups {
+  const productCats = categories.filter(
+    (c) => !isCustomDesignModuleCategory(c) && c.is_visible !== false
+  );
+
+  const rentalParent =
+    productCats.find((c) => isRentalGroupCategory(c)) ?? null;
+  const rentalParentId = rentalParent?.id ?? null;
+
+  const rentalChildIds = new Set<string>();
+  const rentalChildren: Category[] = [];
+
+  for (const c of productCats) {
+    if (rentalParent && c.id === rentalParent.id) continue;
+    const underParent = Boolean(
+      rentalParentId && c.parent_id === rentalParentId
+    );
+    const legacyFlatChild =
+      !underParent &&
+      categoryMatchesLegacyKeys(c, RENTAL_LEGACY_CHILD_CATEGORY_KEYS);
+    if (underParent || legacyFlatChild) {
+      rentalChildren.push(c);
+      rentalChildIds.add(c.id);
+    }
+  }
+  rentalChildren.sort(sortAdminSidebarCategories);
+
+  const accessoriesParent =
+    productCats.find((c) => isAccessoriesGroupCategory(c)) ?? null;
+  const accessoriesParentId = accessoriesParent?.id ?? null;
+  const accessoriesChildIds = new Set<string>();
+  const accessoriesChildren: Category[] = [];
+
+  for (const c of productCats) {
+    if (accessoriesParent && c.id === accessoriesParent.id) continue;
+    if (rentalChildIds.has(c.id) || (rentalParent && c.id === rentalParent.id)) {
+      continue;
+    }
+    const underParent = Boolean(
+      accessoriesParentId && c.parent_id === accessoriesParentId
+    );
+    const kind = resolveCategoryProductKind(c);
+    const accessoryLeaf =
+      underParent ||
+      kind === "veil" ||
+      kind === "bridal_robe" ||
+      categoryMatchesLegacyKeys(c, ACCESSORY_SIDEBAR_CATEGORY_KEYS);
+    if (accessoryLeaf && !isAccessoriesGroupCategory(c)) {
+      accessoriesChildren.push(c);
+      accessoriesChildIds.add(c.id);
+    }
+  }
+  accessoriesChildren.sort(sortAdminSidebarCategories);
+
+  const used = new Set<string>([
+    ...rentalChildIds,
+    ...accessoriesChildIds,
+    ...(rentalParent ? [rentalParent.id] : []),
+    ...(accessoriesParent ? [accessoriesParent.id] : []),
+  ]);
+
+  const rest = productCats
+    .filter((c) => !used.has(c.id))
+    .slice()
+    .sort(sortAdminSidebarCategories);
+
+  return {
+    rentalParent,
+    rentalChildren,
+    accessoriesParent,
+    accessoriesChildren,
+    rest,
+  };
+}
+
+/**
+ * Flat grouped lists (compat). Rental list is children only — parent is not a leaf.
  */
 export function groupAdminProductSidebarCategories(
   categories: readonly Category[]
@@ -437,16 +559,15 @@ export function groupAdminProductSidebarCategories(
   accessories: Category[];
   rest: Category[];
 } {
-  const ordered = orderAdminProductSidebarCategories(categories);
-  const rental: Category[] = [];
-  const accessories: Category[] = [];
-  const rest: Category[] = [];
-  for (const c of ordered) {
-    if (isRentalSidebarCategory(c)) rental.push(c);
-    else if (isAccessorySidebarCategory(c)) accessories.push(c);
-    else rest.push(c);
-  }
-  return { rental, accessories, rest };
+  const g = buildAdminProductSidebarGroups(categories);
+  return {
+    rental: g.rentalChildren,
+    accessories: [
+      ...(g.accessoriesParent ? [g.accessoriesParent] : []),
+      ...g.accessoriesChildren,
+    ],
+    rest: g.rest,
+  };
 }
 
 export function isDressProductCategory(

@@ -101,6 +101,9 @@ export function ProductExperienceBuy({
     supportsPersonalization,
     enableGiftWrapping,
     extraServices,
+    // When Admin saved experience_config, section enables are authoritative
+    // (all-off → skip modal even if feature flags remain).
+    sections: experienceConfig ? sections : null,
   });
   const addLabel =
     addLabelProp?.trim() || getProductPrimaryAction("ready_to_buy").label;

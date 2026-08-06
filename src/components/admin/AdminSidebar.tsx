@@ -26,7 +26,7 @@ import {
 } from "@/lib/admin/inbox-events";
 import {
   adminCategoryProductsHref,
-  groupAdminProductSidebarCategories,
+  buildAdminProductSidebarGroups,
   isAdminCategoryNavActive,
   type Category,
 } from "@/types/category";
@@ -339,12 +339,24 @@ function ProductsNavSection({
   }
 
   const grouped = useMemo(() => {
-    return groupAdminProductSidebarCategories(categories) as {
-      rental: CategoryWithCount[];
-      accessories: CategoryWithCount[];
+    return buildAdminProductSidebarGroups(categories) as {
+      rentalParent: CategoryWithCount | null;
+      rentalChildren: CategoryWithCount[];
+      accessoriesParent: CategoryWithCount | null;
+      accessoriesChildren: CategoryWithCount[];
       rest: CategoryWithCount[];
     };
   }, [categories]);
+
+  const rentalChildActive = grouped.rentalChildren.some((c) =>
+    isAdminCategoryNavActive(c, pathname, categoryParam)
+  );
+  const [rentalOpen, setRentalOpen] = useState(true);
+  const [rentalRouteKey, setRentalRouteKey] = useState(routeKey);
+  if (rentalRouteKey !== routeKey) {
+    setRentalRouteKey(routeKey);
+    if (rentalChildActive) setRentalOpen(true);
+  }
 
   const allProductsActive = isLinkActive(
     "/admin/dresses",
@@ -394,6 +406,13 @@ function ProductsNavSection({
     );
   };
 
+  const hasAnyCategory =
+    grouped.rentalChildren.length > 0 ||
+    Boolean(grouped.rentalParent) ||
+    grouped.accessoriesChildren.length > 0 ||
+    Boolean(grouped.accessoriesParent) ||
+    grouped.rest.length > 0;
+
   return (
     <div className="space-y-1">
       <SectionToggle
@@ -433,30 +452,41 @@ function ProductsNavSection({
             <p className="px-3 py-2 text-xs text-muted">جاري التحميل…</p>
           )}
 
-          {loaded &&
-            grouped.rental.length === 0 &&
-            grouped.accessories.length === 0 &&
-            grouped.rest.length === 0 && (
-              <p className="px-3 py-2 text-xs text-muted">
-                لا توجد تصنيفات ظاهرة
-              </p>
-            )}
-
-          {grouped.rental.length > 0 && (
-            <>
-              <p className="px-3 pt-2 pb-0.5 text-[11px] font-medium text-muted">
-                فساتين الإيجار
-              </p>
-              {grouped.rental.map(renderCategoryLink)}
-            </>
+          {loaded && !hasAnyCategory && (
+            <p className="px-3 py-2 text-xs text-muted">
+              لا توجد تصنيفات ظاهرة
+            </p>
           )}
 
-          {grouped.accessories.length > 0 && (
+          {(grouped.rentalParent || grouped.rentalChildren.length > 0) && (
+            <div className="pt-1">
+              <SectionToggle
+                label={grouped.rentalParent?.name_ar ?? "فساتين الإيجار"}
+                open={rentalOpen}
+                onToggle={() => setRentalOpen((o) => !o)}
+                active={rentalChildActive}
+              />
+              {rentalOpen && (
+                <div className="ms-1 space-y-0.5 border-r border-beige-dark/50 pe-1">
+                  {grouped.rentalChildren.length === 0 ? (
+                    <p className="px-3 py-1.5 text-[11px] text-muted">
+                      أضيفي تصنيفاً فرعياً تحت فساتين الإيجار
+                    </p>
+                  ) : (
+                    grouped.rentalChildren.map(renderCategoryLink)
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(grouped.accessoriesParent ||
+            grouped.accessoriesChildren.length > 0) && (
             <>
               <p className="px-3 pt-2 pb-0.5 text-[11px] font-medium text-muted">
-                إكسسوارات العروس
+                {grouped.accessoriesParent?.name_ar ?? "إكسسوارات العروس"}
               </p>
-              {grouped.accessories.map(renderCategoryLink)}
+              {grouped.accessoriesChildren.map(renderCategoryLink)}
             </>
           )}
 

@@ -8,6 +8,7 @@ import {
 import {
   buildCategoryTree,
   isNavVisibleCategory,
+  isRentalGroupCategory,
   type Category,
   type CategoryTreeNode,
 } from "@/types/category";
@@ -111,6 +112,31 @@ function itemFromRoot(root: CategoryTreeNode): NavItem | null {
   };
 }
 
+/**
+ * Rental Dresses is an Admin parent group only — never a customer browse root.
+ * Promote nav-visible children to top-level; skip empty parents.
+ */
+function expandStorefrontRoots(roots: CategoryTreeNode[]): CategoryTreeNode[] {
+  const out: CategoryTreeNode[] = [];
+  for (const root of roots) {
+    if (isRentalGroupCategory(root)) {
+      for (const child of root.children) {
+        if (isNavVisibleCategory(child)) out.push(child);
+      }
+      continue;
+    }
+    if (!isNavVisibleCategory(root)) {
+      // Parent hidden from nav but children may still browse.
+      for (const child of root.children) {
+        if (isNavVisibleCategory(child)) out.push(child);
+      }
+      continue;
+    }
+    out.push(root);
+  }
+  return out;
+}
+
 function staticItem(id: string, href: string, label: string): NavItem {
   return {
     id,
@@ -134,8 +160,9 @@ const STATIC_SITE_LINKS: NavItem[] = [
 
 /** Offline fallback only when categories table is empty / unconfigured */
 const FALLBACK_CATEGORY_ITEMS: NavItem[] = [
-  ...DRESS_CATEGORIES.map((c) =>
-    staticItem(`fallback-${c}`, DRESS_CATEGORY_HREFS[c], DRESS_CATEGORY_LABELS[c])
+  ...DRESS_CATEGORIES.filter((c) => c !== "rental" && c !== "custom_design").map(
+    (c) =>
+      staticItem(`fallback-${c}`, DRESS_CATEGORY_HREFS[c], DRESS_CATEGORY_LABELS[c])
   ).map((item) => ({ ...item, kind: "category" as const })),
   {
     id: "fallback-accessories",
@@ -254,14 +281,18 @@ function fallbackNav(): StorefrontNav {
 export function buildStorefrontNav(categories: Category[]): StorefrontNav {
   if (!categories.length) return fallbackNav();
 
-  const navCategories = categories.filter(isNavVisibleCategory);
-  const tree = buildCategoryTree(navCategories);
+  // Keep full published set for tree links; nav visibility applied when expanding.
+  const published = categories.filter((c) => c.is_visible !== false);
+  const tree = buildCategoryTree(published);
+  const roots = expandStorefrontRoots(tree);
   const categoryItems: NavItem[] = [];
   const categoryLinks: NavLink[] = [];
 
-  for (const root of tree) {
+  for (const root of roots) {
     const item = itemFromRoot(root);
     if (!item) continue;
+    // Skip empty parent shells (no href leaf and no children) — never show hollow groups.
+    if (!item.children.length && isRentalGroupCategory(root)) continue;
     categoryItems.push(item);
     if (item.children.length) {
       for (const child of item.children) {

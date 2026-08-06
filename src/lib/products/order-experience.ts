@@ -330,6 +330,7 @@ export function formatExtraServicePriceLabel(svc: {
 /**
  * Whether PDP must open the Product Experience Modal before cart/checkout.
  * Order options / delivery / notes are checkout-only — they never gate the modal.
+ * When Admin disabled all storefront experience sections, skip the modal.
  */
 export function productNeedsExperienceModal(input: {
   supportsPersonalization?: boolean;
@@ -338,7 +339,31 @@ export function productNeedsExperienceModal(input: {
   extraServices?: ExtraServiceConfig[] | null;
   /** Gift wrapping section (feature-gated) must open the modal too. */
   enableGiftWrapping?: boolean;
+  /**
+   * Enabled storefront sections from experience_config.
+   * When provided, only enabled content sections can open the modal.
+   */
+  sections?: Array<{ id: string; enabled?: boolean }> | null;
 }): boolean {
+  const sections = input.sections;
+  if (Array.isArray(sections) && sections.length > 0) {
+    const enabled = new Set(
+      sections
+        .filter((s) => s.enabled !== false && s.id !== "summary")
+        .map((s) => s.id)
+    );
+    if (enabled.has("personalization") && input.supportsPersonalization) {
+      return true;
+    }
+    if (enabled.has("gift_options") && input.enableGiftWrapping) {
+      return true;
+    }
+    if (enabled.has("extra_services") && (input.extraServices?.length ?? 0) > 0) {
+      return true;
+    }
+    return false;
+  }
+
   if (input.supportsPersonalization) return true;
   if (input.enableGiftWrapping) return true;
   if ((input.extraServices?.length ?? 0) > 0) return true;

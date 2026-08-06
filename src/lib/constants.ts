@@ -18,10 +18,12 @@ export const OFFICIAL_INSTAGRAM_HANDLE = "@nadeendesign_";
  * Live storefront uses buildStorefrontNav(getStorefrontCategories()).
  */
 export const CATEGORY_NAV_LINKS = [
-  ...DRESS_CATEGORIES.map((category) => ({
-    href: DRESS_CATEGORY_HREFS[category],
-    label: DRESS_CATEGORY_LABELS[category],
-  })),
+  ...DRESS_CATEGORIES.filter((c) => c !== "rental" && c !== "custom_design").map(
+    (category) => ({
+      href: DRESS_CATEGORY_HREFS[category],
+      label: DRESS_CATEGORY_LABELS[category],
+    })
+  ),
   ...SHOP_NAV_LINKS,
 ];
 

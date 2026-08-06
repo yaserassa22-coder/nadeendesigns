@@ -49,18 +49,30 @@ export type ExperiencePersonalizationUi = {
   extra_price: number;
 };
 
+/** Purchase UI visibility — quantity / summary already have section + feature gates. */
+export type ExperiencePurchaseUi = {
+  /** Quantity selector inside the Experience Modal. Default true. */
+  show_quantity: boolean;
+};
+
 export type ProductExperienceConfig = {
   sections: ExperienceSectionConfig[];
   /** Optional link to product_experience_templates.id */
   template_id?: string | null;
   /** Luxury admin v2 personalization card fields */
   personalization_ui?: ExperiencePersonalizationUi;
+  /** Purchase chrome inside the modal (quantity). */
+  purchase_ui?: ExperiencePurchaseUi;
 };
 
 export const DEFAULT_PERSONALIZATION_UI: ExperiencePersonalizationUi = {
   required: false,
   max_characters: 40,
   extra_price: 0,
+};
+
+export const DEFAULT_PURCHASE_UI: ExperiencePurchaseUi = {
+  show_quantity: true,
 };
 
 /** Friendly Arabic labels for store-owner UI (never show raw ids). */
@@ -436,7 +448,15 @@ export function normalizeProductExperienceConfig(
     ),
   };
 
-  return { sections: ordered, template_id, personalization_ui };
+  const purchaseRaw = asObject(src.purchase_ui);
+  const purchase_ui: ExperiencePurchaseUi = {
+    show_quantity: bool(
+      purchaseRaw.show_quantity,
+      DEFAULT_PURCHASE_UI.show_quantity
+    ),
+  };
+
+  return { sections: ordered, template_id, personalization_ui, purchase_ui };
 }
 
 export function defaultProductExperienceConfig(): ProductExperienceConfig {

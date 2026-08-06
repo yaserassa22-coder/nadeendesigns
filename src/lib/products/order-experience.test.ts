@@ -149,6 +149,33 @@ describe("pricing mode helpers", () => {
         extraServices: [],
       })
     ).toBe(false);
+    // Admin disabled all experience sections → skip modal
+    expect(
+      productNeedsExperienceModal({
+        supportsPersonalization: true,
+        enableGiftWrapping: true,
+        extraServices: [
+          {
+            id: "x",
+            name: "X",
+            name_ar: "س",
+            description: "",
+            description_ar: "",
+            pricing_mode: "FREE",
+            price: 0,
+            enabled: true,
+            visible: true,
+            required: false,
+            default_selected: false,
+            available_online: true,
+            available_in_store: false,
+            sort_order: 0,
+            visibility: { scope: "all" },
+          },
+        ],
+        sections: [{ id: "summary", enabled: true }],
+      })
+    ).toBe(false);
   });
 });
 

@@ -2,11 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  FEATURE_GROUP_KEYS,
-  FEATURE_GROUP_LABELS,
   defaultFeatureIdsForProduct,
   type ExperienceFeature,
-  type FeatureGroupKey,
   type ProductFeaturesConfig,
 } from "@/lib/products/experience-features";
 import type { ProductCommerceType } from "@/lib/products/primary-action";
@@ -17,8 +14,43 @@ type Props = {
   productType: ProductCommerceType;
 };
 
+/** Admin-facing Purchase Experience groups — no raw JSON / technical ids. */
+const PURCHASE_EXPERIENCE_GROUPS: {
+  label: string;
+  featureIds: readonly string[];
+}[] = [
+  {
+    label: "التخصيص",
+    featureIds: [
+      "veil_writing",
+      "robe_writing",
+      "font_selection",
+      "color_selection",
+    ],
+  },
+  {
+    label: "الخدمات",
+    featureIds: [
+      "gift_wrap",
+      "luxury_box",
+      "express_delivery",
+      "gift_message",
+    ],
+  },
+  {
+    label: "الشراء",
+    featureIds: [
+      "appointment_booking",
+      "request_design",
+      "add_to_cart",
+      "buy_now",
+      "wishlist",
+    ],
+  },
+];
+
 /**
- * Product Editor — Features tab.
+ * Product Editor — Purchase Experience visibility.
  * Simple enable/disable switches; no technical jargon.
  */
 export function ProductFeaturesPanel({
@@ -65,6 +97,12 @@ export function ProductFeaturesPanel({
     return new Set(ids);
   }, [useCustom, value?.enabled_ids, defaults]);
 
+  const byId = useMemo(() => {
+    const map = new Map<string, ExperienceFeature>();
+    for (const f of library) map.set(f.id, f);
+    return map;
+  }, [library]);
+
   const toggle = (id: string, on: boolean) => {
     const base = useCustom
       ? [...(value?.enabled_ids ?? [])]
@@ -76,18 +114,22 @@ export function ProductFeaturesPanel({
   };
 
   const grouped = useMemo(() => {
-    const map = new Map<FeatureGroupKey, ExperienceFeature[]>();
-    for (const key of FEATURE_GROUP_KEYS) map.set(key, []);
-    for (const f of library) {
-      const list = map.get(f.group_key) ?? map.get("general")!;
-      list.push(f);
-    }
-    return FEATURE_GROUP_KEYS.map((key) => ({
-      key,
-      label: FEATURE_GROUP_LABELS[key],
-      items: map.get(key) ?? [],
+    return PURCHASE_EXPERIENCE_GROUPS.map((group) => ({
+      label: group.label,
+      items: group.featureIds
+        .map((id) => byId.get(id))
+        .filter((f): f is ExperienceFeature => Boolean(f)),
     })).filter((g) => g.items.length > 0);
-  }, [library]);
+  }, [byId]);
+
+  const knownIds = useMemo(
+    () => new Set(PURCHASE_EXPERIENCE_GROUPS.flatMap((g) => g.featureIds)),
+    []
+  );
+  const extraFeatures = useMemo(
+    () => library.filter((f) => !knownIds.has(f.id)),
+    [library, knownIds]
+  );
 
   if (loading) {
     return <p className="text-sm text-muted">جاري تحميل الميزات…</p>;
@@ -97,8 +139,8 @@ export function ProductFeaturesPanel({
     <div className="space-y-6">
       <div className="rounded-2xl border border-beige-dark bg-beige/20 px-5 py-4">
         <p className="text-sm text-muted">
-          فعّلي الميزات المناسبة لهذا المنتج فقط. ما يُعطَّل لن يظهر للعميلة في
-          صفحة المنتج أو نافذة التجربة.
+          أظهري أو أخفي أجزاء تجربة الشراء الموجودة فقط. ما يُعطَّل لن يظهر
+          للعميلة — بدون بطاقات فارغة.
         </p>
         <label className="mt-3 flex items-center gap-2 text-sm">
           <input
@@ -118,15 +160,20 @@ export function ProductFeaturesPanel({
       </div>
 
       {grouped.map((group) => (
-        <div key={group.key} className="space-y-3">
-          <h3 className="text-sm font-semibold text-charcoal">{group.label}</h3>
+        <section
+          key={group.label}
+          className="rounded-3xl border border-beige-dark/50 bg-white p-5 shadow-[0_8px_24px_rgba(44,36,25,0.05)]"
+        >
+          <h3 className="mb-4 font-[family-name:var(--font-cormorant)] text-lg tracking-wide text-charcoal">
+            {group.label}
+          </h3>
           <div className="grid gap-2 sm:grid-cols-2">
             {group.items.map((f) => {
               const on = enabledSet.has(f.id);
               return (
                 <label
                   key={f.id}
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark bg-white px-4 py-3 transition-colors hover:border-gold/30"
+                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark bg-ivory/40 px-4 py-3 transition-colors hover:border-gold/30"
                 >
                   <input
                     type="checkbox"
@@ -148,8 +195,35 @@ export function ProductFeaturesPanel({
               );
             })}
           </div>
-        </div>
+        </section>
       ))}
+
+      {extraFeatures.length > 0 ? (
+        <section className="rounded-3xl border border-beige-dark/50 bg-white p-5">
+          <h3 className="mb-4 text-sm font-semibold text-charcoal">أخرى</h3>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {extraFeatures.map((f) => {
+              const on = enabledSet.has(f.id);
+              return (
+                <label
+                  key={f.id}
+                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark px-4 py-3"
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 accent-gold"
+                    checked={on}
+                    onChange={(e) => toggle(f.id, e.target.checked)}
+                  />
+                  <span className="text-sm font-medium text-charcoal">
+                    {f.name_ar || f.name}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {library.length === 0 ? (
         <p className="text-sm text-muted">

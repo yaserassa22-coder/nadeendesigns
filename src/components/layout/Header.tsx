@@ -45,7 +45,7 @@ import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 
 /** Last-resort offline fallback only — live nav is DB-driven via layout. */
 const FALLBACK_ITEMS: NavItem[] = capTopLevelNav([
-  ...DRESS_CATEGORIES.map(
+  ...DRESS_CATEGORIES.filter((c) => c !== "rental" && c !== "custom_design").map(
     (c): NavItem => ({
       id: `fallback-${c}`,
       href: DRESS_CATEGORY_HREFS[c],
