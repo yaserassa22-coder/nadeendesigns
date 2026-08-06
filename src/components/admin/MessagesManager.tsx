@@ -125,6 +125,8 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         detail?: string;
+        message?: string;
+        warning?: string | null;
         last_reply_at?: string;
         last_reply_status?: string;
         last_reply_subject?: string;
@@ -139,6 +141,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
         return;
       }
 
+      const failed = data.last_reply_status === "failed" || Boolean(data.warning);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === replyTarget.id
@@ -149,18 +152,25 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                 last_reply_status: data.last_reply_status ?? "sent",
                 last_reply_subject:
                   data.last_reply_subject ?? replySubject,
-                last_reply_error: null,
+                last_reply_error: failed ? data.warning ?? null : null,
               }
             : m
         )
       );
       notifyAdminInboxChanged();
-      setReplySuccess("✓ تم إرسال الرد بنجاح.");
-      setSnack("تم إرسال الرد عبر البريد");
-      window.setTimeout(() => {
-        setReplyTarget(null);
-        setReplySuccess("");
-      }, 1200);
+      if (failed) {
+        setReplySuccess(
+          `✓ ${data.message || "تم حفظ الرد"}. ${data.warning || "تعذّر الإرسال عبر البريد."}`
+        );
+        setSnack("تم حفظ الرد — تحذير: فشل إرسال البريد");
+      } else {
+        setReplySuccess("✓ تم إرسال الرد بنجاح.");
+        setSnack("تم إرسال الرد عبر البريد");
+        window.setTimeout(() => {
+          setReplyTarget(null);
+          setReplySuccess("");
+        }, 1200);
+      }
     } catch {
       setReplyError("تعذّر الاتصال بالخادم. تحققي من الشبكة.");
     } finally {

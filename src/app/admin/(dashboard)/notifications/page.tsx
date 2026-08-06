@@ -21,8 +21,13 @@ export default async function AdminNotificationsPage() {
       <div className="rounded-2xl border border-gold/25 bg-gradient-to-l from-beige/50 to-ivory px-5 py-4 text-sm text-charcoal">
         تأكدي من ضبط{" "}
         <code className="text-gold">RESEND_API_KEY</code> و{" "}
-        <code className="text-gold">TWILIO_*</code> في البيئة، وتشغيل{" "}
+        <code className="text-gold">FROM_EMAIL</code> (أو{" "}
+        <code className="text-gold">RESEND_FROM_EMAIL</code>) و{" "}
+        <code className="text-gold">TWILIO_*</code> في{" "}
+        <code className="text-gold">.env.local</code>، وتشغيل{" "}
         <code className="text-gold">supabase/APPLY_NOTIFICATIONS.sql</code>.
+        للتطوير المحلي بدون نطاق موثّق استخدمي{" "}
+        <code className="text-gold">beth.t@example.com</code>.
       </div>
 
       <NotificationsSettingsForm initialSettings={settings} />

@@ -33,13 +33,21 @@ export function getAdminNotificationEmail() {
   );
 }
 
-/** FROM address — prefer RESEND_FROM_EMAIL, fall back to FROM_EMAIL. */
+/** FROM address — prefer FROM_EMAIL, fall back to RESEND_FROM_EMAIL. */
 export function getResendFrom() {
-  return (
-    process.env.RESEND_FROM_EMAIL?.trim() ||
+  const explicit =
     process.env.FROM_EMAIL?.trim() ||
-    ""
-  );
+    process.env.RESEND_FROM_EMAIL?.trim() ||
+    "";
+  if (explicit) return explicit;
+  // Local/dev convenience when only the API key is set (Resend test sender).
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.RESEND_API_KEY?.trim()
+  ) {
+    return "beth.t@example.com";
+  }
+  return "";
 }
 
 /** Optional Reply-To for outbound mail (admin replies, notifications). */

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "خدمة البريد غير مُعدّة. أضيفي RESEND_API_KEY و RESEND_FROM_EMAIL (أو FROM_EMAIL).",
+          "خدمة البريد غير مُعدّة. أضيفي RESEND_API_KEY و FROM_EMAIL (أو RESEND_FROM_EMAIL).",
         ...devPayload({ detail: "Resend not configured" }),
       },
       { status: 503 }
@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString();
 
+    // Always persist reply metadata — never lose the admin reply if Resend fails.
     if (!sendResult.ok) {
       console.error("[messages/reply] Resend failed", sendResult.error);
       await persistReplyMeta(supabase, messageId, {
@@ -145,14 +146,20 @@ export async function POST(request: NextRequest) {
         last_reply_status: "failed",
         last_reply_subject: mail.subject,
         last_reply_error: sendResult.error,
+        is_read: true,
       });
-      return NextResponse.json(
-        {
-          error: sendResult.error,
-          ...devPayload({ detail: sendResult.error }),
-        },
-        { status: 502 }
-      );
+      return NextResponse.json({
+        success: true,
+        message: "تم حفظ الرد",
+        emailId: null,
+        last_reply_at: now,
+        last_reply_status: "failed",
+        last_reply_subject: mail.subject,
+        warning:
+          sendResult.error ||
+          "تعذّر إرسال البريد عبر Resend — تم حفظ الرد.",
+        ...devPayload({ detail: sendResult.error }),
+      });
     }
 
     await persistReplyMeta(supabase, messageId, {
@@ -170,6 +177,7 @@ export async function POST(request: NextRequest) {
       last_reply_at: now,
       last_reply_status: "sent",
       last_reply_subject: mail.subject,
+      warning: null,
     });
   } catch (e) {
     console.error("[messages/reply] unexpected", e);

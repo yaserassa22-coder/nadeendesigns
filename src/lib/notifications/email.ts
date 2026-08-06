@@ -14,10 +14,15 @@ export async function sendEmail(params: {
   fromName?: string;
 }): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
   if (!isResendConfigured()) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[email] Resend not configured — set RESEND_API_KEY and FROM_EMAIL (or RESEND_FROM_EMAIL) in .env.local"
+      );
+    }
     return {
       ok: false,
       error:
-        "Resend غير مُعد. أضيفي RESEND_API_KEY و RESEND_FROM_EMAIL (أو FROM_EMAIL) في .env.local",
+        "Resend غير مُعد. أضيفي RESEND_API_KEY و FROM_EMAIL (أو RESEND_FROM_EMAIL) في .env.local",
     };
   }
 
@@ -34,6 +39,14 @@ export async function sendEmail(params: {
         ? `${params.fromName} <${rawFrom}>`
         : rawFrom;
 
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[email] sending via Resend", {
+        to,
+        from,
+        subject: params.subject,
+      });
+    }
+
     const { data, error } = await resend.emails.send({
       from,
       to: [to],
@@ -44,10 +57,16 @@ export async function sendEmail(params: {
     });
 
     if (error) {
+      console.error("[email] Resend error", error);
       return { ok: false, error: error.message || "فشل إرسال البريد عبر Resend" };
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[email] Resend ok", { id: data?.id, to });
     }
     return { ok: true, id: data?.id };
   } catch (e) {
+    console.error("[email] unexpected", e);
     return {
       ok: false,
       error: e instanceof Error ? e.message : "خطأ غير متوقع أثناء إرسال البريد",

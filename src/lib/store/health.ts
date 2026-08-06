@@ -109,8 +109,8 @@ function checkEmail(): SystemHealthCheck {
     label: "Email",
     label_ar: "البريد",
     status: "yellow",
-    detail: "RESEND_API_KEY / RESEND_FROM_EMAIL missing",
-    detail_ar: "متغيرات Resend غير مُعدّة",
+    detail: "RESEND_API_KEY / FROM_EMAIL missing",
+    detail_ar: "أضيفي RESEND_API_KEY و FROM_EMAIL في .env.local",
   };
 }
 
