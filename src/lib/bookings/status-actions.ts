@@ -3,8 +3,8 @@
  * Pure helpers; no DB / network.
  */
 
-import type { Booking, BookingStatus } from "@/types";
-import { formatDateWestern } from "@/lib/utils";
+import type { Booking, BookingStatus } from "../../types";
+import { formatDateWestern } from "../utils";
 
 export const BOOKING_ADMIN_ACTIONS = [
   "confirm",
