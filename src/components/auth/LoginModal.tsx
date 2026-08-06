@@ -40,7 +40,7 @@ type Props = {
   flags?: Record<string, boolean>;
 };
 
-type Step = "choice" | "phone" | "otp" | "email";
+type Step = "choice" | "phone" | "otp" | "email" | "forgot";
 
 const ACCOUNT_BENEFITS = [
   { icon: Package, label: "تتبع الطلبات" },
@@ -85,6 +85,7 @@ export function LoginModal({
   const [resendIn, setResendIn] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [remember, setRemember] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -125,6 +126,7 @@ export function LoginModal({
     setPhone("");
     setOtp(["", "", "", "", "", ""]);
     setError(null);
+    setInfo(null);
     setRequestId(null);
     setDevCode(null);
     setDestinationHint(null);
@@ -302,28 +304,79 @@ export function LoginModal({
   async function submitEmail() {
     const passwordUrl =
       emailProvider?.endpoints?.password || "/api/auth/email";
+    const trimmedEmail = email.trim();
     setLoading(true);
     setError(null);
+    setInfo(null);
     try {
+      if (!trimmedEmail.includes("@")) {
+        throw new Error("أدخلي بريداً إلكترونياً صالحاً");
+      }
+      if (password.length < 6) {
+        throw new Error("كلمة المرور من 6 أحرف على الأقل");
+      }
+      if (emailMode === "signup" && fullName.trim().length < 2) {
+        throw new Error("أدخلي الاسم الكامل");
+      }
       const res = await fetch(passwordUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
           mode: emailMode,
-          email,
+          email: trimmedEmail,
           password,
-          full_name: fullName || undefined,
+          full_name: fullName.trim() || undefined,
         }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        needs_email_confirm?: boolean;
+        message?: string;
+      };
       if (!res.ok) throw new Error(data.error || "فشل تسجيل الدخول");
       if (data.needs_email_confirm) {
-        setError("تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول.");
+        setInfo(
+          data.message ||
+            "تم إنشاء الحساب. تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول."
+        );
+        setEmailMode("signin");
+        setPassword("");
         return;
       }
       await onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "فشل تسجيل الدخول");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitForgot() {
+    const passwordUrl =
+      emailProvider?.endpoints?.password || "/api/auth/email";
+    const trimmedEmail = email.trim();
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      if (!trimmedEmail.includes("@")) {
+        throw new Error("أدخلي بريداً إلكترونياً صالحاً");
+      }
+      const res = await fetch(passwordUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ mode: "forgot", email: trimmedEmail }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.error || "تعذّر إرسال الرابط");
+      setInfo(
+        data.message ||
+          "إن وُجد حساب بهذا البريد، ستصلكِ رسالة برابط إعادة تعيين كلمة المرور."
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "تعذّر إرسال الرابط");
     } finally {
       setLoading(false);
     }
@@ -393,7 +446,9 @@ export function LoginModal({
                       ? `أدخلي رقمك لاستلام رمز التحقق عبر ${otpLabel}.`
                       : step === "otp"
                         ? `أدخلي الرمز الذي وصلَكِ عبر ${otpLabel}.`
-                        : "البريد وكلمة المرور"}
+                        : step === "forgot"
+                          ? "أدخلي بريدك لنرسل رابط إعادة تعيين كلمة المرور."
+                          : "البريد وكلمة المرور"}
                 </p>
               </div>
 
@@ -412,6 +467,17 @@ export function LoginModal({
               {error && (
                 <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                   {error}
+                </div>
+              )}
+              {info && (
+                <div
+                  className="mb-4 rounded-2xl border px-4 py-3 text-sm text-charcoal"
+                  style={{
+                    borderColor: `${ACCENT}55`,
+                    background: `${ACCENT}12`,
+                  }}
+                >
+                  {info}
                 </div>
               )}
 
@@ -666,7 +732,11 @@ export function LoginModal({
                           ? "bg-white text-charcoal shadow-sm"
                           : "text-muted hover:text-charcoal"
                       )}
-                      onClick={() => setEmailMode("signin")}
+                      onClick={() => {
+                        setError(null);
+                        setInfo(null);
+                        setEmailMode("signin");
+                      }}
                     >
                       دخول
                     </button>
@@ -678,7 +748,11 @@ export function LoginModal({
                           ? "bg-white text-charcoal shadow-sm"
                           : "text-muted hover:text-charcoal"
                       )}
-                      onClick={() => setEmailMode("signup")}
+                      onClick={() => {
+                        setError(null);
+                        setInfo(null);
+                        setEmailMode("signup");
+                      }}
                     >
                       حساب جديد
                     </button>
@@ -729,6 +803,21 @@ export function LoginModal({
                       className="w-full rounded-xl border border-beige-dark bg-white px-4 py-3 text-sm text-charcoal outline-none focus:border-[color:#C9A14A] focus:ring-2 focus:ring-[color:#C9A14A]/30"
                     />
                   </label>
+                  {emailMode === "signin" && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-[color:#C9A14A] hover:underline"
+                        onClick={() => {
+                          setError(null);
+                          setInfo(null);
+                          setStep("forgot");
+                        }}
+                      >
+                        نسيتِ كلمة المرور؟
+                      </button>
+                    </div>
+                  )}
                   <div className="flex gap-2 pt-1">
                     <Button
                       type="button"
@@ -749,6 +838,50 @@ export function LoginModal({
                       {emailMode === "signup" ? "إنشاء حساب" : "دخول"}
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {step === "forgot" && (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setInfo(null);
+                      setStep("email");
+                      setEmailMode("signin");
+                    }}
+                    className="mb-1 text-sm text-muted hover:underline"
+                  >
+                    ← رجوع لتسجيل الدخول
+                  </button>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-medium text-muted">
+                      البريد الإلكتروني
+                    </span>
+                    <input
+                      type="email"
+                      dir="ltr"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      autoComplete="email"
+                      className="w-full rounded-xl border border-beige-dark bg-white px-4 py-3 text-sm text-charcoal outline-none focus:border-[color:#C9A14A] focus:ring-2 focus:ring-[color:#C9A14A]/30"
+                    />
+                  </label>
+                  <p className="text-xs text-muted">
+                    سنرسل رابطاً آمناً لإعادة تعيين كلمة المرور إن وُجد حساب بهذا
+                    البريد.
+                  </p>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    loading={loading}
+                    style={{ backgroundColor: ACCENT }}
+                    onClick={() => void submitForgot()}
+                  >
+                    إرسال رابط الاستعادة
+                  </Button>
                 </div>
               )}
             </div>

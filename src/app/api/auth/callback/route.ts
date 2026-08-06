@@ -133,10 +133,10 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Recovery → profile so password can be changed; otherwise honor `next`.
+  // Recovery → reset-password page; otherwise honor `next`.
   const destination =
     type === "recovery"
-      ? safeAuthNextPath(searchParams.get("next"), "/account/profile")
+      ? safeAuthNextPath(searchParams.get("next"), "/account/reset-password")
       : next;
 
   // Redirect on the same origin that served the callback so session cookies

@@ -135,6 +135,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       const redirect = params.get("redirect") || "";
       if (redirect) sessionStorage.setItem("nadeen_login_redirect", redirect);
       else sessionStorage.removeItem("nadeen_login_redirect");
+      const err = params.get("error");
+      if (err) sessionStorage.setItem("nadeen_login_error", err);
+      else sessionStorage.removeItem("nadeen_login_error");
       params.delete("login");
       params.delete("error");
       const clean = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
@@ -144,12 +147,15 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
     const redirect =
       sessionStorage.getItem("nadeen_login_redirect") || undefined;
+    const errMsg = sessionStorage.getItem("nadeen_login_error") || undefined;
     setRedirectAfter(redirect);
+    if (errMsg) setLoginMessage(decodeURIComponent(errMsg));
     setLoginOpen(true);
 
     const clear = window.setTimeout(() => {
       sessionStorage.removeItem("nadeen_open_login");
       sessionStorage.removeItem("nadeen_login_redirect");
+      sessionStorage.removeItem("nadeen_login_error");
     }, 300);
     return () => window.clearTimeout(clear);
   }, []);

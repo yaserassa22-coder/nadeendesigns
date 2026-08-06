@@ -9,7 +9,39 @@ import {
 import { getAuthCallbackUrl } from "@/lib/customer-auth/callback-url";
 import { readGuestIdFromRequest } from "@/lib/guest";
 
-/** Email + password sign-in / sign-up (optional path). */
+type EmailMode = "signin" | "signup" | "forgot" | "update_password";
+
+function mapAuthError(message: string, mode: EmailMode): string {
+  const m = message.toLowerCase();
+  if (
+    m.includes("already registered") ||
+    m.includes("already been registered") ||
+    m.includes("user already exists")
+  ) {
+    return "هذا البريد مسجّل مسبقاً — جرّبي تسجيل الدخول أو استعادة كلمة المرور";
+  }
+  if (m.includes("email not confirmed") || m.includes("not confirmed")) {
+    return "يجب تأكيد البريد أولاً — تحققي من صندوق الوارد";
+  }
+  if (m.includes("invalid login") || m.includes("invalid credentials")) {
+    return "البريد أو كلمة المرور غير صحيحة";
+  }
+  if (m.includes("password") && (m.includes("weak") || m.includes("least"))) {
+    return "كلمة المرور ضعيفة — استخدمي 6 أحرف على الأقل";
+  }
+  if (m.includes("rate") || m.includes("too many")) {
+    return "محاولات كثيرة — حاولي لاحقاً";
+  }
+  if (mode === "forgot") {
+    return "تعذّر إرسال رابط الاستعادة. حاولي مرة أخرى.";
+  }
+  if (mode === "update_password") {
+    return "تعذّر تحديث كلمة المرور. حاولي مرة أخرى.";
+  }
+  return message || "فشل العملية";
+}
+
+/** Email + password: sign-in, sign-up, forgot password, update password. */
 export async function POST(request: NextRequest) {
   try {
     if (!isSupabaseConfigured()) {
@@ -28,14 +60,86 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => ({}))) as {
-      mode?: "signin" | "signup";
+      mode?: EmailMode;
       email?: string;
       password?: string;
       full_name?: string;
     };
 
+    const mode: EmailMode =
+      body.mode === "signup" ||
+      body.mode === "forgot" ||
+      body.mode === "update_password"
+        ? body.mode
+        : "signin";
+
     const email = (body.email || "").trim().toLowerCase();
     const password = body.password || "";
+    const { supabase, applyAuthCookies } = createRouteHandlerClient(request);
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    const ua = request.headers.get("user-agent");
+    const guestId = readGuestIdFromRequest(request);
+
+    // ——— Forgot password ———
+    if (mode === "forgot") {
+      if (!email.includes("@")) {
+        return NextResponse.json(
+          { error: "أدخلي بريداً إلكترونياً صالحاً" },
+          { status: 400 }
+        );
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: getAuthCallbackUrl("/account/reset-password"),
+      });
+      if (error) {
+        // Still return generic success to avoid email enumeration,
+        // but log for debugging.
+        console.warn("[auth/email] resetPasswordForEmail", error.message);
+      }
+      return NextResponse.json({
+        ok: true,
+        sent: true,
+        message:
+          "إن وُجد حساب بهذا البريد، ستصلكِ رسالة برابط إعادة تعيين كلمة المرور.",
+      });
+    }
+
+    // ——— Update password (after recovery link session) ———
+    if (mode === "update_password") {
+      if (password.length < 6) {
+        return NextResponse.json(
+          { error: "كلمة المرور من 6 أحرف على الأقل" },
+          { status: 400 }
+        );
+      }
+      const {
+        data: { user: current },
+      } = await supabase.auth.getUser();
+      if (!current) {
+        return NextResponse.json(
+          { error: "انتهت صلاحية الرابط — اطلبِي رابطاً جديداً" },
+          { status: 401 }
+        );
+      }
+      const { data, error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        return NextResponse.json(
+          { error: mapAuthError(error.message, mode) },
+          { status: 400 }
+        );
+      }
+      return applyAuthCookies(
+        NextResponse.json({
+          ok: true,
+          user: data.user
+            ? { id: data.user.id, email: data.user.email }
+            : null,
+        })
+      );
+    }
+
+    // ——— Sign-in / Sign-up ———
     if (!email.includes("@") || password.length < 6) {
       return NextResponse.json(
         { error: "بريداً صالحاً وكلمة مرور من 6 أحرف على الأقل" },
@@ -43,33 +147,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { supabase, applyAuthCookies } = createRouteHandlerClient(request);
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
-    const ua = request.headers.get("user-agent");
-    const mode = body.mode === "signup" ? "signup" : "signin";
-    const guestId = readGuestIdFromRequest(request);
-
     if (mode === "signup") {
+      const fullName = (body.full_name || "").trim();
+      if (fullName.length < 2) {
+        return NextResponse.json(
+          { error: "أدخلي الاسم الكامل (حرفان على الأقل)" },
+          { status: 400 }
+        );
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             is_customer: true,
-            full_name: body.full_name || "",
+            full_name: fullName,
           },
           emailRedirectTo: getAuthCallbackUrl("/account"),
         },
       });
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return NextResponse.json(
+          { error: mapAuthError(error.message, mode) },
+          { status: 400 }
+        );
       }
-      if (data.user) {
+
+      // Supabase may return a user with empty identities when email already exists
+      // and confirmations are on (anti-enumeration). Treat as already registered.
+      const identities = data.user?.identities;
+      if (data.user && Array.isArray(identities) && identities.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "هذا البريد مسجّل مسبقاً — جرّبي تسجيل الدخول أو استعادة كلمة المرور",
+          },
+          { status: 409 }
+        );
+      }
+
+      const needsConfirm = !data.session;
+      if (data.user && data.session) {
         await upsertCustomerForAuthUser({
           authUserId: data.user.id,
           email,
-          fullName: body.full_name,
+          fullName,
           provider: "email",
           guestId,
         });
@@ -80,11 +203,24 @@ export async function POST(request: NextRequest) {
           ip,
           userAgent: ua,
         });
+      } else if (data.user && needsConfirm) {
+        // Provision customer row early so confirm callback can merge guest cart.
+        await upsertCustomerForAuthUser({
+          authUserId: data.user.id,
+          email,
+          fullName,
+          provider: "email",
+          guestId,
+        });
       }
+
       return applyAuthCookies(
         NextResponse.json({
           ok: true,
-          needs_email_confirm: !data.session,
+          needs_email_confirm: needsConfirm,
+          message: needsConfirm
+            ? "تم إنشاء الحساب. تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول."
+            : undefined,
           user: data.user
             ? { id: data.user.id, email: data.user.email }
             : null,
@@ -105,7 +241,7 @@ export async function POST(request: NextRequest) {
         meta: { email },
       });
       return NextResponse.json(
-        { error: "البريد أو كلمة المرور غير صحيحة" },
+        { error: mapAuthError(error.message, "signin") },
         { status: 401 }
       );
     }
