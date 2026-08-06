@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   region TEXT,
   dress_id UUID REFERENCES dresses(id) ON DELETE SET NULL,
   notes TEXT,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'rescheduled', 'cancelled', 'completed')),
   delivery_required BOOLEAN DEFAULT false,
   delivery_address TEXT,
   delivery_region TEXT,

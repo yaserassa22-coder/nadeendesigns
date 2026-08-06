@@ -8,8 +8,17 @@ import {
   useMemo,
   useState,
 } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, RefreshCw, Sparkles } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Mail,
+  RefreshCw,
+  Sparkles,
+  X,
+} from "lucide-react";
 import type {
   AppointmentLifecycleAction,
   Booking,
@@ -19,14 +28,15 @@ import type {
 } from "@/types";
 import {
   BOOKING_SOURCE_LABELS,
+  BOOKING_STATUS_BADGE_CLASS,
   BOOKING_STATUS_LABELS,
   DELIVERY_STATUS_LABELS,
   getServiceTypeLabel,
 } from "@/types";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
-import { formatDate } from "@/lib/utils";
-import { Select } from "@/components/ui/Input";
+import { cn, formatDate, formatDateTimeWestern } from "@/lib/utils";
+import { Input, Select, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
@@ -37,6 +47,12 @@ import { postLifecycle } from "@/lib/admin/lifecycle-client";
 import { ManualBookingModal } from "@/components/admin/appointments/ManualBookingModal";
 import { WaitingListPanel } from "@/components/admin/appointments/WaitingListPanel";
 import type { LifecycleCapabilities } from "@/lib/admin/permissions";
+import { notifyAdminInboxChanged } from "@/lib/admin/inbox-events";
+import {
+  BOOKING_ACTION_LABELS_AR,
+  buildBookingQuickReply,
+  type BookingAdminAction,
+} from "@/lib/bookings/status-actions";
 
 interface BookingsManagerProps {
   initialBookings: Booking[];
@@ -53,6 +69,14 @@ const DELIVERY_OPTIONS = Object.entries(DELIVERY_STATUS_LABELS).map(
   ([value, label]) => ({ value, label })
 );
 
+const PRIMARY_ACTIONS: BookingAdminAction[] = [
+  "confirm",
+  "reschedule",
+  "cancel",
+  "complete",
+  "reply",
+];
+
 function normalizeBooking(b: Booking): Booking {
   return {
     ...b,
@@ -60,6 +84,24 @@ function normalizeBooking(b: Booking): Booking {
     status: b.status || "pending",
   };
 }
+
+function StatusBadge({ status }: { status: BookingStatus }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+        BOOKING_STATUS_BADGE_CLASS[status] ?? BOOKING_STATUS_BADGE_CLASS.pending
+      )}
+    >
+      {BOOKING_STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+type ReplyTarget = {
+  booking: Booking;
+  action: BookingAdminAction;
+};
 
 function BookingsManagerInner({
   initialBookings,
@@ -85,6 +127,14 @@ function BookingsManagerInner({
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
+
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [replySubject, setReplySubject] = useState("");
+  const [replyBody, setReplyBody] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const [replyError, setReplyError] = useState("");
+  const [replyWarning, setReplyWarning] = useState("");
+  const [replySuccess, setReplySuccess] = useState("");
 
   const serviceUrlKey = serviceFromUrl ?? "";
   const [prevServiceUrlKey, setPrevServiceUrlKey] = useState(serviceUrlKey);
@@ -127,7 +177,6 @@ function BookingsManagerInner({
     }
   }, []);
 
-  // Refresh from API with the admin session after mount
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadBookings();
@@ -182,10 +231,101 @@ function BookingsManagerInner({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "فشل التحديث");
       await loadBookings();
+      notifyAdminInboxChanged();
     } catch (e) {
       alert(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const openAction = (booking: Booking, action: BookingAdminAction) => {
+    const preset = buildBookingQuickReply(action, booking);
+    setReplyTarget({ booking, action });
+    setReplySubject(preset.subject);
+    setReplyBody(preset.body);
+    setReplyError("");
+    setReplyWarning(
+      !booking.email
+        ? "لا يوجد بريد للعميلة — يمكن تحديث الحالة دون إرسال رسالة."
+        : ""
+    );
+    setReplySuccess("");
+  };
+
+  const closeReply = () => {
+    if (replySending) return;
+    setReplyTarget(null);
+    setReplyError("");
+    setReplyWarning("");
+    setReplySuccess("");
+  };
+
+  const sendAction = async () => {
+    if (!replyTarget || replySending) return;
+    setReplySending(true);
+    setReplyError("");
+    setReplySuccess("");
+    try {
+      const res = await fetch("/api/admin/bookings/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: replyTarget.booking.id,
+          action: replyTarget.action,
+          subject: replySubject,
+          body: replyBody,
+          sendEmail: true,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        warning?: string | null;
+        message?: string;
+        status?: BookingStatus;
+        last_reply_at?: string;
+        last_reply_status?: string;
+        last_reply_subject?: string;
+        last_reply_by?: string;
+        status_history?: Booking["status_history"];
+      };
+      if (!res.ok) {
+        setReplyError(data.error || "تعذّر تنفيذ الإجراء");
+        return;
+      }
+
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === replyTarget.booking.id
+            ? {
+                ...b,
+                status: data.status ?? b.status,
+                last_reply_at: data.last_reply_at ?? b.last_reply_at,
+                last_reply_status:
+                  data.last_reply_status ?? b.last_reply_status,
+                last_reply_subject:
+                  data.last_reply_subject ?? b.last_reply_subject,
+                last_reply_by: data.last_reply_by ?? b.last_reply_by,
+                status_history: data.status_history ?? b.status_history,
+              }
+            : b
+        )
+      );
+      notifyAdminInboxChanged();
+      setReplySuccess(
+        data.warning
+          ? `✓ ${data.message || "تم التحديث"}. ${data.warning}`
+          : `✓ ${data.message || "تم بنجاح"}`
+      );
+      setSnack(data.message || "تم تحديث الحجز");
+      window.setTimeout(() => {
+        setReplyTarget(null);
+        setReplySuccess("");
+      }, 1400);
+    } catch {
+      setReplyError("تعذّر الاتصال بالخادم. تحققي من الشبكة.");
+    } finally {
+      setReplySending(false);
     }
   };
 
@@ -212,41 +352,34 @@ function BookingsManagerInner({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setManualOpen(true)}>إضافة حجز يدوي</Button>
-          <a
+          <Link
             href="/admin/calendar"
             className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
           >
             التقويم
-          </a>
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            loading={loading}
+            onClick={() => void loadBookings()}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            تحديث
+          </Button>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/admin/export?module=bookings"
             className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
           >
             تصدير CSV
           </a>
-          <Button
-            variant="outline"
-            loading={loading}
-            onClick={() => void loadBookings()}
-          >
-            <RefreshCw className="h-4 w-4" />
-            تحديث القائمة
-          </Button>
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          <p className="font-medium">خطأ في جلب الحجوزات من Supabase</p>
-          <p className="mt-1 whitespace-pre-wrap" dir="ltr">
-            {error}
-          </p>
-          <p className="mt-2 text-red-600/80">
-            تأكدي أن حسابكِ admin في جدول profiles، وأن سياسة RLS تسمح بالقراءة،
-            أو أني SUPABASE_SERVICE_ROLE_KEY مضبوطة في البيئة.
-          </p>
-        </div>
-      )}
+      {error ? (
+        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-beige-dark bg-white">
         <div className="overflow-x-auto">
@@ -271,7 +404,6 @@ function BookingsManagerInner({
               ) : (
                 filtered.map((booking) => {
                   const isOpen = expanded === booking.id;
-                  const hasDetails = true;
                   return (
                     <Fragment key={booking.id}>
                       <tr className="border-t border-beige-dark">
@@ -282,37 +414,45 @@ function BookingsManagerInner({
                           <p className="text-xs text-muted" dir="ltr">
                             {booking.phone}
                           </p>
-                          {booking.email && (
+                          {booking.email ? (
                             <p className="text-xs text-muted">{booking.email}</p>
-                          )}
-                          {booking.personalization && (
+                          ) : null}
+                          {booking.personalization ? (
                             <p className="mt-1 inline-flex items-center gap-1 text-xs text-gold">
                               <Sparkles className="h-3 w-3" />
                               تخصيص كتابة
                             </p>
-                          )}
-                          {booking.gift_options?.enabled && (
+                          ) : null}
+                          {booking.gift_options?.enabled ? (
                             <p className="mt-1 text-xs text-gold">🎁 تغليف هدية</p>
-                          )}
+                          ) : null}
                           {booking.is_vip ? (
                             <p className="mt-1 text-xs text-amber-700">VIP ★</p>
                           ) : null}
-                          {booking.notes && (
+                          {booking.notes ? (
                             <p className="mt-1 line-clamp-2 text-xs text-muted">
                               {booking.notes}
                             </p>
-                          )}
+                          ) : null}
+                          {booking.last_reply_at ? (
+                            <p className="mt-1 text-[11px] text-muted">
+                              آخر رد:{" "}
+                              <span dir="ltr">
+                                {formatDateTimeWestern(booking.last_reply_at)}
+                              </span>
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <p>{formatDate(booking.date)}</p>
                           <p className="text-xs text-muted" dir="ltr">
                             {booking.time}
                           </p>
-                          {booking.created_at && (
+                          {booking.created_at ? (
                             <p className="text-xs text-muted">
                               أُنشئ: {formatDate(booking.created_at)}
                             </p>
-                          )}
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           {getServiceTypeLabel(booking.service_type)}
@@ -326,47 +466,67 @@ function BookingsManagerInner({
                           }
                         </td>
                         <td className="px-4 py-3">
-                          <select
-                            value={booking.status}
-                            disabled={updating === booking.id}
-                            onChange={(e) =>
-                              patchBooking(booking.id, {
-                                status: e.target.value as BookingStatus,
-                              })
-                            }
-                            className="rounded-lg border border-beige-dark bg-white px-3 py-2 text-sm"
-                          >
-                            {STATUS_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="space-y-2">
+                            <StatusBadge status={booking.status} />
+                            <select
+                              value={booking.status}
+                              disabled={updating === booking.id}
+                              onChange={(e) =>
+                                void patchBooking(booking.id, {
+                                  status: e.target.value as BookingStatus,
+                                })
+                              }
+                              className="w-full rounded-lg border border-beige-dark bg-white px-2 py-1.5 text-xs"
+                              aria-label="تغيير الحالة"
+                            >
+                              {STATUS_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {hasDetails && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpanded(isOpen ? null : booking.id)
-                                }
-                                className="inline-flex items-center gap-1 text-gold"
+                          <div className="flex max-w-[18rem] flex-wrap gap-1.5">
+                            {PRIMARY_ACTIONS.map((action) => (
+                              <Button
+                                key={action}
+                                size="sm"
+                                variant="outline"
+                                disabled={updating === booking.id}
+                                onClick={() => openAction(booking, action)}
+                                className="text-xs"
                               >
-                                تفاصيل
-                                {isOpen ? (
-                                  <ChevronUp className="h-4 w-4" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4" />
-                                )}
-                              </button>
-                            )}
+                                {action === "reply" ? (
+                                  <Mail className="h-3 w-3" />
+                                ) : null}
+                                {BOOKING_ACTION_LABELS_AR[action]}
+                              </Button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpanded(isOpen ? null : booking.id)
+                              }
+                              className="inline-flex items-center gap-1 text-xs text-gold"
+                            >
+                              تفاصيل
+                              {isOpen ? (
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              )}
+                            </button>
                             <RowLifecycleActions
                               module="bookings"
                               id={booking.id}
                               archived={Boolean(
-                                (booking as Booking & { archived_at?: string | null })
-                                  .archived_at
+                                (
+                                  booking as Booking & {
+                                    archived_at?: string | null;
+                                  }
+                                ).archived_at
                               )}
                               allowArchive={caps?.canArchive ?? true}
                               allowRestore={caps?.canRestore ?? true}
@@ -378,6 +538,7 @@ function BookingsManagerInner({
                                     prev.filter((b) => b.id !== booking.id)
                                   );
                                   setSnack("تم نقل الحجز إلى سلة المحذوفات");
+                                  notifyAdminInboxChanged();
                                   return;
                                 }
                                 setBookings((prev) =>
@@ -404,28 +565,28 @@ function BookingsManagerInner({
                           </div>
                         </td>
                       </tr>
-                      {isOpen && (
+                      {isOpen ? (
                         <tr className="border-t border-beige-dark/60 bg-beige/30">
                           <td colSpan={6} className="px-4 py-4">
                             <div className="space-y-6">
-                              {booking.personalization && (
+                              {booking.personalization ? (
                                 <PersonalizationSummary
                                   personalization={booking.personalization}
                                   title="تفاصيل التخصيص / الطلب"
                                   compact
                                 />
-                              )}
-                              {booking.gift_options?.enabled && (
+                              ) : null}
+                              {booking.gift_options?.enabled ? (
                                 <GiftOptionsSummary
                                   giftOptions={booking.gift_options}
                                   title="تفاصيل التغليف والإهداء"
                                 />
-                              )}
+                              ) : null}
                               {(booking.city ||
                                 booking.region ||
                                 booking.delivery_required) && (
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                  {booking.city && (
+                                  {booking.city ? (
                                     <div>
                                       <p className="text-xs text-muted">
                                         المدينة
@@ -434,8 +595,8 @@ function BookingsManagerInner({
                                         {booking.city}
                                       </p>
                                     </div>
-                                  )}
-                                  {booking.delivery_required && (
+                                  ) : null}
+                                  {booking.delivery_required ? (
                                     <>
                                       <div>
                                         <p className="text-xs text-muted">
@@ -455,7 +616,8 @@ function BookingsManagerInner({
                                           {booking.delivery_address || "—"}
                                         </p>
                                       </div>
-                                      {booking.delivery_status !== undefined && (
+                                      {booking.delivery_status !==
+                                      undefined ? (
                                         <div>
                                           <p className="mb-1 text-xs text-muted">
                                             حالة التوصيل
@@ -467,7 +629,7 @@ function BookingsManagerInner({
                                             }
                                             disabled={updating === booking.id}
                                             onChange={(e) =>
-                                              patchBooking(booking.id, {
+                                              void patchBooking(booking.id, {
                                                 delivery_status: e.target
                                                   .value as DeliveryStatus,
                                               })
@@ -484,19 +646,59 @@ function BookingsManagerInner({
                                             ))}
                                           </select>
                                         </div>
-                                      )}
+                                      ) : null}
                                     </>
-                                  )}
+                                  ) : null}
                                 </div>
                               )}
-                              {booking.notes && (
+                              {booking.notes ? (
                                 <div>
                                   <p className="text-xs text-muted">ملاحظات</p>
                                   <p className="mt-1 whitespace-pre-wrap">
                                     {booking.notes}
                                   </p>
                                 </div>
-                              )}
+                              ) : null}
+                              {booking.status_history &&
+                              booking.status_history.length > 0 ? (
+                                <div>
+                                  <p className="mb-2 text-xs text-muted">
+                                    سجل الحالات
+                                  </p>
+                                  <ul className="space-y-1.5 text-xs text-charcoal">
+                                    {[...booking.status_history]
+                                      .slice()
+                                      .reverse()
+                                      .map((h, i) => (
+                                        <li
+                                          key={`${h.at}-${i}`}
+                                          className="flex flex-wrap gap-2 rounded-lg bg-white/70 px-3 py-2"
+                                        >
+                                          <StatusBadge status={h.status} />
+                                          <span
+                                            dir="ltr"
+                                            className="text-muted"
+                                          >
+                                            {formatDateTimeWestern(h.at)}
+                                          </span>
+                                          {h.by ? (
+                                            <span className="text-muted">
+                                              · {h.by}
+                                            </span>
+                                          ) : null}
+                                          {h.action ? (
+                                            <span className="text-muted">
+                                              ·{" "}
+                                              {BOOKING_ACTION_LABELS_AR[
+                                                h.action as BookingAdminAction
+                                              ] ?? h.action}
+                                            </span>
+                                          ) : null}
+                                        </li>
+                                      ))}
+                                  </ul>
+                                </div>
+                              ) : null}
                               <div className="flex flex-wrap gap-2">
                                 {(
                                   [
@@ -524,7 +726,7 @@ function BookingsManagerInner({
                             </div>
                           </td>
                         </tr>
-                      )}
+                      ) : null}
                     </Fragment>
                   );
                 })
@@ -536,11 +738,112 @@ function BookingsManagerInner({
 
       <WaitingListPanel />
 
+      {replyTarget ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-charcoal/45 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="booking-reply-title"
+        >
+          <button
+            type="button"
+            aria-label="إغلاق"
+            className="absolute inset-0"
+            onClick={closeReply}
+            disabled={replySending}
+          />
+          <div className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-beige-dark bg-white shadow-2xl sm:rounded-3xl">
+            <div className="flex items-center justify-between border-b border-beige-dark/70 px-5 py-4">
+              <h2
+                id="booking-reply-title"
+                className="text-lg font-semibold text-charcoal"
+              >
+                {BOOKING_ACTION_LABELS_AR[replyTarget.action]}
+              </h2>
+              <button
+                type="button"
+                onClick={closeReply}
+                disabled={replySending}
+                className="rounded-full p-2 text-muted hover:bg-beige disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-4 overflow-y-auto px-5 py-5">
+              <div>
+                <p className="mb-1.5 text-sm text-muted">إلى</p>
+                <p
+                  className="rounded-xl border border-beige-dark/60 bg-beige/30 px-3 py-2.5 text-sm text-charcoal"
+                  dir="ltr"
+                >
+                  {replyTarget.booking.name}
+                  {replyTarget.booking.email
+                    ? ` <${replyTarget.booking.email}>`
+                    : " — بدون بريد"}
+                </p>
+              </div>
+              <Input
+                label="الموضوع"
+                value={replySubject}
+                onChange={(e) => setReplySubject(e.target.value)}
+                disabled={replySending}
+              />
+              <Textarea
+                label="الرسالة"
+                rows={10}
+                value={replyBody}
+                onChange={(e) => setReplyBody(e.target.value)}
+                disabled={replySending}
+              />
+              {replyWarning ? (
+                <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                  {replyWarning}
+                </p>
+              ) : null}
+              {replyError ? (
+                <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+                  {replyError}
+                </p>
+              ) : null}
+              {replySuccess ? (
+                <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                  <Check className="me-1 inline h-3.5 w-3.5" />
+                  {replySuccess}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-beige-dark/70 px-5 py-4">
+              <Button
+                variant="outline"
+                onClick={closeReply}
+                disabled={replySending}
+              >
+                إلغاء
+              </Button>
+              <Button
+                loading={replySending}
+                disabled={
+                  replySending ||
+                  !replySubject.trim() ||
+                  replyBody.trim().length < 2
+                }
+                onClick={() => void sendAction()}
+              >
+                إرسال وتحديث
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <ManualBookingModal
         open={manualOpen}
         onClose={() => setManualOpen(false)}
-        onCreated={() => void loadBookings()}
-        canForceOverride={caps?.canForceOverride ?? false}
+        onCreated={() => {
+          setManualOpen(false);
+          void loadBookings();
+          notifyAdminInboxChanged();
+        }}
       />
 
       <UndoSnackbar
@@ -561,6 +864,7 @@ function BookingsManagerInner({
                 });
                 setSnack(null);
                 await loadBookings();
+                notifyAdminInboxChanged();
               }
             : undefined
         }
@@ -571,13 +875,7 @@ function BookingsManagerInner({
 
 export function BookingsManager(props: BookingsManagerProps) {
   return (
-    <Suspense
-      fallback={
-        <div className="rounded-2xl border border-beige-dark bg-white p-6 text-sm text-muted">
-          جاري تحميل الحجوزات…
-        </div>
-      }
-    >
+    <Suspense fallback={<p className="text-sm text-muted">جاري التحميل…</p>}>
       <BookingsManagerInner {...props} />
     </Suspense>
   );

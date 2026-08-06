@@ -34,7 +34,12 @@ export {
   isAdminCategoryNavActive,
 } from "@/types/category";
 
-export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
+export type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "rescheduled"
+  | "cancelled"
+  | "completed";
 
 export type BookingSource = "online" | "phone" | "walk_in" | "admin";
 
@@ -189,7 +194,22 @@ export interface Booking {
   no_show_at?: string | null;
   archived_at?: string | null;
   is_deleted?: boolean | null;
+  /** Admin → customer reply metadata (migration 043). */
+  last_reply_at?: string | null;
+  last_reply_status?: "sent" | "failed" | "skipped" | string | null;
+  last_reply_subject?: string | null;
+  last_reply_by?: string | null;
+  /** Append-only status timeline (migration 043). */
+  status_history?: BookingStatusHistoryEntry[] | null;
 }
+
+export type BookingStatusHistoryEntry = {
+  status: BookingStatus;
+  at: string;
+  by?: string | null;
+  action?: string | null;
+  note?: string | null;
+};
 
 export interface Consultant {
   id: string;
@@ -423,8 +443,18 @@ export const ACCESSORIES_PARENT = {
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   pending: "قيد الانتظار",
   confirmed: "مؤكد",
+  rescheduled: "إعادة جدولة",
   cancelled: "ملغي",
   completed: "مكتمل",
+};
+
+/** Admin list badge colors — status is the single visual signal. */
+export const BOOKING_STATUS_BADGE_CLASS: Record<BookingStatus, string> = {
+  pending: "bg-amber-50 text-amber-800 ring-1 ring-amber-200/80",
+  confirmed: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80",
+  rescheduled: "bg-sky-50 text-sky-800 ring-1 ring-sky-200/80",
+  cancelled: "bg-red-50 text-red-700 ring-1 ring-red-200/80",
+  completed: "bg-stone-100 text-stone-700 ring-1 ring-stone-300/70",
 };
 
 export const BOOKING_SOURCE_LABELS: Record<BookingSource, string> = {

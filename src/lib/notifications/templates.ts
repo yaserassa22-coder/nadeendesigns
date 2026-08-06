@@ -678,4 +678,40 @@ export function adminContactReplyEmail(params: {
   return { subject, html, text };
 }
 
+/** Admin → customer booking status / reply email (HTML + plain text). */
+export function adminBookingStatusEmail(params: {
+  customerName: string;
+  subject: string;
+  body: string;
+  settings: NotificationSettings;
+}) {
+  const brand = params.settings.sender_name || SITE_NAME;
+  const safeBody = escapeHtml(params.body).replace(/\n/g, "<br/>");
+  const subject = params.subject.trim() || `موعدكِ — ${brand}`;
+  const html = emailShell(
+    subject,
+    `
+    <h1 style="margin:0 0 12px;font-size:22px;color:#2c2419;">مرحباً ${escapeHtml(params.customerName)}</h1>
+    <div style="margin:0;padding:18px;background:#faf6ef;border:1px solid #e4d8c4;border-radius:14px;line-height:1.9;color:#2c2419;text-align:right;">
+      ${safeBody}
+    </div>
+    <p style="margin:22px 0 0;line-height:1.85;color:#5c5348;">
+      مع أطيب التحيات،<br/>
+      فريق ${escapeHtml(brand)}
+    </p>
+    `,
+    params.settings
+  );
+  const text = [
+    `مرحباً ${params.customerName}،`,
+    ``,
+    params.body.trim(),
+    ``,
+    `مع أطيب التحيات،`,
+    `فريق ${brand}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
 
