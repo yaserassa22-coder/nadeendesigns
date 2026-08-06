@@ -678,6 +678,28 @@ export function adminContactReplyEmail(params: {
   return { subject, html, text };
 }
 
+/** Admin → customer booking status WhatsApp (confirm / cancel / …). */
+export function adminBookingStatusWhatsApp(params: {
+  customerName: string;
+  body: string;
+  settings: NotificationSettings;
+}) {
+  const brand = params.settings.sender_name || SITE_NAME;
+  return [
+    `✨ ${brand}`,
+    ``,
+    `مرحباً ${params.customerName}،`,
+    ``,
+    params.body.trim(),
+    ``,
+    params.settings.business_phone
+      ? `للتواصل: ${params.settings.business_phone}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /** Admin → customer booking status / reply email (HTML + plain text). */
 export function adminBookingStatusEmail(params: {
   customerName: string;

@@ -5,6 +5,10 @@ export async function postLifecycle(input: {
   module: LifecycleModule;
   id?: string;
   ids?: string[];
+  /** Customers overlay: preserve list identity when upserting derived keys. */
+  display_name?: string;
+  phone?: string | null;
+  email?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const res = await fetch("/api/admin/lifecycle", {
     method: "POST",

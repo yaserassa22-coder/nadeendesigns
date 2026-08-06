@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createRouteHandlerClient } from "@/lib/supabase/route";
 import { getCustomerAuthSettings } from "@/lib/customer-auth/settings";
 import {
   recordLoginHistory,
   upsertCustomerForAuthUser,
 } from "@/lib/customer-auth/customer";
-import { getAuthCallbackUrl } from "@/lib/customer-auth/callback-url";
+import { sendCustomerAuthLinkEmail } from "@/lib/customer-auth/auth-mail";
+import { isCustomerAuthEmailReady } from "@/lib/notifications/config";
 import { readGuestIdFromRequest } from "@/lib/guest";
 
 type EmailMode = "signin" | "signup" | "forgot" | "update_password";
@@ -29,7 +31,19 @@ function mapAuthError(message: string, mode: EmailMode): string {
   if (m.includes("password") && (m.includes("weak") || m.includes("least"))) {
     return "كلمة المرور ضعيفة — استخدمي 6 أحرف على الأقل";
   }
-  if (m.includes("rate") || m.includes("too many")) {
+  if (
+    m.includes("email rate limit") ||
+    m.includes("over_email_send_rate_limit")
+  ) {
+    return (
+      "تعذّر إرسال بريد التأكيد (حد إرسال Supabase). " +
+      "ثبّتي نطاقاً في Resend وغيّري FROM_EMAIL — أو حاولي بعد ساعة."
+    );
+  }
+  if (
+    (m.includes("security purposes") && m.includes("after")) ||
+    m.includes("too many")
+  ) {
     return "محاولات كثيرة — حاولي لاحقاً";
   }
   if (mode === "forgot") {
@@ -81,7 +95,7 @@ export async function POST(request: NextRequest) {
     const ua = request.headers.get("user-agent");
     const guestId = readGuestIdFromRequest(request);
 
-    // ——— Forgot password ———
+    // ——— Forgot password (Resend delivery — not Supabase SMTP) ———
     if (mode === "forgot") {
       if (!email.includes("@")) {
         return NextResponse.json(
@@ -89,19 +103,39 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: getAuthCallbackUrl("/account/reset-password"),
+
+      const result = await sendCustomerAuthLinkEmail({
+        kind: "recovery",
+        email,
+        next: "/account/reset-password",
       });
-      if (error) {
-        // Still return generic success to avoid email enumeration,
-        // but log for debugging.
-        console.warn("[auth/email] resetPasswordForEmail", error.message);
+
+      if (!result.ok) {
+        return NextResponse.json(
+          {
+            error: result.error,
+            ...(result.debugLink ? { debug_link: result.debugLink } : {}),
+          },
+          { status: 502 }
+        );
       }
+
+      if (!result.delivered && result.reason === "no_user") {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: result.message,
+            no_account: true,
+          },
+          { status: 404 }
+        );
+      }
+
       return NextResponse.json({
         ok: true,
         sent: true,
         message:
-          "إن وُجد حساب بهذا البريد، ستصلكِ رسالة برابط إعادة تعيين كلمة المرور.",
+          "أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدكِ. تحققي من الوارد والبريد غير الهام.",
       });
     }
 
@@ -156,74 +190,118 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            is_customer: true,
-            full_name: fullName,
-          },
-          emailRedirectTo: getAuthCallbackUrl("/account"),
-        },
-      });
-      if (error) {
-        return NextResponse.json(
-          { error: mapAuthError(error.message, mode) },
-          { status: 400 }
-        );
-      }
-
-      // Supabase may return a user with empty identities when email already exists
-      // and confirmations are on (anti-enumeration). Treat as already registered.
-      const identities = data.user?.identities;
-      if (data.user && Array.isArray(identities) && identities.length === 0) {
+      /**
+       * Never use auth.signUp() here — it forces Supabase to send a
+       * confirmation email and fails hard when the project email quota is hit
+       * ("محاولات كثيرة"). Create the user with the admin API (no mail), then
+       * deliver confirmation via Resend. If mail cannot be delivered, confirm
+       * the account so signup is never blocked.
+       */
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
         return NextResponse.json(
           {
             error:
-              "هذا البريد مسجّل مسبقاً — جرّبي تسجيل الدخول أو استعادة كلمة المرور",
+              "إنشاء الحساب غير مُعدّ بالكامل (SUPABASE_SERVICE_ROLE_KEY مفقود).",
           },
-          { status: 409 }
+          { status: 503 }
         );
       }
 
-      const needsConfirm = !data.session;
-      if (data.user && data.session) {
-        await upsertCustomerForAuthUser({
-          authUserId: data.user.id,
+      const admin = createAdminClient();
+      const mailReady = isCustomerAuthEmailReady();
+
+      // Until Resend has a verified-domain FROM, never ask customers to
+      // "check email" — create an already-confirmed account and sign them in.
+      const { data: created, error: createError } =
+        await admin.auth.admin.createUser({
           email,
-          fullName,
-          provider: "email",
-          guestId,
+          password,
+          email_confirm: !mailReady,
+          user_metadata: {
+            is_customer: true,
+            full_name: fullName,
+          },
         });
-        await recordLoginHistory({
-          authUserId: data.user.id,
-          method: "email",
-          success: true,
-          ip,
-          userAgent: ua,
-        });
-      } else if (data.user && needsConfirm) {
-        // Provision customer row early so confirm callback can merge guest cart.
-        await upsertCustomerForAuthUser({
-          authUserId: data.user.id,
+
+      if (createError || !created.user) {
+        return NextResponse.json(
+          {
+            error: mapAuthError(
+              createError?.message || "تعذّر إنشاء الحساب",
+              mode
+            ),
+          },
+          {
+            status:
+              createError?.message?.toLowerCase().includes("already") ||
+              createError?.message?.toLowerCase().includes("registered")
+                ? 409
+                : 400,
+          }
+        );
+      }
+
+      await upsertCustomerForAuthUser({
+        authUserId: created.user.id,
+        email,
+        fullName,
+        provider: "email",
+        guestId,
+      });
+
+      if (mailReady) {
+        const mail = await sendCustomerAuthLinkEmail({
+          kind: "magiclink",
           email,
-          fullName,
-          provider: "email",
-          guestId,
+          next: "/account",
+        });
+
+        if (mail.ok && mail.delivered) {
+          return NextResponse.json({
+            ok: true,
+            needs_email_confirm: true,
+            message:
+              "تم إنشاء الحساب وأرسلنا رابط التأكيد إلى بريدكِ. افتحيه ثم سجّلي الدخول.",
+            user: { id: created.user.id, email: created.user.email },
+          });
+        }
+
+        // Resend was configured but send failed — activate account anyway.
+        await admin.auth.admin.updateUserById(created.user.id, {
+          email_confirm: true,
         });
       }
+
+      const { data: signedIn, error: signInError } =
+        await supabase.auth.signInWithPassword({ email, password });
+
+      if (signInError || !signedIn.user) {
+        return NextResponse.json({
+          ok: true,
+          needs_email_confirm: false,
+          message:
+            "تم إنشاء حسابكِ بنجاح. سجّلي الدخول بنفس البريد وكلمة المرور.",
+          user: { id: created.user.id, email: created.user.email },
+        });
+      }
+
+      await recordLoginHistory({
+        authUserId: signedIn.user.id,
+        method: "email",
+        success: true,
+        ip,
+        userAgent: ua,
+      });
 
       return applyAuthCookies(
         NextResponse.json({
           ok: true,
-          needs_email_confirm: needsConfirm,
-          message: needsConfirm
-            ? "تم إنشاء الحساب. تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول."
-            : undefined,
-          user: data.user
-            ? { id: data.user.id, email: data.user.email }
-            : null,
+          needs_email_confirm: false,
+          message: "تم إنشاء حسابكِ وتسجيل دخولكِ بنجاح.",
+          user: {
+            id: signedIn.user.id,
+            email: signedIn.user.email,
+          },
         })
       );
     }

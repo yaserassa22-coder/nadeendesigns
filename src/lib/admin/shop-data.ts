@@ -145,28 +145,42 @@ export async function getAdminMessages(): Promise<ContactMessage[]> {
    * back to anon, which has INSERT-only RLS on contact_messages. Anon SELECT
    * returns [] with no error (rows exist but are invisible).
    * Prefer service role; otherwise the authenticated admin cookie session.
+   *
+   * Also sync /account/messages (customer_messages) into this inbox so
+   * logged-in customer chats appear here.
    */
   const supabase = await createPrivilegedClient();
-  let query = supabase
+
+  try {
+    const { syncAccountMessagesIntoInbox } = await import(
+      "@/lib/admin/account-message-bridge"
+    );
+    await syncAccountMessagesIntoInbox(supabase);
+  } catch (e) {
+    console.warn("[getAdminMessages] account sync skipped", e);
+  }
+
+  const { data, error } = await supabase
     .from("contact_messages")
     .select("*")
     .order("created_at", { ascending: false });
-  query = query.eq("is_deleted", false) as typeof query;
-  const { data, error } = await query;
-  if (error && isLifecycleSchemaError(error)) {
-    const retry = await supabase
-      .from("contact_messages")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (retry.error) {
-      console.error("[getAdminMessages] retry failed", retry.error);
-      return [];
-    }
-    return (retry.data ?? []) as ContactMessage[];
-  }
+
   if (error) {
     console.error("[getAdminMessages] select failed", error);
     return [];
   }
-  return filterLifecycleRows((data ?? []) as ContactMessage[], "all");
+
+  const rows = (data ?? []) as ContactMessage[];
+  if (rows.length === 0 && process.env.NODE_ENV !== "production") {
+    console.warn(
+      "[getAdminMessages] 0 rows — if Contact Form inserts work, check SUPABASE_SERVICE_ROLE_KEY and Admin RLS on contact_messages"
+    );
+  }
+
+  // Exclude soft-deleted; keep archived (UI visibility filter handles that).
+  // NULL / missing is_deleted ⇒ active (legacy rows before lifecycle migration).
+  return filterLifecycleRows(rows, "all").filter(
+    (m) =>
+      (m as ContactMessage & { is_deleted?: boolean | null }).is_deleted !== true
+  );
 }

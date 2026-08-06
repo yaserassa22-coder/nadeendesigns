@@ -92,25 +92,66 @@ function checkStorage(): SystemHealthCheck {
   };
 }
 
-function checkEmail(): SystemHealthCheck {
-  const flags = getAuthEnvFlags();
-  if (flags.emailConfigured) {
+async function checkEmail(): Promise<SystemHealthCheck> {
+  const { getEmailRuntime } = await import(
+    "@/lib/notifications/email-provider"
+  );
+  const runtime = await getEmailRuntime(true);
+
+  if (!runtime.enabled) {
     return {
       id: "email",
       label: "Email",
       label_ar: "البريد",
-      status: "green",
-      detail: "Resend configured",
-      detail_ar: "Resend جاهز",
+      status: "yellow",
+      detail: "Email disabled in admin/store settings",
+      detail_ar: "البريد متوقف من إعدادات الإدارة أو قنوات المتجر",
     };
   }
+
+  if (runtime.mode === "local") {
+    return {
+      id: "email",
+      label: "Email",
+      label_ar: "البريد",
+      status: "yellow",
+      detail: "Local outbox mode — connect Resend from Admin → Notifications",
+      detail_ar:
+        "وضع محلي — وصّلي Resend من الإدارة → الإشعارات عند جاهزية النطاق",
+    };
+  }
+
+  if (!runtime.apiKey || !runtime.fromEmail) {
+    return {
+      id: "email",
+      label: "Email",
+      label_ar: "البريد",
+      status: "yellow",
+      detail: "Resend API key / FROM missing",
+      detail_ar: "أضيفي مفتاح Resend و FROM من الإدارة → الإشعارات",
+    };
+  }
+
+  if (runtime.fromIsSandbox) {
+    return {
+      id: "email",
+      label: "Email",
+      label_ar: "البريد",
+      status: "red",
+      detail:
+        "FROM is Resend sandbox — customer confirm/reset emails will not arrive",
+      detail_ar:
+        "FROM تجريبي (@resend.dev) — بريد التأكيد/الاستعادة لن يصل. وثّقي نطاقاً في Resend",
+    };
+  }
+
   return {
     id: "email",
     label: "Email",
     label_ar: "البريد",
-    status: "yellow",
-    detail: "RESEND_API_KEY / FROM_EMAIL missing",
-    detail_ar: "أضيفي RESEND_API_KEY و FROM_EMAIL في .env.local",
+    status: "green",
+    detail: "Resend ready with custom FROM",
+    detail_ar: "Resend جاهز مع FROM من نطاقك",
   };
 }
 
@@ -220,15 +261,16 @@ function checkEnvironment(): SystemHealthCheck {
 }
 
 export async function getSystemHealthReport(): Promise<SystemHealthReport> {
-  const [database, payments, authentication] = await Promise.all([
+  const [database, payments, authentication, email] = await Promise.all([
     checkDatabase(),
     checkPayments(),
     checkAuthentication(),
+    checkEmail(),
   ]);
   const checks: SystemHealthCheck[] = [
     database,
     checkStorage(),
-    checkEmail(),
+    email,
     payments,
     authentication,
     checkEnvironment(),

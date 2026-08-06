@@ -78,7 +78,8 @@ export async function GET() {
     });
   }
 
-  const customers = Array.from(map.values()).filter((c) => !c.is_deleted);
+  // Return all lifecycle states; VisibilityFilter / trash hide soft-deleted.
+  const customers = Array.from(map.values());
   customers.sort((a, b) =>
     (a.display_name || a.customer_key).localeCompare(
       b.display_name || b.customer_key,

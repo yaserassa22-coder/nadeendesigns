@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { postLifecycle } from "@/lib/admin/lifecycle-client";
+import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
 
 type Detail = {
   customer_key: string;
@@ -27,26 +30,34 @@ type Detail = {
 
 export default function AdminCustomerDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const { caps } = useAdminCapabilities();
   const key = decodeURIComponent(String(params.key || ""));
   const [data, setData] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = useCallback(() => {
+    if (!key) return;
+    setLoading(true);
+    fetch(`/api/admin/customers/${encodeURIComponent(key)}`)
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "فشل التحميل");
+        setData(j as Detail);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "فشل"))
+      .finally(() => setLoading(false));
+  }, [key]);
 
   useEffect(() => {
-    if (!key) return;
     const timer = window.setTimeout(() => {
-      setLoading(true);
-      fetch(`/api/admin/customers/${encodeURIComponent(key)}`)
-        .then(async (r) => {
-          const j = await r.json();
-          if (!r.ok) throw new Error(j.error || "فشل التحميل");
-          setData(j as Detail);
-        })
-        .catch((e) => setError(e instanceof Error ? e.message : "فشل"))
-        .finally(() => setLoading(false));
+      load();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [key]);
+  }, [load]);
 
   if (loading) {
     return <div className="h-48 animate-pulse rounded-2xl bg-beige" />;
@@ -65,6 +76,54 @@ export default function AdminCustomerDetailPage() {
     (data.overlay?.display_name as string) ||
     data.customer_key;
 
+  const isDeleted = Boolean(data.overlay?.is_deleted);
+
+  const runSoftDelete = async () => {
+    setDeleting(true);
+    try {
+      const result = await postLifecycle({
+        action: "soft_delete",
+        module: "customers",
+        id: data.customer_key,
+        display_name: name,
+        phone:
+          (data.customer?.phone as string | null) ||
+          (data.overlay?.phone as string | null) ||
+          null,
+        email:
+          (data.customer?.email as string | null) ||
+          (data.overlay?.email as string | null) ||
+          null,
+      });
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      setConfirmDelete(false);
+      router.push("/admin/customers");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const runRestore = async () => {
+    setDeleting(true);
+    try {
+      const result = await postLifecycle({
+        action: "restore",
+        module: "customers",
+        id: data.customer_key,
+      });
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      load();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -76,7 +135,7 @@ export default function AdminCustomerDetailPage() {
           <p className="text-xs text-muted" dir="ltr">
             {data.customer_key}
           </p>
-          <p className="mt-2">
+          <p className="mt-2 flex flex-wrap gap-2">
             <span
               className={
                 data.customer?.auth_user_id || data.customer?.is_guest === false
@@ -89,11 +148,36 @@ export default function AdminCustomerDetailPage() {
                 ? "Registered"
                 : "Guest"}
             </span>
+            {isDeleted ? (
+              <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700">
+                في سلة المحذوفات
+              </span>
+            ) : null}
           </p>
         </div>
-        <Button variant="outline" onClick={() => window.location.reload()}>
-          تحديث
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => load()}>
+            تحديث
+          </Button>
+          {isDeleted && caps.canRestore ? (
+            <Button
+              variant="outline"
+              loading={deleting}
+              onClick={() => void runRestore()}
+            >
+              استعادة
+            </Button>
+          ) : null}
+          {!isDeleted && caps.canSoftDelete ? (
+            <Button
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+              onClick={() => setConfirmDelete(true)}
+            >
+              حذف
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -218,6 +302,17 @@ export default function AdminCustomerDetailPage() {
           )}
         </ul>
       </Section>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="نقل العميل إلى سلة المحذوفات؟"
+        description={`سيتم إخفاء «${name}» من قائمة العملاء النشطة. يمكن استعادته من سلة المحذوفات. الطلبات والحجوزات المرتبطة لا تُحذف.`}
+        confirmLabel="نقل إلى السلة"
+        danger
+        loading={deleting}
+        onConfirm={() => void runSoftDelete()}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

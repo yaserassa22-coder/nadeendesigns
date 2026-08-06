@@ -13,7 +13,10 @@ import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleAc
 import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 import type { LifecycleCapabilities } from "@/lib/admin/permissions";
-import { notifyAdminInboxChanged } from "@/lib/admin/inbox-events";
+import {
+  ADMIN_INBOX_CHANGED_EVENT,
+  notifyAdminInboxChanged,
+} from "@/lib/admin/inbox-events";
 import { cn } from "@/lib/utils";
 
 interface MessagesManagerProps {
@@ -38,6 +41,8 @@ async function copyText(value: string) {
 
 export function MessagesManager({ initialMessages }: MessagesManagerProps) {
   const [messages, setMessages] = useState(initialMessages);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [visibility, setVisibility] = useState<ListVisibility>("active");
   const [snack, setSnack] = useState<string | null>(null);
@@ -52,8 +57,35 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
   const [replySuccess, setReplySuccess] = useState("");
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
 
+  const refreshMessages = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await fetch("/api/messages", { cache: "no-store" });
+      const data = (await res.json().catch(() => null)) as
+        | ContactMessage[]
+        | { error?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(
+          data && !Array.isArray(data) && data.error
+            ? data.error
+            : "تعذّر تحميل الرسائل"
+        );
+      }
+      if (!Array.isArray(data)) {
+        throw new Error("استجابة غير صالحة من الخادم");
+      }
+      setMessages(data);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "تعذّر تحميل الرسائل");
+    } finally {
+      if (!opts?.silent) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const capsTimer = window.setTimeout(() => {
       void fetch("/api/admin/me", { cache: "no-store" })
         .then((r) => r.json())
         .then((d) => {
@@ -61,7 +93,31 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
         })
         .catch(() => undefined);
     }, 0);
-    return () => window.clearTimeout(timer);
+
+    // Re-fetch after paint — Next soft-nav can serve a stale empty RSC payload.
+    const refreshTimer = window.setTimeout(() => {
+      void refreshMessages({ silent: initialMessages.length > 0 });
+    }, 0);
+
+    const onFocus = () => void refreshMessages({ silent: true });
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshMessages({ silent: true });
+      }
+    };
+    const onInbox = () => void refreshMessages({ silent: true });
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener(ADMIN_INBOX_CHANGED_EVENT, onInbox);
+
+    return () => {
+      window.clearTimeout(capsTimer);
+      window.clearTimeout(refreshTimer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(ADMIN_INBOX_CHANGED_EVENT, onInbox);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + live refresh only
   }, []);
 
   const markRead = async (id: string, is_read = true) => {
@@ -141,7 +197,8 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
         return;
       }
 
-      const failed = data.last_reply_status === "failed" || Boolean(data.warning);
+      const failed = data.last_reply_status === "failed";
+      const local = data.last_reply_status === "local";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === replyTarget.id
@@ -163,6 +220,16 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
           `✓ ${data.message || "تم حفظ الرد"}. ${data.warning || "تعذّر الإرسال عبر البريد."}`
         );
         setSnack("تم حفظ الرد — تحذير: فشل إرسال البريد");
+      } else if (local) {
+        setReplySuccess(
+          `✓ ${data.message || "تم حفظ الرد محلياً"}${
+            data.warning ? `. ${data.warning}` : ""
+          }`
+        );
+        setSnack("تم حفظ الرد (وضع محلي)");
+        window.setTimeout(() => {
+          closeReply();
+        }, 1200);
       } else {
         setReplySuccess("✓ تم إرسال الرد بنجاح.");
         setSnack("تم إرسال الرد عبر البريد");
@@ -216,18 +283,34 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
         <div>
           <h1 className="text-2xl font-bold text-charcoal">الرسائل</h1>
           <p className="mt-1 text-sm text-muted">
-            رسائل نموذج التواصل — ردّي مباشرة عبر Resend
+            رسائل نموذج التواصل + رسائل حساب العميلة — الرد يصل للحساب والبريد
           </p>
         </div>
-        {/* API download endpoint — not a Next.js page route */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a
-          href="/api/admin/export?module=messages"
-          className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
-        >
-          تصدير CSV
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            loading={loading}
+            onClick={() => void refreshMessages()}
+          >
+            تحديث
+          </Button>
+          {/* API download endpoint — not a Next.js page route */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a
+            href="/api/admin/export?module=messages"
+            className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
+          >
+            تصدير CSV
+          </a>
+        </div>
       </div>
+
+      {loadError ? (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {loadError}
+        </p>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Input
@@ -283,6 +366,16 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                   <p className="text-xs text-muted">
                     {formatDate(m.created_at)}
                   </p>
+                  {m.source === "account" ||
+                  m.subject?.startsWith("[حساب]") ? (
+                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-800">
+                      من الحساب
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-beige px-2 py-0.5 text-xs text-muted">
+                      تواصل
+                    </span>
+                  )}
                   {!m.is_read ? (
                     <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs text-gold">
                       جديدة
@@ -293,6 +386,11 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                   {m.last_reply_status === "sent" ? (
                     <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
                       تم الرد
+                    </span>
+                  ) : null}
+                  {m.last_reply_status === "local" ? (
+                    <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-800">
+                      رد محلي
                     </span>
                   ) : null}
                   {m.last_reply_status === "failed" ? (
@@ -363,7 +461,11 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                 <Button
                   size="sm"
                   onClick={() => openReply(m)}
-                  disabled={!m.email}
+                  disabled={
+                    !m.customer_id &&
+                    (!m.email ||
+                      m.email.endsWith("@customers.nadeendesigns.local"))
+                  }
                 >
                   <Mail className="h-3.5 w-3.5" />
                   رد

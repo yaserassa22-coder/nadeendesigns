@@ -11,15 +11,20 @@ export async function GET() {
   const key =
     auth.customer.customer_key ||
     customerKeyFromContact(auth.customer.phone, auth.customer.email);
+  const altKeys = [
+    key,
+    customerKeyFromContact(auth.customer.phone, null),
+    customerKeyFromContact(null, auth.customer.email),
+  ].filter((k, i, arr): k is string => Boolean(k) && arr.indexOf(k) === i);
 
   const supabase = createAdminClient();
   let notifications: unknown[] = [];
 
-  if (key) {
+  if (altKeys.length) {
     const { data } = await supabase
       .from("customer_notifications")
       .select("*")
-      .eq("customer_key", key)
+      .in("customer_key", altKeys)
       .order("created_at", { ascending: false })
       .limit(40);
     notifications = data ?? [];

@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { customerKeyFromContact } from "@/lib/customer-auth/otp";
+import type { Booking, BookingStatus } from "@/types";
 import {
   SHOP_ORDER_STATUS_LABELS,
   type ShopOrder,
@@ -20,8 +22,9 @@ export interface CustomerNotification {
 
 const memoryInbox: CustomerNotification[] = [];
 
+/** Align with `/api/account/notifications` + `customers.customer_key`. */
 function customerKey(order: ShopOrder) {
-  return order.email?.trim() || order.phone?.trim() || null;
+  return customerKeyFromContact(order.phone, order.email);
 }
 
 export function inAppCopyForStatus(
@@ -70,23 +73,9 @@ export function inAppCopyForStatus(
   }
 }
 
-export async function createInAppNotification(input: {
-  order: ShopOrder;
-  status: ShopOrderStatus;
-}): Promise<CustomerNotification | null> {
-  const { title_ar, body_ar } = inAppCopyForStatus(input.order, input.status);
-  const row: CustomerNotification = {
-    id: crypto.randomUUID(),
-    order_id: input.order.id,
-    customer_key: customerKey(input.order),
-    title_ar,
-    body_ar,
-    order_status: input.status,
-    href: `/orders/${input.order.id}`,
-    is_read: false,
-    created_at: new Date().toISOString(),
-  };
-
+async function insertInAppRow(
+  row: CustomerNotification
+): Promise<CustomerNotification | null> {
   if (!isSupabaseConfigured()) {
     memoryInbox.unshift(row);
     return row;
@@ -120,6 +109,118 @@ export async function createInAppNotification(input: {
     memoryInbox.unshift(row);
     return row;
   }
+}
+
+export async function createInAppNotification(input: {
+  order: ShopOrder;
+  status: ShopOrderStatus;
+}): Promise<CustomerNotification | null> {
+  const { title_ar, body_ar } = inAppCopyForStatus(input.order, input.status);
+  const row: CustomerNotification = {
+    id: crypto.randomUUID(),
+    order_id: input.order.id,
+    customer_key: customerKey(input.order),
+    title_ar,
+    body_ar,
+    order_status: input.status,
+    href: `/orders/${input.order.id}`,
+    is_read: false,
+    created_at: new Date().toISOString(),
+  };
+  return insertInAppRow(row);
+}
+
+/**
+ * Generic account inbox row (messages, boutique replies, non-order events).
+ * `customer_key` must match `customerKeyFromContact` / `customers.customer_key`.
+ */
+export async function createAccountInAppNotification(input: {
+  customerKey: string;
+  title_ar: string;
+  body_ar: string;
+  href?: string | null;
+  order_status?: string | null;
+}): Promise<CustomerNotification | null> {
+  const key = input.customerKey.trim();
+  if (!key) return null;
+  const row: CustomerNotification = {
+    id: crypto.randomUUID(),
+    order_id: null,
+    customer_key: key,
+    title_ar: input.title_ar,
+    body_ar: input.body_ar,
+    order_status: input.order_status ?? null,
+    href: input.href ?? "/account/messages",
+    is_read: false,
+    created_at: new Date().toISOString(),
+  };
+  return insertInAppRow(row);
+}
+
+export function inAppCopyForBookingStatus(
+  status: BookingStatus | string,
+  bodyPreview?: string
+): { title_ar: string; body_ar: string } {
+  const preview = (bodyPreview || "").trim().slice(0, 280);
+  switch (status) {
+    case "confirmed":
+      return {
+        title_ar: "تم تأكيد موعدكِ",
+        body_ar: preview || "تم تأكيد موعدكِ بنجاح. نتطلع لاستقبالكِ.",
+      };
+    case "rescheduled":
+      return {
+        title_ar: "تحديث موعدكِ",
+        body_ar: preview || "يرجى اختيار موعد آخر — تواصلي معنا إن احتجتِ مساعدة.",
+      };
+    case "cancelled":
+      return {
+        title_ar: "تم إلغاء الموعد",
+        body_ar: preview || "تم إلغاء الموعد. تواصلي معنا لترتيب وقت آخر.",
+      };
+    case "completed":
+      return {
+        title_ar: "شكراً لزيارتكِ",
+        body_ar: preview || "شكراً لزيارتكِ NadEEN Designs.",
+      };
+    default:
+      return {
+        title_ar: "تحديث على موعدكِ",
+        body_ar: preview || "هناك تحديث على موعدكِ في الحساب.",
+      };
+  }
+}
+
+/**
+ * Booking confirmations cannot use order_id (FK → shop_orders).
+ * Persist via customer_key + href=/account/appointments.
+ */
+export async function createBookingInAppNotification(input: {
+  booking: Pick<Booking, "id" | "phone" | "email" | "name">;
+  status: BookingStatus | string;
+  bodyPreview?: string;
+  customerKey?: string | null;
+}): Promise<CustomerNotification | null> {
+  const { title_ar, body_ar } = inAppCopyForBookingStatus(
+    input.status,
+    input.bodyPreview
+  );
+  const key =
+    input.customerKey ||
+    customerKeyFromContact(input.booking.phone, input.booking.email);
+
+  const row: CustomerNotification = {
+    id: crypto.randomUUID(),
+    order_id: null,
+    customer_key: key,
+    title_ar,
+    body_ar,
+    order_status: input.status,
+    href: "/account/appointments",
+    is_read: false,
+    created_at: new Date().toISOString(),
+  };
+  return insertInAppRow(row);
 }
 
 export async function listInAppNotifications(params: {

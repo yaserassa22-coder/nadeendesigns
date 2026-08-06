@@ -8,7 +8,7 @@ import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
 /**
  * Unread / pending counters for Admin sidebar badges.
- * - messages: unread contact_messages
+ * - messages: unread contact_messages (includes bridged account chats)
  * - bookings: pending bookings
  * - orders: pending shop orders
  *
@@ -21,13 +21,22 @@ export async function GET() {
 
   const supabase = await createPrivilegedClient();
 
+  try {
+    const { syncAccountMessagesIntoInbox } = await import(
+      "@/lib/admin/account-message-bridge"
+    );
+    await syncAccountMessagesIntoInbox(supabase);
+  } catch {
+    /* non-fatal */
+  }
+
   async function countUnreadMessages(): Promise<number> {
-    let q = supabase
+    // Prefer or-filter so NULL is_deleted (pre-migration) still counts.
+    const { count, error } = await supabase
       .from("contact_messages")
       .select("id", { count: "exact", head: true })
-      .eq("is_read", false);
-    q = q.eq("is_deleted", false) as typeof q;
-    const { count, error } = await q;
+      .eq("is_read", false)
+      .or("is_deleted.eq.false,is_deleted.is.null");
     if (error && isLifecycleSchemaError(error)) {
       const retry = await supabase
         .from("contact_messages")

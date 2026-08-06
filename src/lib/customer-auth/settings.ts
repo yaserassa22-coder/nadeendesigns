@@ -2,7 +2,7 @@ import {
   DEFAULT_CUSTOMER_AUTH_SETTINGS,
   type CustomerAuthSettings,
 } from "@/types/customer-auth";
-import { isResendConfigured } from "@/lib/notifications/config";
+import { isCustomerAuthEmailReady } from "@/lib/notifications/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -143,6 +143,6 @@ export function getAuthEnvFlags() {
       twilioWaConfigured ||
       dialog360Configured ||
       smsOnlyConfigured,
-    emailConfigured: isResendConfigured(),
+    emailConfigured: isCustomerAuthEmailReady(),
   };
 }

@@ -86,6 +86,7 @@ export function LoginModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [debugResetHref, setDebugResetHref] = useState<string | null>(null);
   const [remember, setRemember] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -127,6 +128,7 @@ export function LoginModal({
     setOtp(["", "", "", "", "", ""]);
     setError(null);
     setInfo(null);
+    setDebugResetHref(null);
     setRequestId(null);
     setDevCode(null);
     setDestinationHint(null);
@@ -340,9 +342,18 @@ export function LoginModal({
           data.message ||
             "تم إنشاء الحساب. تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول."
         );
+        if (
+          (data as { debug_link?: string }).debug_link &&
+          process.env.NODE_ENV !== "production"
+        ) {
+          setDebugResetHref((data as { debug_link?: string }).debug_link!);
+        }
         setEmailMode("signin");
         setPassword("");
         return;
+      }
+      if (data.message) {
+        setInfo(data.message);
       }
       await onSuccess();
     } catch (e) {
@@ -359,6 +370,7 @@ export function LoginModal({
     setLoading(true);
     setError(null);
     setInfo(null);
+    setDebugResetHref(null);
     try {
       if (!trimmedEmail.includes("@")) {
         throw new Error("أدخلي بريداً إلكترونياً صالحاً");
@@ -369,11 +381,33 @@ export function LoginModal({
         credentials: "same-origin",
         body: JSON.stringify({ mode: "forgot", email: trimmedEmail }),
       });
-      const data = (await res.json()) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.error || "تعذّر إرسال الرابط");
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+        no_account?: boolean;
+        debug_link?: string;
+      };
+      if (!res.ok) {
+        if (data.no_account) {
+          setError(
+            data.error ||
+              "لا يوجد حساب بهذا البريد. أنشئي حساباً جديداً أولاً، ثم يمكنكِ استعادة كلمة المرور."
+          );
+          setEmailMode("signup");
+          setStep("email");
+          return;
+        }
+        if (
+          data.debug_link &&
+          process.env.NODE_ENV !== "production"
+        ) {
+          setDebugResetHref(data.debug_link);
+        }
+        throw new Error(data.error || "تعذّر إرسال الرابط");
+      }
       setInfo(
         data.message ||
-          "إن وُجد حساب بهذا البريد، ستصلكِ رسالة برابط إعادة تعيين كلمة المرور."
+          "أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدكِ. تحققي من الوارد والبريد غير الهام."
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذّر إرسال الرابط");
@@ -467,6 +501,17 @@ export function LoginModal({
               {error && (
                 <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                   {error}
+                  {debugResetHref && (
+                    <p className="mt-3">
+                      <a
+                        href={debugResetHref}
+                        className="font-medium underline"
+                        style={{ color: ACCENT }}
+                      >
+                        فتح رابط إعادة التعيين (وضع التطوير)
+                      </a>
+                    </p>
+                  )}
                 </div>
               )}
               {info && (
@@ -870,8 +915,8 @@ export function LoginModal({
                     />
                   </label>
                   <p className="text-xs text-muted">
-                    سنرسل رابطاً آمناً لإعادة تعيين كلمة المرور إن وُجد حساب بهذا
-                    البريد.
+                    يجب أن يكون لديكِ حساب مسجّل بهذا البريد. إن لم تنشئي حساباً
+                    بعد، ارجعي وأنشئي حساباً جديداً أولاً.
                   </p>
                   <Button
                     type="button"

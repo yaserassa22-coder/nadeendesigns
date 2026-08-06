@@ -37,6 +37,86 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+export type CustomerOverlayHint = {
+  display_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
+/** Keep customer overlay identity when upserting archive/soft-delete for derived keys. */
+async function resolveCustomerOverlayIdentity(
+  supabase: SupabaseClient,
+  customerKey: string,
+  hint?: CustomerOverlayHint
+): Promise<{
+  display_name: string;
+  phone: string | null;
+  email: string | null;
+}> {
+  const phoneFromKey = customerKey.startsWith("p:")
+    ? customerKey.slice(2)
+    : null;
+  const emailFromKey = customerKey.startsWith("e:")
+    ? customerKey.slice(2)
+    : null;
+
+  const { data: existing } = await supabase
+    .from("customer_admin_state")
+    .select("display_name, phone, email")
+    .eq("customer_key", customerKey)
+    .maybeSingle();
+
+  let display_name =
+    String(hint?.display_name ?? existing?.display_name ?? "").trim();
+  let phone =
+    hint?.phone ?? (existing?.phone as string | null) ?? phoneFromKey;
+  let email =
+    hint?.email ?? (existing?.email as string | null) ?? emailFromKey;
+
+  if (!display_name || (!phone && !email)) {
+    let cust: {
+      full_name?: string | null;
+      phone?: string | null;
+      email?: string | null;
+    } | null = null;
+
+    const byKey = await supabase
+      .from("customers")
+      .select("full_name, phone, email")
+      .eq("customer_key", customerKey)
+      .maybeSingle();
+    cust = byKey.data;
+
+    if (!cust && phoneFromKey) {
+      const byPhone = await supabase
+        .from("customers")
+        .select("full_name, phone, email")
+        .eq("phone", phoneFromKey)
+        .maybeSingle();
+      cust = byPhone.data;
+    }
+    if (!cust && emailFromKey) {
+      const byEmail = await supabase
+        .from("customers")
+        .select("full_name, phone, email")
+        .ilike("email", emailFromKey)
+        .maybeSingle();
+      cust = byEmail.data;
+    }
+    if (cust) {
+      if (!display_name) display_name = String(cust.full_name ?? "").trim();
+      phone = phone ?? cust.phone ?? null;
+      email = email ?? cust.email ?? null;
+    }
+  }
+
+  return {
+    display_name: display_name || phone || email || customerKey,
+    phone,
+    email,
+  };
+}
+
 type VisibilityQuery = {
   eq: (column: string, value: unknown) => VisibilityQuery;
   is: (column: string, value: null) => VisibilityQuery;
@@ -114,7 +194,8 @@ async function touch(
   patch: Record<string, unknown>,
   actor: LifecycleActor,
   action: "archive" | "unarchive" | "soft_delete" | "restore" | "permanent_delete",
-  meta?: Record<string, unknown>
+  meta?: Record<string, unknown>,
+  customerHint?: CustomerOverlayHint
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
   const table = MODULE_TABLE[module];
   const col = idColumn(module);
@@ -146,8 +227,17 @@ async function touch(
 
   if (module === "customers") {
     // Overlay keyed by customer_key — upsert so archive/delete works for derived keys.
+    // Preserve identity fields: bare upsert would reset display_name/phone/email to defaults.
+    const identity = await resolveCustomerOverlayIdentity(
+      supabase,
+      recordId,
+      customerHint
+    );
     const upsertRow = {
       customer_key: recordId,
+      display_name: identity.display_name,
+      phone: identity.phone,
+      email: identity.email,
       ...patch,
       updated_at: nowIso(),
     };
@@ -194,7 +284,8 @@ export async function archiveRecord(
   supabase: SupabaseClient,
   module: LifecycleModule,
   recordId: string,
-  actor: LifecycleActor
+  actor: LifecycleActor,
+  customerHint?: CustomerOverlayHint
 ) {
   return touch(
     supabase,
@@ -208,7 +299,9 @@ export async function archiveRecord(
       deleted_by: null,
     },
     actor,
-    "archive"
+    "archive",
+    undefined,
+    customerHint
   );
 }
 
@@ -232,7 +325,8 @@ export async function softDeleteRecord(
   supabase: SupabaseClient,
   module: LifecycleModule,
   recordId: string,
-  actor: LifecycleActor
+  actor: LifecycleActor,
+  customerHint?: CustomerOverlayHint
 ) {
   return touch(
     supabase,
@@ -244,7 +338,9 @@ export async function softDeleteRecord(
       deleted_by: actor.id,
     },
     actor,
-    "soft_delete"
+    "soft_delete",
+    undefined,
+    customerHint
   );
 }
 

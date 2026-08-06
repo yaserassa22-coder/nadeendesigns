@@ -40,7 +40,14 @@ export default function AccountMessagesPage() {
     const timer = window.setTimeout(() => {
       void load();
     }, 0);
-    return () => window.clearTimeout(timer);
+    // Soft poll so Admin replies appear without a full refresh.
+    const poll = window.setInterval(() => {
+      void load();
+    }, 12000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(poll);
+    };
   }, []);
 
   async function send() {
@@ -81,18 +88,24 @@ export default function AccountMessagesPage() {
         {!messages.length && (
           <p className="text-center text-sm text-muted">ابدئي المحادثة مع البوتيك.</p>
         )}
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={
-              m.sender === "customer"
-                ? "ms-8 rounded-2xl bg-[color:#C9A14A]/15 px-4 py-2 text-sm"
-                : "me-8 rounded-2xl bg-beige px-4 py-2 text-sm"
-            }
-          >
-            {m.body}
-          </div>
-        ))}
+        {messages.map((m) => {
+          const fromCustomer = m.sender === "customer";
+          return (
+            <div
+              key={m.id}
+              className={
+                fromCustomer
+                  ? "ms-8 rounded-2xl bg-[color:#C9A14A]/15 px-4 py-2 text-sm"
+                  : "me-8 rounded-2xl bg-beige px-4 py-2 text-sm"
+              }
+            >
+              <p className="mb-1 text-[11px] font-medium text-muted">
+                {fromCustomer ? "أنتِ" : "البوتيك"}
+              </p>
+              <p className="whitespace-pre-wrap">{m.body}</p>
+            </div>
+          );
+        })}
       </div>
       {(error || success) && (
         <div className="space-y-1 border-t border-beige-dark px-3 pt-2">

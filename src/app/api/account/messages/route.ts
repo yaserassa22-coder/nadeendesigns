@@ -1,9 +1,11 @@
 import { after } from "next/server";
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCustomerApi } from "@/lib/customer-auth/customer";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import { notifyAdminIntake } from "@/lib/notifications/service";
+import { bridgeAccountMessageToInbox } from "@/lib/admin/account-message-bridge";
 
 export async function GET() {
   const auth = await requireCustomerApi();
@@ -69,14 +71,33 @@ export async function POST(request: NextRequest) {
     auth.customer.phone ||
     auth.customer.email ||
     auth.customer.id;
-  const customerKey =
-    auth.customer.customer_key ||
-    (auth.customer.phone
-      ? `p:${auth.customer.phone}`
-      : auth.customer.email
-        ? `e:${auth.customer.email}`
-        : auth.customer.id);
-  const adminPath = `/admin/customers/${encodeURIComponent(customerKey)}`;
+  const adminPath = `/admin/messages`;
+
+  // Mirror into Admin Messages inbox (contact_messages) immediately.
+  const bridged = await bridgeAccountMessageToInbox(supabase, {
+    message: {
+      id: messageId,
+      customer_id: auth.customer.id,
+      sender: "customer",
+      body: text,
+      read_at: null,
+      created_at: String(data?.created_at ?? new Date().toISOString()),
+    },
+    customer: {
+      id: auth.customer.id,
+      full_name: auth.customer.full_name,
+      email: auth.customer.email,
+      phone: auth.customer.phone,
+      customer_key: auth.customer.customer_key,
+    },
+  });
+  if (!bridged.ok) {
+    console.warn("[account/messages] inbox bridge failed", bridged.error);
+  } else {
+    revalidatePath("/admin/messages");
+    revalidatePath("/admin");
+  }
+
   try {
     after(() =>
       notifyAdminIntake({
@@ -107,5 +128,5 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ message: data });
+  return NextResponse.json({ message: data, inboxId: bridged.contactId ?? null });
 }

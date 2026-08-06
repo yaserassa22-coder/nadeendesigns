@@ -1,11 +1,12 @@
 import { after } from "next/server";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { publicApiError } from "@/lib/api/public-error";
 import { onContactSubmitted } from "@/lib/notifications/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { isMissingTableError } from "@/lib/supabase/errors";
+import { isMissingTableError, isMissingColumnError } from "@/lib/supabase/errors";
 
 const contactSchema = z.object({
   name: z.string().trim().min(2, "الاسم مطلوب"),
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
      */
     const id = crypto.randomUUID();
     const supabase = createAdminClient();
-    const { error } = await supabase.from("contact_messages").insert({
+    const baseRow = {
       id,
       name: data.name,
       email: data.email,
@@ -67,7 +68,22 @@ export async function POST(request: Request) {
       subject: data.subject,
       message: data.message,
       is_read: false,
+    };
+
+    // Prefer writing lifecycle defaults so Admin "active" filters never hide new rows.
+    let { error } = await supabase.from("contact_messages").insert({
+      ...baseRow,
+      is_deleted: false,
+      archived_at: null,
     });
+
+    if (
+      error &&
+      (isMissingColumnError(error) ||
+        /is_deleted|archived_at/i.test(error.message || ""))
+    ) {
+      ({ error } = await supabase.from("contact_messages").insert(baseRow));
+    }
 
     if (error) {
       if (isMissingTableError(error, "contact_messages")) {
@@ -84,6 +100,9 @@ export async function POST(request: Request) {
         "تعذّر حفظ الرسالة. حاولِ مرة أخرى."
       );
     }
+
+    revalidatePath("/admin/messages");
+    revalidatePath("/admin");
 
     scheduleNotify(() =>
       onContactSubmitted({

@@ -5,24 +5,18 @@ import {
   BOOKING_ADMIN_ACTIONS,
   resolveStatusForAction,
 } from "@/lib/bookings/status-actions";
-import {
-  getReplyToEmail,
-  isResendConfigured,
-} from "@/lib/notifications/config";
-import { sendEmail } from "@/lib/notifications/email";
-import { getNotificationSettings } from "@/lib/notifications/settings";
-import { adminBookingStatusEmail } from "@/lib/notifications/templates";
+import { notifyBookingAdminAction } from "@/lib/notifications/service";
 import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
-import type { BookingStatusHistoryEntry } from "@/types";
+import type { Booking, BookingStatusHistoryEntry } from "@/types";
 
 const bodySchema = z.object({
   bookingId: z.string().uuid("معرّف الحجز غير صالح"),
   action: z.enum(BOOKING_ADMIN_ACTIONS),
   subject: z.string().trim().min(1, "الموضوع مطلوب").max(200),
   body: z.string().trim().min(2, "نص الرسالة قصير جدًا").max(8000),
-  /** When false, update status only — no Resend attempt. */
+  /** When false, update status only — still creates in-app notification. */
   sendEmail: z.boolean().optional().default(true),
 });
 
@@ -46,7 +40,8 @@ function asHistory(raw: unknown): BookingStatusHistoryEntry[] {
 
 /**
  * POST /api/admin/bookings/action
- * Admin-only: update booking status (when applicable) + optional customer email.
+ * Admin-only: update booking status + notify customer
+ * (in-app + account thread + WhatsApp/email per prefs).
  */
 export async function POST(request: NextRequest) {
   const { user, error: authError } = await requireAdminApi("canMutateStore");
@@ -78,10 +73,7 @@ export async function POST(request: NextRequest) {
   const { bookingId, action, subject, body, sendEmail: wantEmail } =
     parsed.data;
   const nextStatus = resolveStatusForAction(action);
-  const actor =
-    user?.email?.trim() ||
-    user?.id ||
-    "admin";
+  const actor = user?.email?.trim() || user?.id || "admin";
 
   if (sendingIds.has(bookingId)) {
     return NextResponse.json(
@@ -93,13 +85,31 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createPrivilegedClient();
-    const { data: row, error: loadError } = await supabase
+    let { data: row, error: loadError } = await supabase
       .from("bookings")
       .select(
-        "id, name, email, phone, date, time, status, notify_email, status_history, is_deleted"
+        "id, name, email, phone, date, time, service_type, status, notify_email, notify_whatsapp, customer_id, status_history, is_deleted"
       )
       .eq("id", bookingId)
       .maybeSingle();
+
+    if (
+      loadError &&
+      (isMissingColumnError(loadError) ||
+        /customer_id|notify_whatsapp|is_deleted|status_history/i.test(
+          loadError.message || ""
+        ))
+    ) {
+      const fallback = await supabase
+        .from("bookings")
+        .select(
+          "id, name, email, phone, date, time, service_type, status, notify_email, notify_whatsapp"
+        )
+        .eq("id", bookingId)
+        .maybeSingle();
+      row = fallback.data as typeof row;
+      loadError = fallback.error;
+    }
 
     if (loadError) {
       console.error("[bookings/action] load failed", loadError);
@@ -116,71 +126,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "الحجز غير موجود" }, { status: 404 });
     }
 
-    const to = String(row.email || "").trim();
-    const notifyEmail = (row as { notify_email?: boolean }).notify_email !== false;
-
-    let emailResult: {
-      attempted: boolean;
-      sent: boolean;
-      skippedReason?: string;
-      error?: string;
-      emailId?: string | null;
-    } = { attempted: false, sent: false };
-
-    if (wantEmail) {
-      if (!isResendConfigured()) {
-        emailResult = {
-          attempted: false,
-          sent: false,
-          skippedReason: "resend_not_configured",
-        };
-      } else if (!to || !to.includes("@")) {
-        emailResult = {
-          attempted: false,
-          sent: false,
-          skippedReason: "missing_customer_email",
-        };
-      } else if (!notifyEmail) {
-        emailResult = {
-          attempted: false,
-          sent: false,
-          skippedReason: "customer_opted_out",
-        };
-      } else {
-        emailResult.attempted = true;
-        const settings = await getNotificationSettings();
-        const mail = adminBookingStatusEmail({
-          customerName: String(row.name || "عزيزتي"),
-          subject,
-          body,
-          settings,
-        });
-        const replyTo =
-          getReplyToEmail() || settings.reply_email || undefined;
-        const sendResult = await sendEmail({
-          to,
-          subject: mail.subject,
-          html: mail.html,
-          text: mail.text,
-          replyTo,
-          fromName: settings.sender_name,
-        });
-        if (sendResult.ok) {
-          emailResult = {
-            attempted: true,
-            sent: true,
-            emailId: sendResult.id ?? null,
-          };
-        } else {
-          emailResult = {
-            attempted: true,
-            sent: false,
-            error: sendResult.error,
-          };
-        }
-      }
-    }
-
     const now = new Date().toISOString();
     const history = asHistory(
       (row as { status_history?: unknown }).status_history
@@ -195,13 +140,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Notify customer BEFORE / after status — run after we have row data.
+    const notify = await notifyBookingAdminAction({
+      booking: {
+        id: String(row.id),
+        name: String(row.name || ""),
+        phone: String(row.phone || ""),
+        email: (row.email as string | null) ?? null,
+        date: String(row.date || ""),
+        time: String(row.time || ""),
+        service_type: (row.service_type || "wedding_dress") as Booking["service_type"],
+        notify_email: (row as { notify_email?: boolean }).notify_email,
+        notify_whatsapp: (row as { notify_whatsapp?: boolean }).notify_whatsapp,
+        customer_id: (row as { customer_id?: string | null }).customer_id ?? null,
+      },
+      action,
+      nextStatus,
+      subject,
+      body,
+      wantEmail,
+    });
+
+    const emailResult = notify.email;
     const replyStatus = !wantEmail
       ? "skipped"
       : emailResult.sent
-        ? "sent"
-        : emailResult.attempted
-          ? "failed"
-          : "skipped";
+        ? emailResult.local
+          ? "local"
+          : "sent"
+        : notify.account || notify.inApp || notify.whatsapp.sent
+          ? "sent"
+          : emailResult.attempted
+            ? "failed"
+            : "skipped";
 
     const patch: Record<string, unknown> = {
       last_reply_at: now,
@@ -230,7 +201,6 @@ export async function POST(request: NextRequest) {
           updateError.message || ""
         )
       ) {
-        // Fallback: status-only update if migration not applied yet.
         const fallback: Record<string, unknown> = {};
         if (nextStatus) fallback.status = nextStatus;
         if (Object.keys(fallback).length) {
@@ -252,29 +222,58 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const parts: string[] = [];
+    if (nextStatus) parts.push("تم تحديث الحالة");
+    if (notify.inApp) parts.push("إشعار في الحساب");
+    if (notify.account) parts.push("رسالة في المحادثة");
+    if (notify.whatsapp.sent) parts.push("واتساب");
+    if (emailResult.sent && !emailResult.local) parts.push("بريد");
+    if (emailResult.sent && emailResult.local) parts.push("بريد محلي");
+
+    const warningParts: string[] = [];
+    if (wantEmail && !emailResult.sent) {
+      if (emailResult.skippedReason === "email_unavailable") {
+        warningParts.push(
+          "البريد غير مُعد — فعّلي Resend من الإشعارات عند جاهزية النطاق."
+        );
+      } else if (emailResult.skippedReason === "missing_customer_email") {
+        warningParts.push("لا يوجد بريد للعميلة.");
+      } else if (emailResult.skippedReason === "customer_opted_out") {
+        warningParts.push("العميلة أوقفت إشعارات البريد.");
+      } else if (emailResult.error) {
+        warningParts.push(emailResult.error);
+      } else {
+        warningParts.push("تعذّر إرسال البريد.");
+      }
+    }
+    if (emailResult.sent && emailResult.local) {
+      warningParts.push(
+        "البريد في الوضع المحلي — العميلة ترى التأكيد في الحساب/الواتساب إن توفّرا."
+      );
+    }
+    if (
+      !notify.whatsapp.sent &&
+      notify.whatsapp.skippedReason === "whatsapp_not_configured" &&
+      (row as { notify_whatsapp?: boolean }).notify_whatsapp !== false
+    ) {
+      warningParts.push("واتساب غير مُعد (Twilio).");
+    }
+
     return NextResponse.json({
       success: true,
       status: nextStatus ?? row.status,
       email: emailResult,
+      whatsapp: notify.whatsapp,
+      inApp: notify.inApp,
+      account: notify.account,
+      customerNotified: notify.customerNotified,
       last_reply_at: now,
       last_reply_status: replyStatus,
       last_reply_subject: subject,
       last_reply_by: actor,
       status_history: history,
-      message: emailResult.sent
-        ? "تم تحديث الحالة وإرسال البريد"
-        : nextStatus
-          ? "تم تحديث الحالة"
-          : "تم تسجيل الرد",
-      warning:
-        wantEmail && !emailResult.sent
-          ? emailResult.skippedReason === "resend_not_configured"
-            ? "خدمة البريد غير مُعدّة — تم حفظ الحالة دون إرسال."
-            : emailResult.skippedReason === "missing_customer_email"
-              ? "لا يوجد بريد للعميلة — تم حفظ الحالة دون إرسال."
-              : emailResult.error ||
-                "تعذّر إرسال البريد — تم حفظ الحالة."
-          : null,
+      message: parts.join(" · ") || "تم تسجيل الإجراء",
+      warning: warningParts.length ? warningParts.join(" ") : null,
     });
   } catch (e) {
     console.error("[bookings/action] unexpected", e);

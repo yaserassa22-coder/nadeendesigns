@@ -790,11 +790,8 @@ export function StoreSettingsPanel({
               />
             </div>
             <p className="text-sm text-muted">
-              قوالب رسائل الطلبات:{" "}
-              <Link
-                href="/admin/notifications"
-                className="text-gold underline"
-              >
+              اتصال Resend وقوالب الرسائل:{" "}
+              <Link href="/admin/notifications" className="text-gold underline">
                 الإشعارات
               </Link>
             </p>

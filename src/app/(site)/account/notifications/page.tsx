@@ -1,11 +1,31 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
+type AccountNotification = {
+  id: string;
+  title_ar?: string | null;
+  body_ar?: string | null;
+  title?: string | null;
+  body?: string | null;
+  message?: string | null;
+  href?: string | null;
+  is_read?: boolean;
+  created_at?: string;
+  read_at?: string | null;
+};
+
+function notificationTitle(n: AccountNotification) {
+  return n.title_ar || n.title || n.message || "إشعار";
+}
+
+function notificationBody(n: AccountNotification) {
+  return n.body_ar || n.body || "";
+}
+
 export default function AccountNotificationsPage() {
-  const [items, setItems] = useState<
-    { id: string; title?: string; body?: string; created_at?: string; read_at?: string | null }[]
-  >([]);
+  const [items, setItems] = useState<AccountNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,26 +50,43 @@ export default function AccountNotificationsPage() {
 
   return (
     <div className="space-y-2">
-      {items.map((n) => (
-        <div
-          key={n.id}
-          className="rounded-2xl border border-beige-dark bg-white px-5 py-4"
-        >
-          <p className="font-medium text-charcoal">
-            {(n as { title?: string }).title ||
-              (n as { message?: string }).message ||
-              "إشعار"}
-          </p>
-          <p className="text-sm text-muted">
-            {(n as { body?: string }).body || ""}
-          </p>
-          {n.created_at && (
-            <p className="mt-1 text-xs text-muted">
-              {new Date(n.created_at).toLocaleString("ar")}
-            </p>
-          )}
-        </div>
-      ))}
+      {items.map((n) => {
+        const title = notificationTitle(n);
+        const body = notificationBody(n);
+        const href = n.href?.trim() || null;
+        const content = (
+          <>
+            <p className="font-medium text-charcoal">{title}</p>
+            {body ? <p className="text-sm text-muted">{body}</p> : null}
+            {n.created_at && (
+              <p className="mt-1 text-xs text-muted">
+                {new Date(n.created_at).toLocaleString("ar")}
+              </p>
+            )}
+          </>
+        );
+
+        if (href) {
+          return (
+            <Link
+              key={n.id}
+              href={href}
+              className="block rounded-2xl border border-beige-dark bg-white px-5 py-4 transition hover:border-gold/40"
+            >
+              {content}
+            </Link>
+          );
+        }
+
+        return (
+          <div
+            key={n.id}
+            className="rounded-2xl border border-beige-dark bg-white px-5 py-4"
+          >
+            {content}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth";
-import { withNotDeletedFilter } from "@/lib/admin/lifecycle";
-import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import type { ContactMessage } from "@/types";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   const { error: authError } = await requireAdminApi();
@@ -14,27 +16,32 @@ export async function GET() {
   }
 
   const supabase = await createPrivilegedClient();
-  let query = supabase
+
+  try {
+    const { syncAccountMessagesIntoInbox } = await import(
+      "@/lib/admin/account-message-bridge"
+    );
+    await syncAccountMessagesIntoInbox(supabase);
+  } catch (e) {
+    console.warn("[messages GET] account sync skipped", e);
+  }
+
+  const { data, error } = await supabase
     .from("contact_messages")
     .select("*")
     .order("created_at", { ascending: false });
-  query = withNotDeletedFilter(query);
 
-  const { data, error } = await query;
-  if (error && (isMissingColumnError(error) || /is_deleted/i.test(error.message))) {
-    const retry = await supabase
-      .from("contact_messages")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (retry.error) {
-      return NextResponse.json({ error: retry.error.message }, { status: 400 });
-    }
-    return NextResponse.json(retry.data ?? []);
-  }
   if (error) {
+    console.error("[messages GET]", error);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
-  return NextResponse.json(data ?? []);
+
+  // Soft-deleted out; NULL/missing is_deleted kept (legacy rows).
+  const rows = ((data ?? []) as ContactMessage[]).filter(
+    (m) =>
+      (m as ContactMessage & { is_deleted?: boolean | null }).is_deleted !== true
+  );
+  return NextResponse.json(rows);
 }
 
 export async function DELETE(request: Request) {

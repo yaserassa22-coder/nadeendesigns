@@ -5,9 +5,15 @@ import { RefreshCw } from "lucide-react";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { postLifecycle } from "@/lib/admin/lifecycle-client";
+import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
+import {
+  RestoreButton,
+  RowLifecycleActions,
+} from "@/components/admin/lifecycle/RowLifecycleActions";
+import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 
 type CustomerRow = {
@@ -20,11 +26,16 @@ type CustomerRow = {
 };
 
 export function CustomersOverlayManager() {
+  const { caps } = useAdminCapabilities();
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [visibility, setVisibility] = useState<ListVisibility>("active");
+  const [pendingDelete, setPendingDelete] = useState<CustomerRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [snack, setSnack] = useState<string | null>(null);
+  const [lastDeletedKey, setLastDeletedKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,6 +72,58 @@ export function CustomersOverlayManager() {
     );
   }, [rows, search, visibility]);
 
+  const confirmSoftDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const result = await postLifecycle({
+        action: "soft_delete",
+        module: "customers",
+        id: pendingDelete.customer_key,
+        display_name: pendingDelete.display_name,
+        phone: pendingDelete.phone,
+        email: pendingDelete.email,
+      });
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      const key = pendingDelete.customer_key;
+      setRows((prev) =>
+        prev.map((r) =>
+          r.customer_key === key
+            ? {
+                ...r,
+                is_deleted: true,
+                archived_at: null,
+              }
+            : r
+        )
+      );
+      setLastDeletedKey(key);
+      setSnack("تم نقل العميل إلى سلة المحذوفات");
+      setPendingDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const undoSoftDelete = async () => {
+    if (!lastDeletedKey) return;
+    const result = await postLifecycle({
+      action: "restore",
+      module: "customers",
+      id: lastDeletedKey,
+    });
+    if (!result.ok) {
+      alert(result.error);
+      return;
+    }
+    setLastDeletedKey(null);
+    setSnack(null);
+    await load();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -71,12 +134,14 @@ export function CustomersOverlayManager() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
-            href="/api/admin/export?module=customers"
-            className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.assign("/api/admin/export?module=customers");
+            }}
           >
             تصدير CSV
-          </a>
+          </Button>
           <Button variant="outline" loading={loading} onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
             تحديث
@@ -154,31 +219,54 @@ export function CustomersOverlayManager() {
                         >
                           ملف العميل
                         </a>
-                        <RowLifecycleActions
-                          module="customers"
-                          id={row.customer_key}
-                          archived={Boolean(row.archived_at)}
-                          onChanged={async (kind) => {
-                            if (kind === "soft_delete") {
-                              setRows((prev) =>
-                                prev.filter(
-                                  (r) => r.customer_key !== row.customer_key
-                                )
-                              );
-                              return;
-                            }
-                            // Ensure overlay row exists when archiving a derived key
-                            if (kind === "archive") {
-                              await postLifecycle({
-                                action: "archive",
-                                module: "customers",
-                                id: row.customer_key,
-                              });
-                            }
-                            await load();
-                          }}
-                          onError={(msg) => alert(msg)}
-                        />
+                        {row.is_deleted ? (
+                          caps.canRestore ? (
+                            <RestoreButton
+                              module="customers"
+                              id={row.customer_key}
+                              onRestored={() => void load()}
+                              onError={(msg) => alert(msg)}
+                            />
+                          ) : null
+                        ) : (
+                          <>
+                            <RowLifecycleActions
+                              module="customers"
+                              id={row.customer_key}
+                              archived={Boolean(row.archived_at)}
+                              allowArchive={caps.canArchive}
+                              allowRestore={caps.canRestore}
+                              // Soft-delete uses confirmed "حذف" below.
+                              allowSoftDelete={false}
+                              onChanged={(kind) => {
+                                setRows((prev) =>
+                                  prev.map((r) =>
+                                    r.customer_key === row.customer_key
+                                      ? {
+                                          ...r,
+                                          archived_at:
+                                            kind === "archive"
+                                              ? new Date().toISOString()
+                                              : null,
+                                        }
+                                      : r
+                                  )
+                                );
+                              }}
+                              onError={(msg) => alert(msg)}
+                            />
+                            {caps.canSoftDelete ? (
+                              <button
+                                type="button"
+                                title="نقل إلى سلة المحذوفات"
+                                onClick={() => setPendingDelete(row)}
+                                className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
+                              >
+                                حذف
+                              </button>
+                            ) : null}
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -188,6 +276,31 @@ export function CustomersOverlayManager() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="نقل العميل إلى سلة المحذوفات؟"
+        description={
+          pendingDelete
+            ? `سيتم إخفاء «${pendingDelete.display_name || pendingDelete.customer_key}» من قائمة العملاء النشطة. يمكن استعادته لاحقاً من سلة المحذوفات. الطلبات والحجوزات المرتبطة لا تُحذف.`
+            : undefined
+        }
+        confirmLabel="نقل إلى السلة"
+        danger
+        loading={deleting}
+        onConfirm={() => void confirmSoftDelete()}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      <UndoSnackbar
+        message={snack}
+        onDismiss={() => setSnack(null)}
+        onUndo={
+          lastDeletedKey && caps.canRestore
+            ? () => void undoSoftDelete()
+            : undefined
+        }
+      />
     </div>
   );
 }

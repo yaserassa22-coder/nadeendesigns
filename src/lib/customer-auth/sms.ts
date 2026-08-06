@@ -1,6 +1,7 @@
 import { normalizeWhatsAppTo } from "@/lib/notifications/whatsapp";
 import { sendEmail } from "@/lib/notifications/email";
-import { isResendConfigured } from "@/lib/notifications/config";
+import { isCustomerAuthEmailReady } from "@/lib/notifications/config";
+import { getEmailRuntime } from "@/lib/notifications/email-provider";
 import { sendWhatsAppOtp } from "@/lib/customer-auth/whatsapp";
 
 export function isSmsConfigured(): boolean {
@@ -103,7 +104,8 @@ export async function deliverEmailOtp(params: {
   to: string;
   code: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!isResendConfigured()) {
+  await getEmailRuntime();
+  if (!isCustomerAuthEmailReady()) {
     if (
       process.env.NODE_ENV === "development" ||
       process.env.OTP_DEV_EXPOSE === "true"
@@ -111,7 +113,11 @@ export async function deliverEmailOtp(params: {
       console.info(`[OTP DEV EMAIL] ${params.to} → ${params.code}`);
       return { ok: true };
     }
-    return { ok: false, error: "البريد غير مُعد (Resend)" };
+    return {
+      ok: false,
+      error:
+        "البريد غير جاهز لـ OTP — وصّلي Resend بنطاق موثّق من الإدارة → الإشعارات",
+    };
   }
 
   const result = await sendEmail({
@@ -125,6 +131,7 @@ export async function deliverEmailOtp(params: {
         <p style="color:#6b5e4f;font-size:13px">صالح لمدة محدودة. لا تشاركي الرمز مع أحد.</p>
       </div>
     `,
+    requireDelivery: true,
   });
 
   if (!result.ok) {

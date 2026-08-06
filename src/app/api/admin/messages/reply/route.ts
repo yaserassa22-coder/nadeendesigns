@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/auth";
-import {
-  getReplyToEmail,
-  isResendConfigured,
-} from "@/lib/notifications/config";
+import { writeBoutiqueAccountReply } from "@/lib/admin/account-message-bridge";
+import { getReplyToEmail, canAttemptEmail } from "@/lib/notifications/config";
 import { sendEmail } from "@/lib/notifications/email";
+import { getEmailRuntime } from "@/lib/notifications/email-provider";
 import { getNotificationSettings } from "@/lib/notifications/settings";
 import { adminContactReplyEmail } from "@/lib/notifications/templates";
 import { isMissingColumnError } from "@/lib/supabase/errors";
@@ -26,9 +25,28 @@ function devPayload(extra: Record<string, unknown>) {
   return extra;
 }
 
+function isPlaceholderEmail(email: string) {
+  return (
+    !email ||
+    email.endsWith("@customers.nadeendesigns.local") ||
+    email.endsWith("@nadeendesigns.local")
+  );
+}
+
+type InboxRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  subject: string | null;
+  is_deleted?: boolean;
+  source?: string | null;
+  customer_id?: string | null;
+};
+
 /**
  * POST /api/admin/messages/reply
- * Authenticated Admin only — sends a branded Resend email and stores reply metadata.
+ * - Always writes into /account/messages thread when customer_id is known
+ * - Also emails when a real inbox address + email transport are available
  */
 export async function POST(request: NextRequest) {
   const { error: authError } = await requireAdminApi("canMutateStore");
@@ -39,17 +57,6 @@ export async function POST(request: NextRequest) {
       {
         error: "قاعدة البيانات غير مُعدّة",
         ...devPayload({ detail: "Supabase env missing" }),
-      },
-      { status: 503 }
-    );
-  }
-
-  if (!isResendConfigured()) {
-    return NextResponse.json(
-      {
-        error:
-          "خدمة البريد غير مُعدّة. أضيفي RESEND_API_KEY و FROM_EMAIL (أو RESEND_FROM_EMAIL).",
-        ...devPayload({ detail: "Resend not configured" }),
       },
       { status: 503 }
     );
@@ -80,45 +87,49 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createPrivilegedClient();
-    const { data: row, error: loadError } = await supabase
-      .from("contact_messages")
-      .select("id, name, email, subject, is_deleted")
-      .eq("id", messageId)
-      .maybeSingle();
+    const row = await loadContactMessage(supabase, messageId);
 
-    if (loadError) {
-      console.error("[messages/reply] load failed", loadError);
-      return NextResponse.json(
-        {
-          error: "تعذّر تحميل الرسالة",
-          ...devPayload({
-            detail: loadError.message,
-            code: loadError.code,
-          }),
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!row || (row as { is_deleted?: boolean }).is_deleted) {
+    if (!row) {
       return NextResponse.json(
         { error: "الرسالة غير موجودة" },
         { status: 404 }
       );
     }
 
+    let customerId = row.customer_id?.trim() || null;
+    if (!customerId && row.email && !isPlaceholderEmail(row.email)) {
+      customerId = await resolveCustomerIdByEmail(supabase, row.email);
+    }
+
     const to = String(row.email || "").trim();
-    if (!to || !to.includes("@")) {
+    const canEmailAddress = Boolean(to && to.includes("@") && !isPlaceholderEmail(to));
+
+    await getEmailRuntime(true);
+    const emailTransportOk = canAttemptEmail();
+
+    if (!customerId && !canEmailAddress) {
       return NextResponse.json(
-        { error: "بريد العميلة غير صالح" },
+        {
+          error:
+            "لا يمكن الرد: لا يوجد حساب مربوط ولا بريد صالح لهذه الرسالة.",
+        },
         { status: 400 }
       );
     }
 
-    const settings = await getNotificationSettings();
-    const replyTo =
-      getReplyToEmail() || settings.reply_email || undefined;
+    if (!customerId && !emailTransportOk) {
+      return NextResponse.json(
+        {
+          error:
+            "إرسال البريد متوقف. من الإشعارات: فعّلي البريد أو اختاري الوضع المحلي / Resend.",
+          ...devPayload({ detail: "Email disabled or unavailable" }),
+        },
+        { status: 503 }
+      );
+    }
 
+    const settings = await getNotificationSettings();
+    const replyTo = getReplyToEmail() || settings.reply_email || undefined;
     const mail = adminContactReplyEmail({
       customerName: String(row.name || "عزيزتي"),
       originalSubject: String(row.subject || ""),
@@ -127,57 +138,115 @@ export async function POST(request: NextRequest) {
       settings,
     });
 
-    const sendResult = await sendEmail({
-      to,
-      subject: mail.subject,
-      html: mail.html,
-      text: mail.text,
-      replyTo,
-      fromName: settings.sender_name,
-    });
+    // 1) Account thread + in-app notification (customer_notifications)
+    let accountDelivered = false;
+    let inAppDelivered = false;
+    let accountError: string | null = null;
+    if (customerId) {
+      const accountWrite = await writeBoutiqueAccountReply(supabase, {
+        customerId,
+        body,
+      });
+      accountDelivered = accountWrite.ok;
+      inAppDelivered = Boolean(accountWrite.inApp);
+      accountError = accountWrite.error ?? null;
+      if (!accountWrite.ok) {
+        console.error("[messages/reply] account thread write failed", accountWrite.error);
+      }
+    }
+
+    // 2) Email — when real address + transport available
+    let sendResult: Awaited<ReturnType<typeof sendEmail>> | null = null;
+    if (canEmailAddress && emailTransportOk) {
+      sendResult = await sendEmail({
+        to,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        replyTo,
+        fromName: settings.sender_name,
+      });
+    }
 
     const now = new Date().toISOString();
+    const emailOk = Boolean(sendResult?.ok);
+    const emailLocal = Boolean(sendResult?.ok && sendResult.local);
 
-    // Always persist reply metadata — never lose the admin reply if Resend fails.
-    if (!sendResult.ok) {
-      console.error("[messages/reply] Resend failed", sendResult.error);
+    if (!accountDelivered && !emailOk) {
       await persistReplyMeta(supabase, messageId, {
         last_reply_at: now,
         last_reply_status: "failed",
         last_reply_subject: mail.subject,
-        last_reply_error: sendResult.error,
+        last_reply_error:
+          sendResult && !sendResult.ok
+            ? sendResult.error
+            : accountError || "تعذّر تسليم الرد",
         is_read: true,
       });
       return NextResponse.json({
         success: true,
         message: "تم حفظ الرد",
         emailId: null,
+        accountDelivered: false,
+        local: false,
         last_reply_at: now,
         last_reply_status: "failed",
         last_reply_subject: mail.subject,
         warning:
-          sendResult.error ||
-          "تعذّر إرسال البريد عبر Resend — تم حفظ الرد.",
-        ...devPayload({ detail: sendResult.error }),
+          (sendResult && !sendResult.ok ? sendResult.error : null) ||
+          accountError ||
+          "تعذّر تسليم الرد للعميلة.",
+        ...devPayload({
+          detail:
+            (sendResult && !sendResult.ok ? sendResult.error : null) ||
+            accountError,
+        }),
       });
     }
 
+    const replyStatus = emailOk
+      ? emailLocal
+        ? "local"
+        : "sent"
+      : accountDelivered
+        ? "sent"
+        : "failed";
+
     await persistReplyMeta(supabase, messageId, {
       last_reply_at: now,
-      last_reply_status: "sent",
+      last_reply_status: replyStatus,
       last_reply_subject: mail.subject,
       last_reply_error: null,
       is_read: true,
     });
 
+    const parts: string[] = [];
+    if (accountDelivered) parts.push("ظهر الرد في رسائل حساب العميلة");
+    if (inAppDelivered) parts.push("إشعار في الحساب");
+    if (emailOk && !emailLocal) parts.push("أُرسل بريد");
+    if (emailOk && emailLocal) parts.push("البريد في الوضع المحلي");
+    if (!emailOk && canEmailAddress) {
+      parts.push("تعذّر البريد — الرد وصل عبر الحساب");
+    }
+
     return NextResponse.json({
       success: true,
-      message: "تم إرسال الرد بنجاح",
-      emailId: sendResult.id ?? null,
+      message: parts.join(" · ") || "تم إرسال الرد بنجاح",
+      emailId: sendResult && sendResult.ok ? sendResult.id ?? null : null,
+      accountDelivered,
+      inApp: inAppDelivered,
+      local: emailLocal,
       last_reply_at: now,
-      last_reply_status: "sent",
+      last_reply_status: replyStatus,
       last_reply_subject: mail.subject,
-      warning: null,
+      warning:
+        !emailOk && canEmailAddress && accountDelivered
+          ? sendResult && !sendResult.ok
+            ? sendResult.error
+            : "لم يُرسل بريد — الرد متاح في حساب العميلة"
+          : emailLocal
+            ? "الوضع المحلي نشط للبريد — فعّلي Resend عند جاهزية النطاق."
+            : null,
     });
   } catch (e) {
     console.error("[messages/reply] unexpected", e);
@@ -195,6 +264,57 @@ export async function POST(request: NextRequest) {
   }
 }
 
+async function resolveCustomerIdByEmail(
+  supabase: Awaited<ReturnType<typeof createPrivilegedClient>>,
+  email: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("customers")
+    .select("id")
+    .ilike("email", email.trim())
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.id) return null;
+  return String(data.id);
+}
+
+async function loadContactMessage(
+  supabase: Awaited<ReturnType<typeof createPrivilegedClient>>,
+  messageId: string
+): Promise<InboxRow | null> {
+  const full = await supabase
+    .from("contact_messages")
+    .select("id, name, email, subject, is_deleted, source, customer_id")
+    .eq("id", messageId)
+    .maybeSingle();
+
+  if (
+    full.error &&
+    (isMissingColumnError(full.error) ||
+      /is_deleted|source|customer_id/i.test(full.error.message || ""))
+  ) {
+    const fallback = await supabase
+      .from("contact_messages")
+      .select("id, name, email, subject")
+      .eq("id", messageId)
+      .maybeSingle();
+    if (fallback.error) {
+      console.error("[messages/reply] load failed", fallback.error);
+      throw new Error(fallback.error.message);
+    }
+    return fallback.data as InboxRow | null;
+  }
+
+  if (full.error) {
+    console.error("[messages/reply] load failed", full.error);
+    throw new Error(full.error.message);
+  }
+
+  const row = full.data as InboxRow | null;
+  if (!row || row.is_deleted) return null;
+  return row;
+}
+
 async function persistReplyMeta(
   supabase: Awaited<ReturnType<typeof createPrivilegedClient>>,
   id: string,
@@ -207,14 +327,12 @@ async function persistReplyMeta(
 
   if (
     error &&
-    (isMissingColumnError(error) ||
-      /last_reply_/i.test(error.message || ""))
+    (isMissingColumnError(error) || /last_reply_/i.test(error.message || ""))
   ) {
     console.warn(
       "[messages/reply] reply metadata columns missing — run APPLY_CONTACT_MESSAGE_REPLIES.sql",
       error.message
     );
-    // Still mark read if possible
     if ("is_read" in patch) {
       await supabase
         .from("contact_messages")

@@ -14,7 +14,7 @@ import { getSupabaseAnonKey, getSupabaseUrl } from "./env";
  */
 export function createAdminClient() {
   const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? getSupabaseAnonKey();
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || getSupabaseAnonKey();
 
   return createClient(getSupabaseUrl(), key, {
     auth: { autoRefreshToken: false, persistSession: false },

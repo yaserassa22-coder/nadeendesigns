@@ -21,6 +21,10 @@ type LifecycleBody = {
   module?: string;
   id?: string;
   ids?: string[];
+  /** Optional identity for customers overlay upsert (derived order keys). */
+  display_name?: string;
+  phone?: string | null;
+  email?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -91,15 +95,35 @@ export async function POST(request: Request) {
 
   const supabase = await createPrivilegedClient();
   const results: { id: string; ok: boolean; error?: string }[] = [];
+  const customerHint =
+    body.module === "customers"
+      ? {
+          display_name: body.display_name,
+          phone: body.phone,
+          email: body.email,
+        }
+      : undefined;
 
   for (const id of ids) {
     let result;
     if (action === "archive") {
-      result = await archiveRecord(supabase, body.module, id, actor);
+      result = await archiveRecord(
+        supabase,
+        body.module,
+        id,
+        actor,
+        customerHint
+      );
     } else if (action === "unarchive") {
       result = await unarchiveRecord(supabase, body.module, id, actor);
     } else if (action === "soft_delete") {
-      result = await softDeleteRecord(supabase, body.module, id, actor);
+      result = await softDeleteRecord(
+        supabase,
+        body.module,
+        id,
+        actor,
+        customerHint
+      );
     } else {
       result = await restoreRecord(supabase, body.module, id, actor);
     }

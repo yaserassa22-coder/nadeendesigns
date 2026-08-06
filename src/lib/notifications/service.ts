@@ -1,11 +1,12 @@
 import {
   NOTIFICATION_MAX_ATTEMPTS,
+  canAttemptEmail,
   getAdminNotificationEmail,
   isNotificationsEnabled,
-  isResendConfigured,
   isWhatsAppConfigured,
 } from "@/lib/notifications/config";
 import { sendEmail } from "@/lib/notifications/email";
+import { getEmailRuntime } from "@/lib/notifications/email-provider";
 import {
   logNotification,
   updateNotificationLog,
@@ -13,6 +14,8 @@ import {
 } from "@/lib/notifications/log";
 import { getNotificationSettings } from "@/lib/notifications/settings";
 import {
+  adminBookingStatusEmail,
+  adminBookingStatusWhatsApp,
   adminIntakeAlertEmail,
   adminIntakeAlertWhatsApp,
   adminNewOrderEmail,
@@ -27,13 +30,19 @@ import {
   paymentRequestWhatsApp,
 } from "@/lib/notifications/templates";
 import { sendWhatsApp } from "@/lib/notifications/whatsapp";
-import { createInAppNotification } from "@/lib/notifications/in-app";
+import {
+  createBookingInAppNotification,
+  createInAppNotification,
+} from "@/lib/notifications/in-app";
+import { writeBoutiqueAccountReply } from "@/lib/admin/account-message-bridge";
+import { customerKeyFromContact } from "@/lib/customer-auth/otp";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CUSTOMER_EMAIL_STATUSES,
   type ShopOrder,
   type ShopOrderStatus,
 } from "@/types/shop";
-import type { Booking } from "@/types";
+import type { Booking, BookingStatus } from "@/types";
 
 async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -174,6 +183,7 @@ type CustomerChannelJobs = {
  * - Both → WhatsApp first; Email only if WhatsApp fails
  */
 async function deliverCustomerPreferredChannels(jobs: CustomerChannelJobs) {
+  await getEmailRuntime();
   const wantWa = jobs.prefs.whatsapp && Boolean(jobs.phone?.trim());
   const canEmail =
     jobs.prefs.email &&
@@ -209,7 +219,7 @@ async function deliverCustomerPreferredChannels(jobs: CustomerChannelJobs) {
 
   const runEmail = async (): Promise<ChannelSendResult | null> => {
     if (!canEmail || !jobs.sendEmailPayload) return null;
-    if (!isResendConfigured()) {
+    if (!canAttemptEmail()) {
       await logNotification({
         orderId: jobs.orderId,
         customerId: jobs.customerId,
@@ -218,9 +228,9 @@ async function deliverCustomerPreferredChannels(jobs: CustomerChannelJobs) {
         orderStatus: jobs.orderStatus,
         recipient: jobs.email,
         status: "failed",
-        errorMessage: "Resend غير مُعد",
+        errorMessage: "البريد متوقف أو غير مُعد",
       });
-      return { ok: false, error: "Resend غير مُعد", attempts: 0 };
+      return { ok: false, error: "البريد متوقف أو غير مُعد", attempts: 0 };
     }
     const payload = jobs.sendEmailPayload();
     return sendWithRetry(
@@ -352,6 +362,7 @@ export async function sendCustomCustomerMessage(
     return { ok: false as const, error: "الإشعارات معطّلة" };
   }
 
+  await getEmailRuntime();
   const settings = await getNotificationSettings();
   const tasks: Promise<unknown>[] = [];
   const wantEmail = channels === "email" || channels === "both";
@@ -368,7 +379,7 @@ export async function sendCustomCustomerMessage(
         status: "failed",
         errorMessage: "لا يوجد بريد للعميلة",
       });
-    } else if (isResendConfigured()) {
+    } else if (canAttemptEmail()) {
       const { subject, html } = customMessageEmail(order, message, settings);
       tasks.push(
         sendWithRetry(
@@ -432,11 +443,12 @@ export async function notifyAdminNewOrder(order: ShopOrder) {
     return;
   }
 
+  await getEmailRuntime();
   const settings = await getNotificationSettings();
   const adminEmail = getAdminNotificationEmail() || settings.reply_email;
   const tasks: Promise<unknown>[] = [];
 
-  if (adminEmail && isResendConfigured()) {
+  if (adminEmail && canAttemptEmail()) {
     const { subject, html } = adminNewOrderEmail(order, settings);
     tasks.push(
       sendWithRetry(
@@ -468,7 +480,7 @@ export async function notifyAdminNewOrder(order: ShopOrder) {
       recipient: adminEmail || null,
       status: "failed",
       errorMessage: adminEmail
-        ? "Resend غير مُعد"
+        ? "البريد متوقف أو غير مُعد"
         : "ADMIN_NOTIFICATION_EMAIL غير مُعد",
     });
   }
@@ -586,11 +598,12 @@ export async function notifyAdminIntake(alert: {
     return;
   }
 
+  await getEmailRuntime();
   const settings = await getNotificationSettings();
   const adminEmail = getAdminNotificationEmail() || settings.reply_email;
   const tasks: Promise<unknown>[] = [];
 
-  if (adminEmail && isResendConfigured()) {
+  if (adminEmail && canAttemptEmail()) {
     const { subject, html } = adminIntakeAlertEmail(alert, settings);
     tasks.push(
       sendWithRetry(
@@ -622,7 +635,7 @@ export async function notifyAdminIntake(alert: {
       recipient: adminEmail || null,
       status: "failed",
       errorMessage: adminEmail
-        ? "Resend غير مُعد"
+        ? "البريد متوقف أو غير مُعد"
         : "ADMIN_NOTIFICATION_EMAIL غير مُعد",
     });
   }
@@ -648,7 +661,23 @@ export async function notifyAdminIntake(alert: {
 /** Fired when a new booking is created. */
 export async function onBookingSubmitted(booking: Booking) {
   try {
+    const customer = await resolveBookingCustomer(booking);
+    const bookingKey =
+      customer?.customer_key?.trim() ||
+      customerKeyFromContact(
+        customer?.phone ?? booking.phone,
+        customer?.email ?? booking.email
+      ) ||
+      customerKeyFromContact(booking.phone, booking.email);
+
     await Promise.allSettled([
+      createBookingInAppNotification({
+        booking,
+        status: "pending",
+        bodyPreview:
+          "استلمنا طلب حجزكِ بنجاح وسنراجعه قريباً لتأكيد الموعد.",
+        customerKey: bookingKey,
+      }),
       notifyBookingSubmitted(booking),
       notifyAdminIntake({
         id: booking.id,
@@ -673,6 +702,301 @@ export async function onBookingSubmitted(booking: Booking) {
   } catch (e) {
     console.error("[notifications] onBookingSubmitted failed", e);
   }
+}
+
+export type BookingAdminNotifyResult = {
+  inApp: boolean;
+  account: boolean;
+  email: {
+    attempted: boolean;
+    sent: boolean;
+    local?: boolean;
+    skippedReason?: string;
+    error?: string;
+    emailId?: string | null;
+  };
+  whatsapp: {
+    attempted: boolean;
+    sent: boolean;
+    skippedReason?: string;
+    error?: string;
+  };
+  customerNotified: boolean;
+};
+
+type ResolvedBookingCustomer = {
+  id: string;
+  customer_key: string | null;
+  phone: string | null;
+  email: string | null;
+};
+
+async function resolveBookingCustomer(booking: {
+  customer_id?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}): Promise<ResolvedBookingCustomer | null> {
+  try {
+    const supabase = createAdminClient();
+    const select = "id, customer_key, phone, email";
+
+    if (booking.customer_id?.trim()) {
+      const { data } = await supabase
+        .from("customers")
+        .select(select)
+        .eq("id", booking.customer_id.trim())
+        .maybeSingle();
+      if (data?.id) {
+        return {
+          id: String(data.id),
+          customer_key: (data.customer_key as string | null) ?? null,
+          phone: (data.phone as string | null) ?? null,
+          email: (data.email as string | null) ?? null,
+        };
+      }
+    }
+
+    if (booking.phone?.trim()) {
+      const { data } = await supabase
+        .from("customers")
+        .select(select)
+        .eq("phone", booking.phone.trim())
+        .limit(1)
+        .maybeSingle();
+      if (data?.id) {
+        return {
+          id: String(data.id),
+          customer_key: (data.customer_key as string | null) ?? null,
+          phone: (data.phone as string | null) ?? null,
+          email: (data.email as string | null) ?? null,
+        };
+      }
+    }
+
+    if (booking.email?.trim()) {
+      const { data } = await supabase
+        .from("customers")
+        .select(select)
+        .ilike("email", booking.email.trim())
+        .limit(1)
+        .maybeSingle();
+      if (data?.id) {
+        return {
+          id: String(data.id),
+          customer_key: (data.customer_key as string | null) ?? null,
+          phone: (data.phone as string | null) ?? null,
+          email: (data.email as string | null) ?? null,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("[notifications] resolveBookingCustomer failed", e);
+  }
+  return null;
+}
+
+/**
+ * After Admin confirms / cancels / reschedules a booking:
+ * always create in-app notification; write account thread when possible;
+ * deliver WhatsApp + email per prefs (email may be local outbox).
+ */
+export async function notifyBookingAdminAction(params: {
+  booking: Pick<
+    Booking,
+    | "id"
+    | "name"
+    | "phone"
+    | "email"
+    | "date"
+    | "time"
+    | "service_type"
+    | "notify_whatsapp"
+    | "notify_email"
+    | "customer_id"
+  >;
+  action: string;
+  nextStatus: BookingStatus | string | null;
+  subject: string;
+  body: string;
+  /** When false, skip outbound email (status/in-app/account/WA still run). */
+  wantEmail?: boolean;
+}): Promise<BookingAdminNotifyResult> {
+  const result: BookingAdminNotifyResult = {
+    inApp: false,
+    account: false,
+    email: { attempted: false, sent: false },
+    whatsapp: { attempted: false, sent: false },
+    customerNotified: false,
+  };
+
+  const status =
+    params.nextStatus ||
+    (params.action === "reply" ? "pending" : String(params.action));
+  const prefs = resolveNotifyPrefs(params.booking);
+  const customer = await resolveBookingCustomer(params.booking);
+  // Prefer customers.customer_key so Account → الإشعارات can find the row.
+  const key =
+    customer?.customer_key?.trim() ||
+    customerKeyFromContact(
+      customer?.phone ?? params.booking.phone,
+      customer?.email ?? params.booking.email
+    ) ||
+    customerKeyFromContact(params.booking.phone, params.booking.email);
+
+  try {
+    const inApp = await createBookingInAppNotification({
+      booking: params.booking,
+      status,
+      bodyPreview: params.body,
+      customerKey: key,
+    });
+    result.inApp = Boolean(inApp);
+  } catch (e) {
+    console.error("[notifications] booking in-app failed", e);
+  }
+
+  if (customer?.id) {
+    try {
+      const { createPrivilegedClient } = await import(
+        "@/lib/supabase/privileged"
+      );
+      const supabase = await createPrivilegedClient();
+      const account = await writeBoutiqueAccountReply(supabase, {
+        customerId: customer.id,
+        body: params.body,
+        // Status-specific in-app row already written above.
+        createInApp: false,
+      });
+      result.account = account.ok;
+      if (!account.ok) {
+        console.warn("[notifications] booking account reply", account.error);
+      }
+    } catch (e) {
+      console.error("[notifications] booking account reply failed", e);
+    }
+  }
+
+  if (!isNotificationsEnabled()) {
+    result.customerNotified = result.inApp || result.account;
+    return result;
+  }
+
+  await getEmailRuntime();
+  const settings = await getNotificationSettings();
+  const notificationType = `customer_booking_${params.action}`;
+
+  // WhatsApp — respect customer prefs (confirm must not ignore WA-only customers)
+  if (prefs.whatsapp && params.booking.phone?.trim()) {
+    if (!isWhatsAppConfigured()) {
+      result.whatsapp = {
+        attempted: false,
+        sent: false,
+        skippedReason: "whatsapp_not_configured",
+      };
+      await logNotification({
+        orderId: params.booking.id,
+        customerId: key,
+        notificationType,
+        channel: "whatsapp",
+        orderStatus: String(status),
+        recipient: params.booking.phone,
+        status: "failed",
+        errorMessage: "Twilio WhatsApp غير مُعد",
+      });
+    } else {
+      result.whatsapp.attempted = true;
+      const waBody = adminBookingStatusWhatsApp({
+        customerName: params.booking.name || "عزيزتي",
+        body: params.body,
+        settings,
+      });
+      const wa = await sendWithRetry(
+        () => sendWhatsApp({ to: params.booking.phone!, body: waBody }),
+        {
+          orderId: params.booking.id,
+          customerId: key,
+          notificationType,
+          channel: "whatsapp",
+          orderStatus: String(status),
+          recipient: params.booking.phone!,
+          skipDedupe: true,
+        }
+      );
+      result.whatsapp.sent = wa.ok;
+      if (!wa.ok) result.whatsapp.error = wa.error;
+    }
+  } else if (!prefs.whatsapp) {
+    result.whatsapp.skippedReason = "customer_opted_out";
+  } else {
+    result.whatsapp.skippedReason = "missing_phone";
+  }
+
+  const wantEmail = params.wantEmail !== false;
+  const to = params.booking.email?.trim() || "";
+  if (!wantEmail) {
+    result.email.skippedReason = "not_requested";
+  } else if (!prefs.email) {
+    result.email.skippedReason = "customer_opted_out";
+  } else if (!to || !to.includes("@")) {
+    result.email.skippedReason = "missing_customer_email";
+  } else if (!canAttemptEmail()) {
+    result.email.skippedReason = "email_unavailable";
+  } else {
+    result.email.attempted = true;
+    const mail = adminBookingStatusEmail({
+      customerName: params.booking.name || "عزيزتي",
+      subject: params.subject,
+      body: params.body,
+      settings,
+    });
+    const sendResult = await sendEmail({
+      to,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+      replyTo: settings.reply_email,
+      fromName: settings.sender_name,
+    });
+    if (sendResult.ok) {
+      result.email.sent = true;
+      result.email.local = Boolean(sendResult.local);
+      result.email.emailId = sendResult.id ?? null;
+      if (sendResult.local) result.email.skippedReason = "local_outbox";
+      await logNotification({
+        orderId: params.booking.id,
+        customerId: key,
+        notificationType,
+        channel: "email",
+        orderStatus: String(status),
+        recipient: to,
+        status: "sent",
+        deliveryResult: sendResult.local ? "local_outbox" : sendResult.id,
+        attempts: 1,
+      });
+    } else {
+      result.email.error = sendResult.error;
+      await logNotification({
+        orderId: params.booking.id,
+        customerId: key,
+        notificationType,
+        channel: "email",
+        orderStatus: String(status),
+        recipient: to,
+        status: "failed",
+        errorMessage: sendResult.error,
+        attempts: 1,
+      });
+    }
+  }
+
+  result.customerNotified =
+    result.inApp ||
+    result.account ||
+    result.whatsapp.sent ||
+    (result.email.sent && !result.email.local) ||
+    result.email.sent;
+
+  return result;
 }
 
 /** Fired when a contact message is stored. */

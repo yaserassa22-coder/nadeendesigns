@@ -34,9 +34,6 @@ export function NotificationsSettingsForm({
   const [settings, setSettings] = useState<NotificationSettings>(initialSettings);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [testTo, setTestTo] = useState(settings.reply_email || "");
-  const [testSending, setTestSending] = useState(false);
-  const [testMessage, setTestMessage] = useState<string | null>(null);
 
   const setWhatsApp = (status: ShopOrderStatus, value: string) => {
     setSettings((prev) => ({
@@ -72,68 +69,8 @@ export function NotificationsSettingsForm({
     }
   };
 
-  const sendTestEmail = async () => {
-    setTestSending(true);
-    setTestMessage(null);
-    try {
-      const res = await fetch("/api/admin/notifications/test-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: testTo.trim() }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        message?: string;
-        emailId?: string | null;
-      };
-      if (!res.ok) {
-        throw new Error(data.error || "فشل إرسال بريد الاختبار");
-      }
-      setTestMessage(
-        `✓ ${data.message || "تم الإرسال"}${
-          data.emailId ? ` — id: ${data.emailId}` : ""
-        }`
-      );
-    } catch (e) {
-      setTestMessage(e instanceof Error ? e.message : "حدث خطأ");
-    } finally {
-      setTestSending(false);
-    }
-  };
-
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-charcoal">اختبار Resend</h2>
-        <p className="mt-1 text-sm text-muted">
-          أرسلي رسالة اختبار للتأكد أن المفتاح يعمل محلياً
-        </p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <Input
-              label="إلى"
-              type="email"
-              value={testTo}
-              onChange={(e) => setTestTo(e.target.value)}
-              dir="ltr"
-              placeholder="you@example.com"
-            />
-          </div>
-          <Button
-            loading={testSending}
-            onClick={() => void sendTestEmail()}
-            disabled={!testTo.trim()}
-          >
-            إرسال اختبار
-          </Button>
-        </div>
-        {testMessage && (
-          <p className="mt-3 text-sm text-muted" role="status">
-            {testMessage}
-          </p>
-        )}
-      </section>
-
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-charcoal">بيانات المرسل</h2>
         <p className="mt-1 text-sm text-muted">

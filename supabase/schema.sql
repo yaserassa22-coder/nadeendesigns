@@ -296,13 +296,13 @@ CREATE POLICY "Admin all contact" ON contact_messages FOR ALL USING (
   EXISTS (
     SELECT 1 FROM profiles
     WHERE id = auth.uid()
-      AND role IN ('admin', 'owner', 'manager', 'staff')
+      AND lower(role) IN ('admin', 'owner', 'manager', 'staff', 'super_admin')
   )
 ) WITH CHECK (
   EXISTS (
     SELECT 1 FROM profiles
     WHERE id = auth.uid()
-      AND role IN ('admin', 'owner', 'manager', 'staff')
+      AND lower(role) IN ('admin', 'owner', 'manager', 'staff', 'super_admin')
   )
 );
 DROP POLICY IF EXISTS "Admin all settings" ON settings;

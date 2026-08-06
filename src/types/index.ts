@@ -181,6 +181,8 @@ export interface Booking {
   notify_whatsapp?: boolean;
   /** Customer opted in to email updates (default true for legacy rows) */
   notify_email?: boolean;
+  /** Linked customers.id when booking is from a signed-in account */
+  customer_id?: string | null;
   /** Phase D — smart appointments */
   booking_source?: BookingSource | null;
   consultant_id?: string | null;
@@ -196,7 +198,7 @@ export interface Booking {
   is_deleted?: boolean | null;
   /** Admin → customer reply metadata (migration 043). */
   last_reply_at?: string | null;
-  last_reply_status?: "sent" | "failed" | "skipped" | string | null;
+  last_reply_status?: "sent" | "failed" | "skipped" | "local" | string | null;
   last_reply_subject?: string | null;
   last_reply_by?: string | null;
   /** Append-only status timeline (migration 043). */
@@ -267,9 +269,13 @@ export interface ContactMessage {
   created_at: string;
   /** Last Admin Resend reply (optional until APPLY_CONTACT_MESSAGE_REPLIES.sql). */
   last_reply_at?: string | null;
-  last_reply_status?: "sent" | "failed" | string | null;
+  last_reply_status?: "sent" | "failed" | "local" | string | null;
   last_reply_subject?: string | null;
   last_reply_error?: string | null;
+  /** contact = Contact Form; account = /account/messages bridge */
+  source?: "contact" | "account" | string | null;
+  customer_id?: string | null;
+  account_message_id?: string | null;
 }
 
 /** Lucide icon keys used by About values cards */

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
+import { customerKeyFromContact } from "@/lib/customer-auth/otp";
 import { cn, formatDate } from "@/lib/utils";
 import type { CustomerNotification } from "@/lib/notifications/in-app";
 
@@ -19,7 +20,8 @@ function readLastOrderMeta(): { orderId?: string; customerKey?: string } {
     };
     return {
       orderId: order.id,
-      customerKey: order.email?.trim() || order.phone?.trim() || undefined,
+      customerKey:
+        customerKeyFromContact(order.phone, order.email) ?? undefined,
     };
   } catch {
     return {};

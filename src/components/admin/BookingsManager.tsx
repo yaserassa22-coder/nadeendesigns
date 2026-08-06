@@ -283,6 +283,9 @@ function BookingsManagerInner({
         warning?: string | null;
         message?: string;
         status?: BookingStatus;
+        customerNotified?: boolean;
+        inApp?: boolean;
+        account?: boolean;
         last_reply_at?: string;
         last_reply_status?: string;
         last_reply_subject?: string;
@@ -312,10 +315,13 @@ function BookingsManagerInner({
         )
       );
       notifyAdminInboxChanged();
+      const notifiedHint = data.customerNotified
+        ? " — وصل إشعار للعميلة"
+        : "";
       setReplySuccess(
         data.warning
-          ? `✓ ${data.message || "تم التحديث"}. ${data.warning}`
-          : `✓ ${data.message || "تم بنجاح"}`
+          ? `✓ ${data.message || "تم التحديث"}${notifiedHint}. ${data.warning}`
+          : `✓ ${data.message || "تم بنجاح"}${notifiedHint}`
       );
       setSnack(data.message || "تم تحديث الحجز");
       window.setTimeout(() => {
