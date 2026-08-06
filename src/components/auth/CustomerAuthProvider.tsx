@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -9,52 +8,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { CustomerAuthSettings, CustomerProfile } from "@/types/customer-auth";
-import type { AuthProviderPublic } from "@/lib/customer-auth/providers/types";
 import { LoginModal } from "@/components/auth/LoginModal";
+import {
+  AuthContext,
+  type AuthContextValue,
+  type AuthMe,
+  type OpenLoginOptions,
+} from "@/components/auth/auth-context";
 
 const GUEST_MODE_KEY = "nadeen_guest_mode";
-
-type AuthMe = {
-  user: { id: string; email?: string | null; phone?: string | null } | null;
-  customer: CustomerProfile | null;
-  is_admin?: boolean;
-  settings: CustomerAuthSettings & {
-    google_ready?: boolean;
-    apple_ready?: boolean;
-    otp_ready?: boolean;
-    email_ready?: boolean;
-    providers?: AuthProviderPublic[];
-  };
-  flags?: Record<string, boolean>;
-};
-
-export type OpenLoginOptions = {
-  redirect?: string;
-  /** Contextual message shown in the auth modal */
-  message?: string;
-};
-
-type AuthContextValue = {
-  loading: boolean;
-  user: AuthMe["user"];
-  customer: CustomerProfile | null;
-  settings: AuthMe["settings"] | null;
-  flags: Record<string, boolean>;
-  /** Explicit guest browsing/checkout mode (no forced login) */
-  guestMode: boolean;
-  guestId: string | null;
-  refresh: () => Promise<void>;
-  ensureGuestSession: (opts?: { forceNew?: boolean }) => Promise<string | null>;
-  openLogin: (opts?: OpenLoginOptions) => void;
-  closeLogin: () => void;
-  continueAsGuest: () => void | Promise<void>;
-  clearGuestMode: () => void;
-  logout: (allDevices?: boolean) => Promise<void>;
-  loginOpen: boolean;
-};
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+const FETCH_TIMEOUT_MS = 12_000;
 
 function readGuestMode(): boolean {
   if (typeof window === "undefined") return false;
@@ -75,6 +38,26 @@ function writeGuestMode(value: boolean) {
   }
 }
 
+async function fetchJson<T>(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  timeoutMs = FETCH_TIMEOUT_MS
+): Promise<{ ok: boolean; status: number; data: T | null }> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+      credentials: init?.credentials ?? "same-origin",
+    });
+    const data = (await res.json().catch(() => null)) as T | null;
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<AuthMe | null>(null);
@@ -87,22 +70,23 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const ensureGuestSession = useCallback(
     async (opts?: { forceNew?: boolean }) => {
       try {
-        const res = await fetch("/api/guest/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            language: "ar",
-            force_new: Boolean(opts?.forceNew),
-          }),
-        });
-        const data = (await res.json()) as { guest_id?: string };
-        if (data.guest_id) {
+        const { ok, data } = await fetchJson<{ guest_id?: string }>(
+          "/api/guest/session",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              language: "ar",
+              force_new: Boolean(opts?.forceNew),
+            }),
+          }
+        );
+        if (ok && data?.guest_id) {
           setGuestId(data.guest_id);
           return data.guest_id;
         }
       } catch {
-        /* non-fatal */
+        /* non-fatal — browsing can continue without a persisted guest row */
       }
       return null;
     },
@@ -111,12 +95,17 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me", { cache: "no-store" });
-      const data = (await res.json()) as AuthMe;
-      setMe(data);
-      if (data.user || data.customer) {
-        writeGuestMode(false);
-        setGuestMode(false);
+      const { ok, data } = await fetchJson<AuthMe>("/api/auth/me", {
+        cache: "no-store",
+      });
+      if (ok && data) {
+        setMe(data);
+        if (data.user || data.customer) {
+          writeGuestMode(false);
+          setGuestMode(false);
+        }
+      } else {
+        setMe(null);
       }
     } catch {
       setMe(null);
@@ -131,7 +120,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       void (async () => {
         await refresh();
         // Always ensure guest cookie on first visit (even if later logging in)
-        await ensureGuestSession();
+        void ensureGuestSession();
       })();
     }, 0);
     return () => window.clearTimeout(timer);
@@ -172,19 +161,16 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const continueAsGuest = useCallback(async () => {
+    // Complete immediately — never block the modal on guest API latency.
     writeGuestMode(true);
     setGuestMode(true);
     setLoginMessage(undefined);
-    try {
-      const id = await ensureGuestSession();
+    setLoginOpen(false);
+    void ensureGuestSession().then((id) => {
       if (!id && process.env.NODE_ENV !== "production") {
         console.warn("[auth] guest session missing after continueAsGuest");
       }
-    } catch (e) {
-      console.error("[auth] continueAsGuest session error", e);
-      // Still close — local guest mode is set; browsing must continue.
-    }
-    setLoginOpen(false);
+    });
   }, [ensureGuestSession]);
 
   const clearGuestMode = useCallback(() => {
@@ -202,20 +188,28 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(
     async (allDevices = false) => {
-      await fetch(`/api/auth/logout${allDevices ? "?all=1" : ""}`, {
-        method: "POST",
-        credentials: "same-origin",
-      });
+      // Optimistic UI — never wait forever for logout network.
       writeGuestMode(true);
       setGuestMode(true);
-      // New guest session so shopping continues after registered logout
-      await ensureGuestSession({ forceNew: true });
-      await refresh();
-      if (typeof window !== "undefined" && window.location.pathname.startsWith("/account")) {
-        window.location.href = "/";
+      setMe(null);
+      setLoginOpen(false);
+      setLoading(false);
+
+      try {
+        await fetchJson(`/api/auth/logout${allDevices ? "?all=1" : ""}`, {
+          method: "POST",
+        });
+      } catch {
+        /* still leave as logged out locally */
+      }
+
+      void ensureGuestSession({ forceNew: true });
+
+      if (typeof window !== "undefined") {
+        window.location.assign("/");
       }
     },
-    [refresh, ensureGuestSession]
+    [ensureGuestSession]
   );
 
   const value = useMemo<AuthContextValue>(
@@ -264,18 +258,19 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           writeGuestMode(false);
           setGuestMode(false);
           setLoginMessage(undefined);
-          // Pull guest cart into localStorage before navigating
+          // Pull guest cart into localStorage before navigating (non-blocking cap)
           try {
-            const cartRes = await fetch("/api/guest/cart?take=1", {
-              credentials: "same-origin",
-            });
-            const cartData = (await cartRes.json()) as { items?: unknown[] };
-            if (Array.isArray(cartData.items) && cartData.items.length) {
+            const { ok, data } = await fetchJson<{ items?: unknown[] }>(
+              "/api/guest/cart?take=1",
+              {},
+              5_000
+            );
+            if (ok && Array.isArray(data?.items) && data.items.length) {
               const key = "nadeen_shop_cart";
               const existing = JSON.parse(
                 window.localStorage.getItem(key) || "[]"
               ) as unknown[];
-              const merged = [...cartData.items, ...existing].slice(0, 50);
+              const merged = [...data.items, ...existing].slice(0, 50);
               window.localStorage.setItem(key, JSON.stringify(merged));
             }
           } catch {
@@ -284,7 +279,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           await refresh();
           setLoginOpen(false);
           const next = redirectAfter || "/account";
-          window.location.href = next;
+          window.location.assign(next);
         }}
         settings={me?.settings ?? null}
         flags={me?.flags ?? {}}
@@ -300,3 +295,5 @@ export function useCustomerAuth() {
   }
   return ctx;
 }
+
+export type { OpenLoginOptions };

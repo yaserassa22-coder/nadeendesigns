@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createRouteHandlerClient } from "@/lib/supabase/route";
 import { requireCustomerApi } from "@/lib/customer-auth/customer";
 import {
   applyGuestCookie,
@@ -40,13 +40,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const supabase = await createClient();
+  const { supabase, applyAuthCookies } = createRouteHandlerClient(request);
   await supabase.auth.signOut();
 
   const guest = await ensureGuestCustomer({
     forceNew: true,
     userAgent: request.headers.get("user-agent"),
   });
-  const res = NextResponse.json({ ok: true, guest_id: guest.guestId });
+  const res = applyAuthCookies(
+    NextResponse.json({ ok: true, guest_id: guest.guestId })
+  );
   return applyGuestCookie(res, guest.guestId, request.url);
 }

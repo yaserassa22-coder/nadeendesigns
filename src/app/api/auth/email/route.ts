@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createRouteHandlerClient } from "@/lib/supabase/route";
 import { getCustomerAuthSettings } from "@/lib/customer-auth/settings";
 import {
   recordLoginHistory,
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const { supabase, applyAuthCookies } = createRouteHandlerClient(request);
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
     const ua = request.headers.get("user-agent");
@@ -81,13 +81,15 @@ export async function POST(request: NextRequest) {
           userAgent: ua,
         });
       }
-      return NextResponse.json({
-        ok: true,
-        needs_email_confirm: !data.session,
-        user: data.user
-          ? { id: data.user.id, email: data.user.email }
-          : null,
-      });
+      return applyAuthCookies(
+        NextResponse.json({
+          ok: true,
+          needs_email_confirm: !data.session,
+          user: data.user
+            ? { id: data.user.id, email: data.user.email }
+            : null,
+        })
+      );
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -125,12 +127,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      ok: true,
-      user: data.user
-        ? { id: data.user.id, email: data.user.email }
-        : null,
-    });
+    return applyAuthCookies(
+      NextResponse.json({
+        ok: true,
+        user: data.user
+          ? { id: data.user.id, email: data.user.email }
+          : null,
+      })
+    );
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "خطأ غير متوقع" },

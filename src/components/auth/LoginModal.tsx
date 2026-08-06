@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, type PointerEvent, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
@@ -142,6 +142,7 @@ export function LoginModal({
     setLoading(true);
     try {
       await onContinueAsGuest();
+      resetForm();
     } catch (e) {
       console.error("[LoginModal] continue as guest failed", e);
       setError(
@@ -149,6 +150,8 @@ export function LoginModal({
           ? e.message
           : "تعذّرت المتابعة كزائرة. حاولِي مرة أخرى."
       );
+    } finally {
+      // Never leave the modal stuck on "جاري المتابعة…"
       setLoading(false);
     }
   }, [onContinueAsGuest]);
@@ -169,10 +172,13 @@ export function LoginModal({
     return () => window.clearTimeout(t);
   }, [resendIn]);
 
+  // Reset local UI state whenever the modal opens so a prior attempt
+  // cannot leave loading=true across closes (component stays mounted).
   useEffect(() => {
     if (!open) return;
     openedAtRef.current = Date.now();
-    const onKey = (e: KeyboardEvent) => {
+    resetForm();
+    const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") {
         if (Date.now() - openedAtRef.current < 500) return;
         handleClose();
@@ -184,7 +190,9 @@ export function LoginModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, handleClose]);
+    // Only re-bind when open flips — avoid resetForm mid-interaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleClose is stable enough via onClose
+  }, [open]);
 
   async function requestOtp(provider = activeOtpProvider) {
     const endpoints = provider?.endpoints;
@@ -259,7 +267,10 @@ export function LoginModal({
     }
   }
 
-  function onOtpKeyDown(index: number, e: KeyboardEvent) {
+  function onOtpKeyDown(
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputsRef.current[index - 1]?.focus();
     }
