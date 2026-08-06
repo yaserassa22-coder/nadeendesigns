@@ -31,7 +31,6 @@ import {
   moveExperienceSection,
   normalizeProductExperienceConfig,
   reorderJourneySection,
-  storefrontExperienceSections,
   type ExperienceSectionConfig,
   type ExperienceSectionId,
   type ExperienceTemplateRow,
@@ -44,11 +43,20 @@ import {
 } from "@/lib/products/order-experience";
 import type { StoreExtraService } from "@/types/store";
 import { cn, formatPrice } from "@/lib/utils";
+import { ProductExperienceLivePreview } from "@/components/admin/product-editor/ProductExperienceLivePreview";
+import {
+  getProductPrimaryAction,
+  type ProductCommerceType,
+} from "@/lib/products/primary-action";
+import type { ProductFeaturesConfig } from "@/lib/products/experience-features";
 
 type Props = {
   value: ProductExperienceConfig;
   onChange: (next: ProductExperienceConfig) => void;
   productNameAr?: string;
+  /** Drives Live Preview CTAs — same source of truth as the storefront. */
+  productType?: ProductCommerceType;
+  featuresConfig?: ProductFeaturesConfig | null;
   supportsPersonalization?: boolean;
   /** Store library services (for cards + manage modal). */
   libraryServices?: ExtraServiceConfig[];
@@ -157,6 +165,8 @@ export function ExperienceDesignerPanel({
   value,
   onChange,
   productNameAr = "المنتج",
+  productType = "ready_to_buy",
+  featuresConfig = null,
   supportsPersonalization = true,
   libraryServices = [],
   onLibraryServicesChange,
@@ -381,12 +391,9 @@ export function ExperienceDesignerPanel({
     return enabledLib.filter((s) => extraServiceIds.includes(s.id));
   }, [libraryServices, extraServicesUseCustom, extraServiceIds]);
 
-  const previewSections = storefrontExperienceSections(config).filter(
-    (s) =>
-      s.id !== "personalization" ||
-      supportsPersonalization ||
-      s.enabled
-  );
+  const primaryAction = getProductPrimaryAction(productType);
+  const purchasablePreview =
+    primaryAction.kind === "add_to_cart" && !primaryAction.hideCart;
 
   return (
     <div className="relative space-y-6">
@@ -477,6 +484,7 @@ export function ExperienceDesignerPanel({
       </Card>
 
       {/* 2. Personalization */}
+      {supportsPersonalization ? (
       <Card title="التخصيص">
         <LuxuryToggle
           checked={persSection.enabled}
@@ -563,6 +571,7 @@ export function ExperienceDesignerPanel({
           </div>
         ) : null}
       </Card>
+      ) : null}
 
       {/* Purchase chrome visibility */}
       <Card title="الشراء">
@@ -830,12 +839,23 @@ export function ExperienceDesignerPanel({
               </div>
             </div>
           ))}
-          <div className="flex items-center gap-3 rounded-2xl border border-dashed border-gold/40 bg-gold/5 px-4 py-3.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-xs font-semibold text-white">
-              {journeySections.filter((s) => s.enabled).length + 1}
-            </span>
-            <span className="text-sm font-medium text-charcoal">الدفع</span>
-          </div>
+          {purchasablePreview ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-dashed border-gold/40 bg-gold/5 px-4 py-3.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-xs font-semibold text-white">
+                {journeySections.filter((s) => s.enabled).length + 1}
+              </span>
+              <span className="text-sm font-medium text-charcoal">الدفع</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl border border-dashed border-gold/40 bg-gold/5 px-4 py-3.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-xs font-semibold text-white">
+                {journeySections.filter((s) => s.enabled).length + 1}
+              </span>
+              <span className="text-sm font-medium text-charcoal">
+                {primaryAction.label}
+              </span>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -875,50 +895,20 @@ export function ExperienceDesignerPanel({
       >
         <div
           className={cn(
-            "mx-auto rounded-3xl border border-gold/20 bg-gradient-to-b from-ivory via-white to-white p-5 shadow-inner transition-all",
+            "mx-auto transition-all",
             previewMode === "mobile" ? "max-w-[340px]" : "max-w-lg"
           )}
         >
-          <p className="mb-4 font-[family-name:var(--font-cormorant)] text-lg text-charcoal">
-            {productNameAr}
-          </p>
-          <ol className="space-y-2.5">
-            {previewSections.map((s, i) => (
-              <li
-                key={s.id}
-                className="rounded-2xl border border-beige-dark/40 bg-white px-4 py-3 text-sm shadow-sm"
-              >
-                <span className="font-medium text-charcoal">
-                  {i + 1}. {s.title_ar || EXPERIENCE_SECTION_LABELS_AR[s.id]}
-                </span>
-                {s.id === "personalization" && persUi.extra_price > 0 ? (
-                  <span className="ms-2 text-xs text-gold" dir="ltr">
-                    +{formatPrice(persUi.extra_price)}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-          <div className="mt-5 flex items-baseline justify-between border-t border-beige-dark/40 pt-4">
-            <span className="text-sm text-muted">الإجمالي</span>
-            <span
-              className="xp-price-pulse font-[family-name:var(--font-cormorant)] text-2xl text-gold tabular-nums"
-              dir="ltr"
-            >
-              {formatPrice(
-                Math.max(0, unitPrice) +
-                  (persSection.enabled ? persUi.extra_price : 0)
-              )}
-            </span>
-          </div>
-          <div className="mt-4 flex flex-col gap-2">
-            <div className="flex h-11 items-center justify-center rounded-full bg-gold text-sm font-medium text-white">
-              شراء الآن
-            </div>
-            <div className="flex h-11 items-center justify-center rounded-full border-2 border-gold text-sm font-medium text-gold">
-              أضيفي للسلة
-            </div>
-          </div>
+          <ProductExperienceLivePreview
+            productType={productType}
+            productNameAr={productNameAr}
+            unitPrice={unitPrice}
+            featuresConfig={featuresConfig}
+            experienceConfig={config}
+            extraServices={displayedServices}
+            compact={previewMode === "mobile"}
+            className="mx-auto w-full"
+          />
         </div>
       </Card>
 

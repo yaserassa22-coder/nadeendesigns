@@ -962,6 +962,8 @@ export function ProductEditorModal({
               value={form.experience_config}
               onChange={(experience_config) => patch({ experience_config })}
               productNameAr={form.name_ar || "المنتج"}
+              productType={form.product_type}
+              featuresConfig={form.features_config}
               supportsPersonalization
               libraryServices={libraryServices}
               onLibraryServicesChange={setLibraryServices}

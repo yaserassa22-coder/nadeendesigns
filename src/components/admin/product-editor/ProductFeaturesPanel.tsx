@@ -9,6 +9,8 @@ import {
   type ProductFeaturesConfig,
 } from "@/lib/products/experience-features";
 import type { ProductCommerceType } from "@/lib/products/primary-action";
+import { defaultProductExperienceConfig } from "@/lib/products/experience-designer";
+import { ProductExperienceLivePreview } from "@/components/admin/product-editor/ProductExperienceLivePreview";
 
 type Props = {
   value: ProductFeaturesConfig | null;
@@ -264,6 +266,19 @@ export function ProductFeaturesPanel({
           لا توجد ميزات متاحة لهذا النوع من المنتج في المكتبة.
         </p>
       ) : null}
+
+      <ProductExperienceLivePreview
+        productType={productType}
+        productNameAr="معاينة الإجراءات"
+        featuresConfig={
+          useCustom
+            ? { use_custom: true, enabled_ids: [...enabledSet] }
+            : null
+        }
+        experienceConfig={defaultProductExperienceConfig()}
+        compact
+        className="mx-auto w-full max-w-md"
+      />
     </div>
   );
 }
