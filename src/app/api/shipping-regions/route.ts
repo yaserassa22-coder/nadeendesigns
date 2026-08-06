@@ -113,7 +113,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   try {
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   try {
@@ -210,7 +210,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { user, error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");

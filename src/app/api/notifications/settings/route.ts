@@ -17,7 +17,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateSettings");
   if (authError) return authError;
 
   try {

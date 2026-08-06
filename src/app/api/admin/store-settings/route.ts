@@ -58,7 +58,7 @@ export async function GET() {
  * Revalidates storefront layout so Header/Footer/checkout update immediately.
  */
 export async function PUT(request: NextRequest) {
-  const { error } = await requireAdminApi();
+  const { error } = await requireAdminApi("canMutateSettings");
   if (error) return error;
 
   try {

@@ -528,9 +528,9 @@ function BookingsManagerInner({
                                   }
                                 ).archived_at
                               )}
-                              allowArchive={caps?.canArchive ?? true}
-                              allowRestore={caps?.canRestore ?? true}
-                              allowSoftDelete={caps?.canSoftDelete ?? true}
+                              allowArchive={caps?.canArchive ?? false}
+                              allowRestore={caps?.canRestore ?? false}
+                              allowSoftDelete={caps?.canSoftDelete ?? false}
                               onChanged={(kind) => {
                                 if (kind === "soft_delete") {
                                   setLastDeletedId(booking.id);

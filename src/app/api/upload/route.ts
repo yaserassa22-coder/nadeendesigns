@@ -32,7 +32,7 @@ function mapCloudinaryError(payload: unknown, status: number): string {
 }
 
 export async function POST(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canUpload");
   if (authError) {
     console.error("[upload API] unauthorized — admin login required");
     return NextResponse.json(

@@ -32,7 +32,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   const body = (await request.json()) as {
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   const id = new URL(request.url).searchParams.get("id");

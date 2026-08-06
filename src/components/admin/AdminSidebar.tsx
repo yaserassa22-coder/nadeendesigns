@@ -24,6 +24,7 @@ import { ADMIN_CATEGORIES_CHANGED_EVENT } from "@/lib/admin/category-events";
 import {
   ADMIN_INBOX_CHANGED_EVENT,
 } from "@/lib/admin/inbox-events";
+import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
 import {
   adminCategoryProductsHref,
   buildAdminProductSidebarGroups,
@@ -641,6 +642,17 @@ function AdminSidebarInner() {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const inbox = useAdminInboxCounts();
+  const { caps } = useAdminCapabilities();
+
+  const moduleLinks = useMemo(
+    () =>
+      MODULE_LINKS.filter(
+        (link) =>
+          link.href !== "/admin/administrators" ||
+          caps.canManageAdministrators
+      ),
+    [caps.canManageAdministrators]
+  );
 
   const closeMobile = () => setOpen(false);
 
@@ -718,7 +730,7 @@ function AdminSidebarInner() {
           onNavigate={closeMobile}
         />
 
-        {MODULE_LINKS.map((link) => (
+        {moduleLinks.map((link) => (
           <NavLink
             key={link.href}
             href={link.href}

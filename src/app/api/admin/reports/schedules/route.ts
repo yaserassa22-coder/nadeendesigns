@@ -71,7 +71,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { user, error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi(
+    "canManageReportSchedules"
+  );
   if (authError) return authError;
   if (!user) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });

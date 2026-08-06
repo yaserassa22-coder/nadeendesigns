@@ -21,7 +21,7 @@ function devPayload(extra: Record<string, unknown>) {
  * Admin-only: send a one-off Resend connectivity test.
  */
 export async function POST(request: NextRequest) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateSettings");
   if (authError) return authError;
 
   if (!isResendConfigured()) {

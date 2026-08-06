@@ -3,6 +3,7 @@ import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isAdminRole } from "@/lib/auth/roles";
 import {
   canAssignOwnerRole,
+  canManageTargetAdmin,
   normalizeAdminRole,
   type AdminActor,
   type AssignableAdminRole,
@@ -315,6 +316,14 @@ export async function promoteAdministrator(params: {
     .maybeSingle();
 
   const oldRole = (existing?.role as string | null) ?? null;
+
+  if (isAdminRole(oldRole) && !canManageTargetAdmin(params.actor, oldRole)) {
+    return {
+      ok: false,
+      error: "فقط المالك يمكنه تعديل حساب مالك آخر",
+      status: 403,
+    };
+  }
   const wasActiveAdmin =
     isAdminRole(oldRole) && !(existing as { is_disabled?: boolean } | null)?.is_disabled;
 
@@ -448,6 +457,14 @@ export async function demoteAdministrator(params: {
     return { ok: false, error: "هذا المستخدم ليس مسؤولاً", status: 404 };
   }
 
+  if (!canManageTargetAdmin(params.actor, existing.role as string | null)) {
+    return {
+      ok: false,
+      error: "فقط المالك يمكنه إزالة صلاحيات مالك آخر",
+      status: 403,
+    };
+  }
+
   const activeCount = await countActiveAdministrators();
   const targetDisabled = Boolean(
     (existing as { is_disabled?: boolean }).is_disabled
@@ -545,6 +562,14 @@ export async function setAdministratorDisabled(params: {
   if (error) return { ok: false, error: error.message, status: 500 };
   if (!existing || !isAdminRole(existing.role as string | null)) {
     return { ok: false, error: "هذا المستخدم ليس مسؤولاً", status: 404 };
+  }
+
+  if (!canManageTargetAdmin(params.actor, existing.role as string | null)) {
+    return {
+      ok: false,
+      error: "فقط المالك يمكنه تعطيل/تفعيل حساب مالك آخر",
+      status: 403,
+    };
   }
 
   if (params.disabled) {

@@ -15,7 +15,7 @@ import type { ShopOrder, ShopOrderStatus } from "@/types/shop";
  * Body optional: { limit?: number }
  */
 export async function POST(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   if (!isSupabaseConfigured()) {

@@ -509,7 +509,7 @@ export async function POST(request: NextRequest) {
 
 /** Soft-delete / permanent (trash only). No hard delete from active list. */
 export async function DELETE(request: Request) {
-  const { user, error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");
@@ -522,7 +522,7 @@ export async function DELETE(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   try {

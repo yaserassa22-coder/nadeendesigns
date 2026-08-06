@@ -17,7 +17,7 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const { error } = await requireAdminApi();
+  const { error } = await requireAdminApi("canMutateSettings");
   if (error) return error;
 
   const body = (await request.json().catch(() => ({}))) as Partial<CustomerAuthSettings>;

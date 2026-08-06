@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { error } = await requireAdminApi();
+  const { error } = await requireAdminApi("canMutateStore");
   if (error) return error;
   const body = (await req.json()) as Record<string, unknown>;
   const name = typeof body.name === "string" ? body.name : "";
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { error } = await requireAdminApi();
+  const { error } = await requireAdminApi("canMutateStore");
   if (error) return error;
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

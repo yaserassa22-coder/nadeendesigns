@@ -31,7 +31,9 @@ async function loadCleanupDays(): Promise<number> {
 
 /** Explicit "Run cleanup" — never auto; never orders/bookings. */
 export async function POST(request: Request) {
-  const { user, error: authError } = await requireAdminApi();
+  const { user, error: authError, role } = await requireAdminApi(
+    "canEmptyTrash"
+  );
   if (authError) return authError;
 
   if (!isSupabaseConfigured()) {
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
   const actor = {
     id: user!.id,
     email: user!.email,
-    role: "admin",
+    role,
   };
 
   if (!canPermanentDelete(actor)) {

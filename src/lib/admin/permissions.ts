@@ -1,13 +1,12 @@
 /**
- * Role helpers for archive/trash, reports, and appointments.
+ * Admin role capability matrix (server + client).
  *
- * Matrix:
- * - Owner: full (archive, restore, soft/permanent delete, force conflict override)
- * - Admin: archive / restore / soft+permanent delete (same as today for role=admin)
- * - Manager: archive only (no soft delete / restore / permanent / empty trash)
- * - Staff: read-only (no lifecycle mutations)
+ * - Owner (super_admin): full control
+ * - Admin: full ops except assigning/demoting owner
+ * - Manager: day-to-day store ops (catalog, orders, bookings) — no settings/admins/trash wipe
+ * - Staff: read-only dashboard & lists — no mutations
  *
- * Unknown role → admin (does not lock out current production admins).
+ * Unknown role → staff (fail closed for mutations).
  */
 
 export type AdminRole = "owner" | "admin" | "manager" | "staff";
@@ -21,14 +20,72 @@ export interface AdminActor {
   role?: string | null;
 }
 
-/** Normalize DB role; unknown → admin (current production behavior). */
+/** Normalize DB role; missing/unknown → staff (fail closed for mutations). */
 export function normalizeAdminRole(role?: string | null): AdminRole {
-  const r = (role ?? "admin").toLowerCase();
+  const r = (role ?? "").toLowerCase().trim();
   if (r === "super_admin" || r === "owner") return "owner";
   if (r === "admin" || r === "manager" || r === "staff") {
     return r;
   }
-  return "admin";
+  return "staff";
+}
+
+export type AdminCapability =
+  | "canMutateStore"
+  | "canMutateSettings"
+  | "canManageAdministrators"
+  | "canAssignOwner"
+  | "canArchive"
+  | "canRestore"
+  | "canSoftDelete"
+  | "canPermanentDelete"
+  | "canEmptyTrash"
+  | "canForceOverride"
+  | "canViewReports"
+  | "canViewFinancial"
+  | "canExportFinancial"
+  | "canManageReportSchedules"
+  | "canUpload";
+
+export type AdminCapabilities = Record<AdminCapability, boolean> & {
+  role: AdminRole;
+};
+
+export function getAdminCapabilities(actor: AdminActor): AdminCapabilities {
+  const role = normalizeAdminRole(actor.role);
+  const isOwner = role === "owner";
+  const isAdmin = role === "admin";
+  const isManager = role === "manager";
+  const isStaff = role === "staff";
+
+  const ops = isOwner || isAdmin || isManager; // not staff
+  const privileged = isOwner || isAdmin;
+
+  return {
+    role,
+    canMutateStore: ops,
+    canMutateSettings: privileged,
+    canManageAdministrators: privileged,
+    canAssignOwner: isOwner,
+    canArchive: ops,
+    canRestore: privileged,
+    canSoftDelete: privileged,
+    canPermanentDelete: privileged,
+    canEmptyTrash: privileged,
+    canForceOverride: isOwner,
+    canViewReports: true,
+    canViewFinancial: !isStaff,
+    canExportFinancial: !isStaff,
+    canManageReportSchedules: ops,
+    canUpload: ops,
+  };
+}
+
+export function hasAdminCapability(
+  actor: AdminActor,
+  capability: AdminCapability
+): boolean {
+  return Boolean(getAdminCapabilities(actor)[capability]);
 }
 
 /**
@@ -36,69 +93,75 @@ export function normalizeAdminRole(role?: string | null): AdminRole {
  * Requirement: super_admin / admin — `owner` is the in-app super_admin equivalent.
  */
 export function canManageAdministrators(actor: AdminActor): boolean {
-  const role = normalizeAdminRole(actor.role);
-  return role === "owner" || role === "admin";
+  return hasAdminCapability(actor, "canManageAdministrators");
 }
 
 /** Only owner (super_admin) may grant or keep the owner role. */
 export function canAssignOwnerRole(actor: AdminActor): boolean {
-  return normalizeAdminRole(actor.role) === "owner";
+  return hasAdminCapability(actor, "canAssignOwner");
+}
+
+/** Only owner may demote/disable/change another owner. */
+export function canManageTargetAdmin(
+  actor: AdminActor,
+  targetRole?: string | null
+): boolean {
+  const target = normalizeAdminRole(targetRole);
+  if (target === "owner") {
+    return normalizeAdminRole(actor.role) === "owner";
+  }
+  return canManageAdministrators(actor);
 }
 
 export function canArchive(actor: AdminActor): boolean {
-  const role = normalizeAdminRole(actor.role);
-  return role === "owner" || role === "admin" || role === "manager";
+  return hasAdminCapability(actor, "canArchive");
 }
 
 export function canRestore(actor: AdminActor): boolean {
-  const role = normalizeAdminRole(actor.role);
-  return role === "owner" || role === "admin";
+  return hasAdminCapability(actor, "canRestore");
 }
 
 export function canSoftDelete(actor: AdminActor): boolean {
-  const role = normalizeAdminRole(actor.role);
-  return role === "owner" || role === "admin";
+  return hasAdminCapability(actor, "canSoftDelete");
 }
 
 export function canPermanentDelete(actor: AdminActor): boolean {
-  const role = normalizeAdminRole(actor.role);
-  return role === "owner" || role === "admin";
+  return hasAdminCapability(actor, "canPermanentDelete");
 }
 
 export function canEmptyTrash(actor: AdminActor): boolean {
-  return canPermanentDelete(actor);
+  return hasAdminCapability(actor, "canEmptyTrash");
 }
 
-/** Owner override for appointment conflicts. */
 export function canForceAppointmentOverride(actor: AdminActor): boolean {
-  return normalizeAdminRole(actor.role) === "owner";
+  return hasAdminCapability(actor, "canForceOverride");
 }
 
-/** Owner / Admin / Manager / Staff — all may open Report Center. */
 export function canViewReports(actor: AdminActor): boolean {
-  void actor;
-  return true;
+  return hasAdminCapability(actor, "canViewReports");
 }
 
-/**
- * Financial reports & financial export.
- * Staff: blocked. Owner / Admin / Manager: allowed.
- */
 export function canViewFinancialReports(actor: AdminActor): boolean {
-  const role = normalizeAdminRole(actor.role);
-  return role !== "staff";
+  return hasAdminCapability(actor, "canViewFinancial");
 }
 
 export function canExportFinancialReports(actor: AdminActor): boolean {
-  return canViewFinancialReports(actor);
+  return hasAdminCapability(actor, "canExportFinancial");
 }
 
-/** Schedule CRUD — Owner / Admin; Manager may manage today; Staff blocked. */
 export function canManageReportSchedules(actor: AdminActor): boolean {
-  const role = normalizeAdminRole(actor.role);
-  return role === "owner" || role === "admin" || role === "manager";
+  return hasAdminCapability(actor, "canManageReportSchedules");
 }
 
+export function canMutateStore(actor: AdminActor): boolean {
+  return hasAdminCapability(actor, "canMutateStore");
+}
+
+export function canMutateSettings(actor: AdminActor): boolean {
+  return hasAdminCapability(actor, "canMutateSettings");
+}
+
+/** @deprecated use getAdminCapabilities — kept for lifecycle UI compatibility */
 export type LifecycleCapabilities = {
   canArchive: boolean;
   canRestore: boolean;
@@ -106,17 +169,48 @@ export type LifecycleCapabilities = {
   canPermanentDelete: boolean;
   canEmptyTrash: boolean;
   canForceOverride: boolean;
+  canMutateStore: boolean;
+  canMutateSettings: boolean;
+  canManageAdministrators: boolean;
+  canAssignOwner: boolean;
+  canUpload: boolean;
   role: AdminRole;
 };
 
-export function getLifecycleCapabilities(actor: AdminActor): LifecycleCapabilities {
+export function getLifecycleCapabilities(
+  actor: AdminActor
+): LifecycleCapabilities {
+  const c = getAdminCapabilities(actor);
   return {
-    canArchive: canArchive(actor),
-    canRestore: canRestore(actor),
-    canSoftDelete: canSoftDelete(actor),
-    canPermanentDelete: canPermanentDelete(actor),
-    canEmptyTrash: canEmptyTrash(actor),
-    canForceOverride: canForceAppointmentOverride(actor),
-    role: normalizeAdminRole(actor.role),
+    canArchive: c.canArchive,
+    canRestore: c.canRestore,
+    canSoftDelete: c.canSoftDelete,
+    canPermanentDelete: c.canPermanentDelete,
+    canEmptyTrash: c.canEmptyTrash,
+    canForceOverride: c.canForceOverride,
+    canMutateStore: c.canMutateStore,
+    canMutateSettings: c.canMutateSettings,
+    canManageAdministrators: c.canManageAdministrators,
+    canAssignOwner: c.canAssignOwner,
+    canUpload: c.canUpload,
+    role: c.role,
   };
 }
+
+export const CAPABILITY_DENIED_AR: Record<AdminCapability, string> = {
+  canMutateStore: "غير مصرح — صلاحية موظف للقراءة فقط",
+  canMutateSettings: "غير مصرح — إعدادات المتجر للمالك/المسؤول فقط",
+  canManageAdministrators: "غير مصرح — إدارة المسؤولين للمالك/المسؤول فقط",
+  canAssignOwner: "غير مصرح — منح صلاحية المالك للمالك فقط",
+  canArchive: "غير مصرح بالأرشفة",
+  canRestore: "غير مصرح بالاستعادة",
+  canSoftDelete: "غير مصرح بالحذف",
+  canPermanentDelete: "غير مصرح بالحذف النهائي",
+  canEmptyTrash: "غير مصرح بتفريغ السلة",
+  canForceOverride: "غير مصرح بتجاوز تعارض المواعيد",
+  canViewReports: "غير مصرح بعرض التقارير",
+  canViewFinancial: "غير مصرح بالتقارير المالية",
+  canExportFinancial: "غير مصرح بتصدير التقارير المالية",
+  canManageReportSchedules: "غير مصرح بجداول التقارير",
+  canUpload: "غير مصرح برفع الملفات",
+};

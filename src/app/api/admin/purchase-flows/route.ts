@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { error } = await requireAdminApi();
+  const { error } = await requireAdminApi("canMutateStore");
   if (error) return error;
   const body = (await req.json()) as Record<string, unknown>;
   const id = typeof body.id === "string" ? body.id.trim() : "";

@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
   // Manual/admin sources require auth; force requires owner
   const source = parsed.data.booking_source ?? "online";
   if (source !== "online" || force) {
-    const { user, error: authError } = await requireAdminApi();
+    const { user, error: authError } = await requireAdminApi("canMutateStore");
     if (authError) return authError;
     actorId = user!.id;
     actorEmail = user!.email ?? null;
@@ -389,7 +389,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const { user, error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   try {
@@ -620,7 +620,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { user, error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   const { handleModuleDelete } = await import("@/lib/admin/soft-delete-api");

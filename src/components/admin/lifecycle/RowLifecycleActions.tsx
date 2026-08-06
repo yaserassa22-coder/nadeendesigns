@@ -11,11 +11,11 @@ type RowLifecycleActionsProps = {
   onChanged: (kind: "archive" | "unarchive" | "soft_delete") => void;
   onError?: (message: string) => void;
   busy?: boolean;
-  /** When false, hide archive controls (staff). Default true. */
+  /** When false, hide archive controls (staff). Default false (deny). */
   allowArchive?: boolean;
-  /** When false, hide unarchive (manager archive-only). Default true. */
+  /** When false, hide unarchive (manager archive-only). Default false. */
   allowRestore?: boolean;
-  /** When false, hide soft delete (manager/staff). Default true. */
+  /** When false, hide soft delete (manager/staff). Default false. */
   allowSoftDelete?: boolean;
 };
 
@@ -26,9 +26,9 @@ export function RowLifecycleActions({
   onChanged,
   onError,
   busy = false,
-  allowArchive = true,
-  allowRestore = true,
-  allowSoftDelete = true,
+  allowArchive = false,
+  allowRestore = false,
+  allowSoftDelete = false,
 }: RowLifecycleActionsProps) {
   const run = async (action: "archive" | "unarchive" | "soft_delete") => {
     const result = await postLifecycle({ action, module, id });

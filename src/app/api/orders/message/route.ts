@@ -9,7 +9,7 @@ import type { ShopOrder } from "@/types/shop";
 const memoryOrders: ShopOrder[] = [];
 
 export async function POST(request: Request) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   try {

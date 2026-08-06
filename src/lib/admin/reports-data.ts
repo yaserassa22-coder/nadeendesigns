@@ -43,6 +43,7 @@ import {
   isMissingTableError,
 } from "@/lib/supabase/errors";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
+import { getProfileRole } from "@/lib/customer-auth/customer";
 import { DRESS_CATEGORY_LABELS, type Booking, type DressCategory } from "@/types";
 import type { ShopOrder } from "@/types/shop";
 
@@ -288,21 +289,13 @@ function collectFilterOptions(
 export async function getAdminActorRole(
   userId: string
 ): Promise<string | null> {
-  if (!isSupabaseConfigured()) return "admin";
+  // Shared helper respects is_disabled. Never invent "admin" on failure.
+  if (!isSupabaseConfigured()) return null;
   try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) {
-      console.warn("[reports] profile role", getErrorMessage(error));
-      return "admin";
-    }
-    return (data as { role?: string } | null)?.role ?? "admin";
-  } catch {
-    return "admin";
+    return await getProfileRole(userId);
+  } catch (e) {
+    console.warn("[admin] profile role", getErrorMessage(e));
+    return null;
   }
 }
 

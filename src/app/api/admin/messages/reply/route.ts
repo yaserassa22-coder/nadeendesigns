@@ -31,7 +31,7 @@ function devPayload(extra: Record<string, unknown>) {
  * Authenticated Admin only — sends a branded Resend email and stores reply metadata.
  */
 export async function POST(request: NextRequest) {
-  const { error: authError } = await requireAdminApi();
+  const { error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   if (!isSupabaseConfigured()) {

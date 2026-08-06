@@ -49,7 +49,7 @@ function asHistory(raw: unknown): BookingStatusHistoryEntry[] {
  * Admin-only: update booking status (when applicable) + optional customer email.
  */
 export async function POST(request: NextRequest) {
-  const { user, error: authError } = await requireAdminApi();
+  const { user, error: authError } = await requireAdminApi("canMutateStore");
   if (authError) return authError;
 
   if (!isSupabaseConfigured()) {

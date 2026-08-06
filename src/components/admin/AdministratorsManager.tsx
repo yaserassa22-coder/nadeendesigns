@@ -6,6 +6,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
 import { formatDate } from "@/lib/utils";
 import type { AdministratorRow } from "@/lib/admin/administrators";
+import { canAssignOwnerRole } from "@/lib/admin/permissions";
 
 type Candidate = {
   auth_user_id: string;
@@ -66,6 +67,7 @@ export function AdministratorsManager() {
     null
   );
   const [demoteLoading, setDemoteLoading] = useState(false);
+  const [roleSavingId, setRoleSavingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -196,7 +198,36 @@ export function AdministratorsManager() {
     }
   }
 
-  const canAssignOwner = actorRole === "owner";
+  async function changeRole(row: AdministratorRow, nextRole: string) {
+    if (nextRole === row.role) return;
+    setRoleSavingId(row.id);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await fetch(`/api/admin/administrators/${row.id}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_role", role: nextRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل تغيير الدور");
+      setInfo(data.message || "تم تحديث الدور");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل تغيير الدور");
+    } finally {
+      setRoleSavingId(null);
+    }
+  }
+
+  const canAssignOwner = canAssignOwnerRole({
+    id: "actor",
+    role: actorRole,
+  });
+  const roleOptions = canAssignOwner
+    ? PROMOTE_ROLE_OPTIONS
+    : PROMOTE_ROLE_OPTIONS.filter((o) => o.value !== "owner");
 
   return (
     <div className="space-y-6">
@@ -229,7 +260,7 @@ export function AdministratorsManager() {
             setError(null);
           }}
         >
-          ترقية مستخدم
+          إضافة موظف / مسؤول
         </Button>
       </div>
 
@@ -279,8 +310,30 @@ export function AdministratorsManager() {
                       ) : null}
                     </td>
                     <td className="px-4 py-3 dir-ltr text-left">{row.email}</td>
-                    <td className="px-4 py-3">
-                      {ROLE_LABELS[row.role] || row.role}
+                    <td className="px-4 py-3 min-w-[10rem]">
+                      <select
+                        className="w-full rounded-lg border border-beige-dark bg-white px-2 py-1.5 text-sm outline-none focus:border-gold"
+                        value={row.role}
+                        disabled={
+                          roleSavingId === row.id ||
+                          (row.role === "owner" && !canAssignOwner)
+                        }
+                        onChange={(e) =>
+                          void changeRole(row, e.target.value)
+                        }
+                        aria-label={`دور ${row.name}`}
+                      >
+                        {roleOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                        {row.role === "owner" && !canAssignOwner ? (
+                          <option value="owner">
+                            {ROLE_LABELS.owner}
+                          </option>
+                        ) : null}
+                      </select>
                     </td>
                     <td className="px-4 py-3">
                       {row.status === "active" ? (
@@ -349,11 +402,11 @@ export function AdministratorsManager() {
           />
           <div className="relative w-full max-w-lg space-y-4 rounded-2xl border border-beige-dark bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-charcoal">
-              ترقية مستخدم إلى مسؤول
+              إضافة موظف أو مسؤول
             </h2>
             <p className="text-sm text-muted">
-              اختاري عميلاً مسجّلاً (لديه حساب دخول). سيتم إنشاء/تحديث ملف
-              profiles مع الدور المحدد.
+              اختاري عميلاً مسجّلاً واخترِ الدور: موظف (قراءة)، مدير (تشغيل)،
+              مسؤول، أو مالك. يمكن تغيير الدور لاحقاً من الجدول.
             </p>
             <Input
               label="بحث عن عميل"
@@ -374,13 +427,12 @@ export function AdministratorsManager() {
                   <button
                     key={c.auth_user_id}
                     type="button"
-                    disabled={c.already_admin}
                     onClick={() => setSelectedCandidate(c)}
                     className={`block w-full rounded-lg px-3 py-2 text-right text-sm ${
                       selectedCandidate?.auth_user_id === c.auth_user_id
                         ? "bg-gold/15 text-charcoal"
                         : "hover:bg-beige/60"
-                    } ${c.already_admin ? "opacity-50" : ""}`}
+                    }`}
                   >
                     <span className="font-medium">
                       {c.name || c.email || "—"}
@@ -390,7 +442,7 @@ export function AdministratorsManager() {
                     </span>
                     {c.already_admin ? (
                       <span className="ms-2 text-xs text-amber-700">
-                        مسؤول حالياً
+                        تحديث الدور
                       </span>
                     ) : null}
                   </button>
@@ -401,11 +453,7 @@ export function AdministratorsManager() {
               label="الدور"
               value={promoteRole}
               onChange={(e) => setPromoteRole(e.target.value)}
-              options={
-                canAssignOwner
-                  ? PROMOTE_ROLE_OPTIONS
-                  : PROMOTE_ROLE_OPTIONS.filter((o) => o.value !== "owner")
-              }
+              options={roleOptions}
             />
             <div className="flex justify-end gap-2">
               <Button
@@ -420,7 +468,9 @@ export function AdministratorsManager() {
                 disabled={!selectedCandidate}
                 onClick={() => void promote()}
               >
-                ترقية
+                {selectedCandidate?.already_admin
+                  ? "تحديث الدور"
+                  : "إضافة للفريق"}
               </Button>
             </div>
           </div>
