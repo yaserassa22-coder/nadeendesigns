@@ -139,9 +139,12 @@ function envOnlyRuntime(): EmailRuntime {
   // Until async resolve: prefer local so messaging works without domain.
   // Env Resend still used after getEmailRuntime() warms (see bootstrap below).
   const mode: "resend" | "local" =
-    apiKey && fromEmail ? "resend" : "local";
+    apiKey && fromEmail && !fromIsSandbox ? "resend" : "local";
+  const enabled =
+    process.env.NOTIFICATIONS_ENABLED?.trim().toLowerCase() !== "false" &&
+    process.env.NOTIFICATIONS_ENABLED?.trim() !== "0";
   return {
-    enabled: process.env.NOTIFICATIONS_ENABLED?.trim().toLowerCase() !== "false",
+    enabled,
     mode,
     apiKey,
     fromEmail,
@@ -155,7 +158,10 @@ function envOnlyRuntime(): EmailRuntime {
       process.env.BOUTIQUE_ADMIN_EMAIL?.trim() ||
       "",
     fromIsSandbox,
-    deliveryReady: Boolean(apiKey && fromEmail && !fromIsSandbox),
+    // Match async deliveryReady: never treat @resend.dev as customer-ready.
+    deliveryReady: Boolean(
+      enabled && mode === "resend" && apiKey && fromEmail && !fromIsSandbox
+    ),
   };
 }
 

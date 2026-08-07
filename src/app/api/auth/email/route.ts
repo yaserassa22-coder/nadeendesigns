@@ -9,6 +9,7 @@ import {
 } from "@/lib/customer-auth/customer";
 import { sendCustomerAuthLinkEmail } from "@/lib/customer-auth/auth-mail";
 import { isCustomerAuthEmailReady } from "@/lib/notifications/config";
+import { getEmailRuntime } from "@/lib/notifications/email-provider";
 import { readGuestIdFromRequest } from "@/lib/guest";
 
 type EmailMode = "signin" | "signup" | "forgot" | "update_password";
@@ -208,6 +209,9 @@ export async function POST(request: NextRequest) {
       }
 
       const admin = createAdminClient();
+      // Warm async Resend/DB runtime before deciding — sync snapshot alone
+      // can be stale (env-only) and wrongly force email confirmation.
+      await getEmailRuntime();
       const mailReady = isCustomerAuthEmailReady();
 
       // Until Resend has a verified-domain FROM, never ask customers to
@@ -259,6 +263,7 @@ export async function POST(request: NextRequest) {
         if (mail.ok && mail.delivered) {
           return NextResponse.json({
             ok: true,
+            signed_in: false,
             needs_email_confirm: true,
             message:
               "تم إنشاء الحساب وأرسلنا رابط التأكيد إلى بريدكِ. افتحيه ثم سجّلي الدخول.",
@@ -278,6 +283,7 @@ export async function POST(request: NextRequest) {
       if (signInError || !signedIn.user) {
         return NextResponse.json({
           ok: true,
+          signed_in: false,
           needs_email_confirm: false,
           message:
             "تم إنشاء حسابكِ بنجاح. سجّلي الدخول بنفس البريد وكلمة المرور.",
@@ -296,6 +302,7 @@ export async function POST(request: NextRequest) {
       return applyAuthCookies(
         NextResponse.json({
           ok: true,
+          signed_in: true,
           needs_email_confirm: false,
           message: "تم إنشاء حسابكِ وتسجيل دخولكِ بنجاح.",
           user: {
@@ -344,6 +351,7 @@ export async function POST(request: NextRequest) {
     return applyAuthCookies(
       NextResponse.json({
         ok: true,
+        signed_in: true,
         user: data.user
           ? { id: data.user.id, email: data.user.email }
           : null,

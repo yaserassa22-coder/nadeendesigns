@@ -334,19 +334,24 @@ export function LoginModal({
       const data = (await res.json()) as {
         error?: string;
         needs_email_confirm?: boolean;
+        signed_in?: boolean;
         message?: string;
+        debug_link?: string;
       };
       if (!res.ok) throw new Error(data.error || "فشل تسجيل الدخول");
-      if (data.needs_email_confirm) {
+      // Account created but not yet a browser session — stay on sign-in.
+      if (data.needs_email_confirm || data.signed_in === false) {
         setInfo(
           data.message ||
-            "تم إنشاء الحساب. تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول."
+            (data.needs_email_confirm
+              ? "تم إنشاء الحساب. تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول."
+              : "تم إنشاء الحساب. سجّلي الدخول بنفس البريد وكلمة المرور.")
         );
         if (
-          (data as { debug_link?: string }).debug_link &&
+          data.debug_link &&
           process.env.NODE_ENV !== "production"
         ) {
-          setDebugResetHref((data as { debug_link?: string }).debug_link!);
+          setDebugResetHref(data.debug_link);
         }
         setEmailMode("signin");
         setPassword("");
