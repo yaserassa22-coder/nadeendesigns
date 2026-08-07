@@ -34,9 +34,28 @@ export function getPublicAuthProviders(
   settings: CustomerAuthSettings,
   flags: AuthEnvFlags
 ): AuthProviderPublic[] {
-  return listAuthProviders().map((p) =>
-    toPublicProvider(p, settings, flags)
-  );
+  const fromRegistry = listAuthProviders()
+    .map((p) => toPublicProvider(p, settings, flags))
+    .filter((p) => p.visible);
+
+  const knownIds = new Set(fromRegistry.map((p) => p.id));
+
+  // Channel rows without a code module yet (e.g. Facebook) still appear as قريباً
+  const extras: AuthProviderPublic[] = settings.channels
+    .filter((c) => !knownIds.has(c.id) && (c.enabled || c.coming_soon))
+    .map((c) => ({
+      id: c.id,
+      label: { ar: c.label_ar, en: c.label_en },
+      capabilities: [],
+      order: c.sort_order,
+      primary: false,
+      enabled: false,
+      ready: Boolean(c.configured),
+      comingSoon: true,
+      visible: true,
+    }));
+
+  return [...fromRegistry, ...extras].sort((a, b) => a.order - b.order);
 }
 
 /** Primary enabled providers for the login choice screen. */
@@ -45,7 +64,7 @@ export function getPrimaryPublicProviders(
   flags: AuthEnvFlags
 ): AuthProviderPublic[] {
   return getPublicAuthProviders(settings, flags).filter(
-    (p) => p.primary && p.enabled && !p.comingSoon
+    (p) => p.primary && p.enabled && !p.comingSoon && p.ready
   );
 }
 

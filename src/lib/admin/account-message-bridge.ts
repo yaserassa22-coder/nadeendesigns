@@ -1,6 +1,9 @@
 import type { ContactMessage } from "@/types";
 import { customerKeyFromContact } from "@/lib/customer-auth/otp";
-import { createAccountInAppNotification } from "@/lib/notifications/in-app";
+import {
+  createAccountInAppNotification,
+  type InAppWriteClient,
+} from "@/lib/notifications/in-app";
 import { isMissingColumnError, isMissingTableError } from "@/lib/supabase/errors";
 import type { createPrivilegedClient } from "@/lib/supabase/privileged";
 
@@ -236,8 +239,21 @@ export async function writeBoutiqueAccountReply(
           body_ar: preview || "لديكِ رسالة جديدة في المحادثة.",
           href: "/account/messages",
           order_status: "message",
+          // Same client that just wrote customer_messages (service role / admin session).
+          client: supabase as InAppWriteClient,
         });
         inApp = Boolean(row);
+        if (!row) {
+          console.error(
+            "[account-message-bridge] in-app notify insert returned null",
+            { customerId: params.customerId, customerKey: key }
+          );
+        }
+      } else {
+        console.warn(
+          "[account-message-bridge] skip in-app — no customer_key for",
+          params.customerId
+        );
       }
     } catch (e) {
       console.error("[account-message-bridge] in-app notify failed", e);

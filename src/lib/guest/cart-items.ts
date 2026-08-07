@@ -3,6 +3,7 @@ import type {
   LineExtraService,
   LineOrderOptionValue,
 } from "@/lib/products/order-experience";
+import { ensureUniqueCartLineIds } from "@/lib/shop/cart-lines";
 
 const PRODUCT_TYPES = new Set<ShopProductType>([
   "veil",
@@ -123,5 +124,6 @@ export function sanitizeGuestCartItems(raw: unknown[]): CartItem[] {
     });
     if (out.length >= 50) break;
   }
-  return out;
+  // Persist unique line_ids only — duplicate ids break React keys + qty updates.
+  return ensureUniqueCartLineIds(out);
 }

@@ -15,6 +15,12 @@ import {
   lineRequiresShipping,
 } from "@/lib/shop/shipping";
 import {
+  ensureUniqueCartLineIds,
+  mergeCartLines,
+  sameLineCustomizations,
+} from "@/lib/shop/cart-lines";
+import { sanitizeGuestCartItems } from "@/lib/guest/cart-items";
+import {
   CartContext,
   type CartAddToCartInput as AddToCartInput,
   type CartContextValue,
@@ -26,41 +32,12 @@ function loadCart(): CartItem[] {
   try {
     const raw = localStorage.getItem(CART_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as CartItem[];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return ensureUniqueCartLineIds(sanitizeGuestCartItems(parsed));
   } catch {
     return [];
   }
-}
-
-function sameLineCustomizations(a: CartItem, b: Partial<CartItem>): boolean {
-  return (
-    JSON.stringify(a.personalization) ===
-      JSON.stringify(b.personalization ?? null) &&
-    JSON.stringify(a.gift_options) ===
-      JSON.stringify(b.gift_options ?? null) &&
-    JSON.stringify(a.order_options ?? null) ===
-      JSON.stringify(b.order_options ?? null) &&
-    JSON.stringify(a.extra_services ?? null) ===
-      JSON.stringify(b.extra_services ?? null)
-  );
-}
-
-function mergeCartLines(a: CartItem[], b: CartItem[]): CartItem[] {
-  const out = [...a];
-  for (const item of b) {
-    const existing = out.find(
-      (i) =>
-        i.product_id === item.product_id &&
-        i.product_type === item.product_type &&
-        sameLineCustomizations(i, item)
-    );
-    if (existing) {
-      existing.quantity = Math.min(20, existing.quantity + item.quantity);
-    } else {
-      out.push(item);
-    }
-  }
-  return out.slice(0, 50);
 }
 
 async function ensureGuestCookie(): Promise<void> {
@@ -101,7 +78,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           if (res.ok) {
             const data = (await res.json()) as { items?: CartItem[] };
             if (Array.isArray(data.items) && data.items.length) {
-              const merged = mergeCartLines(local, data.items as CartItem[]);
+              const merged = mergeCartLines(
+                local,
+                sanitizeGuestCartItems(data.items)
+              );
               setItems(merged);
             }
           } else {

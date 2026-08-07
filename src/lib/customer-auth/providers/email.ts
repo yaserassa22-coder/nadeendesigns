@@ -1,15 +1,15 @@
 import type { AuthProvider } from "./types";
 
 /**
- * Optional email/password path — secondary (not primary UX).
+ * Email/password — primary login path (order overridden by Admin channels).
  * Kept modular so it does not hardcode into session/customer core.
  */
 export const EmailAuthProvider: AuthProvider = {
   id: "email",
   label: { ar: "البريد وكلمة المرور", en: "Email and password" },
   capabilities: ["password"],
-  order: 50,
-  primary: false,
+  order: 10,
+  primary: true,
   endpoints: { password: "/api/auth/email" },
 
   enabled(settings, flags) {

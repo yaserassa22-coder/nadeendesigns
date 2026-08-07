@@ -586,14 +586,38 @@ export async function saveStoreSettings(
 
   if (touch("authentication")) {
     const currentAuth = await getCustomerAuthSettings(true);
+    const authFlags = {
+      guest_checkout_enabled: merged.authentication.guest_checkout_enabled,
+      google_enabled: merged.authentication.google_enabled,
+      apple_enabled: merged.authentication.apple_enabled,
+      email_password_enabled: merged.authentication.email_password_enabled,
+      otp_enabled: merged.authentication.phone_otp_enabled,
+    };
+    const channels = currentAuth.channels.map((ch) => {
+      if (ch.id === "guest") {
+        return { ...ch, enabled: authFlags.guest_checkout_enabled };
+      }
+      if (ch.id === "google") {
+        return { ...ch, enabled: authFlags.google_enabled };
+      }
+      if (ch.id === "apple") {
+        return { ...ch, enabled: authFlags.apple_enabled };
+      }
+      if (ch.id === "email") {
+        return { ...ch, enabled: authFlags.email_password_enabled };
+      }
+      if (ch.id === "whatsapp") {
+        return authFlags.otp_enabled
+          ? { ...ch, enabled: true, coming_soon: false }
+          : { ...ch, enabled: true, coming_soon: true };
+      }
+      return ch;
+    });
     await saveCustomerAuthSettings(
       mergeCustomerAuthSettings({
         ...currentAuth,
-        guest_checkout_enabled: merged.authentication.guest_checkout_enabled,
-        google_enabled: merged.authentication.google_enabled,
-        apple_enabled: merged.authentication.apple_enabled,
-        email_password_enabled: merged.authentication.email_password_enabled,
-        otp_enabled: merged.authentication.phone_otp_enabled,
+        ...authFlags,
+        channels,
       })
     );
   }
@@ -612,10 +636,20 @@ export function invalidateStoreSettingsCache() {
   cachedAt = 0;
 }
 
-/** Public storefront brand helpers */
+/** Live (selectable) payment methods for checkout charge flow. */
 export function getEnabledPaymentProviders(settings: StoreSettings) {
   return settings.payments.providers
     .filter((p) => p.enabled && !p.coming_soon)
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+/**
+ * Storefront-visible methods: enabled OR coming_soon (قريباً preview).
+ * To hide a method completely: set enabled=false and coming_soon=false in Admin.
+ */
+export function getVisiblePaymentProviders(settings: StoreSettings) {
+  return settings.payments.providers
+    .filter((p) => p.enabled || p.coming_soon)
     .sort((a, b) => a.sort_order - b.sort_order);
 }
 

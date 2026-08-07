@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
+import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { customerKeyFromContact } from "@/lib/customer-auth/otp";
 import { cn, formatDate } from "@/lib/utils";
 import type { CustomerNotification } from "@/lib/notifications/in-app";
@@ -28,12 +29,47 @@ function readLastOrderMeta(): { orderId?: string; customerKey?: string } {
   }
 }
 
+function normalizeAccountRows(raw: unknown[]): CustomerNotification[] {
+  return raw.map((item) => {
+    const n = item as Record<string, unknown>;
+    return {
+      id: String(n.id ?? crypto.randomUUID()),
+      order_id: (n.order_id as string | null) ?? null,
+      customer_key: (n.customer_key as string | null) ?? null,
+      title_ar: String(n.title_ar ?? n.title ?? n.message ?? "إشعار"),
+      body_ar: String(n.body_ar ?? n.body ?? ""),
+      order_status: (n.order_status as string | null) ?? null,
+      href: (n.href as string | null) ?? null,
+      is_read: Boolean(n.is_read ?? n.read_at),
+      created_at: String(n.created_at ?? new Date().toISOString()),
+    };
+  });
+}
+
 export function NotificationCenter({ className }: { className?: string }) {
+  const { customer, loading: authLoading } = useCustomerAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CustomerNotification[]>([]);
   const [unread, setUnread] = useState(0);
 
   const load = useCallback(async () => {
+    // Signed-in: Account inbox (same source as /account/notifications).
+    if (customer?.id) {
+      try {
+        const res = await fetch("/api/account/notifications", {
+          credentials: "same-origin",
+        });
+        const data = await res.json();
+        if (!res.ok) return;
+        const list = normalizeAccountRows(data.notifications ?? []);
+        setItems(list);
+        setUnread(list.filter((n) => !n.is_read).length);
+        return;
+      } catch {
+        /* fall through to guest/order path */
+      }
+    }
+
     const meta = readLastOrderMeta();
     if (!meta.orderId && !meta.customerKey) {
       setItems([]);
@@ -52,9 +88,10 @@ export function NotificationCenter({ className }: { className?: string }) {
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [customer?.id]);
 
   useEffect(() => {
+    if (authLoading) return;
     const timer = window.setTimeout(() => {
       void load();
     }, 0);
@@ -66,7 +103,7 @@ export function NotificationCenter({ className }: { className?: string }) {
       window.removeEventListener("storage", onStorage);
       window.clearInterval(t);
     };
-  }, [load]);
+  }, [load, authLoading]);
 
   const markRead = async (id: string) => {
     setItems((prev) =>
@@ -81,10 +118,25 @@ export function NotificationCenter({ className }: { className?: string }) {
   };
 
   const markAll = async () => {
-    const meta = readLastOrderMeta();
-    if (!meta.orderId) return;
+    const unreadIds = items.filter((n) => !n.is_read).map((n) => n.id);
     setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnread(0);
+
+    if (customer?.id) {
+      await Promise.all(
+        unreadIds.map((id) =>
+          fetch("/api/notifications/customer", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          })
+        )
+      );
+      return;
+    }
+
+    const meta = readLastOrderMeta();
+    if (!meta.orderId) return;
     await fetch("/api/notifications/customer", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -136,13 +188,22 @@ export function NotificationCenter({ className }: { className?: string }) {
             <div className="max-h-80 overflow-y-auto">
               {items.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-muted">
-                  لا توجد إشعارات بعد. ستظهر هنا بعد إتمام طلب.
+                  {customer
+                    ? "لا توجد إشعارات بعد."
+                    : "لا توجد إشعارات بعد. ستظهر هنا بعد إتمام طلب."}
                 </p>
               ) : (
                 items.map((n) => (
                   <Link
                     key={n.id}
-                    href={n.href || (n.order_id ? `/orders/${n.order_id}` : "/")}
+                    href={
+                      n.href ||
+                      (n.order_id
+                        ? `/orders/${n.order_id}`
+                        : customer
+                          ? "/account/notifications"
+                          : "/")
+                    }
                     onClick={() => {
                       if (!n.is_read) void markRead(n.id);
                       setOpen(false);
@@ -167,6 +228,17 @@ export function NotificationCenter({ className }: { className?: string }) {
                 ))
               )}
             </div>
+            {customer ? (
+              <div className="border-t border-beige-dark px-4 py-2 text-center">
+                <Link
+                  href="/account/notifications"
+                  onClick={() => setOpen(false)}
+                  className="text-xs text-gold hover:underline"
+                >
+                  عرض كل الإشعارات
+                </Link>
+              </div>
+            ) : null}
           </div>
         </>
       )}

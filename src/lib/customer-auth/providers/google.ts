@@ -5,7 +5,7 @@ export const GoogleAuthProvider: AuthProvider = {
   id: "google",
   label: { ar: "المتابعة مع Google", en: "Continue with Google" },
   capabilities: ["oauth"],
-  order: 10,
+  order: 30,
   primary: true,
   endpoints: { oauth: "/api/auth/oauth" },
 

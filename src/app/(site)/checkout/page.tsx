@@ -110,7 +110,12 @@ export default function CheckoutPage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<
-    { id: string; name_ar: string; description_ar: string }[]
+    {
+      id: string;
+      name_ar: string;
+      description_ar: string;
+      coming_soon?: boolean;
+    }[]
   >([]);
   const [checkoutOrderOptions, setCheckoutOrderOptions] = useState<
     OrderOptionConfig[]
@@ -514,13 +519,13 @@ export default function CheckoutPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {items.map((item) => {
+                {items.map((item, index) => {
                   const thumb = featuredImage(
                     item.image ? [item.image] : undefined
                   );
                   return (
                     <div
-                      key={item.line_id}
+                      key={`${item.line_id}-${index}`}
                       className="flex gap-3 rounded-2xl border border-beige-dark bg-white p-4 text-sm"
                     >
                       <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-xl bg-beige">
@@ -826,21 +831,35 @@ export default function CheckoutPage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  {paymentMethods.map((method) => (
-                    <div
-                      key={method.id}
-                      className="rounded-xl border border-gold/40 bg-gold/5 px-4 py-3 text-sm"
-                    >
-                      <p className="font-medium text-charcoal">
-                        {method.name_ar}
-                      </p>
-                      {method.description_ar ? (
-                        <p className="mt-0.5 text-muted">
-                          {method.description_ar}
+                  {paymentMethods.map((method) => {
+                    const soon = Boolean(method.coming_soon);
+                    return (
+                      <div
+                        key={method.id}
+                        className={`relative rounded-xl border px-4 py-3 text-sm ${
+                          soon
+                            ? "border-dashed border-beige-dark bg-beige/40 text-muted"
+                            : "border-gold/40 bg-gold/5"
+                        }`}
+                      >
+                        <p
+                          className={`font-medium ${soon ? "text-muted" : "text-charcoal"}`}
+                        >
+                          {method.name_ar}
                         </p>
-                      ) : null}
-                    </div>
-                  ))}
+                        {method.description_ar ? (
+                          <p className="mt-0.5 text-muted">
+                            {method.description_ar}
+                          </p>
+                        ) : null}
+                        {soon ? (
+                          <span className="absolute start-3 top-1/2 -translate-y-1/2 rounded-full bg-gold px-2 py-0.5 text-[10px] font-semibold text-white">
+                            قريباً
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

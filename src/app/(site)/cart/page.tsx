@@ -54,9 +54,9 @@ export default function CartPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <div
-                  key={item.line_id}
+                  key={`${item.line_id}-${index}`}
                   className="rounded-2xl border border-beige-dark bg-white p-5 md:p-6"
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">

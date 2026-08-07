@@ -1,4 +1,5 @@
 import type { CustomerAuthSettings } from "@/types/customer-auth";
+import { getAuthChannel } from "@/types/customer-auth";
 
 /** How a provider authenticates customers. */
 export type AuthCapability = "oauth" | "otp" | "guest" | "password";
@@ -27,10 +28,16 @@ export type AuthProviderPublic = {
   order: number;
   /** Primary UX providers (Google / Apple / Guest; WhatsApp reserved). */
   primary: boolean;
+  /**
+   * Product wants this channel available (admin enabled).
+   * Clickable only when enabled && ready && !comingSoon.
+   */
   enabled: boolean;
   ready: boolean;
-  /** Reserved slot in login UI — not an active login method yet. */
-  comingSoon?: boolean;
+  /** Reserved / not connected — show “قريباً” in UI, do not enable login. */
+  comingSoon: boolean;
+  /** Show in login modal (enabled or coming-soon preview). */
+  visible: boolean;
   endpoints?: {
     sendOtp?: string;
     verifyOtp?: string;
@@ -54,11 +61,11 @@ export type AuthProvider = {
   capabilities: readonly AuthCapability[];
   order: number;
   primary: boolean;
-  /** Future provider — show “قريباً” in UI, do not enable login. */
+  /** Default coming-soon when no admin channel override exists. */
   comingSoon?: boolean;
   endpoints?: AuthProviderPublic["endpoints"];
 
-  /** Settings + env gate (product toggle). */
+  /** Settings + env gate (product toggle) — used when no channel row. */
   enabled: (
     settings: CustomerAuthSettings,
     flags: AuthEnvFlags
@@ -82,17 +89,51 @@ export function toPublicProvider(
   settings: CustomerAuthSettings,
   flags: AuthEnvFlags
 ): AuthProviderPublic {
-  const comingSoon = Boolean(provider.comingSoon);
-  const enabled = comingSoon ? false : provider.enabled(settings, flags);
+  const channel = getAuthChannel(settings, provider.id);
+  const order = channel?.sort_order ?? provider.order;
+  const label = {
+    ar: channel?.label_ar || provider.label.ar,
+    en: channel?.label_en || provider.label.en,
+  };
+
+  const productEnabled = channel
+    ? channel.enabled
+    : provider.enabled(settings, flags);
+
+  const adminComingSoon = channel
+    ? Boolean(channel.coming_soon)
+    : Boolean(provider.comingSoon);
+
+  const infraReady =
+    provider.ready(settings, flags) || Boolean(channel?.configured);
+
+  // Guest & email are usable without external OAuth/OTP wiring once product-on.
+  const needsExternalReady =
+    provider.capabilities.includes("oauth") ||
+    provider.capabilities.includes("otp");
+
+  const notConnected =
+    needsExternalReady && productEnabled && !adminComingSoon && !infraReady;
+
+  const comingSoon = adminComingSoon || notConnected;
+
+  // Active (clickable) login
+  const enabled =
+    productEnabled && !comingSoon && (!needsExternalReady || infraReady);
+
+  // Visible: admin enabled, or explicitly coming soon (preview slot)
+  const visible = productEnabled || adminComingSoon;
+
   return {
     id: provider.id,
-    label: provider.label,
+    label,
     capabilities: [...provider.capabilities],
-    order: provider.order,
+    order,
     primary: provider.primary,
     enabled,
-    ready: enabled && provider.ready(settings, flags),
+    ready: infraReady,
     comingSoon,
+    visible,
     endpoints: provider.endpoints,
   };
 }

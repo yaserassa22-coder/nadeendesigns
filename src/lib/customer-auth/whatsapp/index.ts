@@ -2,13 +2,25 @@ import type { WhatsAppProvider, WhatsAppProviderId, WhatsAppSendResult } from ".
 import { createMetaWhatsAppProvider } from "./meta";
 import { createTwilioWhatsAppProvider } from "./twilio";
 import { create360DialogWhatsAppProvider } from "./dialog360";
+import { getCustomerAuthSettings } from "@/lib/customer-auth/settings";
+import { getAuthChannel } from "@/types/customer-auth";
 
 export type { WhatsAppProvider, WhatsAppProviderId, WhatsAppSendResult };
 export { createMetaWhatsAppProvider } from "./meta";
 export { createTwilioWhatsAppProvider } from "./twilio";
 export { create360DialogWhatsAppProvider } from "./dialog360";
 
-function resolvePreferredProviderId(): WhatsAppProviderId | "auto" {
+function resolvePreferredProviderId(
+  adminPreference?: string
+): WhatsAppProviderId | "auto" {
+  const fromAdmin = (adminPreference || "").trim().toLowerCase();
+  if (
+    fromAdmin === "meta" ||
+    fromAdmin === "twilio" ||
+    fromAdmin === "360dialog"
+  ) {
+    return fromAdmin;
+  }
   const raw = (process.env.WHATSAPP_PROVIDER || "auto").trim().toLowerCase();
   if (raw === "meta" || raw === "twilio" || raw === "360dialog") return raw;
   return "auto";
@@ -25,15 +37,18 @@ export function listWhatsAppProviders(): WhatsAppProvider[] {
 
 /**
  * Select provider:
- * - WHATSAPP_PROVIDER=meta|twilio|360dialog → that provider (must be configured)
- * - WHATSAPP_PROVIDER=auto|unset → Meta if configured, else Twilio, else 360dialog
+ * - Admin channel configuration.provider (customer_auth) preferred
+ * - else WHATSAPP_PROVIDER=meta|twilio|360dialog
+ * - else auto → Meta if configured, else Twilio, else 360dialog
  */
-export function getWhatsAppProvider(): WhatsAppProvider | null {
+export function getWhatsAppProvider(
+  preferred?: string
+): WhatsAppProvider | null {
   const providers = listWhatsAppProviders();
-  const preferred = resolvePreferredProviderId();
+  const prefer = resolvePreferredProviderId(preferred);
 
-  if (preferred !== "auto") {
-    const match = providers.find((p) => p.id === preferred);
+  if (prefer !== "auto") {
+    const match = providers.find((p) => p.id === prefer);
     if (match?.isConfigured()) return match;
     return null;
   }
@@ -52,6 +67,7 @@ export function getActiveWhatsAppProviderId(): WhatsAppProviderId | null {
 /**
  * Send OTP via the configured WhatsApp Business provider.
  * Never call from the client — credentials stay server-side.
+ * Admin can pick provider preference from Customer Auth channels (no code edit).
  */
 export async function sendWhatsAppOtp(params: {
   toE164: string;
@@ -60,12 +76,22 @@ export async function sendWhatsAppOtp(params: {
   | { ok: true; provider: WhatsAppProviderId; messageId?: string; channel: "whatsapp" }
   | { ok: false; error: string }
 > {
-  const provider = getWhatsAppProvider();
+  let preferred: string | undefined;
+  try {
+    const settings = await getCustomerAuthSettings();
+    const channel = getAuthChannel(settings, "whatsapp");
+    const raw = channel?.configuration?.provider;
+    if (typeof raw === "string") preferred = raw;
+  } catch {
+    /* settings optional for send path */
+  }
+
+  const provider = getWhatsAppProvider(preferred);
   if (!provider) {
     return {
       ok: false,
       error:
-        "واتساب غير مُعد. عيّني WHATSAPP_PROVIDER مع بيانات Meta أو Twilio أو 360dialog.",
+        "واتساب غير مُعد. من الإدارة → المصادقة: اختاري المزوّد وأزيلي «قريباً»، ثم أضيفي مفاتيح Meta أو Twilio أو 360dialog في البيئة.",
     };
   }
 

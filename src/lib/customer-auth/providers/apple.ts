@@ -5,7 +5,7 @@ export const AppleAuthProvider: AuthProvider = {
   id: "apple",
   label: { ar: "المتابعة مع Apple", en: "Continue with Apple" },
   capabilities: ["oauth"],
-  order: 20,
+  order: 40,
   primary: true,
   endpoints: { oauth: "/api/auth/oauth" },
 

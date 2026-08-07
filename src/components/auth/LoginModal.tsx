@@ -108,18 +108,23 @@ export function LoginModal({
     return buildLegacyProviders(settings);
   }, [settings]);
 
-  const otpProviders = providers.filter(
-    (p) => p.enabled && !p.comingSoon && p.capabilities.includes("otp")
+  /** Active (clickable) providers in admin order. */
+  const activeProviders = providers.filter(
+    (p) => p.enabled && !p.comingSoon && p.ready
   );
-  const oauthProviders = providers.filter(
-    (p) => p.enabled && !p.comingSoon && p.capabilities.includes("oauth")
+  const emailProvider = activeProviders.find((p) =>
+    p.capabilities.includes("password")
   );
-  const guestProvider = providers.find(
-    (p) => p.enabled && !p.comingSoon && p.capabilities.includes("guest")
+  const guestProvider = activeProviders.find((p) =>
+    p.capabilities.includes("guest")
   );
-  const emailProvider = providers.find(
-    (p) => p.enabled && !p.comingSoon && p.capabilities.includes("password")
+  const oauthProviders = activeProviders.filter((p) =>
+    p.capabilities.includes("oauth")
   );
+  const otpProviders = activeProviders.filter((p) =>
+    p.capabilities.includes("otp")
+  );
+  /** Coming soon / not connected — after active options, still admin-ordered. */
   const comingSoonProviders = providers.filter((p) => p.comingSoon);
 
   function resetForm() {
@@ -181,6 +186,8 @@ export function LoginModal({
   useEffect(() => {
     if (!open) return;
     openedAtRef.current = Date.now();
+    // Intentional remount-style reset when `open` flips true.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- modal open gate
     resetForm();
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -466,21 +473,16 @@ export function LoginModal({
               </button>
 
               <div className="mb-5 text-center">
-                <p
+                <h2
+                  id="login-title"
                   className="font-[family-name:var(--font-cormorant)] text-2xl tracking-[0.2em] sm:text-3xl"
                   style={{ color: ACCENT }}
                 >
                   {SITE_NAME}
-                </p>
-                <h2
-                  id="login-title"
-                  className="mt-3 font-[family-name:var(--font-amiri)] text-2xl text-charcoal"
-                >
-                  مرحباً بكِ في NadEEN Designs
                 </h2>
                 <p className="mt-2 text-sm text-muted">
                   {step === "choice"
-                    ? "اختاري طريقة المتابعة — بأناقة وخصوصية."
+                    ? "اختاري طريقة المتابعة"
                     : step === "phone"
                       ? `أدخلي رقمك لاستلام رمز التحقق عبر ${otpLabel}.`
                       : step === "otp"
@@ -545,20 +547,21 @@ export function LoginModal({
                     ))}
                   </ul>
 
-                  {/* Phase G primary: Google → Apple → Guest (+ reserved WhatsApp) */}
-                  {oauthProviders.map((p) => (
-                    <OAuthButton
-                      key={p.id}
-                      label={p.label.ar}
-                      icon={providerIcon(p.id)}
-                      ready={p.ready}
-                      enabled={p.enabled}
-                      loading={loading}
-                      onClick={() => void startOAuth(p.id)}
-                      disabledHint={`${p.label.ar} غير مُعد حالياً`}
-                      primary={p.id === "google"}
-                    />
-                  ))}
+                  {/* Order: Email → Guest → OAuth → OTP → قريباً (admin sort within groups) */}
+                  {emailProvider && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setStep("email");
+                      }}
+                      className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
+                      style={{ backgroundColor: ACCENT }}
+                    >
+                      <Mail className="h-4 w-4" />
+                      {emailProvider.label.ar}
+                    </button>
+                  )}
 
                   {guestProvider && (
                     <button
@@ -572,19 +575,34 @@ export function LoginModal({
                     </button>
                   )}
 
-                  {emailProvider && (
+                  {oauthProviders.map((p) => (
+                    <OAuthButton
+                      key={p.id}
+                      label={p.label.ar}
+                      icon={providerIcon(p.id)}
+                      ready={p.ready}
+                      enabled={p.enabled}
+                      loading={loading}
+                      onClick={() => void startOAuth(p.id)}
+                      disabledHint="قريباً"
+                    />
+                  ))}
+
+                  {otpProviders.map((p) => (
                     <button
+                      key={p.id}
                       type="button"
+                      disabled={loading}
                       onClick={() => {
-                        setError(null);
-                        setStep("email");
+                        setActiveOtpProvider(p);
+                        setStep("phone");
                       }}
-                      className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-[#C9A14A]/40 bg-white px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/30"
+                      className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-beige-dark bg-white px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/40"
                     >
-                      <Mail className="h-4 w-4" style={{ color: ACCENT }} />
-                      {emailProvider.label.ar}
+                      {providerIcon(p.id)}
+                      {p.label.ar}
                     </button>
-                  )}
+                  ))}
 
                   {comingSoonProviders.map((p) => (
                     <button
@@ -602,24 +620,6 @@ export function LoginModal({
                       >
                         قريباً
                       </span>
-                    </button>
-                  ))}
-
-                  {/* OTP kept for registry / future — only if an OTP provider is actively enabled */}
-                  {otpProviders.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setActiveOtpProvider(p);
-                        setStep("phone");
-                      }}
-                      className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
-                      style={{ backgroundColor: ACCENT }}
-                    >
-                      {providerIcon(p.id)}
-                      {p.label.ar}
                     </button>
                   ))}
                 </div>
@@ -947,29 +947,18 @@ function buildLegacyProviders(
   settings: SettingsWithProviders | null
 ): AuthProviderPublic[] {
   const list: AuthProviderPublic[] = [];
-  // Phase G: Google / Apple / Guest active; WhatsApp reserved (coming soon)
-  if (settings?.google_enabled !== false) {
+  if (settings?.email_password_enabled !== false) {
     list.push({
-      id: "google",
-      label: { ar: "المتابعة مع Google", en: "Continue with Google" },
-      capabilities: ["oauth"],
+      id: "email",
+      label: { ar: "البريد وكلمة المرور", en: "Email and password" },
+      capabilities: ["password"],
       order: 10,
       primary: true,
       enabled: true,
-      ready: Boolean(settings?.google_ready),
-      endpoints: { oauth: "/api/auth/oauth" },
-    });
-  }
-  if (settings?.apple_enabled !== false) {
-    list.push({
-      id: "apple",
-      label: { ar: "المتابعة مع Apple", en: "Continue with Apple" },
-      capabilities: ["oauth"],
-      order: 20,
-      primary: true,
-      enabled: true,
-      ready: Boolean(settings?.apple_ready),
-      endpoints: { oauth: "/api/auth/oauth" },
+      ready: true,
+      comingSoon: false,
+      visible: true,
+      endpoints: { password: "/api/auth/email" },
     });
   }
   if (settings?.guest_checkout_enabled !== false) {
@@ -977,38 +966,59 @@ function buildLegacyProviders(
       id: "guest",
       label: { ar: "المتابعة كزائرة", en: "Continue as guest" },
       capabilities: ["guest"],
-      order: 30,
+      order: 20,
       primary: true,
       enabled: true,
       ready: true,
+      comingSoon: false,
+      visible: true,
+    });
+  }
+  if (settings?.google_enabled !== false) {
+    const ready = Boolean(settings?.google_ready);
+    list.push({
+      id: "google",
+      label: { ar: "المتابعة مع Google", en: "Continue with Google" },
+      capabilities: ["oauth"],
+      order: 30,
+      primary: true,
+      enabled: ready,
+      ready,
+      comingSoon: !ready,
+      visible: true,
+      endpoints: { oauth: "/api/auth/oauth" },
+    });
+  }
+  if (settings?.apple_enabled !== false) {
+    const ready = Boolean(settings?.apple_ready);
+    list.push({
+      id: "apple",
+      label: { ar: "المتابعة مع Apple", en: "Continue with Apple" },
+      capabilities: ["oauth"],
+      order: 40,
+      primary: true,
+      enabled: ready,
+      ready,
+      comingSoon: !ready,
+      visible: true,
+      endpoints: { oauth: "/api/auth/oauth" },
     });
   }
   list.push({
     id: "whatsapp",
     label: { ar: "المتابعة مع واتساب", en: "Continue with WhatsApp" },
     capabilities: ["otp"],
-    order: 40,
+    order: 50,
     primary: true,
     enabled: false,
     ready: false,
     comingSoon: true,
+    visible: true,
     endpoints: {
       sendOtp: "/api/auth/whatsapp/send-code",
       verifyOtp: "/api/auth/whatsapp/verify-code",
     },
   });
-  if (settings?.email_ready !== false && settings?.email_password_enabled !== false) {
-    list.push({
-      id: "email",
-      label: { ar: "البريد وكلمة المرور", en: "Email and password" },
-      capabilities: ["password"],
-      order: 50,
-      primary: false,
-      enabled: true,
-      ready: true,
-      endpoints: { password: "/api/auth/email" },
-    });
-  }
   return list;
 }
 
@@ -1020,7 +1030,6 @@ function OAuthButton({
   loading,
   onClick,
   disabledHint,
-  primary,
 }: {
   label: string;
   icon: ReactNode;
@@ -1029,32 +1038,30 @@ function OAuthButton({
   loading: boolean;
   onClick: () => void;
   disabledHint: string;
-  primary?: boolean;
 }) {
   const disabled = !enabled || !ready || loading;
-  // Disabled primary must NOT use white-on-transparent (looks like a blank panel).
-  const lookPrimary = Boolean(primary) && !disabled;
   return (
     <button
       type="button"
       disabled={disabled}
-      title={!ready || !enabled ? disabledHint : undefined}
+      title={disabled ? disabledHint : undefined}
       onClick={onClick}
       className={cn(
-        "flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-semibold transition",
-        lookPrimary
-          ? "border border-transparent text-white shadow-md hover:brightness-105"
-          : "border border-beige-dark bg-white font-medium text-charcoal",
+        "relative flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-semibold transition",
         disabled
-          ? "cursor-not-allowed border-dashed border-beige-dark bg-beige/40 text-muted opacity-90"
-          : !lookPrimary && "hover:border-[color:#C9A14A] hover:bg-beige/40"
+          ? "cursor-not-allowed border border-dashed border-beige-dark bg-beige/40 text-muted opacity-90"
+          : "border border-beige-dark bg-white font-medium text-charcoal hover:border-[color:#C9A14A] hover:bg-beige/40"
       )}
-      style={lookPrimary ? { backgroundColor: ACCENT } : undefined}
     >
       {icon}
       <span>{label}</span>
-      {!ready && enabled ? (
-        <span className="text-[10px] font-medium text-muted">(غير مُعد)</span>
+      {disabled && !loading ? (
+        <span
+          className="absolute start-4 top-1/2 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white"
+          style={{ backgroundColor: ACCENT }}
+        >
+          قريباً
+        </span>
       ) : null}
     </button>
   );

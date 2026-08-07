@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import {
-  getEnabledPaymentProviders,
   getStoreDisplayName,
   getStoreSettings,
+  getVisiblePaymentProviders,
 } from "@/lib/store/settings";
 
 /**
- * Public (anon-readable) store branding + enabled payment methods.
+ * Public (anon-readable) store branding + visible payment methods.
  * No secrets. Used by checkout and any client that needs live store config.
+ * Coming-soon methods are included with coming_soon: true for قريباً UI.
  */
 export async function GET() {
   try {
@@ -23,13 +24,15 @@ export async function GET() {
       whatsapp: settings.contact.whatsapp,
       social: settings.social,
       homepage: settings.homepage,
-      payments: getEnabledPaymentProviders(settings).map((p) => ({
+      payments: getVisiblePaymentProviders(settings).map((p) => ({
         id: p.id,
         name: p.name,
         name_ar: p.name_ar,
         description_ar: p.description_ar,
         icon: p.icon,
         sort_order: p.sort_order,
+        coming_soon: p.coming_soon,
+        configured: p.configured,
       })),
       order_options: settings.order_options,
       extra_services: {

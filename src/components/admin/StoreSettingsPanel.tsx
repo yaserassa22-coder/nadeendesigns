@@ -15,6 +15,7 @@ import {
   type SystemHealthStatus,
 } from "@/types/store";
 import { GlobalServicesManager } from "@/components/admin/GlobalServicesManager";
+import { CustomerAuthSettingsForm } from "@/components/admin/CustomerAuthSettingsForm";
 
 const SECTIONS: { id: StoreSettingsSection | "health"; label: string }[] = [
   { id: "general", label: "عام" },
@@ -384,7 +385,7 @@ export function StoreSettingsPanel({
         {active === "payments" && (
           <Section
             title="طرق الدفع"
-            description="للإطلاق: الدفع عند الاستلام فقط. الباقي Coming Soon — بدون تكامل حي."
+            description="فعّلي الطرق الظاهرة في الدفع. علّمي «قريباً» للطرق غير المتصلة بعد — تظهر للزبونة مع شارة قريباً دون كسر الدفع عند الاستلام."
             onSave={() => saveSection("payments")}
             saving={saving}
           >
@@ -395,34 +396,77 @@ export function StoreSettingsPanel({
                   className="rounded-xl border border-beige-dark/70 p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-charcoal">{p.name_ar}</p>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Input
+                        label="الاسم بالعربية"
+                        value={p.name_ar}
+                        onChange={(e) =>
+                          updateProvider(p.id, { name_ar: e.target.value })
+                        }
+                      />
+                      <Input
+                        label="الاسم (EN)"
+                        value={p.name}
+                        onChange={(e) =>
+                          updateProvider(p.id, { name: e.target.value })
+                        }
+                      />
+                      <Input
+                        label="الوصف بالعربية"
+                        value={p.description_ar}
+                        onChange={(e) =>
+                          updateProvider(p.id, {
+                            description_ar: e.target.value,
+                          })
+                        }
+                      />
                       <p className="text-xs text-muted" dir="ltr">
-                        {p.name} · {p.id}
+                        id: {p.id}
+                        {p.secret_env_ref
+                          ? ` · secret env: ${p.secret_env_ref}`
+                          : ""}
                       </p>
-                      <p className="mt-1 text-sm text-muted">
-                        {p.description_ar}
-                      </p>
-                      {p.secret_env_ref ? (
-                        <p className="mt-1 text-xs text-muted" dir="ltr">
-                          secret env: {p.secret_env_ref}
-                        </p>
-                      ) : null}
                     </div>
                     <div className="flex flex-col gap-2">
                       {p.coming_soon ? (
-                        <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                        <span className="rounded-lg bg-amber-50 px-2 py-1 text-center text-xs text-amber-800">
                           قريباً
                         </span>
                       ) : null}
                       <Toggle
-                        label="مفعّل"
-                        checked={p.enabled}
-                        disabled={p.coming_soon && p.id !== "cod"}
+                        label="ظاهر في المتجر"
+                        checked={p.enabled || p.coming_soon}
                         onChange={(v) => {
-                          if (p.coming_soon && p.id !== "cod") return;
-                          updateProvider(p.id, { enabled: v });
+                          if (!v) {
+                            updateProvider(p.id, {
+                              enabled: false,
+                              coming_soon: false,
+                            });
+                            return;
+                          }
+                          if (p.id === "cod") {
+                            updateProvider(p.id, {
+                              enabled: true,
+                              coming_soon: false,
+                            });
+                            return;
+                          }
+                          updateProvider(p.id, {
+                            enabled: true,
+                            coming_soon: p.coming_soon || !p.configured,
+                          });
                         }}
+                      />
+                      <Toggle
+                        label="قريباً"
+                        checked={p.coming_soon}
+                        disabled={p.id === "cod"}
+                        onChange={(v) =>
+                          updateProvider(p.id, {
+                            coming_soon: v,
+                            enabled: true,
+                          })
+                        }
                       />
                       {p.id !== "cod" ? (
                         <Toggle
@@ -434,6 +478,19 @@ export function StoreSettingsPanel({
                           hint="لا تخزّني أسراراً هنا — علّمي فقط أن الـ env جاهز"
                         />
                       ) : null}
+                      <label className="text-xs text-muted">
+                        ترتيب
+                        <input
+                          type="number"
+                          className="mt-1 w-20 rounded-lg border border-beige-dark px-2 py-1 text-sm text-charcoal"
+                          value={p.sort_order}
+                          onChange={(e) =>
+                            updateProvider(p.id, {
+                              sort_order: Number(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -715,20 +772,24 @@ export function StoreSettingsPanel({
         )}
 
         {active === "authentication" && (
-          <Section
-            title="مصادقة العملاء"
-            description="يُزامن مع إعدادات customer_auth الحالية."
-            onSave={() => saveSection("authentication")}
-            saving={saving}
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-charcoal">
+                مصادقة العملاء
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                قنوات الدخول (بريد، زائرة، Google، Apple، واتساب…) — التفعيل،
+                قريباً، والترتيب من قاعدة البيانات. احفظي من زر النموذج أدناه.
+              </p>
+            </div>
+            <div className="mb-2 grid gap-3 sm:grid-cols-2">
               {(
                 [
                   ["guest_checkout_enabled", "الشراء كزائرة"],
                   ["google_enabled", "Google"],
                   ["apple_enabled", "Apple"],
                   ["email_password_enabled", "البريد وكلمة المرور"],
-                  ["phone_otp_enabled", "واتساب OTP"],
+                  ["phone_otp_enabled", "واتساب OTP (نشط)"],
                   ["registration_enabled", "التسجيل"],
                 ] as const
               ).map(([key, label]) => (
@@ -745,7 +806,17 @@ export function StoreSettingsPanel({
                 />
               ))}
             </div>
-          </Section>
+            <div className="border-t border-beige-dark pt-4">
+              <Button
+                type="button"
+                loading={saving}
+                onClick={() => saveSection("authentication")}
+              >
+                حفظ المفاتيح السريعة
+              </Button>
+            </div>
+            <CustomerAuthSettingsForm embedded />
+          </div>
         )}
 
         {active === "notifications" && (

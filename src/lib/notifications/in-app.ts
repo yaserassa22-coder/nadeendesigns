@@ -73,41 +73,58 @@ export function inAppCopyForStatus(
   }
 }
 
+/** Optional Supabase-like client (privileged / service role) for durable inserts. */
+export type InAppWriteClient = {
+  from: (table: string) => {
+    insert: (values: Record<string, unknown>) => {
+      select: (columns: string) => {
+        single: () => PromiseLike<{
+          data: unknown;
+          error: { message?: string } | null;
+        }>;
+      };
+    };
+  };
+};
+
 async function insertInAppRow(
-  row: CustomerNotification
+  row: CustomerNotification,
+  client?: InAppWriteClient | null
 ): Promise<CustomerNotification | null> {
   if (!isSupabaseConfigured()) {
     memoryInbox.unshift(row);
     return row;
   }
 
+  const payload = {
+    id: row.id,
+    order_id: row.order_id,
+    customer_key: row.customer_key,
+    title_ar: row.title_ar,
+    body_ar: row.body_ar,
+    order_status: row.order_status,
+    href: row.href,
+    is_read: false,
+  };
+
   try {
-    const supabase = createAdminClient();
+    // Privilege-compatible cast — both admin and service-role clients share this shape.
+    const supabase = (client ?? createAdminClient()) as InAppWriteClient;
     const { data, error } = await supabase
       .from("customer_notifications")
-      .insert({
-        id: row.id,
-        order_id: row.order_id,
-        customer_key: row.customer_key,
-        title_ar: row.title_ar,
-        body_ar: row.body_ar,
-        order_status: row.order_status,
-        href: row.href,
-        is_read: false,
-      })
+      .insert(payload)
       .select("*")
       .single();
 
     if (error) {
       console.error("[customer_notifications] insert failed", error);
-      memoryInbox.unshift(row);
-      return row;
+      // Do NOT pretend success — Account → الإشعارات reads the DB, not memory.
+      return null;
     }
     return data as CustomerNotification;
   } catch (e) {
     console.error("[customer_notifications] insert error", e);
-    memoryInbox.unshift(row);
-    return row;
+    return null;
   }
 }
 
@@ -133,6 +150,7 @@ export async function createInAppNotification(input: {
 /**
  * Generic account inbox row (messages, boutique replies, non-order events).
  * `customer_key` must match `customerKeyFromContact` / `customers.customer_key`.
+ * Pass the same privileged Supabase client used for `customer_messages` when available.
  */
 export async function createAccountInAppNotification(input: {
   customerKey: string;
@@ -140,6 +158,8 @@ export async function createAccountInAppNotification(input: {
   body_ar: string;
   href?: string | null;
   order_status?: string | null;
+  /** Prefer the writer’s privileged client so insert credentials match the message write. */
+  client?: InAppWriteClient | null;
 }): Promise<CustomerNotification | null> {
   const key = input.customerKey.trim();
   if (!key) return null;
@@ -154,7 +174,7 @@ export async function createAccountInAppNotification(input: {
     is_read: false,
     created_at: new Date().toISOString(),
   };
-  return insertInAppRow(row);
+  return insertInAppRow(row, input.client);
 }
 
 export function inAppCopyForBookingStatus(

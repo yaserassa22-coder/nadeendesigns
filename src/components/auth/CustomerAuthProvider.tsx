@@ -15,6 +15,8 @@ import {
   type AuthMe,
   type OpenLoginOptions,
 } from "@/components/auth/auth-context";
+import { sanitizeGuestCartItems } from "@/lib/guest/cart-items";
+import { mergeCartLines } from "@/lib/shop/cart-lines";
 
 const GUEST_MODE_KEY = "nadeen_guest_mode";
 const FETCH_TIMEOUT_MS = 12_000;
@@ -273,10 +275,20 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
             );
             if (ok && Array.isArray(data?.items) && data.items.length) {
               const key = "nadeen_shop_cart";
-              const existing = JSON.parse(
-                window.localStorage.getItem(key) || "[]"
-              ) as unknown[];
-              const merged = [...data.items, ...existing].slice(0, 50);
+              let existingRaw: unknown[] = [];
+              try {
+                const parsed = JSON.parse(
+                  window.localStorage.getItem(key) || "[]"
+                ) as unknown;
+                if (Array.isArray(parsed)) existingRaw = parsed;
+              } catch {
+                existingRaw = [];
+              }
+              // Root-cause: blind concat duplicated synced guest lines (same line_id).
+              const merged = mergeCartLines(
+                sanitizeGuestCartItems(existingRaw),
+                sanitizeGuestCartItems(data.items)
+              );
               window.localStorage.setItem(key, JSON.stringify(merged));
             }
           } catch {
