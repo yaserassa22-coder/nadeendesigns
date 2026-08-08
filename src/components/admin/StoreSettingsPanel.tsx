@@ -80,6 +80,101 @@ function Toggle({
   );
 }
 
+function BackupStatusCard({
+  status,
+  note,
+  lastAt,
+  onUpdated,
+}: {
+  status: StoreSettings["security"]["backup_status"];
+  note: string;
+  lastAt: string | null;
+  onUpdated: (next: {
+    backup_status: StoreSettings["security"]["backup_status"];
+    backup_note: string;
+    backup_last_at: string;
+  }) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const statusLabel =
+    status === "ok"
+      ? "سليم"
+      : status === "warning"
+        ? "تحذير"
+        : status === "error"
+          ? "خطأ"
+          : "غير معروف";
+
+  const tone =
+    status === "ok"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : status === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : status === "error"
+          ? "border-red-200 bg-red-50 text-red-800"
+          : "border-beige-dark/60 bg-beige/30 text-charcoal";
+
+  const refresh = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/backup-status?persist=1", {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      onUpdated({
+        backup_status: data.backup_status,
+        backup_note: data.backup_note,
+        backup_last_at: data.backup_last_at,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className={`rounded-xl border px-4 py-3 text-sm ${tone}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-medium">حالة النسخ الاحتياطي / الاتصال</p>
+          <p className="mt-1">
+            <span className="font-semibold">{statusLabel}</span>
+            <span className="text-muted"> — {note}</span>
+          </p>
+          {lastAt ? (
+            <p className="mt-1 text-xs text-muted" dir="ltr">
+              آخر فحص: {lastAt}
+            </p>
+          ) : null}
+          {error ? <p className="mt-1 text-xs text-red-700">{error}</p> : null}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          loading={busy}
+          onClick={() => void refresh()}
+        >
+          {busy ? "جاري التحديث…" : "تحديث الحالة"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function StoreSettingsPanel({
   initialSettings,
 }: {
@@ -1052,7 +1147,7 @@ export function StoreSettingsPanel({
         {active === "security" && (
           <Section
             title="الأمان"
-            description="وضع الصيانة وحالة النسخ الاحتياطي (عرض)."
+            description="مهلة الجلسة، وضع الصيانة، وحالة الاتصال/النسخ الاحتياطي."
             onSave={() => saveSection("security")}
             saving={saving}
           >
@@ -1076,8 +1171,11 @@ export function StoreSettingsPanel({
                 }))
               }
             />
+            <p className="-mt-2 text-xs text-muted">
+              تسجيل الخروج تلقائياً بعد فترة عدم نشاط — للإدارة والعميلات المسجّلات.
+            </p>
             <Toggle
-              label="وضع الصيانة (قريباً)"
+              label="وضع الصيانة"
               checked={settings.security.maintenance_mode}
               onChange={(v) =>
                 setSettings((s) => ({
@@ -1085,20 +1183,66 @@ export function StoreSettingsPanel({
                   security: { ...s.security, maintenance_mode: v },
                 }))
               }
-              hint="محفوظ في الإعدادات — صفحة الصيانة للمتجر غير مفعّلة بعد"
+              hint="عند التفعيل يُغلق المتجر للجميع. لوحة التحكم /admin تبقى متاحة. احفظي ثم افتحي الصفحة الرئيسية."
             />
-            <div className="rounded-xl border border-beige-dark/60 bg-beige/30 px-4 py-3 text-sm">
-              <p className="font-medium text-charcoal">حالة النسخ الاحتياطي</p>
-              <p className="mt-1 text-muted">
-                {settings.security.backup_status} —{" "}
-                {settings.security.backup_note}
-              </p>
-              {settings.security.backup_last_at ? (
-                <p className="mt-1 text-xs text-muted" dir="ltr">
-                  Last: {settings.security.backup_last_at}
-                </p>
-              ) : null}
-            </div>
+            <Textarea
+              label="رسالة الصيانة (عربي)"
+              rows={2}
+              value={settings.security.maintenance_message_ar}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  security: {
+                    ...s.security,
+                    maintenance_message_ar: e.target.value,
+                  },
+                }))
+              }
+            />
+            <Textarea
+              label="رسالة الصيانة (عبري)"
+              rows={2}
+              value={settings.security.maintenance_message_he}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  security: {
+                    ...s.security,
+                    maintenance_message_he: e.target.value,
+                  },
+                }))
+              }
+            />
+            <Textarea
+              label="رسالة الصيانة (EN)"
+              rows={2}
+              value={settings.security.maintenance_message_en}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  security: {
+                    ...s.security,
+                    maintenance_message_en: e.target.value,
+                  },
+                }))
+              }
+            />
+            <BackupStatusCard
+              status={settings.security.backup_status}
+              note={settings.security.backup_note}
+              lastAt={settings.security.backup_last_at}
+              onUpdated={(next) =>
+                setSettings((s) => ({
+                  ...s,
+                  security: {
+                    ...s.security,
+                    backup_status: next.backup_status,
+                    backup_note: next.backup_note,
+                    backup_last_at: next.backup_last_at,
+                  },
+                }))
+              }
+            />
           </Section>
         )}
 
