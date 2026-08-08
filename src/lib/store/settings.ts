@@ -295,6 +295,18 @@ function normalizeSecurity(raw: unknown): StoreSecuritySettings {
       Math.max(5, Math.floor(num(s.session_timeout_minutes, d.session_timeout_minutes, 5)))
     ),
     maintenance_mode: bool(s.maintenance_mode, d.maintenance_mode),
+    maintenance_message_ar: str(
+      s.maintenance_message_ar,
+      d.maintenance_message_ar
+    ),
+    maintenance_message_he: str(
+      s.maintenance_message_he,
+      d.maintenance_message_he
+    ),
+    maintenance_message_en: str(
+      s.maintenance_message_en,
+      d.maintenance_message_en
+    ),
     backup_status,
     backup_last_at:
       s.backup_last_at === null
@@ -628,6 +640,16 @@ export async function saveStoreSettings(
 
   cached = merged;
   cachedAt = Date.now();
+  if (touch("security")) {
+    try {
+      const { bustMaintenanceModeCache } = await import(
+        "@/lib/store/maintenance-edge"
+      );
+      bustMaintenanceModeCache();
+    } catch {
+      /* edge helper optional in some runtimes */
+    }
+  }
   return merged;
 }
 

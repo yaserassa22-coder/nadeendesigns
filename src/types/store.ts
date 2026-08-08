@@ -121,6 +121,10 @@ export type StoreSeoSettings = {
 export type StoreSecuritySettings = {
   session_timeout_minutes: number;
   maintenance_mode: boolean;
+  /** Optional storefront message while maintenance is on. */
+  maintenance_message_ar: string;
+  maintenance_message_he: string;
+  maintenance_message_en: string;
   backup_status: "unknown" | "ok" | "warning" | "error";
   backup_last_at: string | null;
   backup_note: string;
@@ -510,9 +514,15 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   security: {
     session_timeout_minutes: 60,
     maintenance_mode: false,
+    maintenance_message_ar:
+      "المتجر قيد الصيانة حالياً. نعود إليكِ قريباً بإطلالة أجمل.",
+    maintenance_message_he:
+      "החנות בתחזוקה כרגע. נחזור אלייך בקרוב עם חוויה יפה יותר.",
+    maintenance_message_en:
+      "The boutique is briefly under maintenance. We’ll be back shortly with something beautiful.",
     backup_status: "unknown",
     backup_last_at: null,
-    backup_note: "النسخ الاحتياطي يُدار عبر Supabase — الحالة للعرض فقط",
+    backup_note: "النسخ الاحتياطي يُدار عبر Supabase",
   },
   integrations: DEFAULT_STORE_INTEGRATIONS,
   order_options: {

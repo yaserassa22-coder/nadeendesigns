@@ -39,6 +39,7 @@ export async function GET() {
         services: settings.extra_services.services.filter((s) => s.enabled),
       },
       maintenance_mode: settings.security.maintenance_mode,
+      session_timeout_minutes: settings.security.session_timeout_minutes,
       seo: {
         title: settings.seo.title,
         description: settings.seo.description,

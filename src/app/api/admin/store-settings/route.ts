@@ -94,6 +94,7 @@ export async function PUT(request: NextRequest) {
     revalidatePath("/checkout");
     revalidatePath("/contact");
     revalidatePath("/admin/settings");
+    revalidatePath("/maintenance");
 
     return NextResponse.json({
       success: true,
