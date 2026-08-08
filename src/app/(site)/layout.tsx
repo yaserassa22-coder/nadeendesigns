@@ -12,16 +12,26 @@ import {
   getStoreDisplayName,
   getStoreSettings,
 } from "@/lib/store/settings";
+import { getStorefrontLocale } from "@/lib/i18n/server";
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 
 export default async function SiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [settings, categories, store] = await Promise.all([
+  // Force-read so maintenance toggles apply immediately (no stale in-memory cache).
+  const store = await getStoreSettings(true);
+  if (store.security.maintenance_mode) {
+    redirect("/maintenance");
+  }
+
+  const locale = await getStorefrontLocale();
+  const [settings, categories] = await Promise.all([
     getSettings(),
     getStorefrontCategories(),
-    getStoreSettings(),
   ]);
-  const nav = buildStorefrontNav(categories);
+  const nav = buildStorefrontNav(categories, locale);
   const storeName = getStoreDisplayName(store);
   const whatsapp = store.contact.whatsapp || settings.whatsapp;
   const phone = store.contact.phone || settings.phone;
@@ -43,14 +53,22 @@ export default async function SiteLayout({
           whatsapp,
           address_ar:
             store.contact.location_ar || settings.address_ar,
+          address_he:
+            store.general.business_address_he || settings.address_he,
+          address_en:
+            store.general.business_address || settings.address_en,
           working_hours_ar:
             store.general.working_hours_ar || settings.working_hours_ar,
+          working_hours_he:
+            store.general.working_hours_he || settings.working_hours_he,
+          working_hours_en:
+            store.general.working_hours || settings.working_hours_en,
           instagram_url:
             store.social.instagram_url ||
             store.contact.instagram_url ||
             settings.instagram_url,
         }}
-        navLinks={buildFooterNavLinks(nav.categoryLinks)}
+        navLinks={buildFooterNavLinks(nav.categoryLinks, locale)}
         storeName={storeName}
         logoUrl={store.general.logo_url || undefined}
         social={{

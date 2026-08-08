@@ -1,25 +1,54 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/dresses/DressCatalog";
+import { AccessoriesBrowseSidebar } from "@/components/shop/AccessoriesBrowseSidebar";
 import { ShopCatalog } from "@/components/shop/ShopCatalog";
+import { getAccessoriesBrowseNav } from "@/lib/categories/accessories-browse";
 import { getBridalRobes } from "@/lib/data/shop-queries";
+import { getStorefrontLocale } from "@/lib/i18n/server";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "برنص العروس",
-  description: "برنص عروس فاخر من Nadeen Designs مع تخصيص الكتابة والشراء.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.pages.robes.title,
+    description: t.pages.robes.metaDescription,
+  };
+}
 
 export default async function RobesPage() {
-  const robes = await getBridalRobes();
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+  const [robes, accessoriesNav] = await Promise.all([
+    getBridalRobes(),
+    getAccessoriesBrowseNav(locale),
+  ]);
+  const activeId =
+    accessoriesNav?.items.find((i) => i.href === "/robes")?.id ?? null;
 
   return (
     <>
       <PageHero
-        title="برنص العروس"
-        description="برنص فاخر لجلسات التحضير والتصوير — خصّصي الكتابة واطلبي تغليف هدية."
+        title={t.pages.robes.title}
+        description={t.pages.robes.heroDescription}
       />
       <section className="py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-4 md:px-8">
-          <ShopCatalog items={robes} basePath="/robes" />
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 md:grid-cols-[240px_minmax(0,1fr)] md:gap-12 md:px-8">
+          {accessoriesNav ? (
+            <AccessoriesBrowseSidebar
+              parentLabel={accessoriesNav.parentLabel}
+              parentHref={accessoriesNav.parentHref}
+              parentActive={false}
+              parentCount={accessoriesNav.parentCount}
+              items={accessoriesNav.items}
+              activeId={activeId}
+              navAriaLabel={t.pages.category.accessoriesNavAria}
+              className="md:sticky md:top-28 md:self-start"
+            />
+          ) : null}
+          <div>
+            <ShopCatalog items={robes} basePath="/robes" />
+          </div>
         </div>
       </section>
     </>

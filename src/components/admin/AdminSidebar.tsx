@@ -31,6 +31,10 @@ import {
   isAdminCategoryNavActive,
   type Category,
 } from "@/types/category";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import type { Dictionary } from "@/lib/i18n";
+import { resolveCategoryLabel } from "@/lib/i18n/category-labels";
 
 type InboxCounts = {
   messages: number;
@@ -41,51 +45,77 @@ type InboxCounts = {
 
 type CategoryWithCount = Category & { product_count?: number };
 
+type AdminDict = Dictionary["admin"];
+type AdminLabelKey = {
+  [K in keyof AdminDict]: AdminDict[K] extends string ? K : never;
+}[keyof AdminDict];
+
 /** Top-level modules — never hardcode product-category shortcuts here. */
-const PRIMARY_LINKS = [
-  { href: "/admin", label: "لوحة التحكم", exact: true },
+const PRIMARY_LINK_DEFS = [
+  { href: "/admin", labelKey: "dashboard" as const, exact: true },
 ] as const;
 
-const MODULE_LINKS = [
-  { href: "/admin/gallery", label: "المعرض" },
-  { href: "/admin/bookings", label: "الحجوزات" },
-  { href: "/admin/calendar", label: "تقويم المواعيد" },
-  { href: "/admin/appointments/analytics", label: "تحليلات المواعيد" },
-  { href: "/admin/orders", label: "الطلبات" },
-  { href: "/admin/customers", label: "العملاء" },
-  { href: "/admin/guests", label: "ضيوف المتجر" },
-  { href: "/admin/shipping", label: "إعدادات الشحن" },
-  { href: "/admin/notifications", label: "الإشعارات" },
-  { href: "/admin/messages", label: "الرسائل" },
-  { href: "/admin/activity", label: "سجل النشاط" },
-  { href: "/admin/trash", label: "سلة المحذوفات" },
-  { href: "/admin/content/home", label: "محتوى الرئيسية" },
-  { href: "/admin/content/about", label: "محتوى من نحن" },
-  { href: "/admin/reports", label: "التقارير" },
-  { href: "/admin/settings", label: "إعدادات المتجر" },
-  { href: "/admin/administrators", label: "المسؤولون" },
+const MODULE_LINK_DEFS = [
+  { href: "/admin/gallery", labelKey: "gallery" as const },
+  { href: "/admin/bookings", labelKey: "bookings" as const },
+  { href: "/admin/calendar", labelKey: "calendar" as const },
+  {
+    href: "/admin/appointments/settings",
+    labelKey: "appointmentSettings" as const,
+  },
+  {
+    href: "/admin/appointments/analytics",
+    labelKey: "appointmentAnalytics" as const,
+  },
+  { href: "/admin/orders", labelKey: "orders" as const },
+  { href: "/admin/customers", labelKey: "customers" as const },
+  { href: "/admin/guests", labelKey: "guests" as const },
+  { href: "/admin/shipping", labelKey: "shipping" as const },
+  { href: "/admin/notifications", labelKey: "notifications" as const },
+  { href: "/admin/payments", labelKey: "paymentsInvoicing" as const },
+  { href: "/admin/messages", labelKey: "messages" as const },
+  { href: "/admin/activity", labelKey: "activity" as const },
+  { href: "/admin/trash", labelKey: "trash" as const },
+  { href: "/admin/content/home", labelKey: "homeContent" as const },
+  { href: "/admin/content/about", labelKey: "aboutContent" as const },
+  { href: "/admin/reports", labelKey: "reports" as const },
+  { href: "/admin/settings", labelKey: "storeSettings" as const },
+  { href: "/admin/administrators", labelKey: "administrators" as const },
 ] as const;
 
-const CUSTOM_DESIGN_LINKS = [
+const CUSTOM_DESIGN_LINK_DEFS = [
   {
     href: "/admin/bookings?service=custom_design",
-    label: "طلبات التصميم",
+    labelKey: "designRequests" as const,
   },
   {
     href: "/admin/calendar",
-    label: "المواعيد",
+    labelKey: "appointments" as const,
   },
 ] as const;
 
-const EXPERIENCE_ENGINE_LINKS = [
-  { href: "/admin/experience", label: "نظرة عامة", exact: true },
-  { href: "/admin/experience/features", label: "الميزات" },
-  { href: "/admin/experience/services", label: "الخدمات" },
-  { href: "/admin/experience/product-types", label: "أنواع المنتجات" },
-  { href: "/admin/experience/purchase-flows", label: "مسارات الشراء" },
-  { href: "/admin/experience/templates", label: "القوالب" },
-  { href: "/admin/experience/preview", label: "معاينة" },
+const EXPERIENCE_ENGINE_LINK_DEFS = [
+  { href: "/admin/experience", labelKey: "overview" as const, exact: true },
+  { href: "/admin/experience/features", labelKey: "features" as const },
+  { href: "/admin/experience/services", labelKey: "services" as const },
+  {
+    href: "/admin/experience/product-types",
+    labelKey: "productTypes" as const,
+  },
+  {
+    href: "/admin/experience/purchase-flows",
+    labelKey: "purchaseFlows" as const,
+  },
+  { href: "/admin/experience/templates", labelKey: "templates" as const },
+  { href: "/admin/experience/preview", labelKey: "preview" as const },
 ] as const;
+
+function labelFromAdmin(
+  dict: AdminDict,
+  key: AdminLabelKey
+): string {
+  return dict[key];
+}
 
 function isLinkActive(
   href: string,
@@ -324,6 +354,8 @@ function ProductsNavSection({
   serviceParam: string | null;
   onNavigate: () => void;
 }) {
+  const { t, locale } = useLocale();
+  const sb = t.admin.sidebarUi;
   const { categories, loaded } = useAdminSidebarCategories();
 
   const routeWantsProductsOpen =
@@ -360,6 +392,16 @@ function ProductsNavSection({
     if (rentalChildActive) setRentalOpen(true);
   }
 
+  const accessoriesChildActive = grouped.accessoriesChildren.some((c) =>
+    isAdminCategoryNavActive(c, pathname, categoryParam)
+  );
+  const [accessoriesOpen, setAccessoriesOpen] = useState(true);
+  const [accessoriesRouteKey, setAccessoriesRouteKey] = useState(routeKey);
+  if (accessoriesRouteKey !== routeKey) {
+    setAccessoriesRouteKey(routeKey);
+    if (accessoriesChildActive) setAccessoriesOpen(true);
+  }
+
   const allProductsActive = isLinkActive(
     "/admin/dresses",
     pathname,
@@ -377,7 +419,7 @@ function ProductsNavSection({
     const count = c.product_count ?? 0;
     const label = (
       <>
-        {c.name_ar}
+        {resolveCategoryLabel(c, locale)}
         <span className={cn("ms-1", active ? "text-white/80" : "text-muted")}>
           ({count})
         </span>
@@ -418,7 +460,7 @@ function ProductsNavSection({
   return (
     <div className="space-y-1">
       <SectionToggle
-        label="👰 المنتجات"
+        label={t.admin.products}
         open={productsOpen}
         onToggle={() => setProductsOpen((o) => !o)}
         active={routeWantsProductsOpen}
@@ -426,8 +468,8 @@ function ProductsNavSection({
           <Link
             href="/admin/categories"
             onClick={onNavigate}
-            title="إدارة التصنيفات"
-            aria-label="إدارة التصنيفات"
+            title={t.admin.manageCategories}
+            aria-label={t.admin.manageCategories}
             className={cn(
               "me-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
               manageActive
@@ -441,29 +483,33 @@ function ProductsNavSection({
       />
 
       {productsOpen && (
-        <div className="ms-1 space-y-0.5 border-r border-beige-dark/70 pe-1">
+        <div className="ms-1 space-y-0.5 border-s border-beige-dark/70 pe-1">
           <NavLink
             href="/admin/dresses"
-            label="كل المنتجات"
+            label={t.admin.allProducts}
             active={allProductsActive}
             onNavigate={onNavigate}
             className="px-3 py-2 text-sm"
           />
 
           {!loaded && (
-            <p className="px-3 py-2 text-xs text-muted">جاري التحميل…</p>
+            <p className="px-3 py-2 text-xs text-muted">{t.common.loading}</p>
           )}
 
           {loaded && !hasAnyCategory && (
             <p className="px-3 py-2 text-xs text-muted">
-              لا توجد تصنيفات ظاهرة
+              {sb.noVisibleCategories}
             </p>
           )}
 
           {(grouped.rentalParent || grouped.rentalChildren.length > 0) && (
             <div className="pt-1">
               <SectionToggle
-                label={grouped.rentalParent?.name_ar ?? "فساتين الإيجار"}
+                label={
+                  grouped.rentalParent
+                    ? resolveCategoryLabel(grouped.rentalParent, locale)
+                    : sb.rentalFallback
+                }
                 open={rentalOpen}
                 onToggle={() => setRentalOpen((o) => !o)}
                 active={rentalChildActive}
@@ -472,7 +518,7 @@ function ProductsNavSection({
                 <div className="ms-1 space-y-0.5 border-r border-beige-dark/50 pe-1">
                   {grouped.rentalChildren.length === 0 ? (
                     <p className="px-3 py-1.5 text-[11px] text-muted">
-                      أضيفي تصنيفاً فرعياً تحت فساتين الإيجار
+                      {sb.addRentalChild}
                     </p>
                   ) : (
                     grouped.rentalChildren.map(renderCategoryLink)
@@ -484,19 +530,36 @@ function ProductsNavSection({
 
           {(grouped.accessoriesParent ||
             grouped.accessoriesChildren.length > 0) && (
-            <>
-              <p className="px-3 pt-2 pb-0.5 text-[11px] font-medium text-muted">
-                {grouped.accessoriesParent?.name_ar ?? "إكسسوارات العروس"}
-              </p>
-              {grouped.accessoriesChildren.map(renderCategoryLink)}
-            </>
+            <div className="pt-1">
+              <SectionToggle
+                label={
+                  grouped.accessoriesParent
+                    ? resolveCategoryLabel(grouped.accessoriesParent, locale)
+                    : sb.accessoriesFallback
+                }
+                open={accessoriesOpen}
+                onToggle={() => setAccessoriesOpen((o) => !o)}
+                active={accessoriesChildActive}
+              />
+              {accessoriesOpen && (
+                <div className="ms-1 space-y-0.5 border-r border-beige-dark/50 pe-1">
+                  {grouped.accessoriesChildren.length === 0 ? (
+                    <p className="px-3 py-1.5 text-[11px] text-muted">
+                      {sb.addAccessoriesChild}
+                    </p>
+                  ) : (
+                    grouped.accessoriesChildren.map(renderCategoryLink)
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {grouped.rest.map(renderCategoryLink)}
 
           <NavLink
             href="/admin/bookings?service=custom_design"
-            label="تصميم فستان خاص"
+            label={t.admin.customDesign}
             active={
               pathname === "/admin/bookings" &&
               serviceParam === "custom_design"
@@ -507,7 +570,7 @@ function ProductsNavSection({
 
           <NavLink
             href="/admin/dresses?collection=1"
-            label="المجموعات"
+            label={t.admin.collections}
             active={collectionsActive}
             onNavigate={onNavigate}
             className="px-3 py-2 text-sm"
@@ -525,6 +588,7 @@ function ExperienceEngineNavSection({
   pathname: string;
   onNavigate: () => void;
 }) {
+  const { t } = useLocale();
   const sectionActive = pathname.startsWith("/admin/experience");
   const [open, setOpen] = useState(sectionActive);
   const [prevPath, setPrevPath] = useState(pathname);
@@ -536,14 +600,14 @@ function ExperienceEngineNavSection({
   return (
     <div className="space-y-1">
       <SectionToggle
-        label="محرك التجربة"
+        label={t.admin.experienceEngine}
         open={open}
         onToggle={() => setOpen((o) => !o)}
         active={sectionActive}
       />
       {open && (
-        <div className="ms-1 space-y-0.5 border-r border-beige-dark/70 pe-1">
-          {EXPERIENCE_ENGINE_LINKS.map((item) => {
+        <div className="ms-1 space-y-0.5 border-s border-beige-dark/70 pe-1">
+          {EXPERIENCE_ENGINE_LINK_DEFS.map((item) => {
             const active =
               "exact" in item && item.exact
                 ? pathname === item.href
@@ -553,7 +617,7 @@ function ExperienceEngineNavSection({
               <NavLink
                 key={item.href}
                 href={item.href}
-                label={item.label}
+                label={labelFromAdmin(t.admin, item.labelKey)}
                 active={active}
                 onNavigate={onNavigate}
                 className="px-3 py-2 text-sm"
@@ -579,6 +643,7 @@ function CustomDesignNavSection({
   serviceParam: string | null;
   onNavigate: () => void;
 }) {
+  const { t } = useLocale();
   const designRequestsActive =
     pathname === "/admin/bookings" && serviceParam === "custom_design";
   const appointmentsActive = pathname.startsWith("/admin/calendar");
@@ -595,15 +660,15 @@ function CustomDesignNavSection({
   return (
     <div className="space-y-1">
       <SectionToggle
-        label="تصميم فستان خاص"
+        label={t.admin.customDesign}
         open={open}
         onToggle={() => setOpen((o) => !o)}
         active={sectionActive}
       />
 
       {open && (
-        <div className="ms-1 space-y-0.5 border-r border-beige-dark/70 pe-1">
-          {CUSTOM_DESIGN_LINKS.map((item) => {
+        <div className="ms-1 space-y-0.5 border-s border-beige-dark/70 pe-1">
+          {CUSTOM_DESIGN_LINK_DEFS.map((item) => {
             const active =
               item.href === "/admin/calendar"
                 ? appointmentsActive
@@ -617,9 +682,9 @@ function CustomDesignNavSection({
 
             return (
               <NavLink
-                key={item.href + item.label}
+                key={item.href + item.labelKey}
                 href={item.href}
-                label={item.label}
+                label={labelFromAdmin(t.admin, item.labelKey)}
                 active={active}
                 onNavigate={onNavigate}
                 className="px-3 py-2 text-sm"
@@ -643,10 +708,11 @@ function AdminSidebarInner() {
   const [loggingOut, setLoggingOut] = useState(false);
   const inbox = useAdminInboxCounts();
   const { caps } = useAdminCapabilities();
+  const { t } = useLocale();
 
   const moduleLinks = useMemo(
     () =>
-      MODULE_LINKS.filter(
+      MODULE_LINK_DEFS.filter(
         (link) =>
           link.href !== "/admin/administrators" ||
           caps.canManageAdministrators
@@ -682,16 +748,16 @@ function AdminSidebarInner() {
           <p className="font-[family-name:var(--font-cormorant)] text-xl font-semibold tracking-widest text-gold">
             {SITE_NAME}
           </p>
-          <p className="mt-1 text-xs text-muted">لوحة الإدارة</p>
+          <p className="mt-1 text-xs text-muted">{t.admin.panelSubtitle}</p>
         </Link>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {PRIMARY_LINKS.map((link) => (
+        {PRIMARY_LINK_DEFS.map((link) => (
           <NavLink
             key={link.href}
             href={link.href}
-            label={link.label}
+            label={labelFromAdmin(t.admin, link.labelKey)}
             active={isLinkActive(
               link.href,
               pathname,
@@ -734,7 +800,7 @@ function AdminSidebarInner() {
           <NavLink
             key={link.href}
             href={link.href}
-            label={link.label}
+            label={labelFromAdmin(t.admin, link.labelKey)}
             active={isLinkActive(
               link.href,
               pathname,
@@ -748,13 +814,17 @@ function AdminSidebarInner() {
         ))}
       </nav>
 
-      <div className="border-t border-beige-dark p-4">
+      <div className="space-y-1 border-t border-beige-dark p-4">
+        <LanguageSwitcher variant="admin" />
+        <p className="px-1 pb-2 text-[11px] leading-snug text-muted">
+          {t.admin.languageHint}
+        </p>
         <Link
           href="/"
           className="mb-2 block rounded-xl px-4 py-2 text-sm text-muted hover:bg-beige hover:text-charcoal"
           onClick={closeMobile}
         >
-          عرض الموقع
+          {t.admin.viewSite}
         </Link>
         <button
           type="button"
@@ -763,7 +833,7 @@ function AdminSidebarInner() {
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" />
-          تسجيل الخروج
+          {t.admin.logout}
         </button>
       </div>
     </div>
@@ -771,7 +841,7 @@ function AdminSidebarInner() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 right-0 z-40 hidden w-64 border-l border-beige-dark bg-white lg:block">
+      <aside className="fixed inset-y-0 start-0 z-40 hidden w-64 border-e border-beige-dark bg-white lg:block">
         {Nav}
       </aside>
 
@@ -779,7 +849,7 @@ function AdminSidebarInner() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="فتح القائمة"
+          aria-label={t.admin.openMenu}
           className="rounded-lg p-2 hover:bg-beige"
         >
           <Menu className="h-5 w-5" />
@@ -787,7 +857,7 @@ function AdminSidebarInner() {
         <span className="font-[family-name:var(--font-cormorant)] text-lg tracking-widest text-gold">
           {SITE_NAME}
         </span>
-        <div className="w-9" />
+        <LanguageSwitcher variant="storefront" compact />
       </div>
 
       {open && (
@@ -795,15 +865,15 @@ function AdminSidebarInner() {
           <button
             type="button"
             className="absolute inset-0 bg-charcoal/40"
-            aria-label="إغلاق"
+            aria-label={t.admin.close}
             onClick={() => setOpen(false)}
           />
-          <aside className="absolute inset-y-0 right-0 w-[min(288px,85vw)] bg-white shadow-xl">
+          <aside className="absolute inset-y-0 start-0 w-[min(288px,85vw)] bg-white shadow-xl">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="absolute top-4 left-4 rounded-lg p-2 hover:bg-beige"
-              aria-label="إغلاق"
+              className="absolute top-4 start-4 rounded-lg p-2 hover:bg-beige"
+              aria-label={t.admin.close}
             >
               <X className="h-5 w-5" />
             </button>
@@ -819,7 +889,7 @@ export function AdminSidebar() {
   return (
     <Suspense
       fallback={
-        <aside className="fixed inset-y-0 right-0 z-40 hidden w-64 border-l border-beige-dark bg-white lg:block" />
+        <aside className="fixed inset-y-0 start-0 z-40 hidden w-64 border-e border-beige-dark bg-white lg:block" />
       }
     >
       <AdminSidebarInner />

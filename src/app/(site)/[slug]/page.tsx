@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DressCatalog, PageHero } from "@/components/dresses/DressCatalog";
+import { AccessoriesBrowseSidebar } from "@/components/shop/AccessoriesBrowseSidebar";
+import { ShopCatalog } from "@/components/shop/ShopCatalog";
+import {
+  getAccessoriesBrowseNav,
+  isAccessoriesBrowseCategory,
+} from "@/lib/categories/accessories-browse";
 import { resolveCategoryHref } from "@/lib/categories/href";
 import { productKindFromCategory } from "@/lib/categories/kind";
 import {
@@ -10,12 +16,17 @@ import {
 } from "@/lib/data/categories";
 import { getDressesForCategory } from "@/lib/data/queries";
 import { getBridalAccessoriesProducts } from "@/lib/data/shop-queries";
-import { ShopCatalog } from "@/components/shop/ShopCatalog";
 import {
-  buildCategoryTree,
   isAccessoriesGroupCategory,
   type Category,
 } from "@/types/category";
+import { getStorefrontLocale } from "@/lib/i18n/server";
+import {
+  formatMessage,
+  getDictionary,
+  localizedDescription,
+  localizedName,
+} from "@/lib/i18n";
 
 /** Allow categories created after build/deploy to resolve at runtime. */
 export const dynamicParams = true;
@@ -56,15 +67,17 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const category = await getCategoryBySlug(slug);
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
   if (!category || category.is_visible === false) {
-    return { title: "التصنيف غير موجود" };
+    return { title: t.pages.category.notFound };
   }
-  const title =
-    category.seo_title_ar?.trim() || category.name_ar;
+  const name = localizedName(category, locale, category.name_ar);
+  const title = category.seo_title_ar?.trim() || name;
   const description =
     category.seo_description_ar?.trim() ||
-    category.description_ar?.trim() ||
-    `اكتشفي مجموعة ${category.name_ar} من Nadeen Designs.`;
+    localizedDescription(category, locale, "") ||
+    formatMessage(t.pages.category.metaFallback, { name });
   const canonical = resolveCategoryHref(category);
   const ogImage =
     category.seo_og_image_url?.trim() ||
@@ -143,16 +156,19 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
 
   redirectIfDedicated(category, slug);
 
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+  const catName = localizedName(category, locale, category.name_ar);
+  const accessoriesNav = await getAccessoriesBrowseNav(locale);
+  const underAccessories =
+    accessoriesNav &&
+    isAccessoriesBrowseCategory(category, accessoriesNav.parent.id);
+
   if (isAccessoriesGroupCategory(category)) {
-    const [allCategories, products] = await Promise.all([
-      getCategories(),
-      getBridalAccessoriesProducts(),
-    ]);
-    const tree = buildCategoryTree(allCategories);
-    const node = tree.find((n) => n.id === category.id);
-    const children = (node?.children ?? []).filter((c) => c.is_visible !== false);
+    const products = await getBridalAccessoriesProducts();
     const description =
-      category.description_ar?.trim() || "اختاري من اكسسوارات العروس";
+      localizedDescription(category, locale, t.pages.category.accessoriesFallback) ||
+      t.pages.category.accessoriesFallback;
     const categoryOptions = [
       ...new Set(products.map((p) => p.category).filter(Boolean)),
     ];
@@ -160,35 +176,34 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
     return (
       <>
         <CategoryJsonLd category={category} description={description} />
-        <PageHero title={category.name_ar} description={description} />
-        {children.length > 0 && (
-          <section className="border-b border-beige-dark/60 py-8">
-            <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-3 px-4 md:px-8">
-              {children.map((child) => (
-                <Link
-                  key={child.id}
-                  href={resolveCategoryHref(child)}
-                  className="rounded-full border border-beige-dark bg-white px-5 py-2 text-sm font-medium text-charcoal transition-colors hover:border-gold hover:text-gold"
-                >
-                  {child.name_ar}
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        <PageHero title={catName} description={description} />
         <section className="py-16 md:py-24">
-          <div className="mx-auto max-w-7xl px-4 md:px-8">
-            {products.length === 0 ? (
-              <p className="py-16 text-center text-muted">
-                لا توجد منتجات في اكسسوارات العروس حالياً
-              </p>
-            ) : (
-              <ShopCatalog
-                items={products}
-                showCategoryFilter
-                categoryOptions={categoryOptions}
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 md:grid-cols-[240px_minmax(0,1fr)] md:gap-12 md:px-8">
+            {accessoriesNav ? (
+              <AccessoriesBrowseSidebar
+                parentLabel={accessoriesNav.parentLabel}
+                parentHref={accessoriesNav.parentHref}
+                parentActive
+                parentCount={accessoriesNav.parentCount}
+                items={accessoriesNav.items}
+                activeId={null}
+                navAriaLabel={t.pages.category.accessoriesNavAria}
+                className="md:sticky md:top-28 md:self-start"
               />
-            )}
+            ) : null}
+            <div>
+              {products.length === 0 ? (
+                <p className="py-16 text-center text-muted">
+                  {t.pages.category.emptyAccessories}
+                </p>
+              ) : (
+                <ShopCatalog
+                  items={products}
+                  showCategoryFilter
+                  categoryOptions={categoryOptions}
+                />
+              )}
+            </div>
           </div>
         </section>
       </>
@@ -198,40 +213,73 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
   const dresses = await getDressesForCategory(category);
 
   const description =
-    category.description_ar?.trim() ||
-    `اكتشفي مجموعة ${category.name_ar} الحصرية من Nadeen Designs`;
+    localizedDescription(category, locale, "") ||
+    formatMessage(t.pages.category.exclusiveFallback, { name: catName });
 
   return (
     <>
       <CategoryJsonLd category={category} description={description} />
       <nav
-        aria-label="مسار التنقل"
+        aria-label={t.pages.category.breadcrumbAria}
         className="mx-auto max-w-7xl px-4 pt-6 text-sm text-muted md:px-8"
       >
         <ol className="flex flex-wrap items-center gap-2">
           <li>
             <Link href="/" className="hover:text-gold">
-              الرئيسية
+              {t.common.home}
             </Link>
           </li>
+          {underAccessories && accessoriesNav ? (
+            <>
+              <li aria-hidden>/</li>
+              <li>
+                <Link
+                  href={accessoriesNav.parentHref}
+                  className="hover:text-gold"
+                >
+                  {accessoriesNav.parentLabel}
+                </Link>
+              </li>
+            </>
+          ) : null}
           <li aria-hidden>/</li>
-          <li className="text-charcoal">{category.name_ar}</li>
+          <li className="text-charcoal">{catName}</li>
         </ol>
       </nav>
-      <PageHero title={category.name_ar} description={description} />
+      <PageHero title={catName} description={description} />
       <section className="py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-4 md:px-8">
-          {dresses.length === 0 ? (
-            <p className="py-16 text-center text-muted">
-              لا توجد منتجات في هذا التصنيف حالياً
-            </p>
-          ) : (
-            <DressCatalog
-              dresses={dresses}
-              title={category.name_ar}
-              description=""
+        <div
+          className={
+            underAccessories && accessoriesNav
+              ? "mx-auto grid max-w-7xl gap-10 px-4 md:grid-cols-[240px_minmax(0,1fr)] md:gap-12 md:px-8"
+              : "mx-auto max-w-7xl px-4 md:px-8"
+          }
+        >
+          {underAccessories && accessoriesNav ? (
+            <AccessoriesBrowseSidebar
+              parentLabel={accessoriesNav.parentLabel}
+              parentHref={accessoriesNav.parentHref}
+              parentActive={false}
+              parentCount={accessoriesNav.parentCount}
+              items={accessoriesNav.items}
+              activeId={category.id}
+              navAriaLabel={t.pages.category.accessoriesNavAria}
+              className="md:sticky md:top-28 md:self-start"
             />
-          )}
+          ) : null}
+          <div>
+            {dresses.length === 0 ? (
+              <p className="py-16 text-center text-muted">
+                {t.pages.category.emptyCategory}
+              </p>
+            ) : (
+              <DressCatalog
+                dresses={dresses}
+                title={catName}
+                description=""
+              />
+            )}
+          </div>
         </div>
       </section>
     </>

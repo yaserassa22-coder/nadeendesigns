@@ -8,12 +8,11 @@ import {
   getSupabaseUrl,
 } from "@/lib/supabase/env";
 import { ADMIN_ROLES, isAdminRole } from "@/lib/auth/roles";
+import {
+  isMaintenanceExemptPath,
+  readMaintenanceMode,
+} from "@/lib/store/maintenance-edge";
 
-/**
- * Resolve profiles.role for the signed-in user.
- * Prefer service role so RLS cannot hide a real admin row in Edge middleware.
- * Fall back to the user-scoped anon client (auth.uid() = id policy).
- */
 async function userHasAdminRole(
   request: NextRequest,
   response: NextResponse,
@@ -31,7 +30,6 @@ async function userHasAdminRole(
         .eq("id", userId)
         .maybeSingle();
       if (error) {
-        // Pre-migration: column may be missing — fall through to role-only.
         if (!/is_disabled/i.test(error.message)) {
           console.warn("[middleware] profile role (service)", error.message);
         } else {
@@ -107,7 +105,6 @@ function redirectWithCookies(
     }
   }
   const redirectResponse = NextResponse.redirect(url);
-  // Preserve session-refresh Set-Cookie headers from updateSession
   const setCookies =
     typeof sessionResponse.headers.getSetCookie === "function"
       ? sessionResponse.headers.getSetCookie()
@@ -125,33 +122,48 @@ export async function middleware(request: NextRequest) {
   const isAuthCallback = pathname.startsWith("/api/auth/callback");
   const isAccountRoute =
     pathname === "/account" || pathname.startsWith("/account/");
+  const needsSession =
+    isAdminRoute || isAccountRoute || isAuthCallback;
+  const maintenanceExempt = isMaintenanceExemptPath(pathname);
 
-  // Refresh session for account + auth callback + admin
-  if (!isAdminRoute && !isAccountRoute && !isAuthCallback) {
+  // Always evaluate maintenance for non-exempt paths (no admin storefront bypass).
+  const maintenanceOn = maintenanceExempt
+    ? false
+    : await readMaintenanceMode();
+
+  if (maintenanceOn) {
+    const passthrough = NextResponse.next({ request });
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Store is under maintenance", maintenance: true },
+        { status: 503 }
+      );
+    }
+    return redirectWithCookies(request, passthrough, "/maintenance");
+  }
+
+  if (!needsSession) {
     return NextResponse.next();
   }
+
+  let response = NextResponse.next({ request });
+  let user: { id: string } | null = null;
 
   if (!isSupabaseConfigured()) {
     if (isAdminRoute && !isLoginRoute) {
-      return redirectWithCookies(
-        request,
-        NextResponse.next({ request }),
-        "/admin/login",
-        { error: "config" }
-      );
+      return redirectWithCookies(request, response, "/admin/login", {
+        error: "config",
+      });
     }
     if (isAccountRoute) {
-      return redirectWithCookies(
-        request,
-        NextResponse.next({ request }),
-        "/",
-        { login: "1" }
-      );
+      return redirectWithCookies(request, response, "/", { login: "1" });
     }
-    return NextResponse.next();
+    return response;
   }
 
-  const { response, user } = await updateSession(request);
+  const session = await updateSession(request);
+  response = session.response;
+  user = session.user;
 
   if (isAdminRoute) {
     if (!user && !isLoginRoute) {
@@ -163,7 +175,6 @@ export async function middleware(request: NextRequest) {
     if (user && !isLoginRoute) {
       const ok = await userHasAdminRole(request, response, user.id);
       if (!ok) {
-        // Customer / non-admin session — send to admin login (not homepage)
         return redirectWithCookies(request, response, "/admin/login", {
           error: "admin_only",
           redirect: pathname,
@@ -176,13 +187,11 @@ export async function middleware(request: NextRequest) {
       if (ok) {
         return redirectWithCookies(request, response, "/admin");
       }
-      // Customer session on admin login page — allow form (don't bounce to /admin)
     }
 
     return response;
   }
 
-  // Soft gate /account — redirect guests to home with login prompt
   if (isAccountRoute && !user) {
     return redirectWithCookies(request, response, "/", {
       login: "1",
@@ -194,12 +203,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Include bare /admin and /account — `:path*` alone can miss the root segment
   matcher: [
-    "/admin",
-    "/admin/:path*",
-    "/account",
-    "/account/:path*",
-    "/api/auth/callback",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)",
   ],
 };
