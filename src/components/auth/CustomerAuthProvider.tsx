@@ -17,6 +17,7 @@ import {
 } from "@/components/auth/auth-context";
 import { sanitizeGuestCartItems } from "@/lib/guest/cart-items";
 import { mergeCartLines } from "@/lib/shop/cart-lines";
+import { SessionTimeoutGuard } from "@/components/auth/SessionTimeoutGuard";
 
 const GUEST_MODE_KEY = "nadeen_guest_mode";
 const FETCH_TIMEOUT_MS = 12_000;
@@ -68,6 +69,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [loginMessage, setLoginMessage] = useState<string | undefined>();
   const [guestMode, setGuestMode] = useState(false);
   const [guestId, setGuestId] = useState<string | null>(null);
+  const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(60);
 
   const ensureGuestSession = useCallback(
     async (opts?: { forceNew?: boolean }) => {
@@ -124,6 +126,13 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         // Always ensure guest cookie on first visit (even if later logging in)
         void ensureGuestSession();
       })();
+      void fetch("/api/store-settings", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          const m = Number(d?.session_timeout_minutes);
+          if (Number.isFinite(m) && m >= 5) setSessionTimeoutMinutes(m);
+        })
+        .catch(() => undefined);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [refresh, ensureGuestSession]);
@@ -256,6 +265,10 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
+      <SessionTimeoutGuard
+        minutes={sessionTimeoutMinutes}
+        enabled={Boolean(me?.user)}
+      />
       {children}
       <LoginModal
         open={loginOpen}
