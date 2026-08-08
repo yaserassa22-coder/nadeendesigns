@@ -1,27 +1,48 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil, Plus, X } from "lucide-react";
 import type { GalleryItem } from "@/types";
+import type { ListVisibility } from "@/lib/admin/lifecycle-types";
+import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
+import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 
-const CATEGORIES = [
-  { value: "wedding", label: "زفاف" },
-  { value: "nouf_dresses", label: "فساتين نوف" },
-  { value: "details", label: "تفاصيل" },
-  { value: "boutique", label: "البوتيك" },
-  { value: "events", label: "فعاليات" },
-];
+type GalleryItemRow = GalleryItem & {
+  is_deleted?: boolean | null;
+  archived_at?: string | null;
+};
 
 interface GalleryManagerProps {
   initialItems: GalleryItem[];
 }
 
 export function GalleryManager({ initialItems }: GalleryManagerProps) {
-  const [items, setItems] = useState(initialItems);
+  const { t, dir } = useLocale();
+  const g = t.admin.galleryAdmin;
+  const gu = t.galleryUi;
+  const categoryOptions = useMemo(
+    () => [
+      { value: "wedding", label: gu.wedding },
+      { value: "nouf_dresses", label: gu.nouf_dresses },
+      { value: "details", label: gu.details },
+      { value: "boutique", label: gu.boutique },
+      { value: "events", label: gu.events },
+    ],
+    [gu]
+  );
+  const categoryLabel = (value: string) =>
+    categoryOptions.find((c) => c.value === value)?.label ?? value;
+
+  const [items, setItems] = useState<GalleryItemRow[]>(initialItems);
+  const [visibility, setVisibility] = useState<ListVisibility>("active");
+  const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<GalleryItem | null>(null);
   const [title, setTitle] = useState("");
@@ -31,6 +52,23 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
   const [imageUrl, setImageUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.capabilities) setCaps(d.capabilities);
+        })
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const visibleItems = useMemo(
+    () => filterLifecycleRows(items, visibility),
+    [items, visibility]
+  );
 
   const reset = () => {
     setEditing(null);
@@ -61,7 +99,7 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
   const save = async () => {
     const image_url = images[0] || imageUrl.trim();
     if (!title.trim() || !image_url) {
-      setError("العنوان والصورة مطلوبان");
+      setError(g.titleAndImageRequired);
       return;
     }
 
@@ -80,49 +118,44 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
         body: JSON.stringify(editing ? { id: editing.id, ...body } : body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? g.saveFailed);
 
       if (editing) {
         setItems((prev) => prev.map((i) => (i.id === editing.id ? data : i)));
       } else {
-        setItems((prev) => [...prev, data].sort((a, b) => a.sort_order - b.sort_order));
+        setItems((prev) => prev.concat(data).sort((a, b) => a.sort_order - b.sort_order));
       }
       setOpen(false);
       reset();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(e instanceof Error ? e.message : g.genericError);
     } finally {
       setSaving(false);
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("نقل هذه الصورة إلى سلة المحذوفات؟")) return;
-    const res = await fetch(`/api/gallery?id=${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error ?? "فشل الحذف");
-      return;
-    }
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
+    <div className="space-y-6" dir={dir}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-1.5 text-sm text-muted">
+            {t.admin.productsUi.visibility}
+          </p>
+          <VisibilityFilter value={visibility} onChange={setVisibility} />
+        </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
-          إضافة صورة
+          {g.addImage}
         </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {items.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <p className="col-span-full rounded-2xl border border-beige-dark bg-white py-12 text-center text-muted">
-            لا توجد صور في المعرض
+            {g.empty}
           </p>
         ) : (
-          items.map((item) => (
+          visibleItems.map((item) => (
             <article
               key={item.id}
               className="overflow-hidden rounded-2xl border border-beige-dark bg-white shadow-sm"
@@ -139,7 +172,7 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
               <div className="flex items-start justify-between gap-2 p-4">
                 <div>
                   <p className="font-medium text-charcoal">{item.title_ar}</p>
-                  <p className="text-xs text-muted">{item.category}</p>
+                  <p className="text-xs text-muted">{categoryLabel(item.category)}</p>
                 </div>
                 <div className="flex gap-1">
                   <button
@@ -149,13 +182,36 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(item.id)}
-                    className="rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <RowLifecycleActions
+                    module="gallery"
+                    id={item.id}
+                    archived={Boolean(item.archived_at)}
+                    allowArchive={caps?.canArchive ?? false}
+                    allowRestore={caps?.canRestore ?? false}
+                    allowSoftDelete={caps?.canSoftDelete ?? false}
+                    onChanged={(kind) => {
+                      if (kind === "soft_delete") {
+                        setItems((prev) =>
+                          prev.filter((i) => i.id !== item.id)
+                        );
+                        return;
+                      }
+                      setItems((prev) =>
+                        prev.map((i) =>
+                          i.id === item.id
+                            ? {
+                                ...i,
+                                archived_at:
+                                  kind === "archive"
+                                    ? new Date().toISOString()
+                                    : null,
+                              }
+                            : i
+                        )
+                      );
+                    }}
+                    onError={(msg) => alert(msg)}
+                  />
                 </div>
               </div>
             </article>
@@ -165,10 +221,10 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-charcoal/40 p-4 sm:items-center">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" dir={dir}>
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
-                {editing ? "تعديل الصورة" : "إضافة صورة"}
+                {editing ? g.editImage : g.addImageTitle}
               </h2>
               <button
                 type="button"
@@ -183,24 +239,24 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
 
             <div className="space-y-4">
               <Input
-                label="العنوان *"
+                label={g.titleRequired}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
               <Select
-                label="التصنيف"
+                label={g.category}
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                options={CATEGORIES}
+                options={categoryOptions}
               />
               <Input
-                label="ترتيب العرض"
+                label={g.sortOrder}
                 type="number"
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
               />
               <div>
-                <p className="mb-2 text-sm font-medium">الصورة *</p>
+                <p className="mb-2 text-sm font-medium">{g.imageRequired}</p>
                 <ImageUpload
                   value={images}
                   onChange={setImages}
@@ -208,7 +264,7 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
                 />
                 <Input
                   className="mt-3"
-                  placeholder="أو الصقي رابط الصورة"
+                  placeholder={g.imageUrlPlaceholder}
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   dir="ltr"
@@ -230,10 +286,10 @@ export function GalleryManager({ initialItems }: GalleryManagerProps) {
                   reset();
                 }}
               >
-                إلغاء
+                {t.common.cancel}
               </Button>
-              <Button loading={saving} onClick={save}>
-                حفظ
+              <Button loading={saving} onClick={() => void save()}>
+                {t.common.save}
               </Button>
             </div>
           </div>

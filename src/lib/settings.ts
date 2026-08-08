@@ -36,6 +36,10 @@ function normalizeAboutValues(raw: unknown): AboutValueItem[] {
       icon: isAboutValueIcon(row.icon) ? row.icon : "Heart",
       title_ar,
       description_ar,
+      ...(typeof row.title_he === "string" ? { title_he: row.title_he } : {}),
+      ...(typeof row.description_he === "string"
+        ? { description_he: row.description_he }
+        : {}),
       ...(typeof row.title_en === "string" ? { title_en: row.title_en } : {}),
       ...(typeof row.description_en === "string"
         ? { description_en: row.description_en }
@@ -70,14 +74,28 @@ export function normalizeSiteSettings(
       source.hero_title_ar,
       DEFAULT_SETTINGS.hero_title_ar
     ),
+    hero_title_he: String(source.hero_title_he ?? settings.hero_title_he ?? "").trim(),
+    hero_title_en: String(source.hero_title_en ?? settings.hero_title_en ?? "").trim(),
     hero_title_emphasis_ar: stringOrDefault(
       source.hero_title_emphasis_ar,
       DEFAULT_SETTINGS.hero_title_emphasis_ar
     ),
+    hero_title_emphasis_he: String(
+      source.hero_title_emphasis_he ?? settings.hero_title_emphasis_he ?? ""
+    ).trim(),
+    hero_title_emphasis_en: String(
+      source.hero_title_emphasis_en ?? settings.hero_title_emphasis_en ?? ""
+    ).trim(),
     hero_subtitle_ar: stringOrDefault(
       source.hero_subtitle_ar,
       DEFAULT_SETTINGS.hero_subtitle_ar
     ),
+    hero_subtitle_he: String(
+      source.hero_subtitle_he ?? settings.hero_subtitle_he ?? ""
+    ).trim(),
+    hero_subtitle_en: String(
+      source.hero_subtitle_en ?? settings.hero_subtitle_en ?? ""
+    ).trim(),
     hero_image_url: stringOrDefault(
       source.hero_image_url,
       DEFAULT_SETTINGS.hero_image_url
@@ -86,10 +104,26 @@ export function normalizeSiteSettings(
       source.hero_image_alt_ar,
       DEFAULT_SETTINGS.hero_image_alt_ar
     ),
+    hero_image_alt_he: String(
+      source.hero_image_alt_he ?? settings.hero_image_alt_he ?? ""
+    ).trim(),
+    hero_image_alt_en: String(
+      source.hero_image_alt_en ?? settings.hero_image_alt_en ?? ""
+    ).trim(),
     hero_cta_primary_label_ar: stringOrDefault(
       source.hero_cta_primary_label_ar,
       DEFAULT_SETTINGS.hero_cta_primary_label_ar
     ),
+    hero_cta_primary_label_he: String(
+      source.hero_cta_primary_label_he ??
+        settings.hero_cta_primary_label_he ??
+        ""
+    ).trim(),
+    hero_cta_primary_label_en: String(
+      source.hero_cta_primary_label_en ??
+        settings.hero_cta_primary_label_en ??
+        ""
+    ).trim(),
     hero_cta_primary_href: stringOrDefault(
       source.hero_cta_primary_href,
       DEFAULT_SETTINGS.hero_cta_primary_href
@@ -98,11 +132,23 @@ export function normalizeSiteSettings(
       source.hero_cta_secondary_label_ar,
       DEFAULT_SETTINGS.hero_cta_secondary_label_ar
     ),
+    hero_cta_secondary_label_he: String(
+      source.hero_cta_secondary_label_he ??
+        settings.hero_cta_secondary_label_he ??
+        ""
+    ).trim(),
+    hero_cta_secondary_label_en: String(
+      source.hero_cta_secondary_label_en ??
+        settings.hero_cta_secondary_label_en ??
+        ""
+    ).trim(),
     hero_cta_secondary_href: stringOrDefault(
       source.hero_cta_secondary_href,
       DEFAULT_SETTINGS.hero_cta_secondary_href
     ),
     about_ar: stringOrDefault(source.about_ar, DEFAULT_SETTINGS.about_ar),
+    about_he: String(source.about_he ?? settings.about_he ?? "").trim(),
+    about_en: String(source.about_en ?? settings.about_en ?? "").trim(),
     about_page_title_ar: stringOrDefault(
       source.about_page_title_ar,
       DEFAULT_SETTINGS.about_page_title_ar
@@ -191,6 +237,24 @@ export function normalizeSiteSettings(
       source.trash_cleanup_days >= 1
         ? Math.floor(source.trash_cleanup_days)
         : DEFAULT_SETTINGS.trash_cleanup_days,
+    cleanup_read_notifications_days:
+      typeof source.cleanup_read_notifications_days === "number" &&
+      Number.isFinite(source.cleanup_read_notifications_days) &&
+      source.cleanup_read_notifications_days >= 1
+        ? Math.floor(source.cleanup_read_notifications_days)
+        : DEFAULT_SETTINGS.cleanup_read_notifications_days,
+    cleanup_old_messages_days:
+      typeof source.cleanup_old_messages_days === "number" &&
+      Number.isFinite(source.cleanup_old_messages_days) &&
+      source.cleanup_old_messages_days >= 1
+        ? Math.floor(source.cleanup_old_messages_days)
+        : DEFAULT_SETTINGS.cleanup_old_messages_days,
+    cleanup_archived_logs_days:
+      typeof source.cleanup_archived_logs_days === "number" &&
+      Number.isFinite(source.cleanup_archived_logs_days) &&
+      source.cleanup_archived_logs_days >= 1
+        ? Math.floor(source.cleanup_archived_logs_days)
+        : DEFAULT_SETTINGS.cleanup_archived_logs_days,
     instagram_url: OFFICIAL_INSTAGRAM_URL,
     instagram_handle: OFFICIAL_INSTAGRAM_HANDLE,
   };

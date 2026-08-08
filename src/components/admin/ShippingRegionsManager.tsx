@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -8,16 +8,28 @@ import {
   EyeOff,
   Pencil,
   Plus,
-  Trash2,
   X,
 } from "lucide-react";
 import type { ShippingRegion } from "@/types/shop";
 import type { SiteSettings } from "@/types";
 import type { UnknownShippingRegionHint } from "@/lib/admin/shipping-regions-data";
+import type { ListVisibility } from "@/lib/admin/lifecycle-types";
+import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
+import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 import { formatEstimatedDelivery } from "@/lib/shop/shipping";
 import { formatPrice } from "@/lib/utils";
+import { formatMessage } from "@/lib/i18n";
+import { localizedName } from "@/lib/i18n/localize";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
+
+type ShippingRegionRow = ShippingRegion & {
+  is_deleted?: boolean | null;
+  archived_at?: string | null;
+};
 
 interface ShippingRegionsManagerProps {
   initialRegions: ShippingRegion[];
@@ -28,12 +40,16 @@ interface ShippingRegionsManagerProps {
 const emptyForm = {
   name_ar: "",
   name_en: "",
+  name_he: "",
+  carrier_code: "",
   shipping_fee: "0",
   sort_order: "0",
   is_active: true,
   estimated_days_min: "",
   estimated_days_max: "",
   estimated_delivery_ar: "",
+  estimated_delivery_he: "",
+  estimated_delivery_en: "",
 };
 
 export function ShippingRegionsManager({
@@ -41,9 +57,13 @@ export function ShippingRegionsManager({
   initialSettings,
   initialUnknownRegions = [],
 }: ShippingRegionsManagerProps) {
-  const [regions, setRegions] = useState(initialRegions);
+  const { t, locale, dir } = useLocale();
+  const s = t.admin.shippingRegionsUi;
+  const [regions, setRegions] = useState<ShippingRegionRow[]>(initialRegions);
   const [unknownRegions, setUnknownRegions] = useState(initialUnknownRegions);
   const [settings, setSettings] = useState(initialSettings);
+  const [visibility, setVisibility] = useState<ListVisibility>("active");
+  const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ShippingRegion | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -51,6 +71,23 @@ export function ShippingRegionsManager({
   const [savingSettings, setSavingSettings] = useState(false);
   const [error, setError] = useState("");
   const [settingsMsg, setSettingsMsg] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.capabilities) setCaps(d.capabilities);
+        })
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const visibleRegions = useMemo(
+    () => filterLifecycleRows(regions, visibility),
+    [regions, visibility]
+  );
 
   const reset = () => {
     setEditing(null);
@@ -71,6 +108,8 @@ export function ShippingRegionsManager({
     setForm({
       name_ar: item.name_ar,
       name_en: item.name_en ?? "",
+      name_he: item.name_he ?? "",
+      carrier_code: item.carrier_code ?? "",
       shipping_fee: String(item.shipping_fee ?? 0),
       sort_order: String(item.sort_order ?? 0),
       is_active: item.is_active,
@@ -87,6 +126,8 @@ export function ShippingRegionsManager({
             ? String(item.estimated_days)
             : "",
       estimated_delivery_ar: item.estimated_delivery_ar ?? "",
+      estimated_delivery_he: item.estimated_delivery_he ?? "",
+      estimated_delivery_en: item.estimated_delivery_en ?? "",
     });
     setError("");
     setOpen(true);
@@ -109,11 +150,11 @@ export function ShippingRegionsManager({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل حفظ الإعدادات");
+      if (!res.ok) throw new Error(data.error ?? s.settingsSaveFailed);
       if (data.settings) setSettings(data.settings as SiteSettings);
-      setSettingsMsg("تم الحفظ بنجاح");
+      setSettingsMsg(s.settingsSaved);
     } catch (e) {
-      setSettingsMsg(e instanceof Error ? e.message : "حدث خطأ");
+      setSettingsMsg(e instanceof Error ? e.message : s.genericError);
     } finally {
       setSavingSettings(false);
     }
@@ -127,7 +168,7 @@ export function ShippingRegionsManager({
 
   const save = async () => {
     if (!form.name_ar.trim()) {
-      setError("اسم المنطقة مطلوب");
+      setError(s.nameRequired);
       return;
     }
     setSaving(true);
@@ -138,6 +179,8 @@ export function ShippingRegionsManager({
       const body = {
         name_ar: form.name_ar.trim(),
         name_en: form.name_en.trim(),
+        name_he: form.name_he.trim(),
+        carrier_code: form.carrier_code.trim() || null,
         shipping_fee: Math.max(0, Number(form.shipping_fee) || 0),
         sort_order: Number(form.sort_order) || 0,
         is_active: form.is_active,
@@ -145,6 +188,8 @@ export function ShippingRegionsManager({
         estimated_days_max: maxDays ?? minDays,
         estimated_days: minDays,
         estimated_delivery_ar: form.estimated_delivery_ar.trim() || null,
+        estimated_delivery_he: form.estimated_delivery_he.trim() || null,
+        estimated_delivery_en: form.estimated_delivery_en.trim() || null,
       };
       const res = await fetch("/api/shipping-regions", {
         method: editing ? "PUT" : "POST",
@@ -152,7 +197,7 @@ export function ShippingRegionsManager({
         body: JSON.stringify(editing ? { id: editing.id, ...body } : body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? s.saveFailed);
 
       if (editing) {
         setRegions((prev) =>
@@ -174,7 +219,7 @@ export function ShippingRegionsManager({
       setOpen(false);
       reset();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(e instanceof Error ? e.message : s.genericError);
     } finally {
       setSaving(false);
     }
@@ -188,16 +233,16 @@ export function ShippingRegionsManager({
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error ?? "فشل التحديث");
+      alert(data.error ?? s.updateFailed);
       return;
     }
     setRegions((prev) => prev.map((r) => (r.id === item.id ? data : r)));
   };
 
-  const move = async (item: ShippingRegion, dir: -1 | 1) => {
-    const sorted = [...regions].sort((a, b) => a.sort_order - b.sort_order);
+  const move = async (item: ShippingRegion, delta: -1 | 1) => {
+    const sorted = [...visibleRegions].sort((a, b) => a.sort_order - b.sort_order);
     const idx = sorted.findIndex((r) => r.id === item.id);
-    const swap = sorted[idx + dir];
+    const swap = sorted[idx + delta];
     if (!swap) return;
     const aOrder = item.sort_order;
     const bOrder = swap.sort_order;
@@ -214,7 +259,7 @@ export function ShippingRegionsManager({
       }).then((r) => r.json()),
     ]);
     if (r1.error || r2.error) {
-      alert(r1.error || r2.error || "فشل إعادة الترتيب");
+      alert(r1.error || r2.error || s.reorderFailed);
       return;
     }
     setRegions((prev) =>
@@ -228,19 +273,6 @@ export function ShippingRegionsManager({
     );
   };
 
-  const remove = async (item: ShippingRegion) => {
-    if (!confirm(`نقل المنطقة «${item.name_ar}» إلى سلة المحذوفات؟`)) return;
-    const res = await fetch(`/api/shipping-regions?id=${item.id}`, {
-      method: "DELETE",
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error ?? "فشل الحذف");
-      return;
-    }
-    setRegions((prev) => prev.filter((r) => r.id !== item.id));
-  };
-
   const knownNames = new Set(
     regions.map((r) => r.name_ar.trim().toLowerCase())
   );
@@ -249,42 +281,40 @@ export function ShippingRegionsManager({
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" dir={dir}>
       <div className="rounded-2xl border border-beige-dark bg-white p-6">
         <h2 className="text-lg font-semibold text-charcoal">
-          طرق استلام الطلب
+          {s.pickupMethodsTitle}
         </h2>
-        <p className="mt-1 text-sm text-muted">
-          تفعيل أو تعطيل الاستلام من البوتيك والتوصيل في صفحة إتمام الطلب.
-        </p>
+        <p className="mt-1 text-sm text-muted">{s.pickupMethodsSubtitle}</p>
         <div className="mt-4 space-y-3">
           <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm">
             <input
               type="checkbox"
               checked={settings.boutique_pickup_enabled}
               onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
+                setSettings((prev) => ({
+                  ...prev,
                   boutique_pickup_enabled: e.target.checked,
                 }))
               }
               className="h-4 w-4 accent-gold"
             />
-            تفعيل الاستلام من البوتيك (مجاناً)
+            {s.boutiquePickup}
           </label>
           <label className="flex items-center gap-3 rounded-xl border border-beige-dark px-4 py-3 text-sm">
             <input
               type="checkbox"
               checked={settings.delivery_enabled}
               onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
+                setSettings((prev) => ({
+                  ...prev,
                   delivery_enabled: e.target.checked,
                 }))
               }
               className="h-4 w-4 accent-gold"
             />
-            تفعيل التوصيل حسب المناطق
+            {s.deliveryByRegion}
           </label>
         </div>
         {settingsMsg && (
@@ -295,19 +325,16 @@ export function ShippingRegionsManager({
           loading={savingSettings}
           onClick={saveSettings}
         >
-          حفظ طرق الاستلام
+          {s.savePickupMethods}
         </Button>
       </div>
 
       {pendingUnknown.length > 0 && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-6">
           <h2 className="text-lg font-semibold text-amber-950">
-            ⚠️ منطقة جديدة غير موجودة
+            {s.unknownTitle}
           </h2>
-          <p className="mt-1 text-sm text-amber-900/80">
-            عميلات أدخلن مناطق غير مُعدّة في النظام. أضيفيها كمناطق شحن لتعيين
-            الرسوم ومدة التوصيل وإظهارها في البحث.
-          </p>
+          <p className="mt-1 text-sm text-amber-900/80">{s.unknownSubtitle}</p>
           <ul className="mt-4 space-y-3">
             {pendingUnknown.map((u) => (
               <li
@@ -317,15 +344,14 @@ export function ShippingRegionsManager({
                 <div>
                   <p className="font-medium text-charcoal">{u.text}</p>
                   <p className="text-xs text-muted">
-                    ظهرت في {u.orderCount} طلب
-                    {u.orderCount > 1 ? "ات" : ""}
+                    {formatMessage(s.appearedInOrders, { count: u.orderCount })}
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   onClick={() => openCreate(u.text)}
                 >
-                  ➕ إضافة كمنطقة شحن
+                  {s.addAsRegion}
                 </Button>
               </li>
             ))}
@@ -335,15 +361,21 @@ export function ShippingRegionsManager({
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-charcoal">مناطق الشحن</h2>
-          <p className="mt-1 text-sm text-muted">
-            أضيفي وعدّلي المناطق ورسوم الشحن ومدة التوصيل وترتيبها.
-          </p>
+          <h2 className="text-lg font-semibold text-charcoal">{s.regionsTitle}</h2>
+          <p className="mt-1 text-sm text-muted">{s.regionsSubtitle}</p>
         </div>
-        <Button onClick={() => openCreate()}>
-          <Plus className="ml-1 h-4 w-4" />
-          إضافة منطقة
-        </Button>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <p className="mb-1.5 text-sm text-muted">
+              {t.admin.productsUi.visibility}
+            </p>
+            <VisibilityFilter value={visibility} onChange={setVisibility} />
+          </div>
+          <Button onClick={() => openCreate()}>
+            <Plus className="ms-1 h-4 w-4" />
+            {s.addRegion}
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-beige-dark bg-white">
@@ -351,31 +383,33 @@ export function ShippingRegionsManager({
           <table className="min-w-full text-sm">
             <thead className="bg-beige/60 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">المنطقة</th>
-                <th className="px-4 py-3 text-right font-medium">الرسوم</th>
-                <th className="px-4 py-3 text-right font-medium">مدة التوصيل</th>
-                <th className="px-4 py-3 text-right font-medium">الترتيب</th>
-                <th className="px-4 py-3 text-right font-medium">الحالة</th>
-                <th className="px-4 py-3 text-right font-medium">إجراءات</th>
+                <th className="px-4 py-3 text-start font-medium">{s.colRegion}</th>
+                <th className="px-4 py-3 text-start font-medium">{s.colFee}</th>
+                <th className="px-4 py-3 text-start font-medium">{s.colDelivery}</th>
+                <th className="px-4 py-3 text-start font-medium">{s.colOrder}</th>
+                <th className="px-4 py-3 text-start font-medium">{s.colStatus}</th>
+                <th className="px-4 py-3 text-start font-medium">{s.colActions}</th>
               </tr>
             </thead>
             <tbody>
-              {regions.length === 0 ? (
+              {visibleRegions.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted">
-                    لا توجد مناطق بعد
+                    {s.empty}
                   </td>
                 </tr>
               ) : (
-                regions.map((item) => (
+                visibleRegions.map((item) => (
                   <tr key={item.id} className="border-t border-beige-dark/60">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-charcoal">{item.name_ar}</p>
-                      {item.name_en && (
+                      <p className="font-medium text-charcoal">
+                        {localizedName(item, locale, item.name_ar)}
+                      </p>
+                      {item.name_en && locale !== "en" ? (
                         <p className="text-xs text-muted" dir="ltr">
                           {item.name_en}
                         </p>
-                      )}
+                      ) : null}
                     </td>
                     <td className="px-4 py-3" dir="ltr">
                       {formatPrice(Number(item.shipping_fee))}
@@ -399,7 +433,7 @@ export function ShippingRegionsManager({
                         ) : (
                           <EyeOff className="h-3.5 w-3.5" />
                         )}
-                        {item.is_active ? "نشطة" : "معطّلة"}
+                        {item.is_active ? s.active : s.inactive}
                       </button>
                     </td>
                     <td className="px-4 py-3">
@@ -408,7 +442,7 @@ export function ShippingRegionsManager({
                           type="button"
                           onClick={() => move(item, -1)}
                           className="rounded-lg p-2 text-muted hover:bg-beige"
-                          aria-label="تحريك لأعلى"
+                          aria-label={s.moveUp}
                         >
                           <ArrowUp className="h-4 w-4" />
                         </button>
@@ -416,7 +450,7 @@ export function ShippingRegionsManager({
                           type="button"
                           onClick={() => move(item, 1)}
                           className="rounded-lg p-2 text-muted hover:bg-beige"
-                          aria-label="تحريك لأسفل"
+                          aria-label={s.moveDown}
                         >
                           <ArrowDown className="h-4 w-4" />
                         </button>
@@ -424,18 +458,40 @@ export function ShippingRegionsManager({
                           type="button"
                           onClick={() => openEdit(item)}
                           className="rounded-lg p-2 text-gold hover:bg-gold/10"
-                          aria-label="تعديل"
+                          aria-label={s.edit}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(item)}
-                          className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                          aria-label="حذف"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <RowLifecycleActions
+                          module="shipping_regions"
+                          id={item.id}
+                          archived={Boolean(item.archived_at)}
+                          allowArchive={caps?.canArchive ?? false}
+                          allowRestore={caps?.canRestore ?? false}
+                          allowSoftDelete={caps?.canSoftDelete ?? false}
+                          onChanged={(kind) => {
+                            if (kind === "soft_delete") {
+                              setRegions((prev) =>
+                                prev.filter((r) => r.id !== item.id)
+                              );
+                              return;
+                            }
+                            setRegions((prev) =>
+                              prev.map((r) =>
+                                r.id === item.id
+                                  ? {
+                                      ...r,
+                                      archived_at:
+                                        kind === "archive"
+                                          ? new Date().toISOString()
+                                          : null,
+                                    }
+                                  : r
+                              )
+                            );
+                          }}
+                          onError={(msg) => alert(msg)}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -451,37 +507,47 @@ export function ShippingRegionsManager({
           <button
             type="button"
             className="absolute inset-0 bg-charcoal/40"
-            aria-label="إغلاق"
+            aria-label={s.close}
             onClick={() => {
               setOpen(false);
               reset();
             }}
           />
-          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-beige-dark bg-white p-6 shadow-xl">
+          <div
+            className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-beige-dark bg-white p-6 shadow-xl"
+            dir={dir}
+          >
             <button
               type="button"
               onClick={() => {
                 setOpen(false);
                 reset();
               }}
-              className="absolute left-4 top-4 rounded-lg p-1 hover:bg-beige"
-              aria-label="إغلاق"
+              className="absolute start-4 top-4 rounded-lg p-1 hover:bg-beige"
+              aria-label={s.close}
             >
               <X className="h-5 w-5" />
             </button>
             <h3 className="text-lg font-semibold text-charcoal">
-              {editing ? "تعديل المنطقة" : "إضافة منطقة"}
+              {editing ? s.editRegion : s.newRegion}
             </h3>
             <div className="mt-4 space-y-3">
               <Input
-                label="الاسم بالعربية *"
+                label={s.nameAr}
                 value={form.name_ar}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name_ar: e.target.value }))
                 }
               />
               <Input
-                label="الاسم بالإنجليزية"
+                label={s.nameHe}
+                value={form.name_he}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name_he: e.target.value }))
+                }
+              />
+              <Input
+                label={s.nameEn}
                 value={form.name_en}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name_en: e.target.value }))
@@ -489,7 +555,16 @@ export function ShippingRegionsManager({
                 dir="ltr"
               />
               <Input
-                label="رسوم الشحن"
+                label={s.carrierCode}
+                value={form.carrier_code}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, carrier_code: e.target.value }))
+                }
+                dir="ltr"
+                placeholder="hfd · israel_post · cheetah · self"
+              />
+              <Input
+                label={s.shippingFee}
                 type="number"
                 min={0}
                 step="1"
@@ -501,7 +576,7 @@ export function ShippingRegionsManager({
               />
               <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="أقل أيام توصيل"
+                  label={s.daysMin}
                   type="number"
                   min={0}
                   value={form.estimated_days_min}
@@ -514,7 +589,7 @@ export function ShippingRegionsManager({
                   dir="ltr"
                 />
                 <Input
-                  label="أكثر أيام توصيل"
+                  label={s.daysMax}
                   type="number"
                   min={0}
                   value={form.estimated_days_max}
@@ -528,8 +603,8 @@ export function ShippingRegionsManager({
                 />
               </div>
               <Input
-                label="نص مدة التوصيل (اختياري)"
-                placeholder="مثال: خلال 3–5 أيام عمل"
+                label={s.deliveryText}
+                placeholder={s.deliveryTextPlaceholder}
                 value={form.estimated_delivery_ar}
                 onChange={(e) =>
                   setForm((f) => ({
@@ -539,7 +614,28 @@ export function ShippingRegionsManager({
                 }
               />
               <Input
-                label="الترتيب"
+                label={s.deliveryTextHe}
+                value={form.estimated_delivery_he}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    estimated_delivery_he: e.target.value,
+                  }))
+                }
+              />
+              <Input
+                label={s.deliveryTextEn}
+                value={form.estimated_delivery_en}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    estimated_delivery_en: e.target.value,
+                  }))
+                }
+                dir="ltr"
+              />
+              <Input
+                label={s.sortOrder}
                 type="number"
                 value={form.sort_order}
                 onChange={(e) =>
@@ -556,7 +652,7 @@ export function ShippingRegionsManager({
                   }
                   className="h-4 w-4 accent-gold"
                 />
-                منطقة نشطة
+                {s.regionActive}
               </label>
               {error && (
                 <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -564,7 +660,7 @@ export function ShippingRegionsManager({
                 </p>
               )}
               <Button loading={saving} onClick={save} className="w-full">
-                حفظ
+                {s.save}
               </Button>
             </div>
           </div>

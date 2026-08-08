@@ -4,16 +4,45 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json([]);
   }
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
+  const { searchParams } = new URL(request.url);
+  const wantAll = searchParams.get("all") === "1";
+  if (wantAll) {
+    const { error: authError } = await requireAdminApi();
+    if (authError) return authError;
+  }
+
+  const supabase = wantAll
+    ? await createPrivilegedClient()
+    : createAdminClient();
+  let query = supabase
     .from("gallery_items")
     .select("*")
     .order("sort_order", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!wantAll) {
+    query = query.eq("is_deleted", false).is("archived_at", null);
+  }
+  const { data, error } = await query;
+  if (error) {
+    // Pre-migration DBs may lack lifecycle columns — fall back to unfiltered.
+    if (/is_deleted|archived_at|PGRST204|42703/i.test(error.message)) {
+      const fallback = await createAdminClient()
+        .from("gallery_items")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (fallback.error) {
+        return NextResponse.json(
+          { error: fallback.error.message },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json(fallback.data);
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json(data);
 }
 

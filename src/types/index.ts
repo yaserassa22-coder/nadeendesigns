@@ -81,6 +81,8 @@ export interface Dress {
   name_ar: string;
   /** English name (migration 035) */
   name_en?: string | null;
+  /** Hebrew name (optional — APPLY_LOCALE_HE_NAMES.sql) */
+  name_he?: string | null;
   description_ar: string;
   /** Short blurb (migration 035) */
   short_description?: string | null;
@@ -285,6 +287,8 @@ export interface AboutValueItem {
   icon: AboutValueIcon;
   title_ar: string;
   description_ar: string;
+  title_he?: string;
+  description_he?: string;
   title_en?: string;
   description_en?: string;
 }
@@ -303,45 +307,62 @@ export interface SiteSettings {
   whatsapp: string;
   email: string;
   address_ar: string;
+  address_he?: string;
+  address_en?: string;
   instagram_url: string;
   instagram_handle: string;
   working_hours_ar: string;
+  working_hours_he?: string;
+  working_hours_en?: string;
 
   // —— Hero (flat, merge-safe) ——
   hero_title_ar: string;
+  hero_title_he?: string;
   hero_title_en?: string;
   /** Substring of title that is bold + gold underline (current UI) */
   hero_title_emphasis_ar: string;
+  hero_title_emphasis_he?: string;
   hero_title_emphasis_en?: string;
   hero_subtitle_ar: string;
+  hero_subtitle_he?: string;
   hero_subtitle_en?: string;
   hero_image_url: string;
   hero_image_alt_ar: string;
+  hero_image_alt_he?: string;
   hero_image_alt_en?: string;
   hero_cta_primary_label_ar: string;
+  hero_cta_primary_label_he?: string;
   hero_cta_primary_label_en?: string;
   hero_cta_primary_href: string;
   hero_cta_secondary_label_ar: string;
+  hero_cta_secondary_label_he?: string;
   hero_cta_secondary_label_en?: string;
   hero_cta_secondary_href: string;
 
   // —— About (flat, merge-safe; about_ar already existed) ——
   about_ar: string;
+  about_he?: string;
   about_en?: string;
   about_page_title_ar: string;
+  about_page_title_he?: string;
   about_page_title_en?: string;
   about_page_subtitle_ar: string;
+  about_page_subtitle_he?: string;
   about_page_subtitle_en?: string;
   about_story_eyebrow_ar: string;
+  about_story_eyebrow_he?: string;
   about_story_eyebrow_en?: string;
   about_story_heading_ar: string;
+  about_story_heading_he?: string;
   about_story_heading_en?: string;
   about_secondary_ar: string;
   about_secondary_en?: string;
   about_image_url: string;
   about_image_alt_ar: string;
+  about_image_alt_he?: string;
   about_image_alt_en?: string;
   about_cta_label_ar: string;
+  about_cta_label_he?: string;
   about_cta_label_en?: string;
   about_cta_href: string;
   about_values: AboutValueItem[];
@@ -370,8 +391,15 @@ export interface SiteSettings {
   /**
    * Days soft-deleted items stay in trash before an explicit "Run cleanup".
    * Never auto-runs; never applies to orders/bookings.
+   * Used as the default for product/catalog/gallery modules.
    */
   trash_cleanup_days: number;
+  /** Soft-deleted read notifications older than N days (cleanup eligible). */
+  cleanup_read_notifications_days: number;
+  /** Soft-deleted contact messages older than N days. */
+  cleanup_old_messages_days: number;
+  /** Soft-deleted notification / audit-style logs older than N days. */
+  cleanup_archived_logs_days: number;
 }
 
 export interface DressFilters {

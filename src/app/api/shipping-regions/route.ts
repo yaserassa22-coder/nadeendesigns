@@ -12,7 +12,6 @@ import {
   shippingRegionCreateSchema,
   shippingRegionUpdateSchema,
 } from "@/lib/validations/shipping-region";
-import type { ShippingRegion } from "@/types/shop";
 import { SEED_SHIPPING_REGIONS } from "@/lib/shop/shipping-region-seeds";
 
 const SEED_REGIONS = SEED_SHIPPING_REGIONS;
@@ -76,7 +75,13 @@ export async function GET(request: Request) {
       .from("shipping_regions")
       .select("*")
       .order("sort_order", { ascending: true });
-    if (!wantAll) query = query.eq("is_active", true);
+    // Public checkout must never see soft-deleted / archived regions.
+    if (!wantAll) {
+      query = query
+        .eq("is_active", true)
+        .eq("is_deleted", false)
+        .is("archived_at", null);
+    }
     if (q) {
       // Indexed name_ar / name_en — prefer this when catalogs grow beyond in-memory filter
       const safe = q.replace(/[%_,.()]/g, " ").trim();
@@ -87,6 +92,28 @@ export async function GET(request: Request) {
     }
     const { data, error } = await query;
     if (error) {
+      // Pre-migration: retry without lifecycle filters for public storefront.
+      if (
+        !wantAll &&
+        /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")
+      ) {
+        let legacy = supabase
+          .from("shipping_regions")
+          .select("*")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true });
+        if (q) {
+          const safe = q.replace(/[%_,.()]/g, " ").trim();
+          if (safe) {
+            const pattern = `%${safe}%`;
+            legacy = legacy.or(
+              `name_ar.ilike.${pattern},name_en.ilike.${pattern}`
+            );
+          }
+        }
+        const retry = await legacy;
+        if (!retry.error) return NextResponse.json(retry.data ?? []);
+      }
       if (isMissingTableError(error, "shipping_regions")) {
         console.warn("[shipping-regions] table missing — seed fallback");
         let list = wantAll
@@ -127,6 +154,7 @@ export async function POST(request: Request) {
     const body = {
       name_ar: parsed.name_ar.trim(),
       name_en: (parsed.name_en ?? "").trim(),
+      name_he: (parsed.name_he ?? "").trim() || null,
       shipping_fee: Number(parsed.shipping_fee) || 0,
       is_active: parsed.is_active ?? true,
       sort_order: parsed.sort_order ?? 0,
@@ -136,7 +164,15 @@ export async function POST(request: Request) {
       estimated_delivery_ar: parsed.estimated_delivery_ar?.trim()
         ? parsed.estimated_delivery_ar.trim()
         : null,
-      carrier_code: parsed.carrier_code ?? null,
+      estimated_delivery_he: parsed.estimated_delivery_he?.trim()
+        ? parsed.estimated_delivery_he.trim()
+        : null,
+      estimated_delivery_en: parsed.estimated_delivery_en?.trim()
+        ? parsed.estimated_delivery_en.trim()
+        : null,
+      carrier_code: parsed.carrier_code?.trim()
+        ? parsed.carrier_code.trim()
+        : null,
       free_shipping_override: parsed.free_shipping_override ?? null,
       discount: parsed.discount ?? null,
       meta: parsed.meta ?? {},

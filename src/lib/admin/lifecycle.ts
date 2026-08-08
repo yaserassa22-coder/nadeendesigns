@@ -419,12 +419,21 @@ export async function assertProductCanPermanentDelete(
     const { count, error } = await supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
-      .eq("dress_id", recordId);
+      .eq("dress_id", recordId)
+      .neq("status", "cancelled");
+    if (
+      error &&
+      !isMissingTableError(error, "bookings") &&
+      !isMissingColumnError(error) &&
+      !/dress_id|status/i.test(error.message)
+    ) {
+      return { ok: false, status: 400, error: error.message };
+    }
     if (!error && (count ?? 0) > 0) {
       return {
         ok: false,
         status: 409,
-        error: "لا يمكن الحذف النهائي: المنتج مرتبط بحجوزات.",
+        error: "لا يمكن الحذف النهائي: المنتج مرتبط بحجوزات غير ملغاة.",
       };
     }
   }
@@ -601,23 +610,48 @@ export async function emptyTrash(
   return { ok: true, deleted };
 }
 
+export type TrashCleanupDaysByModule = Partial<
+  Record<LifecycleModule, number>
+> & {
+  /** Fallback for modules without a specific override. */
+  defaultDays: number;
+};
+
+function daysForModule(
+  mod: LifecycleModule,
+  config: TrashCleanupDaysByModule
+): number {
+  const override = config[mod];
+  if (typeof override === "number" && override >= 1) return Math.floor(override);
+  return Math.max(1, Math.floor(config.defaultDays));
+}
+
 /**
- * Permanently remove soft-deleted rows older than `days` for cleanup-eligible
- * modules. Never touches orders or bookings.
+ * Permanently remove soft-deleted rows older than configured days.
+ * Never touches orders or bookings.
  */
 export async function runTrashCleanup(
   supabase: SupabaseClient,
   actor: LifecycleActor,
-  days: number
+  daysOrConfig: number | TrashCleanupDaysByModule
 ): Promise<{ ok: true; deleted: number } | { ok: false; error: string; status: number }> {
-  if (!Number.isFinite(days) || days < 1) {
+  const config: TrashCleanupDaysByModule =
+    typeof daysOrConfig === "number"
+      ? { defaultDays: daysOrConfig }
+      : daysOrConfig;
+
+  if (!Number.isFinite(config.defaultDays) || config.defaultDays < 1) {
     return { ok: false, status: 400, error: "عدد الأيام غير صالح" };
   }
 
-  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   let deleted = 0;
+  const perModule: Record<string, number> = {};
 
   for (const mod of CLEANUP_ELIGIBLE_MODULES) {
+    const days = daysForModule(mod, config);
+    const cutoff = new Date(
+      Date.now() - days * 24 * 60 * 60 * 1000
+    ).toISOString();
     const table = MODULE_TABLE[mod];
     const col = idColumn(mod);
     const { data, error } = await supabase
@@ -638,14 +672,19 @@ export async function runTrashCleanup(
       return { ok: false, status: 400, error: error.message };
     }
 
+    let modDeleted = 0;
     for (const row of data ?? []) {
       const id = String(
         (row as unknown as Record<string, unknown>)[col] ?? ""
       );
       if (!id) continue;
       const result = await permanentDeleteRecord(supabase, mod, id, actor);
-      if (result.ok) deleted += 1;
+      if (result.ok) {
+        deleted += 1;
+        modDeleted += 1;
+      }
     }
+    if (modDeleted > 0) perModule[mod] = modDeleted;
   }
 
   await writeAuditLog(supabase, {
@@ -654,7 +693,13 @@ export async function runTrashCleanup(
     action: "permanent_delete",
     actorId: actor.id,
     actorEmail: actor.email,
-    meta: { type: "trash_cleanup", days, deleted },
+    meta: {
+      type: "trash_cleanup",
+      days: config.defaultDays,
+      daysByModule: config,
+      deleted,
+      perModule,
+    },
   });
 
   return { ok: true, deleted };

@@ -97,10 +97,17 @@ export const STYLE_LEGACY_MAP: Record<string, (typeof DRESS_STYLES)[number]> = {
   Vintage: "كلاسيكي",
   lace: "دانتيل فاخر",
   Lace: "دانتيل فاخر",
+  "دانتيل": "دانتيل فاخر",
+  /** Hebrew phonetic / legacy storefront values */
+  "דאנטיל פאכר": "دانتيل فاخر",
+  "דנטיל פאכר": "دانتيل فاخر",
+  "תחרה יוקרתית": "دانتيل فاخر",
   satin: "ساتان فاخر",
   Satin: "ساتان فاخر",
+  "סאטן יוקרתי": "ساتان فاخر",
   tulle: "تول فاخر",
   Tulle: "تول فاخر",
+  "טול יוקרתי": "تول فاخر",
   custom: "تصميم مخصص",
   Custom: "تصميم مخصص",
 };
@@ -138,8 +145,11 @@ export const COLOR_LEGACY_MAP: Record<string, (typeof DRESS_COLORS)[number]> = {
   OffWhite: "أوف وايت",
   white: "أبيض",
   White: "أبيض",
+  /** Hebrew phonetic / legacy storefront values */
+  לבן: "أبيض",
   ivory: "عاجي",
   Ivory: "عاجي",
+  שנהב: "عاجي",
   cream: "كريمي",
   Cream: "كريمي",
   beige: "بيج",
@@ -250,6 +260,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   delivery_enabled: true,
 
   trash_cleanup_days: 30,
+  cleanup_read_notifications_days: 30,
+  cleanup_old_messages_days: 90,
+  cleanup_archived_logs_days: 60,
 };
 
 export const WHATSAPP_MESSAGE =

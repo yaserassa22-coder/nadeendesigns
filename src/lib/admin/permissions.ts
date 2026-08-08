@@ -125,6 +125,11 @@ export function canSoftDelete(actor: AdminActor): boolean {
   return hasAdminCapability(actor, "canSoftDelete");
 }
 
+/** Plan alias — soft-delete / move to trash. */
+export function canDelete(actor: AdminActor): boolean {
+  return canSoftDelete(actor);
+}
+
 export function canPermanentDelete(actor: AdminActor): boolean {
   return hasAdminCapability(actor, "canPermanentDelete");
 }

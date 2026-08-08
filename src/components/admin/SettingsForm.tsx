@@ -31,6 +31,9 @@ type ContactShippingPatch = Pick<
   | "boutique_pickup_enabled"
   | "delivery_enabled"
   | "trash_cleanup_days"
+  | "cleanup_read_notifications_days"
+  | "cleanup_old_messages_days"
+  | "cleanup_archived_logs_days"
 >;
 
 export function SettingsForm({ initialSettings }: SettingsFormProps) {
@@ -48,6 +51,11 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
     boutique_pickup_enabled: initialSettings.boutique_pickup_enabled,
     delivery_enabled: initialSettings.delivery_enabled,
     trash_cleanup_days: initialSettings.trash_cleanup_days ?? 30,
+    cleanup_read_notifications_days:
+      initialSettings.cleanup_read_notifications_days ?? 30,
+    cleanup_old_messages_days: initialSettings.cleanup_old_messages_days ?? 90,
+    cleanup_archived_logs_days:
+      initialSettings.cleanup_archived_logs_days ?? 60,
   });
   const [saving, setSaving] = useState(false);
   const [cleaning, setCleaning] = useState(false);
@@ -94,6 +102,10 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           boutique_pickup_enabled: s.boutique_pickup_enabled,
           delivery_enabled: s.delivery_enabled,
           trash_cleanup_days: s.trash_cleanup_days ?? 30,
+          cleanup_read_notifications_days:
+            s.cleanup_read_notifications_days ?? 30,
+          cleanup_old_messages_days: s.cleanup_old_messages_days ?? 90,
+          cleanup_archived_logs_days: s.cleanup_archived_logs_days ?? 60,
         });
       }
       setMessage("تم الحفظ بنجاح");
@@ -107,7 +119,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
   const runCleanup = async () => {
     if (
       !confirm(
-        `تشغيل تنظيف السلة للعناصر الأقدم من ${settings.trash_cleanup_days} يوماً؟\nلن تُمس الطلبات والحجوزات أبداً.`
+        `تشغيل تنظيف السلة؟\n• منتجات/تصنيفات/معرض: ${settings.trash_cleanup_days} يوماً\n• إشعارات مقروءة: ${settings.cleanup_read_notifications_days} يوماً\n• رسائل: ${settings.cleanup_old_messages_days} يوماً\n• سجلات: ${settings.cleanup_archived_logs_days} يوماً\nلن تُمس الطلبات والحجوزات أبداً.`
       )
     ) {
       return;
@@ -119,7 +131,13 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
       const res = await fetch("/api/admin/cleanup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days: settings.trash_cleanup_days }),
+        body: JSON.stringify({
+          days: settings.trash_cleanup_days,
+          cleanup_read_notifications_days:
+            settings.cleanup_read_notifications_days,
+          cleanup_old_messages_days: settings.cleanup_old_messages_days,
+          cleanup_archived_logs_days: settings.cleanup_archived_logs_days,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "فشل التنظيف");
@@ -287,7 +305,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Input
-            label="حذف العناصر من السلة بعد (أيام)"
+            label="منتجات / تصنيفات / معرض (أيام)"
             type="number"
             min={1}
             step="1"
@@ -300,7 +318,49 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             }
             dir="ltr"
           />
-          <div className="flex items-end">
+          <Input
+            label="إشعارات مقروءة (أيام)"
+            type="number"
+            min={1}
+            step="1"
+            value={String(settings.cleanup_read_notifications_days ?? 30)}
+            onChange={(e) =>
+              update(
+                "cleanup_read_notifications_days",
+                Math.max(1, Math.floor(Number(e.target.value) || 30))
+              )
+            }
+            dir="ltr"
+          />
+          <Input
+            label="رسائل قديمة (أيام)"
+            type="number"
+            min={1}
+            step="1"
+            value={String(settings.cleanup_old_messages_days ?? 90)}
+            onChange={(e) =>
+              update(
+                "cleanup_old_messages_days",
+                Math.max(1, Math.floor(Number(e.target.value) || 90))
+              )
+            }
+            dir="ltr"
+          />
+          <Input
+            label="سجلات مؤرشفة (أيام)"
+            type="number"
+            min={1}
+            step="1"
+            value={String(settings.cleanup_archived_logs_days ?? 60)}
+            onChange={(e) =>
+              update(
+                "cleanup_archived_logs_days",
+                Math.max(1, Math.floor(Number(e.target.value) || 60))
+              )
+            }
+            dir="ltr"
+          />
+          <div className="flex items-end md:col-span-2">
             <Button
               variant="outline"
               loading={cleaning}

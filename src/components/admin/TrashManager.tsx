@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Trash2 } from "lucide-react";
-import {
-  MODULE_LABEL_AR,
-  type LifecycleModule,
-} from "@/lib/admin/lifecycle-types";
+import type { LifecycleModule } from "@/lib/admin/lifecycle-types";
 import { postTrash } from "@/lib/admin/lifecycle-client";
 import { formatDate } from "@/lib/utils";
+import { formatMessage } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import { BulkActionBar } from "@/components/admin/lifecycle/BulkActionBar";
 import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
 import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type TrashItem = {
   module: LifecycleModule;
@@ -38,6 +37,8 @@ const MODULE_FILTERS: Array<LifecycleModule | "all"> = [
 ];
 
 export function TrashManager() {
+  const { t, dir } = useLocale();
+  const tu = t.admin.trashUi;
   const [items, setItems] = useState<TrashItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,11 @@ export function TrashManager() {
   const [lastRestored, setLastRestored] = useState<TrashItem | null>(null);
   const [canRestore, setCanRestore] = useState(true);
   const [canPermanent, setCanPermanent] = useState(true);
+
+  const moduleLabel = useCallback(
+    (m: LifecycleModule) => tu.modules[m] ?? m,
+    [tu.modules]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -80,15 +86,15 @@ export function TrashManager() {
         moduleFilter === "all" ? "" : `?module=${encodeURIComponent(moduleFilter)}`;
       const res = await fetch(`/api/admin/trash${qs}`, { cache: "no-store" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل جلب سلة المحذوفات");
+      if (!res.ok) throw new Error(data.error || tu.loadFailed);
       setItems((data.items ?? []) as TrashItem[]);
       setSelected(new Set());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل جلب سلة المحذوفات");
+      setError(e instanceof Error ? e.message : tu.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, [moduleFilter]);
+  }, [moduleFilter, tu.loadFailed]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -126,7 +132,7 @@ export function TrashManager() {
     }
     setLastRestored(item);
     setItems((prev) => prev.filter((x) => keyOf(x) !== keyOf(item)));
-    setSnack(`تمت استعادة: ${item.title}`);
+    setSnack(formatMessage(tu.restored, { title: item.title }));
   };
 
   const permanentOne = async (item: TrashItem) => {
@@ -143,7 +149,7 @@ export function TrashManager() {
       return;
     }
     setItems((prev) => prev.filter((x) => keyOf(x) !== keyOf(item)));
-    setSnack("تم الحذف النهائي");
+    setSnack(tu.permanentDeleted);
   };
 
   const bulkRestore = async () => {
@@ -156,7 +162,7 @@ export function TrashManager() {
       });
     }
     setBusy(false);
-    setSnack(`تمت استعادة ${selectedItems.length} عنصر`);
+    setSnack(formatMessage(tu.bulkRestored, { count: selectedItems.length }));
     await load();
   };
 
@@ -190,23 +196,30 @@ export function TrashManager() {
       setError(result.error);
       return;
     }
-    setSnack(`تم تفريغ السلة (${result.deleted ?? 0})`);
+    setSnack(formatMessage(tu.emptied, { count: result.deleted ?? 0 }));
     await load();
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={dir}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal">🗑️ سلة المحذوفات</h1>
-          <p className="mt-1 text-sm text-muted">
-            استعادة العناصر أو حذفها نهائياً. الطلبات والحجوزات لا تُحذف تلقائياً أبداً.
-          </p>
+          <h1 className="text-2xl font-bold text-charcoal">{tu.title}</h1>
+          <p className="mt-1 text-sm text-muted">{tu.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.assign("/api/admin/export?module=notifications");
+            }}
+          >
+            {(tu as { exportNotifications?: string }).exportNotifications ??
+              "تصدير الإشعارات CSV"}
+          </Button>
           <Button variant="outline" loading={loading} onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
-            تحديث
+            {tu.refresh}
           </Button>
           {canPermanent ? (
             <Button
@@ -216,7 +229,7 @@ export function TrashManager() {
               disabled={items.length === 0}
             >
               <Trash2 className="h-4 w-4" />
-              تفريغ السلة
+              {tu.emptyTrash}
             </Button>
           ) : null}
         </div>
@@ -234,7 +247,7 @@ export function TrashManager() {
                 : "rounded-full bg-beige px-3 py-1.5 text-sm text-charcoal hover:bg-beige-dark/40"
             }
           >
-            {m === "all" ? "الكل" : MODULE_LABEL_AR[m]}
+            {m === "all" ? tu.all : moduleLabel(m)}
           </button>
         ))}
       </div>
@@ -250,24 +263,24 @@ export function TrashManager() {
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">تحديد</th>
-                <th className="px-4 py-3 text-right font-medium">العنصر</th>
-                <th className="px-4 py-3 text-right font-medium">الوحدة</th>
-                <th className="px-4 py-3 text-right font-medium">تاريخ الحذف</th>
-                <th className="px-4 py-3 text-right font-medium">إجراءات</th>
+                <th className="px-4 py-3 text-start font-medium">{tu.select}</th>
+                <th className="px-4 py-3 text-start font-medium">{tu.colItem}</th>
+                <th className="px-4 py-3 text-start font-medium">{tu.colModule}</th>
+                <th className="px-4 py-3 text-start font-medium">{tu.colDeletedAt}</th>
+                <th className="px-4 py-3 text-start font-medium">{tu.colActions}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    جاري التحميل...
+                    {tu.loading}
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    سلة المحذوفات فارغة
+                    {tu.empty}
                   </td>
                 </tr>
               ) : (
@@ -278,7 +291,7 @@ export function TrashManager() {
                         type="checkbox"
                         checked={selected.has(keyOf(item))}
                         onChange={() => toggle(item)}
-                        aria-label="تحديد"
+                        aria-label={tu.select}
                       />
                     </td>
                     <td className="px-4 py-3 font-medium text-charcoal">
@@ -287,9 +300,7 @@ export function TrashManager() {
                         {item.id}
                       </p>
                     </td>
-                    <td className="px-4 py-3">
-                      {MODULE_LABEL_AR[item.module] ?? item.module}
-                    </td>
+                    <td className="px-4 py-3">{moduleLabel(item.module)}</td>
                     <td className="px-4 py-3 text-muted">
                       {item.deleted_at ? formatDate(item.deleted_at) : "—"}
                     </td>
@@ -301,7 +312,7 @@ export function TrashManager() {
                             onClick={() => void restoreOne(item)}
                             disabled={busy}
                           >
-                            استعادة
+                            {tu.restore}
                           </Button>
                         ) : null}
                         {canPermanent ? (
@@ -313,11 +324,11 @@ export function TrashManager() {
                             }
                             disabled={busy}
                           >
-                            حذف نهائي
+                            {tu.permanentDelete}
                           </Button>
                         ) : null}
                         {!canRestore && !canPermanent ? (
-                          <span className="text-xs text-muted">عرض فقط</span>
+                          <span className="text-xs text-muted">{tu.viewOnly}</span>
                         ) : null}
                       </div>
                     </td>
@@ -339,9 +350,9 @@ export function TrashManager() {
 
       <ConfirmDialog
         open={confirm?.kind === "permanent"}
-        title="حذف نهائي؟"
-        description="لا يمكن التراجع عن هذا الإجراء. سيتم حذف العنصر من قاعدة البيانات نهائياً."
-        confirmLabel="حذف نهائي"
+        title={tu.permanentConfirmTitle}
+        description={tu.permanentConfirmDesc}
+        confirmLabel={tu.permanentConfirmLabel}
         danger
         loading={busy}
         onCancel={() => setConfirm(null)}
@@ -351,9 +362,11 @@ export function TrashManager() {
       />
       <ConfirmDialog
         open={confirm?.kind === "bulk_permanent"}
-        title="حذف نهائي للعناصر المحددة؟"
-        description={`سيتم حذف ${selected.size} عنصر نهائياً.`}
-        confirmLabel="حذف نهائي"
+        title={tu.bulkPermanentTitle}
+        description={formatMessage(tu.bulkPermanentDesc, {
+          count: selected.size,
+        })}
+        confirmLabel={tu.permanentConfirmLabel}
         danger
         loading={busy}
         onCancel={() => setConfirm(null)}
@@ -361,9 +374,9 @@ export function TrashManager() {
       />
       <ConfirmDialog
         open={confirm?.kind === "empty"}
-        title="تفريغ سلة المحذوفات؟"
-        description="حذف نهائي لكل العناصر الظاهرة في التصفية الحالية. الطلبات/الحجوزات المحذوفة تبقى قابلة للحذف اليدوي فقط عند التأكيد."
-        confirmLabel="تفريغ السلة"
+        title={tu.emptyConfirmTitle}
+        description={tu.emptyConfirmDesc}
+        confirmLabel={tu.emptyConfirmLabel}
         danger
         loading={busy}
         onCancel={() => setConfirm(null)}

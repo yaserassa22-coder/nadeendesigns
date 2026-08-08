@@ -1,18 +1,31 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { resolveCategoryLabel } from "@/lib/i18n/category-labels";
+
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
-import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Eye, EyeOff, Pencil, Plus, X } from "lucide-react";
 import {
   buildCategoryTree,
   slugifyCategory,
   type Category,
 } from "@/types/category";
+import type { ListVisibility } from "@/lib/admin/lifecycle-types";
+import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
+import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 import { notifyAdminCategoriesChanged } from "@/lib/admin/category-events";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
+import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
+
+type CategoryRow = Category & {
+  is_deleted?: boolean | null;
+  archived_at?: string | null;
+};
 
 interface CategoriesManagerProps {
   initialCategories: Category[];
@@ -20,6 +33,8 @@ interface CategoriesManagerProps {
 
 const emptyForm = {
   name_ar: "",
+  name_en: "",
+  name_he: "",
   slug: "",
   parent_id: "" as string,
   sort_order: "0",
@@ -47,13 +62,17 @@ function coerceLeafProductKind(
 }
 
 export function CategoriesManager({ initialCategories }: CategoriesManagerProps) {
+  const { t, locale } = useLocale();
+  const c = t.admin.categoriesUi;
   const router = useRouter();
-  const [categories, setCategories] = useState(initialCategories);
+  const [categories, setCategories] = useState<CategoryRow[]>(initialCategories);
   const [categoriesProp, setCategoriesProp] = useState(initialCategories);
   if (initialCategories !== categoriesProp) {
     setCategoriesProp(initialCategories);
     setCategories(initialCategories);
   }
+  const [visibility, setVisibility] = useState<ListVisibility>("active");
+  const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -61,16 +80,36 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const tree = useMemo(() => buildCategoryTree(categories), [categories]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.capabilities) setCaps(d.capabilities);
+        })
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const visibleCategories = useMemo(
+    () => filterLifecycleRows(categories, visibility),
+    [categories, visibility]
+  );
+
+  const tree = useMemo(
+    () => buildCategoryTree(visibleCategories),
+    [visibleCategories]
+  );
 
   const parentOptions = useMemo(() => {
-    const opts = [{ value: "", label: "— بدون أب (تصنيف رئيسي) —" }];
-    for (const c of categories) {
-      if (editing && c.id === editing.id) continue;
-      opts.push({ value: c.id, label: c.name_ar });
+    const opts = [{ value: "", label: c.noParent }];
+    for (const cat of categories) {
+      if (editing && cat.id === editing.id) continue;
+      opts.push({ value: cat.id, label: resolveCategoryLabel(cat, locale) });
     }
     return opts;
-  }, [categories, editing]);
+  }, [categories, editing, c.noParent, locale]);
 
   const reset = () => {
     setEditing(null);
@@ -88,6 +127,8 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
     setEditing(item);
     setForm({
       name_ar: item.name_ar,
+      name_en: item.name_en ?? "",
+      name_he: item.name_he ?? "",
       slug: item.slug,
       parent_id: item.parent_id ?? "",
       sort_order: String(item.sort_order),
@@ -119,7 +160,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
 
   const save = async () => {
     if (!form.name_ar.trim() || !form.slug.trim()) {
-      setError("الاسم والمعرّف مطلوبان");
+      setError(c.nameSlugRequired);
       return;
     }
 
@@ -128,6 +169,8 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
     try {
       const body = {
         name_ar: form.name_ar.trim(),
+        name_en: form.name_en.trim() || null,
+        name_he: form.name_he.trim() || null,
         slug: form.slug.trim().toLowerCase(),
         parent_id: form.parent_id || null,
         sort_order: Number(form.sort_order) || 0,
@@ -153,7 +196,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         body: JSON.stringify(editing ? { id: editing.id, ...body } : body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? c.saveFailed);
 
       if (editing) {
         setCategories((prev) => prev.map((c) => (c.id === editing.id ? data : c)));
@@ -166,7 +209,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
       router.refresh();
       notifyAdminCategoriesChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(e instanceof Error ? e.message : c.genericError);
     } finally {
       setSaving(false);
     }
@@ -180,22 +223,10 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error ?? "فشل تحديث الظهور");
+      alert(data.error ?? c.visibilityFailed);
       return;
     }
     setCategories((prev) => prev.map((c) => (c.id === item.id ? data : c)));
-    notifyAdminCategoriesChanged();
-  };
-
-  const remove = async (item: Category) => {
-    if (!confirm(`نقل التصنيف «${item.name_ar}» إلى سلة المحذوفات؟`)) return;
-    const res = await fetch(`/api/categories?id=${item.id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error ?? "فشل الحذف");
-      return;
-    }
-    setCategories((prev) => prev.filter((c) => c.id !== item.id));
     notifyAdminCategoriesChanged();
   };
 
@@ -217,7 +248,9 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
               </span>
             )}
             <div>
-              <p className="font-medium text-charcoal">{node.name_ar}</p>
+              <p className="font-medium text-charcoal">
+                {resolveCategoryLabel(node, locale)}
+              </p>
               <p className="text-xs text-muted" dir="ltr">
                 {node.slug}
                 {node.href ? ` · ${node.href}` : ""}
@@ -227,8 +260,13 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         </td>
         <td className="px-4 py-3 text-sm text-muted">
           {node.parent_id
-            ? categories.find((c) => c.id === node.parent_id)?.name_ar ?? "—"
-            : "رئيسي"}
+            ? (() => {
+                const parent = categories.find((cat) => cat.id === node.parent_id);
+                return parent
+                  ? resolveCategoryLabel(parent, locale)
+                  : "—";
+              })()
+            : c.root}
         </td>
         <td className="px-4 py-3 text-sm text-charcoal">{node.sort_order}</td>
         <td className="px-4 py-3">
@@ -242,7 +280,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
             }`}
           >
             {node.is_visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            {node.is_visible ? "ظاهر" : "مخفي"}
+            {node.is_visible ? c.visible : c.hidden}
           </button>
         </td>
         <td className="px-4 py-3">
@@ -266,18 +304,44 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
               type="button"
               onClick={() => openEdit(node)}
               className="rounded-lg p-2 text-gold hover:bg-gold/10"
-              aria-label="تعديل"
+              aria-label={c.edit}
             >
               <Pencil className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => remove(node)}
-              className="rounded-lg p-2 text-red-500 hover:bg-red-50"
-              aria-label="حذف"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <RowLifecycleActions
+              module="categories"
+              id={node.id}
+              archived={Boolean(
+                (node as CategoryRow).archived_at
+              )}
+              allowArchive={caps?.canArchive ?? false}
+              allowRestore={caps?.canRestore ?? false}
+              allowSoftDelete={caps?.canSoftDelete ?? false}
+              onChanged={(kind) => {
+                if (kind === "soft_delete") {
+                  setCategories((prev) =>
+                    prev.filter((cat) => cat.id !== node.id)
+                  );
+                  notifyAdminCategoriesChanged();
+                  return;
+                }
+                setCategories((prev) =>
+                  prev.map((cat) =>
+                    cat.id === node.id
+                      ? {
+                          ...cat,
+                          archived_at:
+                            kind === "archive"
+                              ? new Date().toISOString()
+                              : null,
+                        }
+                      : cat
+                  )
+                );
+                notifyAdminCategoriesChanged();
+              }}
+              onError={(msg) => alert(msg)}
+            />
           </div>
         </td>
       </tr>,
@@ -286,10 +350,16 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-1.5 text-sm text-muted">
+            {t.admin.productsUi.visibility}
+          </p>
+          <VisibilityFilter value={visibility} onChange={setVisibility} />
+        </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
-          إضافة تصنيف
+          {c.addCategory}
         </Button>
       </div>
 
@@ -297,19 +367,19 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         <table className="w-full min-w-[720px] text-right">
           <thead className="bg-beige/60 text-sm text-muted">
             <tr>
-              <th className="px-4 py-3 font-medium">التصنيف</th>
-              <th className="px-4 py-3 font-medium">الأب</th>
-              <th className="px-4 py-3 font-medium">الترتيب</th>
-              <th className="px-4 py-3 font-medium">الظهور</th>
-              <th className="px-4 py-3 font-medium">الغلاف</th>
+              <th className="px-4 py-3 font-medium">{c.colCategory}</th>
+              <th className="px-4 py-3 font-medium">{c.colParent}</th>
+              <th className="px-4 py-3 font-medium">{c.colOrder}</th>
+              <th className="px-4 py-3 font-medium">{c.colVisibility}</th>
+              <th className="px-4 py-3 font-medium">{c.colCover}</th>
               <th className="px-4 py-3 font-medium" />
             </tr>
           </thead>
           <tbody>
-            {categories.length === 0 ? (
+            {visibleCategories.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-muted">
-                  لا توجد تصنيفات بعد
+                  {c.empty}
                 </td>
               </tr>
             ) : (
@@ -328,7 +398,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
           >
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-xl font-bold text-charcoal">
-                {editing ? "تعديل التصنيف" : "تصنيف جديد"}
+                {editing ? c.editCategory : c.newCategory}
               </h2>
               <button
                 type="button"
@@ -337,7 +407,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                   reset();
                 }}
                 className="rounded-lg p-2 hover:bg-beige"
-                aria-label="إغلاق"
+                aria-label={c.close}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -345,13 +415,26 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
 
             <div className="space-y-4">
               <Input
-                label="الاسم"
+                label={c.nameAr}
                 value={form.name_ar}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="مثال: طرحة العروس"
+                placeholder={c.namePlaceholder}
               />
               <Input
-                label="المعرّف (slug)"
+                label={c.nameHe}
+                value={form.name_he}
+                onChange={(e) => setForm((p) => ({ ...p, name_he: e.target.value }))}
+                placeholder="קולקציה חדשה"
+              />
+              <Input
+                label={c.nameEn}
+                value={form.name_en}
+                onChange={(e) => setForm((p) => ({ ...p, name_en: e.target.value }))}
+                placeholder="New collection"
+                dir="ltr"
+              />
+              <Input
+                label={c.slug}
                 value={form.slug}
                 dir="ltr"
                 onChange={(e) => {
@@ -361,39 +444,39 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                 placeholder="veils"
               />
               <Select
-                label="التصنيف الأب"
+                label={c.parent}
                 options={parentOptions}
                 value={form.parent_id}
                 onChange={(e) => setForm((p) => ({ ...p, parent_id: e.target.value }))}
               />
               <Input
-                label="ترتيب العرض"
+                label={c.sortOrder}
                 type="number"
                 value={form.sort_order}
                 onChange={(e) => setForm((p) => ({ ...p, sort_order: e.target.value }))}
               />
               <Input
-                label="مسار الصفحة (اختياري)"
+                label={c.href}
                 value={form.href}
                 dir="ltr"
                 onChange={(e) => setForm((p) => ({ ...p, href: e.target.value }))}
                 placeholder="/veils"
               />
               <Select
-                label="نوع المنتج"
+                label={c.productKind}
                 value={form.product_kind}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, product_kind: e.target.value }))
                 }
                 options={[
-                  { value: "dress", label: "فساتين" },
-                  { value: "veil", label: "طرحة العروس" },
-                  { value: "bridal_robe", label: "برنص العروس" },
-                  { value: "accessories_group", label: "مجموعة اكسسوارات" },
+                  { value: "dress", label: c.kindDress },
+                  { value: "veil", label: c.kindVeil },
+                  { value: "bridal_robe", label: c.kindRobe },
+                  { value: "accessories_group", label: c.kindAccessories },
                 ]}
               />
               <div className="space-y-3 rounded-xl border border-beige-dark/70 bg-beige/30 p-4">
-                <p className="text-sm font-medium text-charcoal">إعدادات العرض</p>
+                <p className="text-sm font-medium text-charcoal">{c.displaySettings}</p>
                 <label className="flex items-center gap-3 text-sm text-charcoal">
                   <input
                     type="checkbox"
@@ -403,7 +486,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                     }
                     className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
                   />
-                  منشور (ظاهر في الموقع)
+                  {c.published}
                 </label>
                 <label className="flex items-center gap-3 text-sm text-charcoal">
                   <input
@@ -417,7 +500,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                     }
                     className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
                   />
-                  ظاهر في قائمة التنقل
+                  {c.inNav}
                 </label>
                 <label className="flex items-center gap-3 text-sm text-charcoal">
                   <input
@@ -431,7 +514,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                     }
                     className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
                   />
-                  ظاهر في الصفحة الرئيسية
+                  {c.onHomepage}
                 </label>
                 <label className="flex items-center gap-3 text-sm text-charcoal">
                   <input
@@ -445,37 +528,37 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                     }
                     className="h-4 w-4 rounded border-beige-dark text-gold focus:ring-gold"
                   />
-                  مجموعة مميزة (تمييز في الرئيسية)
+                  {c.featuredCollection}
                 </label>
               </div>
               <Textarea
-                label="الوصف"
+                label={c.description}
                 rows={4}
                 value={form.description_ar}
                 onChange={(e) => setForm((p) => ({ ...p, description_ar: e.target.value }))}
-                placeholder="وصف اختياري للتصنيف…"
+                placeholder={c.descriptionPlaceholder}
                 className="min-h-[96px] resize-y whitespace-pre-wrap"
               />
               <Input
-                label="عنوان SEO (اختياري)"
+                label={c.seoTitle}
                 value={form.seo_title_ar}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, seo_title_ar: e.target.value }))
                 }
-                placeholder="يُستخدم في عنوان الصفحة إن وُجد"
+                placeholder={c.seoTitlePlaceholder}
               />
               <Textarea
-                label="وصف SEO (اختياري)"
+                label={c.seoDescription}
                 rows={3}
                 value={form.seo_description_ar}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, seo_description_ar: e.target.value }))
                 }
-                placeholder="وصف محركات البحث / Open Graph"
+                placeholder={c.seoDescriptionPlaceholder}
                 className="min-h-[72px] resize-y"
               />
               <div>
-                <p className="mb-2 text-sm font-medium text-charcoal">أيقونة مخصصة</p>
+                <p className="mb-2 text-sm font-medium text-charcoal">{c.customIcon}</p>
                 <ImageUpload
                   multiple={false}
                   value={form.icon_url ? [form.icon_url] : []}
@@ -483,7 +566,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                 />
               </div>
               <div>
-                <p className="mb-2 text-sm font-medium text-charcoal">صورة الغلاف</p>
+                <p className="mb-2 text-sm font-medium text-charcoal">{c.coverImage}</p>
                 <ImageUpload
                   multiple={false}
                   value={form.cover_image_url ? [form.cover_image_url] : []}
@@ -493,7 +576,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                 />
               </div>
               <div>
-                <p className="mb-2 text-sm font-medium text-charcoal">صورة Open Graph (اختياري)</p>
+                <p className="mb-2 text-sm font-medium text-charcoal">{c.ogImage}</p>
                 <ImageUpload
                   multiple={false}
                   value={form.seo_og_image_url ? [form.seo_og_image_url] : []}
@@ -505,7 +588,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
               {error && <p className="text-sm text-red-500">{error}</p>}
               <div className="flex gap-3 pt-2">
                 <Button onClick={save} disabled={saving} className="flex-1">
-                  {saving ? "جارٍ الحفظ…" : "حفظ"}
+                  {saving ? c.saving : c.save}
                 </Button>
                 <Button
                   variant="outline"
@@ -515,7 +598,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                   }}
                   disabled={saving}
                 >
-                  إلغاء
+                  {c.cancel}
                 </Button>
               </div>
             </div>
