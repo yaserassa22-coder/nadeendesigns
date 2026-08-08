@@ -40,7 +40,6 @@ import { Input } from "@/components/ui/Input";
 import { formatDate, formatPrice } from "@/lib/utils";
 import {
   BOOKING_STATUS_LABELS,
-  getServiceTypeLabel,
 } from "@/types";
 import {
   getOrderStatusLabel,
@@ -48,6 +47,9 @@ import {
   type ShopOrderStatus,
 } from "@/types/shop";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+import { getServiceTypeLabelLocalized } from "@/lib/i18n/service-labels";
 
 export type DashboardApiResponse = {
   range: { preset: DateRangePreset; from: string; to: string };
@@ -155,6 +157,19 @@ type Props = {
 };
 
 export function ExecutiveDashboard({ initialData }: Props) {
+  const { t, locale, dir } = useLocale();
+  const d = t.admin.dashboardUi;
+  const rangeLabels: Record<DateRangePreset, string> = {
+    today: d.rangeToday,
+    yesterday: d.rangeYesterday,
+    last_7_days: d.rangeLast7,
+    last_30_days: d.rangeLast30,
+    this_month: d.rangeThisMonth,
+    last_month: d.rangeLastMonth,
+    this_year: d.rangeThisYear,
+    last_year: d.rangeLastYear,
+    custom: d.customRange,
+  };
   const [data, setData] = useState(initialData);
   const [preset, setPreset] = useState<DateRangePreset>(
     initialData.range.preset || "last_30_days"
@@ -180,18 +195,18 @@ export function ExecutiveDashboard({ initialData }: Props) {
         });
         const json = (await res.json()) as DashboardApiResponse;
         if (!res.ok) {
-          throw new Error(json.error || "تعذر تحميل اللوحة");
+          throw new Error(json.error || d.loadFailed);
         }
         startTransition(() => {
           setData(json);
         });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "تعذر تحميل اللوحة");
+        setError(e instanceof Error ? e.message : d.loadFailed);
       } finally {
         setLoading(false);
       }
     },
-    []
+    [d.loadFailed]
   );
 
   const selectPreset = (next: DateRangePreset) => {
@@ -206,16 +221,14 @@ export function ExecutiveDashboard({ initialData }: Props) {
     data;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" dir={dir}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.25em] text-gold uppercase">
-            Executive
+            {d.eyebrow}
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-foreground">لوحة التحكم</h1>
-          <p className="mt-2 text-muted">
-            مؤشرات الأداء، الإيرادات، والنشاط من بيانات المتجر الفعلية
-          </p>
+          <h1 className="mt-2 text-3xl font-bold text-foreground">{d.title}</h1>
+          <p className="mt-2 text-muted">{d.subtitle}</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -233,7 +246,7 @@ export function ExecutiveDashboard({ initialData }: Props) {
                     : "border-beige-dark bg-background text-muted hover:border-gold/50"
                 )}
               >
-                {p.label}
+                {rangeLabels[p.value]}
               </button>
             ))}
             <button
@@ -247,7 +260,7 @@ export function ExecutiveDashboard({ initialData }: Props) {
                   : "border-beige-dark bg-background text-muted hover:border-gold/50"
               )}
             >
-              نطاق مخصص
+              {d.customRange}
             </button>
           </div>
         </div>
@@ -256,13 +269,13 @@ export function ExecutiveDashboard({ initialData }: Props) {
       {preset === "custom" && (
         <div className="flex flex-col gap-3 rounded-2xl border border-beige-dark bg-background p-4 sm:flex-row sm:items-end">
           <Input
-            label="من تاريخ"
+            label={d.fromDate}
             type="date"
             value={customFrom}
             onChange={(e) => setCustomFrom(e.target.value)}
           />
           <Input
-            label="إلى تاريخ"
+            label={d.toDate}
             type="date"
             value={customTo}
             onChange={(e) => setCustomTo(e.target.value)}
@@ -272,7 +285,7 @@ export function ExecutiveDashboard({ initialData }: Props) {
             loading={busy}
             onClick={() => void load("custom", customFrom, customTo)}
           >
-            تطبيق
+            {d.apply}
           </Button>
         </div>
       )}
@@ -302,7 +315,17 @@ export function ExecutiveDashboard({ initialData }: Props) {
             >
               <span className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                {alert.title}
+                {alert.id === "orders-awaiting-confirmation"
+                  ? d.alertOrdersPending
+                  : alert.id === "unknown-shipping-regions"
+                    ? d.alertUnknownShipping
+                    : alert.id === "pending-delivery-fees"
+                      ? d.alertPendingFees
+                      : alert.id === "failed-notifications"
+                        ? d.alertFailedNotifications
+                        : alert.id === "out-of-stock"
+                          ? d.alertOutOfStock
+                          : alert.title}
               </span>
               <span className="font-[family-name:var(--font-cormorant)] text-xl font-semibold">
                 {alert.count}
@@ -318,39 +341,43 @@ export function ExecutiveDashboard({ initialData }: Props) {
         ) : (
           <>
             <KpiCard
-              title="إجمالي الإيرادات"
+              title={d.kpiTotalRevenue}
               value={formatPrice(kpis.totalRevenue)}
               icon={Wallet}
             />
-            <KpiCard title="إجمالي الطلبات" value={kpis.totalOrders} icon={ShoppingBag} />
+            <KpiCard title={d.kpiTotalOrders} value={kpis.totalOrders} icon={ShoppingBag} />
             <KpiCard
-              title="حجوزات العروس"
+              title={d.kpiBridalBookings}
               value={kpis.bridalBookings}
               icon={CalendarDays}
             />
-            <KpiCard title="طلبات توصيل" value={kpis.deliveryOrders} icon={Truck} />
+            <KpiCard title={d.kpiDeliveryOrders} value={kpis.deliveryOrders} icon={Truck} />
             <KpiCard
-              title="استلام من البوتيك"
+              title={d.kpiBoutiquePickup}
               value={kpis.boutiquePickup}
               icon={Store}
             />
-            <KpiCard title="قيد الانتظار" value={kpis.pendingOrders} icon={Clock3} />
+            <KpiCard title={d.kpiPending} value={kpis.pendingOrders} icon={Clock3} />
             <KpiCard
-              title="مكتملة"
+              title={d.kpiCompleted}
               value={kpis.completedOrders}
               icon={CheckCircle2}
             />
-            <KpiCard title="ملغاة" value={kpis.cancelledOrders} icon={XCircle} />
-            <KpiCard title="العميلات" value={kpis.totalCustomers} icon={Users} />
-            <KpiCard title="المنتجات" value={kpis.totalProducts} icon={Package} />
-            <KpiCard title="التصنيفات" value={kpis.totalCategories} icon={Layers} />
+            <KpiCard title={d.kpiCancelled} value={kpis.cancelledOrders} icon={XCircle} />
+            <KpiCard title={d.kpiCustomers} value={kpis.totalCustomers} icon={Users} />
+            <KpiCard title={d.kpiProducts} value={kpis.totalProducts} icon={Package} />
+            <KpiCard title={d.kpiCategories} value={kpis.totalCategories} icon={Layers} />
             <Link href="/admin/trash" className="block">
               <KpiCard
-                title="سلة المحذوفات"
+                title={d.kpiTrash}
                 value={trash?.totalInTrash ?? 0}
                 hint={
                   trash
-                    ? `طلبات ${trash.ordersInTrash} · حجوزات ${trash.bookingsInTrash} · منتجات ${trash.productsInTrash}`
+                    ? formatMessage(d.trashHint, {
+                        orders: trash.ordersInTrash,
+                        bookings: trash.bookingsInTrash,
+                        products: trash.productsInTrash,
+                      })
                     : undefined
                 }
                 icon={Trash2}
@@ -360,15 +387,15 @@ export function ExecutiveDashboard({ initialData }: Props) {
         )}
       </div>
 
-      <Panel title="تفصيل الإيرادات">
+      <Panel title={d.revenueBreakdown}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {(
             [
-              ["اليوم", revenueBreakdown.today],
-              ["هذا الأسبوع", revenueBreakdown.thisWeek],
-              ["هذا الشهر", revenueBreakdown.thisMonth],
-              ["هذه السنة", revenueBreakdown.thisYear],
-              ["مدى الحياة", revenueBreakdown.lifetime],
+              [d.revToday, revenueBreakdown.today],
+              [d.revThisWeek, revenueBreakdown.thisWeek],
+              [d.revThisMonth, revenueBreakdown.thisMonth],
+              [d.revThisYear, revenueBreakdown.thisYear],
+              [d.revLifetime, revenueBreakdown.lifetime],
             ] as const
           ).map(([label, value]) => (
             <div
@@ -401,30 +428,30 @@ export function ExecutiveDashboard({ initialData }: Props) {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel title="تحليل الشحن">
+        <Panel title={d.shippingAnalytics}>
           <ul className="space-y-3 text-sm">
             <li className="flex justify-between gap-3">
-              <span className="text-muted">طلبات توصيل</span>
+              <span className="text-muted">{d.deliveryOrders}</span>
               <span className="font-medium">{shipping.deliveryCount}</span>
             </li>
             <li className="flex justify-between gap-3">
-              <span className="text-muted">استلام من البوتيك</span>
+              <span className="text-muted">{d.boutiquePickup}</span>
               <span className="font-medium">{shipping.pickupCount}</span>
             </li>
             <li className="flex justify-between gap-3">
-              <span className="text-muted">متوسط رسوم الشحن</span>
+              <span className="text-muted">{d.avgShippingFee}</span>
               <span className="font-medium" dir="ltr">
                 {formatPrice(shipping.avgShippingFee)}
               </span>
             </li>
             <li className="flex justify-between gap-3">
-              <span className="text-muted">مناطق بانتظار الرسوم</span>
+              <span className="text-muted">{d.pendingRegions}</span>
               <span className="font-medium">{shipping.pendingShippingRegions}</span>
             </li>
           </ul>
           {shipping.mostUsedRegions.length > 0 ? (
             <div className="mt-4 border-t border-beige-dark pt-4">
-              <p className="mb-2 text-xs text-muted">أكثر المناطق استخداماً</p>
+              <p className="mb-2 text-xs text-muted">{d.topRegions}</p>
               <ul className="space-y-2 text-sm">
                 {shipping.mostUsedRegions.slice(0, 5).map((r) => (
                   <li key={r.name} className="flex justify-between gap-2">
@@ -437,65 +464,65 @@ export function ExecutiveDashboard({ initialData }: Props) {
           ) : null}
         </Panel>
 
-        <Panel title="تحليل الحجوزات">
+        <Panel title={d.bookingAnalytics}>
           <ul className="space-y-3 text-sm">
             <li className="flex justify-between">
-              <span className="text-muted">قيد الانتظار</span>
+              <span className="text-muted">{d.pending}</span>
               <span>{bookingAnalytics.pending}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-muted">مؤكدة</span>
+              <span className="text-muted">{d.confirmed}</span>
               <span>{bookingAnalytics.confirmed}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-muted">مكتملة</span>
+              <span className="text-muted">{d.completed}</span>
               <span>{bookingAnalytics.completed}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-muted">ملغاة</span>
+              <span className="text-muted">{d.cancelled}</span>
               <span>{bookingAnalytics.cancelled}</span>
             </li>
           </ul>
         </Panel>
 
-        <Panel title="تحليل العميلات">
+        <Panel title={d.customerAnalytics}>
           <ul className="space-y-3 text-sm">
             <li className="flex justify-between">
-              <span className="text-muted">جديدات</span>
+              <span className="text-muted">{d.newCustomers}</span>
               <span>{customers.newCustomers}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-muted">عائدات</span>
+              <span className="text-muted">{d.returningCustomers}</span>
               <span>{customers.returningCustomers}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-muted">طلبات لكل عميلة</span>
+              <span className="text-muted">{d.ordersPerCustomer}</span>
               <span>{customers.ordersPerCustomer}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-muted">متوسط قيمة الطلب</span>
+              <span className="text-muted">{d.aov}</span>
               <span dir="ltr">{formatPrice(customers.aov)}</span>
             </li>
             {customers.totalGuests != null && (
               <>
                 <li className="flex justify-between border-t border-beige-dark pt-3">
-                  <span className="text-muted">إجمالي الضيوف</span>
+                  <span className="text-muted">{d.totalGuests}</span>
                   <span>{customers.totalGuests}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span className="text-muted">ضيوف عائدون</span>
+                  <span className="text-muted">{d.returningGuests}</span>
                   <span>{customers.returningGuests ?? 0}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span className="text-muted">عملاء مسجّلون</span>
+                  <span className="text-muted">{d.registeredCustomers}</span>
                   <span>{customers.registeredCustomers ?? 0}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span className="text-muted">تحويل ضيف %</span>
+                  <span className="text-muted">{d.guestConversion}</span>
                   <span>{customers.guestConversionRate ?? 0}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span className="text-muted">سلال ضيوف مهجورة</span>
+                  <span className="text-muted">{d.abandonedGuestCarts}</span>
                   <span>{customers.abandonedGuestCarts ?? 0}</span>
                 </li>
                 <li>
@@ -503,7 +530,7 @@ export function ExecutiveDashboard({ initialData }: Props) {
                     href="/admin/guests"
                     className="text-xs text-gold hover:underline"
                   >
-                    إدارة الضيوف →
+                    {d.manageGuests}
                   </Link>
                 </li>
               </>
@@ -513,26 +540,26 @@ export function ExecutiveDashboard({ initialData }: Props) {
       </div>
 
       <Panel
-        title="أفضل المنتجات"
+        title={d.topProducts}
         action={
           <Link href="/admin/orders">
             <Button variant="ghost" size="sm">
-              الطلبات
+              {d.ordersLink}
             </Button>
           </Link>
         }
       >
         {topProducts.length === 0 ? (
-          <EmptyInline text="لا توجد مبيعات منتجات في هذه الفترة" />
+          <EmptyInline text={d.noProductSales} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-beige-dark text-muted">
-                  <th className="px-2 py-2 text-right font-medium">المنتج</th>
-                  <th className="px-2 py-2 text-right font-medium">الطلبات</th>
-                  <th className="px-2 py-2 text-right font-medium">الكمية</th>
-                  <th className="px-2 py-2 text-right font-medium">الإيراد</th>
+                  <th className="px-2 py-2 text-right font-medium">{d.colProduct}</th>
+                  <th className="px-2 py-2 text-right font-medium">{d.colOrders}</th>
+                  <th className="px-2 py-2 text-right font-medium">{d.colQty}</th>
+                  <th className="px-2 py-2 text-right font-medium">{d.colRevenue}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-beige-dark">
@@ -574,17 +601,17 @@ export function ExecutiveDashboard({ initialData }: Props) {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel
-          title="أحدث الطلبات"
+          title={d.recentOrders}
           action={
             <Link href="/admin/orders">
               <Button variant="ghost" size="sm">
-                الكل
+                {d.viewAll}
               </Button>
             </Link>
           }
         >
           {recent.orders.length === 0 ? (
-            <EmptyInline text="لا توجد طلبات بعد" />
+            <EmptyInline text={d.noOrdersYet} />
           ) : (
             <ul className="divide-y divide-beige-dark">
               {recent.orders.map((order) => (
@@ -612,17 +639,17 @@ export function ExecutiveDashboard({ initialData }: Props) {
         </Panel>
 
         <Panel
-          title="أحدث الحجوزات"
+          title={d.recentBookings}
           action={
             <Link href="/admin/bookings">
               <Button variant="ghost" size="sm">
-                الكل
+                {d.viewAll}
               </Button>
             </Link>
           }
         >
           {recent.bookings.length === 0 ? (
-            <EmptyInline text="لا توجد حجوزات بعد" />
+            <EmptyInline text={d.noBookingsYet} />
           ) : (
             <ul className="divide-y divide-beige-dark">
               {recent.bookings.map((booking) => (
@@ -633,7 +660,7 @@ export function ExecutiveDashboard({ initialData }: Props) {
                   <div>
                     <p className="font-medium text-foreground">{booking.name}</p>
                     <p className="text-muted">
-                      {getServiceTypeLabel(booking.service_type)} —{" "}
+                      {getServiceTypeLabelLocalized(booking.service_type, locale)} —{" "}
                       {formatDate(booking.date)}
                     </p>
                   </div>
@@ -648,9 +675,9 @@ export function ExecutiveDashboard({ initialData }: Props) {
           )}
         </Panel>
 
-        <Panel title="تحديثات الحالة">
+        <Panel title={d.statusUpdates}>
           {recent.statusUpdates.length === 0 ? (
-            <EmptyInline text="لا توجد تحديثات حالة مسجّلة" />
+            <EmptyInline text={d.noStatusUpdates} />
           ) : (
             <ul className="divide-y divide-beige-dark">
               {recent.statusUpdates.map((row) => (
@@ -667,17 +694,17 @@ export function ExecutiveDashboard({ initialData }: Props) {
         </Panel>
 
         <Panel
-          title="رسائل العميلات"
+          title={d.customerMessages}
           action={
             <Link href="/admin/messages">
               <Button variant="ghost" size="sm">
-                الكل
+                {d.viewAll}
               </Button>
             </Link>
           }
         >
           {recent.messages.length === 0 ? (
-            <EmptyInline text="لا توجد رسائل" />
+            <EmptyInline text={d.noMessages} />
           ) : (
             <ul className="divide-y divide-beige-dark">
               {recent.messages.map((row) => (
@@ -694,18 +721,18 @@ export function ExecutiveDashboard({ initialData }: Props) {
         </Panel>
 
         <Panel
-          title="الإشعارات"
+          title={d.notifications}
           className="xl:col-span-2"
           action={
             <Link href="/admin/notifications">
               <Button variant="ghost" size="sm">
-                الإعدادات
+                {d.settings}
               </Button>
             </Link>
           }
         >
           {recent.notifications.length === 0 ? (
-            <EmptyInline text="لا توجد سجلات إشعارات" />
+            <EmptyInline text={d.noNotifications} />
           ) : (
             <ul className="grid gap-0 divide-y divide-beige-dark sm:grid-cols-2 sm:gap-x-6 sm:divide-y-0">
               {recent.notifications.map((row) => (

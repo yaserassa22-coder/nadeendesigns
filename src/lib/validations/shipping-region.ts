@@ -10,6 +10,7 @@ const optionalNonNegInt = z
 export const shippingRegionCreateSchema = z.object({
   name_ar: z.string().min(2, "اسم المنطقة بالعربية مطلوب"),
   name_en: z.string().optional().default(""),
+  name_he: z.string().optional().default(""),
   shipping_fee: z.number().min(0, "رسوم الشحن غير صالحة").default(0),
   is_active: z.boolean().optional().default(true),
   sort_order: z.number().int().optional().default(0),
@@ -17,6 +18,8 @@ export const shippingRegionCreateSchema = z.object({
   estimated_days_min: optionalNonNegInt,
   estimated_days_max: optionalNonNegInt,
   estimated_delivery_ar: z.string().nullable().optional(),
+  estimated_delivery_he: z.string().nullable().optional(),
+  estimated_delivery_en: z.string().nullable().optional(),
   carrier_code: z.string().nullable().optional(),
   free_shipping_override: z.number().min(0).nullable().optional(),
   discount: z.number().min(0).nullable().optional(),

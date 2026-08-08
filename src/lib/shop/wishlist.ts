@@ -35,16 +35,30 @@ export function wishlistProductHref(
   }
 }
 
-export function wishlistKindLabel(productKind: string): string {
+export function wishlistKindLabel(
+  productKind: string,
+  labels?: {
+    productDress: string;
+    productVeil: string;
+    productRobe: string;
+    productGeneric: string;
+  }
+): string {
+  const L = labels ?? {
+    productDress: "فستان",
+    productVeil: "طرحة العروس",
+    productRobe: "برنص العروس",
+    productGeneric: "منتج",
+  };
   switch (productKind) {
     case "veil":
-      return "طرحة العروس";
+      return L.productVeil;
     case "bridal_robe":
-      return "برنص العروس";
+      return L.productRobe;
     case "dress":
-      return "فستان";
+      return L.productDress;
     default:
-      return productKind || "قطعة";
+      return productKind || L.productGeneric;
   }
 }
 

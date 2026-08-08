@@ -1,23 +1,22 @@
 /**
  * Storefront availability labels — status only, never exact inventory counts.
- * Quantity remains Admin-only.
+ * Quantity remains Admin-only. Labels follow the active storefront locale.
  */
+
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import type { Locale } from "@/lib/i18n/types";
 
 export type StorefrontAvailabilityKind =
   | "in_stock"
   | "ready_to_order"
   | "out_of_stock";
 
-const LABELS: Record<StorefrontAvailabilityKind, string> = {
-  in_stock: "✓ متوفر",
-  ready_to_order: "✓ متوفر",
-  out_of_stock: "نفد المخزون",
-};
-
 export function storefrontAvailabilityLabel(
-  kind: StorefrontAvailabilityKind
+  kind: StorefrontAvailabilityKind,
+  locale: Locale = "ar"
 ): string {
-  return LABELS[kind];
+  const t = getDictionary(locale).productExtras;
+  return kind === "out_of_stock" ? t.outOfStock : t.inStock;
 }
 
 /**
@@ -27,22 +26,27 @@ export function storefrontAvailabilityLabel(
 export function shopStockAvailability(input: {
   isAvailable: boolean;
   stockQuantity: number;
+  locale?: Locale;
 }): {
   available: boolean;
   kind: StorefrontAvailabilityKind;
   label: string;
 } {
+  const locale = input.locale ?? "ar";
   const available = input.isAvailable && input.stockQuantity > 0;
   const kind: StorefrontAvailabilityKind = available
     ? "in_stock"
     : "out_of_stock";
-  return { available, kind, label: storefrontAvailabilityLabel(kind) };
+  return { available, kind, label: storefrontAvailabilityLabel(kind, locale) };
 }
 
 /**
  * Dresses / bookable products without public stock counts.
  */
-export function dressAvailability(isAvailable: boolean): {
+export function dressAvailability(
+  isAvailable: boolean,
+  locale: Locale = "ar"
+): {
   available: boolean;
   kind: StorefrontAvailabilityKind;
   label: string;
@@ -53,6 +57,6 @@ export function dressAvailability(isAvailable: boolean): {
   return {
     available: isAvailable,
     kind,
-    label: storefrontAvailabilityLabel(kind),
+    label: storefrontAvailabilityLabel(kind, locale),
   };
 }

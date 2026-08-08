@@ -6,18 +6,11 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SITE_NAME } from "@/lib/constants";
-
-function loginErrorMessage(code: string | null): string {
-  if (code === "config") {
-    return "Supabase غير مُعد. تحققي من متغيرات البيئة.";
-  }
-  if (code === "admin_only") {
-    return "هذا الحساب ليس لديه صلاحيات الإدارة. سجّلي دخول بحساب الإدارة.";
-  }
-  return "";
-}
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export function LoginForm() {
+  const { t, dir } = useLocale();
+  const login = t.admin.login;
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") || "/admin";
@@ -26,9 +19,16 @@ export function LoginForm() {
       ? redirectParam
       : "/admin";
 
+  const errorFromQuery = (() => {
+    const code = searchParams.get("error");
+    if (code === "config") return login.errorConfig;
+    if (code === "admin_only") return login.errorAdminOnly;
+    return "";
+  })();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(loginErrorMessage(searchParams.get("error")));
+  const [error, setError] = useState(errorFromQuery);
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -36,7 +36,7 @@ export function LoginForm() {
     setError("");
 
     if (!isSupabaseConfigured()) {
-      setError("Supabase غير مُعد. أضيفي NEXT_PUBLIC_SUPABASE_URL والمفتاح.");
+      setError(login.errorConfigEnv);
       return;
     }
 
@@ -54,9 +54,7 @@ export function LoginForm() {
       if (!me.ok) {
         await supabase.auth.signOut();
         throw new Error(
-          me.status === 403
-            ? "هذا الحساب ليس لديه صلاحيات الإدارة (profiles.role)."
-            : "تعذّر التحقق من صلاحيات الإدارة."
+          me.status === 403 ? login.errorNotAdmin : login.errorVerifyFailed
         );
       }
 
@@ -64,7 +62,7 @@ export function LoginForm() {
       router.refresh();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "فشل تسجيل الدخول. تحققي من البيانات."
+        err instanceof Error ? err.message : login.errorLoginFailed
       );
     } finally {
       setLoading(false);
@@ -72,22 +70,23 @@ export function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-3xl border border-beige-dark bg-white p-8 shadow-xl shadow-gold/5">
+    <div
+      className="w-full max-w-md rounded-3xl border border-beige-dark bg-white p-8 shadow-xl shadow-gold/5"
+      dir={dir}
+    >
       <div className="mb-8 text-center">
         <p className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold tracking-widest text-gold">
           {SITE_NAME}
         </p>
         <h1 className="mt-3 text-xl font-semibold text-charcoal">
-          تسجيل دخول الإدارة
+          {login.title}
         </h1>
-        <p className="mt-2 text-sm text-muted">
-          أدخلي بيانات حساب Supabase للوصول إلى اللوحة
-        </p>
+        <p className="mt-2 text-sm text-muted">{login.subtitle}</p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-5">
         <Input
-          label="البريد الإلكتروني"
+          label={login.email}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -97,7 +96,7 @@ export function LoginForm() {
           placeholder="admin@nadeendesigns.com"
         />
         <Input
-          label="كلمة المرور"
+          label={login.password}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -114,7 +113,7 @@ export function LoginForm() {
         )}
 
         <Button type="submit" size="lg" loading={loading} className="w-full">
-          دخول
+          {login.submit}
         </Button>
       </form>
     </div>

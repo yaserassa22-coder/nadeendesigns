@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/shop/CartProvider";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { PurchaseCtaGroup } from "@/components/ui/experience";
 import {
   ProductExperienceModal,
@@ -27,6 +28,8 @@ type Props = {
   shopProductType?: ShopProductType;
   productId: string;
   nameAr: string;
+  nameEn?: string | null;
+  nameHe?: string | null;
   price?: number | null;
   salePrice?: number | null;
   image?: string | null;
@@ -62,6 +65,8 @@ export function ProductExperienceBuy({
   shopProductType = "dress",
   productId,
   nameAr,
+  nameEn,
+  nameHe,
   price,
   salePrice,
   image,
@@ -83,6 +88,7 @@ export function ProductExperienceBuy({
 }: Props) {
   const router = useRouter();
   const { addItem } = useCart();
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [intent, setIntent] = useState<ProductExperienceIntent>("cart");
   const [message, setMessage] = useState("");
@@ -115,6 +121,8 @@ export function ProductExperienceBuy({
       product_type: shopProductType,
       product_id: productId,
       name_ar: nameAr,
+      name_en: nameEn,
+      name_he: nameHe,
       unit_price: unit,
       compare_at_price: pricing.onSale ? pricing.regularPrice : null,
       quantity: 1,
@@ -129,7 +137,7 @@ export function ProductExperienceBuy({
       router.push("/checkout");
       return;
     }
-    setMessage("تمت الإضافة إلى السلة");
+    setMessage(t.product.addedToCart);
   };
 
   const openModal = (mode: ProductExperienceIntent) => {
@@ -174,6 +182,8 @@ export function ProductExperienceBuy({
           shopProductType={shopProductType}
           productId={productId}
           nameAr={nameAr}
+          nameEn={nameEn}
+          nameHe={nameHe}
           unitPrice={unit}
           compareAtPrice={pricing.onSale ? pricing.regularPrice : null}
           image={image}
@@ -186,7 +196,7 @@ export function ProductExperienceBuy({
           showFontSelection={showFontSelection}
           showColorSelection={showColorSelection}
           onSuccess={(mode) => {
-            if (mode === "cart") setMessage("تمت الإضافة إلى السلة");
+            if (mode === "cart") setMessage(t.product.addedToCart);
           }}
         />
       ) : null}

@@ -106,8 +106,8 @@ export async function loadStoreServicesFromTable(): Promise<
 }
 
 /**
- * Prefer table library; fall back to settings JSON normalize.
- * Merges so settings JSON remains a valid mirror.
+ * Prefer settings JSON library; fall back to / fill from store_services table.
+ * JSON is the write path for Admin saves — table is a dual-write mirror.
  */
 export async function resolveStoreExtraServices(
   settingsJson: unknown
@@ -116,9 +116,9 @@ export async function resolveStoreExtraServices(
   const fromTable = await loadStoreServicesFromTable();
   if (!fromTable?.length) return fromJson;
 
-  // Table wins for known ids; keep any JSON-only custom ids not in table
-  const byId = new Map(fromTable.map((s) => [s.id, s]));
-  for (const s of fromJson.services) {
+  // Settings JSON wins for known ids; keep any table-only rows not yet in JSON.
+  const byId = new Map(fromJson.services.map((s) => [s.id, s]));
+  for (const s of fromTable) {
     if (!byId.has(s.id)) byId.set(s.id, s);
   }
   return {

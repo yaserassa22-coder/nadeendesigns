@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, MessageSquare, Printer } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, MessageSquare, Printer } from "lucide-react";
 import type {
   DeliveryMethod,
   OrderWorkflowAction,
@@ -14,15 +14,16 @@ import {
   ShippingDetailsBlock,
 } from "@/components/shop/ShippingDetailsBlock";
 import {
-  DELIVERY_METHOD_LABELS,
   getOrderStatusLabel,
-  ORDER_WORKFLOW_ACTIONS,
+  getDeliveryMethodLabel,
+  shopOrderStatusLabels,
   SHOP_ORDER_STATUSES,
-  SHOP_ORDER_STATUS_LABELS,
-  workflowActionsForDeliveryMethod,
 } from "@/types/shop";
+import { getOrderWorkflowActions } from "@/lib/i18n/order-labels";
+import { resolveOrderLineName } from "@/lib/i18n/order-item-labels";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
+import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import {
@@ -39,6 +40,8 @@ import { shopLineDisplayTotal } from "@/lib/products/order-experience";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 import Image from "next/image";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 
 interface OrdersManagerProps {
   initialOrders: ShopOrder[];
@@ -69,6 +72,7 @@ export function OrdersManager({
   initialError = null,
   initialCount,
 }: OrdersManagerProps) {
+  const { t, locale } = useLocale();
   const searchParams = useSearchParams();
   const focusId = searchParams.get("focus");
 
@@ -101,6 +105,20 @@ export function OrdersManager({
   const [shipTrackingUrl, setShipTrackingUrl] = useState("");
   const [shipInternalNotes, setShipInternalNotes] = useState("");
   const [savingShipping, setSavingShipping] = useState(false);
+  const [snack, setSnack] = useState<string | null>(null);
+  const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.capabilities) setCaps(d.capabilities);
+        })
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   if (focusId && focusId !== appliedFocus) {
     setAppliedFocus(focusId);
@@ -167,7 +185,23 @@ export function OrdersManager({
       paymentAmount?: number;
     }
   ) => {
+    const previous = orders.find((o) => o.id === id);
+    const optimisticStatus =
+      payload.status ||
+      getOrderWorkflowActions(locale).find((a) => a.action === payload.action)
+        ?.status;
+
+    // Instant UI feedback — status dropdown applies immediately
+    if (optimisticStatus) {
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === id ? { ...o, status: optimisticStatus } : o
+        )
+      );
+    }
+
     setUpdating(id);
+    setSnack(null);
     try {
       const res = await fetch("/api/orders", {
         method: "PATCH",
@@ -175,27 +209,43 @@ export function OrdersManager({
         body: JSON.stringify({ id, ...payload }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل التحديث");
-      if (data.unchanged) return;
+      if (!res.ok) throw new Error(data.error ?? t.admin.ordersUi.updateFailed);
+
+      if (data.unchanged) {
+        setSnack(t.admin.ordersUi.statusUpdated);
+        return;
+      }
 
       const nextStatus =
         (data.status as ShopOrderStatus | undefined) ||
         payload.status ||
-        ORDER_WORKFLOW_ACTIONS.find((a) => a.action === payload.action)
-          ?.status;
+        getOrderWorkflowActions(locale).find(
+          (a) => a.action === payload.action
+        )?.status;
 
-      if (nextStatus) {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o))
-        );
-      }
       if (data.order) {
         setOrders((prev) =>
           prev.map((o) => (o.id === id ? { ...o, ...data.order } : o))
         );
+      } else if (nextStatus) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o))
+        );
       }
+
+      const notified = Boolean(data.notified ?? nextStatus);
+      setSnack(
+        t.admin.ordersUi.statusUpdated +
+          (notified ? t.admin.ordersUi.statusUpdateNotifyHint : "")
+      );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "حدث خطأ");
+      // Revert optimistic change
+      if (previous) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === id ? { ...o, status: previous.status } : o))
+        );
+      }
+      alert(e instanceof Error ? e.message : t.admin.ordersUi.genericError);
     } finally {
       setUpdating(null);
       setPaymentOrderId(null);
@@ -235,7 +285,7 @@ export function OrdersManager({
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل حفظ بيانات الشحن");
+      if (!res.ok) throw new Error(data.error ?? t.admin.ordersUi.shippingSaveFailed);
       if (data.order) {
         setOrders((prev) =>
           prev.map((o) => (o.id === order.id ? { ...o, ...data.order } : o))
@@ -243,7 +293,7 @@ export function OrdersManager({
       }
       setShippingEditId(null);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "حدث خطأ");
+      alert(e instanceof Error ? e.message : t.admin.ordersUi.genericError);
     } finally {
       setSavingShipping(false);
     }
@@ -257,7 +307,7 @@ export function OrdersManager({
       return;
     }
     if (action === "cancel") {
-      const ok = window.confirm("هل تريدين إلغاء هذا الطلب؟ سيتم إشعار العميلة.");
+      const ok = window.confirm(t.admin.ordersUi.cancelConfirm);
       if (!ok) return;
     }
     await patchStatus(order.id, { action });
@@ -266,7 +316,7 @@ export function OrdersManager({
   const confirmPaymentRequest = async (order: ShopOrder) => {
     const amount = Number(paymentAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      alert("أدخلي مبلغاً صالحاً");
+      alert(t.admin.ordersUi.invalidAmount);
       return;
     }
     await patchStatus(order.id, {
@@ -277,7 +327,7 @@ export function OrdersManager({
 
   const sendCustomMessage = async () => {
     if (!messageOrderId || !messageText.trim()) {
-      alert("اكتبي نص الرسالة");
+      alert(t.admin.ordersUi.messageRequired);
       return;
     }
     setSendingMessage(true);
@@ -292,12 +342,12 @@ export function OrdersManager({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الإرسال");
-      alert("تم إرسال الرسالة");
+      if (!res.ok) throw new Error(data.error ?? t.admin.ordersUi.sendFailed);
+      alert(t.admin.ordersUi.messageSent);
       setMessageOrderId(null);
       setMessageText("");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "حدث خطأ");
+      alert(e instanceof Error ? e.message : t.admin.ordersUi.genericError);
     } finally {
       setSendingMessage(false);
     }
@@ -312,10 +362,10 @@ export function OrdersManager({
         body: JSON.stringify({ limit: 20 }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل إعادة المحاولة");
-      alert(`تمت إعادة المحاولة لـ ${data.retried ?? 0} إشعار(ات).`);
+      if (!res.ok) throw new Error(data.error ?? t.admin.ordersUi.sendFailed);
+      alert(formatMessage(t.admin.ordersUi.retryNotifResult, { count: data.retried ?? 0 }));
     } catch (e) {
-      alert(e instanceof Error ? e.message : "حدث خطأ");
+      alert(e instanceof Error ? e.message : t.admin.ordersUi.genericError);
     } finally {
       setRetrying(false);
     }
@@ -325,11 +375,12 @@ export function OrdersManager({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal">🛒 الطلبات</h1>
+          <h1 className="text-2xl font-bold text-charcoal">{t.admin.ordersUi.title}</h1>
           <p className="mt-1 text-sm text-muted">
-            سير عمل الطلب الكامل — طرحة العروس، برنص العروس، وجميع طلبات المتجر (
-            {typeof initialCount === "number" ? initialCount : orders.length}{" "}
-            طلب)
+            {t.admin.ordersUi.subtitle}{" "}
+            {formatMessage(t.admin.ordersUi.orderCount, {
+              count: typeof initialCount === "number" ? initialCount : orders.length,
+            })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -337,17 +388,30 @@ export function OrdersManager({
             href="/api/admin/export?module=orders"
             className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
           >
-            تصدير CSV
+            {t.admin.ordersUi.exportCsv}
           </a>
           <Button variant="outline" loading={retrying} onClick={retryNotifications}>
-            إعادة إرسال الإشعارات الفاشلة
+            {t.admin.ordersUi.retryFailedNotifications}
           </Button>
         </div>
       </div>
 
+      {snack && (
+        <div className="rounded-2xl border border-gold/30 bg-gold/10 px-5 py-3 text-sm text-charcoal">
+          {snack}
+          <button
+            type="button"
+            className="ms-3 text-xs text-gold underline"
+            onClick={() => setSnack(null)}
+          >
+            {t.common.close}
+          </button>
+        </div>
+      )}
+
       {loadError && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          <p className="font-medium">تعذّر تحميل الطلبات</p>
+          <p className="font-medium">{t.admin.ordersUi.loadFailed}</p>
           <p className="mt-1 whitespace-pre-wrap" dir="ltr">
             {loadError}
           </p>
@@ -364,51 +428,51 @@ export function OrdersManager({
                 })
                 .catch((e) =>
                   setLoadError(
-                    e instanceof Error ? e.message : "فشل إعادة التحميل"
+                    e instanceof Error ? e.message : t.admin.ordersUi.reloadFailed
                   )
                 );
             }}
           >
-            إعادة المحاولة
+            {t.common.retry}
           </button>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Select
-          label="تصفية الحالة"
+          label={t.admin.ordersUi.filterStatus}
           value={filter}
           onChange={(e) => setFilter(e.target.value as ShopOrderStatus | "all")}
           options={[
-            { value: "all", label: "الكل" },
+            { value: "all", label: t.admin.ordersUi.all },
             ...SHOP_ORDER_STATUSES.map((value) => ({
               value,
-              label: SHOP_ORDER_STATUS_LABELS[value],
+              label: shopOrderStatusLabels(locale)[value],
             })),
           ]}
         />
         <div>
-          <p className="mb-1.5 text-sm text-muted">العرض</p>
+          <p className="mb-1.5 text-sm text-muted">{t.admin.ordersUi.visibility}</p>
           <VisibilityFilter value={visibility} onChange={setVisibility} />
         </div>
         <Select
-          label="طريقة الاستلام"
+          label={t.admin.ordersUi.deliveryMethod}
           value={methodFilter}
           onChange={(e) =>
             setMethodFilter(e.target.value as DeliveryMethod | "all")
           }
           options={[
-            { value: "all", label: "الكل" },
-            { value: "delivery", label: "توصيل" },
-            { value: "pickup", label: "استلام من البوتيك" },
+            { value: "all", label: t.admin.ordersUi.all },
+            { value: "delivery", label: t.admin.ordersUi.delivery },
+            { value: "pickup", label: t.admin.ordersUi.pickup },
           ]}
         />
         <Select
-          label="المنطقة"
+          label={t.admin.ordersUi.region}
           value={regionFilter}
           onChange={(e) => setRegionFilter(e.target.value)}
           options={[
-            { value: "all", label: "الكل" },
+            { value: "all", label: t.admin.ordersUi.all },
             ...regionOptions.map((name) => ({ value: name, label: name })),
           ]}
         />
@@ -419,11 +483,11 @@ export function OrdersManager({
           <table className="min-w-full text-sm">
             <thead className="bg-beige/60 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">العميلة</th>
-                <th className="px-4 py-3 text-right font-medium">العناصر</th>
-                <th className="px-4 py-3 text-right font-medium">المجموع</th>
-                <th className="px-4 py-3 text-right font-medium">الحالة</th>
-                <th className="px-4 py-3 text-right font-medium">تفاصيل</th>
+                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colCustomer}</th>
+                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colItems}</th>
+                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colTotal}</th>
+                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colStatus}</th>
+                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colDetails}</th>
               </tr>
             </thead>
             <tbody>
@@ -431,8 +495,8 @@ export function OrdersManager({
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
                     {orders.length === 0
-                      ? "لا توجد طلبات بعد"
-                      : "لا توجد طلبات مطابقة للتصفية"}
+                      ? t.admin.ordersUi.empty
+                      : t.admin.ordersUi.emptyFiltered}
                   </td>
                 </tr>
               ) : (
@@ -456,8 +520,8 @@ export function OrdersManager({
                               }
                             >
                               {order.customer_type === "registered"
-                                ? "Registered"
-                                : "Guest"}
+                                ? t.admin.ordersUi.customerRegistered
+                                        : t.admin.ordersUi.customerGuest}
                             </span>
                           </p>
                           <p className="text-xs text-muted" dir="ltr">
@@ -470,36 +534,35 @@ export function OrdersManager({
                             {formatDate(order.created_at)}
                           </p>
                         </td>
-                        <td className="px-4 py-3">{order.items?.length ?? 0} منتج</td>
+                        <td className="px-4 py-3">{formatMessage(t.admin.ordersUi.productCount, { count: order.items?.length ?? 0 })}</td>
                         <td className="px-4 py-3" dir="ltr">
                           {formatPrice(Number(order.total))}
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs text-charcoal">
-                            {getOrderStatusLabel(status, order.delivery_method)}
+                            {getOrderStatusLabel(status, order.delivery_method, locale)}
                           </span>
                           {order.delivery_method && (
                             <p className="mt-1 text-[11px] text-muted">
-                              {DELIVERY_METHOD_LABELS[order.delivery_method]}
+                              {getDeliveryMethodLabel(order.delivery_method, locale)}
                             </p>
                           )}
                           <select
                             value={status}
                             disabled={updating === order.id}
-                            aria-label={`تغيير حالة طلب ${orderNumber(order.id)}`}
-                            onChange={(e) =>
-                              patchStatus(order.id, {
-                                status: e.target.value as ShopOrderStatus,
-                              })
-                            }
+                            aria-label={formatMessage(t.admin.ordersUi.changeStatusAria, { id: orderNumber(order.id) })}
+                            onChange={(e) => {
+                              const next = e.target.value as ShopOrderStatus;
+                              if (next === status) return;
+                              void patchStatus(order.id, { status: next });
+                            }}
                             className="mt-2 w-full max-w-[200px] rounded-lg border border-beige-dark bg-white px-3 py-2 text-xs focus:border-gold focus:ring-2 focus:ring-gold/20"
                           >
                             {SHOP_ORDER_STATUSES.map((value) => (
                               <option key={value} value={value}>
                                 {getOrderStatusLabel(
-                                  value,
-                                  order.delivery_method
-                                )}
+                                  value, order.delivery_method
+                                , locale)}
                               </option>
                             ))}
                           </select>
@@ -513,7 +576,7 @@ export function OrdersManager({
                               }
                               className="inline-flex items-center gap-1 text-gold"
                             >
-                              تفاصيل
+                              {t.admin.ordersUi.details}
                               {isOpen ? (
                                 <ChevronUp className="h-4 w-4" />
                               ) : (
@@ -530,11 +593,16 @@ export function OrdersManager({
                                   }
                                 ).archived_at
                               )}
+                              allowArchive={caps?.canArchive ?? false}
+                              allowRestore={caps?.canRestore ?? false}
+                              allowSoftDelete={caps?.canSoftDelete ?? false}
+                              confirmSoftDelete={t.admin.ordersUi.deleteConfirm}
                               onChanged={(kind) => {
                                 if (kind === "soft_delete") {
                                   setOrders((prev) =>
                                     prev.filter((o) => o.id !== order.id)
                                   );
+                                  setSnack(t.admin.ordersUi.movedToTrash);
                                   return;
                                 }
                                 setOrders((prev) =>
@@ -560,17 +628,18 @@ export function OrdersManager({
                         <tr className="border-t border-beige-dark/50 bg-gradient-to-l from-beige/40 to-ivory/60">
                           <td colSpan={5} className="space-y-5 px-4 py-5">
                             <div className="flex flex-wrap gap-2">
-                              {workflowActionsForDeliveryMethod(
+                              {getOrderWorkflowActions(
+                                locale,
                                 order.delivery_method
                               ).map((item) => {
                                 const active = status === item.status;
                                 const label =
                                   item.action === "deliver" &&
                                   order.delivery_method === "pickup"
-                                    ? "تم الاستلام"
+                                    ? t.admin.ordersUi.pickedUpAction
                                     : item.action === "deliver" &&
                                         order.delivery_method === "delivery"
-                                      ? "تم التوصيل"
+                                      ? t.admin.ordersUi.deliveredAction
                                       : item.label;
                                 return (
                                   <button
@@ -579,7 +648,12 @@ export function OrdersManager({
                                     disabled={
                                       updating === order.id || active
                                     }
-                                    onClick={() => runAction(order, item.action)}
+                                    onClick={() =>
+                                      runAction(
+                                        order,
+                                        item.action as OrderWorkflowAction
+                                      )
+                                    }
                                     className={`rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-40 ${actionClass(item.tone)}`}
                                   >
                                     {active ? "✓ " : ""}
@@ -597,7 +671,7 @@ export function OrdersManager({
                                 className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-white px-3 py-1.5 text-xs font-medium text-charcoal hover:bg-gold/10"
                               >
                                 <MessageSquare className="h-3.5 w-3.5" />
-                                إرسال رسالة
+                                {t.admin.ordersUi.sendMessage}
                               </button>
                               {isDeliveryOrderForSlip(order) ? (
                                 <a
@@ -607,21 +681,78 @@ export function OrdersManager({
                                   className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-white px-3 py-1.5 text-xs font-medium text-charcoal hover:bg-gold/10"
                                 >
                                   <Printer className="h-3.5 w-3.5" />
-                                  🖨 طباعة بيانات الشحن
+                                  {order.delivery_method === "pickup"
+                                    ? t.admin.ordersUi.printPickup
+                                    : t.admin.ordersUi.printShipping}
                                 </a>
                               ) : null}
+                              {order.invoice_number ? (
+                                <a
+                                  href={`/admin/orders/${order.id}/invoice-print`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-white px-3 py-1.5 text-xs font-medium text-charcoal hover:bg-gold/10"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                  {formatMessage(t.admin.ordersUi.documentLabel, { number: order.invoice_number })}
+                                </a>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={updating === order.id}
+                                  onClick={async () => {
+                                    setUpdating(order.id);
+                                    try {
+                                      const res = await fetch(
+                                        `/api/orders/${order.id}/invoice`,
+                                        { method: "POST" }
+                                      );
+                                      const data = await res.json();
+                                      if (!res.ok) {
+                                        throw new Error(
+                                          data.error || t.admin.ordersUi.issueFailed
+                                        );
+                                      }
+                                      if (data.order) {
+                                        setOrders((prev) =>
+                                          prev.map((o) =>
+                                            o.id === order.id
+                                              ? { ...o, ...data.order }
+                                              : o
+                                          )
+                                        );
+                                      }
+                                      window.open(
+                                        `/admin/orders/${order.id}/invoice-print`,
+                                        "_blank"
+                                      );
+                                    } catch (e) {
+                                      setLoadError(
+                                        e instanceof Error
+                                          ? e.message
+                                          : t.admin.ordersUi.issueFailed
+                                      );
+                                    } finally {
+                                      setUpdating(null);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-beige-dark bg-white px-3 py-1.5 text-xs font-medium text-charcoal hover:bg-beige/40 disabled:opacity-40"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                  {t.admin.ordersUi.issueInvoice}
+                                </button>
+                              )}
                             </div>
 
                             {paymentOrderId === order.id && (
                               <div className="rounded-2xl border border-gold/30 bg-white/90 p-4">
                                 <p className="mb-3 text-sm font-medium text-charcoal">
-                                  طلب الدفعة — المبلغ وتعليمات الدفع تُرسل عبر
-                                  الإيميل والواتساب
+                                  {t.admin.ordersUi.requestPaymentHint}
                                 </p>
                                 <div className="flex flex-wrap items-end gap-3">
                                   <label className="block text-sm">
                                     <span className="mb-1 block text-muted">
-                                      المبلغ
+                                      {t.admin.ordersUi.amount}
                                     </span>
                                     <input
                                       type="number"
@@ -641,14 +772,12 @@ export function OrdersManager({
                                       confirmPaymentRequest(order)
                                     }
                                   >
-                                    إرسال طلب الدفعة
+                                    {t.admin.ordersUi.sendPaymentRequest}
                                   </Button>
                                   <Button
                                     variant="outline"
                                     onClick={() => setPaymentOrderId(null)}
-                                  >
-                                    إلغاء
-                                  </Button>
+                                  >{t.admin.ordersUi.cancel}</Button>
                                 </div>
                               </div>
                             )}
@@ -656,23 +785,23 @@ export function OrdersManager({
                             {messageOrderId === order.id && (
                               <div className="rounded-2xl border border-gold/30 bg-white/90 p-4">
                                 <p className="mb-3 text-sm font-medium text-charcoal">
-                                  إرسال رسالة مخصصة للعميلة
+                                  {t.admin.ordersUi.customMessage}
                                 </p>
                                 <Textarea
-                                  label="نص الرسالة"
+                                  label={t.admin.ordersUi.messageBody}
                                   value={messageText}
                                   onChange={(e) =>
                                     setMessageText(e.target.value)
                                   }
                                   rows={4}
-                                  placeholder="اكتبي رسالتكِ هنا..."
+                                  placeholder={t.admin.ordersUi.messagePlaceholder}
                                 />
                                 <div className="mt-3 flex flex-wrap gap-4 text-sm">
                                   {(
                                     [
-                                      ["whatsapp", "واتساب"],
-                                      ["email", "إيميل"],
-                                      ["both", "كلاهما"],
+                                      ["whatsapp", t.admin.ordersUi.channelWhatsapp],
+                                      ["email", t.admin.ordersUi.channelEmail],
+                                      ["both", t.admin.ordersUi.channelBoth],
                                     ] as const
                                   ).map(([value, label]) => (
                                     <label
@@ -696,13 +825,13 @@ export function OrdersManager({
                                     loading={sendingMessage}
                                     onClick={sendCustomMessage}
                                   >
-                                    إرسال
+                                    {t.admin.ordersUi.send}
                                   </Button>
                                   <Button
                                     variant="outline"
                                     onClick={() => setMessageOrderId(null)}
                                   >
-                                    إغلاق
+                                    {t.admin.ordersUi.close}
                                   </Button>
                                 </div>
                               </div>
@@ -711,20 +840,19 @@ export function OrdersManager({
                             <div className="grid gap-4 lg:grid-cols-2">
                               <section className="rounded-xl border border-beige-dark bg-white p-4">
                                 <h3 className="text-sm font-semibold text-gold">
-                                  معلومات الطلب
+                                  {t.admin.ordersUi.orderInfo}
                                 </h3>
                                 <p className="mt-2 text-xs text-muted" dir="ltr">
                                   {orderNumber(order.id)}
                                 </p>
                                 <p className="mt-1 text-sm">
-                                  الحالة:{" "}
+                                  {t.admin.ordersUi.statusColon}{" "}
                                   {getOrderStatusLabel(
-                                    status,
-                                    order.delivery_method
-                                  )}
+                                    status, order.delivery_method
+                                  , locale)}
                                 </p>
                                 <p className="text-sm text-muted">
-                                  التاريخ: {formatDate(order.created_at)}
+                                  {t.admin.ordersUi.dateColon} {formatDate(order.created_at)}
                                 </p>
                                 {(order.items ?? []).map((item, idx) => {
                                   const thumb = featuredImage(
@@ -748,7 +876,8 @@ export function OrdersManager({
                                       </div>
                                       <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium">
-                                          {item.name_ar} × {item.quantity}
+                                          {resolveOrderLineName(item, locale)} ×{" "}
+                                          {item.quantity}
                                         </p>
                                         <p className="text-xs text-gold" dir="ltr">
                                           {formatPrice(
@@ -782,30 +911,30 @@ export function OrdersManager({
                                 />
                                 {order.notes && (
                                   <p className="mt-3 text-sm text-muted">
-                                    ملاحظات: {order.notes}
+                                    {t.admin.ordersUi.notesColon} {order.notes}
                                   </p>
                                 )}
                               </section>
 
                               <section className="rounded-xl border border-beige-dark bg-white p-4">
                                 <h3 className="text-sm font-semibold text-gold">
-                                  معلومات العميلة
+                                  {t.admin.ordersUi.customerInfo}
                                 </h3>
                                 <dl className="mt-2 space-y-1 text-sm">
                                   <div>
-                                    <dt className="inline text-muted">نوع العميلة: </dt>
+                                    <dt className="inline text-muted">{t.admin.ordersUi.customerType} </dt>
                                     <dd className="inline">
                                       {order.customer_type === "registered"
-                                        ? "Registered"
-                                        : "Guest"}
+                                        ? t.admin.ordersUi.customerRegistered
+                                        : t.admin.ordersUi.customerGuest}
                                     </dd>
                                   </div>
                                   <div>
-                                    <dt className="inline text-muted">الاسم: </dt>
+                                    <dt className="inline text-muted">{t.admin.ordersUi.nameColon} </dt>
                                     <dd className="inline">{order.name}</dd>
                                   </div>
                                   <div>
-                                    <dt className="inline text-muted">الهاتف: </dt>
+                                    <dt className="inline text-muted">{t.admin.ordersUi.phoneColon} </dt>
                                     <dd className="inline" dir="ltr">
                                       {order.phone}
                                     </dd>
@@ -813,7 +942,7 @@ export function OrdersManager({
                                   {order.email && (
                                     <div>
                                       <dt className="inline text-muted">
-                                        البريد:{" "}
+                                        {t.admin.ordersUi.emailColon}{" "}
                                       </dt>
                                       <dd className="inline">{order.email}</dd>
                                     </div>
@@ -823,12 +952,11 @@ export function OrdersManager({
 
                               <section className="rounded-xl border border-beige-dark bg-white p-4">
                                 <h3 className="mb-2 text-sm font-semibold text-gold">
-                                  معلومات الشحن
+                                  {t.admin.ordersUi.shippingInfo}
                                 </h3>
                                 {order.shipping_fee_pending && (
                                   <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                                    ⚠️ منطقة جديدة غير موجودة — رسوم الشحن قيد
-                                    المراجعة
+                                    ⚠️ {t.admin.ordersUi.newRegionWarning}
                                     {(
                                       order.shipping_region_custom ||
                                       order.shipping_region_name_ar ||
@@ -850,7 +978,7 @@ export function OrdersManager({
                                   />
                                 ) : (
                                   <p className="text-sm text-muted">
-                                    لا يتطلب شحناً (فساتين / بدون اكسسوارات).
+                                    {t.admin.ordersUi.noShippingNeeded}
                                   </p>
                                 )}
                                 {order.delivery_method === "delivery" && (
@@ -860,8 +988,8 @@ export function OrdersManager({
                                         <Input
                                           label={
                                             order.shipping_fee_pending
-                                              ? "تعيين رسوم الشحن *"
-                                              : "رسوم الشحن"
+                                              ? t.admin.ordersUi.setShippingFee
+                                              : t.admin.ordersUi.shippingFeeLabel
                                           }
                                           type="number"
                                           min={0}
@@ -871,10 +999,10 @@ export function OrdersManager({
                                             setShipFee(e.target.value)
                                           }
                                           dir="ltr"
-                                          placeholder="مثال: 45"
+                                          placeholder={t.admin.ordersUi.feeExamplePlaceholder}
                                         />
                                         <Input
-                                          label="رقم التتبع"
+                                          label={t.admin.ordersUi.trackingNumber}
                                           value={shipTracking}
                                           onChange={(e) =>
                                             setShipTracking(e.target.value)
@@ -882,7 +1010,7 @@ export function OrdersManager({
                                           dir="ltr"
                                         />
                                         <Input
-                                          label="رابط التتبع"
+                                          label={t.admin.ordersUi.trackingUrl}
                                           value={shipTrackingUrl}
                                           onChange={(e) =>
                                             setShipTrackingUrl(e.target.value)
@@ -890,7 +1018,7 @@ export function OrdersManager({
                                           dir="ltr"
                                         />
                                         <Textarea
-                                          label="ملاحظات شحن داخلية"
+                                          label={t.admin.ordersUi.internalNotes}
                                           rows={2}
                                           value={shipInternalNotes}
                                           onChange={(e) =>
@@ -905,7 +1033,7 @@ export function OrdersManager({
                                               void saveShippingEdit(order)
                                             }
                                           >
-                                            حفظ بيانات الشحن
+                                            {t.admin.ordersUi.saveShipping}
                                           </Button>
                                           <Button
                                             size="sm"
@@ -913,9 +1041,7 @@ export function OrdersManager({
                                             onClick={() =>
                                               setShippingEditId(null)
                                             }
-                                          >
-                                            إلغاء
-                                          </Button>
+                                          >{t.admin.ordersUi.cancel}</Button>
                                         </div>
                                       </div>
                                     ) : (
@@ -925,8 +1051,8 @@ export function OrdersManager({
                                         onClick={() => openShippingEdit(order)}
                                       >
                                         {order.shipping_fee_pending
-                                          ? "تعيين الرسوم والتتبع"
-                                          : "تعديل الرسوم / التتبع / ملاحظات داخلية"}
+                                          ? t.admin.ordersUi.setFeeTracking
+                                          : t.admin.ordersUi.editFeeTracking}
                                       </Button>
                                     )}
                                   </div>
@@ -935,11 +1061,11 @@ export function OrdersManager({
 
                               <section className="rounded-xl border border-beige-dark bg-white p-4">
                                 <h3 className="text-sm font-semibold text-gold">
-                                  معلومات الدفع
+                                  {t.admin.ordersUi.paymentInfo}
                                 </h3>
                                 <dl className="mt-2 space-y-1 text-sm">
                                   <div className="flex justify-between gap-2">
-                                    <dt className="text-muted">مجموع المنتجات</dt>
+                                    <dt className="text-muted">{t.admin.ordersUi.productsTotal}</dt>
                                     <dd dir="ltr">
                                       {formatPrice(
                                         (order.items ?? []).reduce(
@@ -950,46 +1076,45 @@ export function OrdersManager({
                                     </dd>
                                   </div>
                                   <div className="flex justify-between gap-2">
-                                    <dt className="text-muted">رسوم الشحن</dt>
+                                    <dt className="text-muted">{t.admin.ordersUi.shippingFeeLabel}</dt>
                                     <dd dir="ltr">
                                       {order.delivery_method === "delivery"
                                         ? order.shipping_fee_pending
-                                          ? "قيد المراجعة"
+                                          ? t.admin.ordersUi.feePending
                                           : Number(order.shipping_cost ?? 0) > 0
                                             ? formatPrice(
                                                 Number(order.shipping_cost)
                                               )
-                                            : "مجاني"
+                                            : t.admin.ordersUi.free
                                         : order.delivery_method === "pickup"
-                                          ? "مجاني"
+                                          ? t.admin.ordersUi.free
                                           : order.shipping_required
                                             ? order.shipping_fee_pending
-                                              ? "قيد المراجعة"
+                                              ? t.admin.ordersUi.feePending
                                               : Number(order.shipping_cost ?? 0) >
                                                   0
                                                 ? formatPrice(
                                                     Number(order.shipping_cost)
                                                   )
-                                                : "مجاني"
+                                                : t.admin.ordersUi.free
                                             : "—"}
                                     </dd>
                                   </div>
                                   <div className="flex justify-between gap-2 border-t border-beige-dark pt-2 font-semibold">
                                     <dt>
                                       {order.shipping_fee_pending
-                                        ? "إجمالي المنتجات"
-                                        : "الإجمالي"}
+                                        ? t.admin.ordersUi.productsTotalAlt
+                                        : t.admin.ordersUi.grandTotal}
                                     </dt>
                                     <dd className="text-gold" dir="ltr">
                                       {formatPrice(Number(order.total))}
                                     </dd>
                                   </div>
                                   <div className="pt-1 text-xs text-muted">
-                                    حالة الدفع ضمن سير العمل:{" "}
+                                    {t.admin.ordersUi.paymentWorkflowColon}{" "}
                                     {getOrderStatusLabel(
-                                      status,
-                                      order.delivery_method
-                                    )}
+                                      status, order.delivery_method
+                                    , locale)}
                                   </div>
                                 </dl>
                               </section>

@@ -7,6 +7,11 @@ import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
 import { filterDressesClient } from "@/lib/filters";
 import { DressCard } from "./DressCard";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import {
+  resolveDressColorLabel,
+  resolveDressStyleLabel,
+} from "@/lib/i18n/attribute-labels";
 
 interface DressCatalogProps {
   dresses: Dress[];
@@ -20,6 +25,7 @@ export function DressCatalog({
   dresses,
   category,
 }: DressCatalogProps) {
+  const { t, locale, dir } = useLocale();
   const [search, setSearch] = useState("");
   const [style, setStyle] = useState("");
   const [color, setColor] = useState("");
@@ -44,14 +50,14 @@ export function DressCatalog({
     <div>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1">
-          <Search className="absolute top-1/2 right-4 h-5 w-5 -translate-y-1/2 text-muted" />
+          <Search className="absolute top-1/2 end-4 h-5 w-5 -translate-y-1/2 text-muted" />
           <input
             type="search"
-            placeholder="ابحثي عن فستان..."
+            placeholder={t.shop.searchDress}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="بحث عن فستان"
-            className="w-full rounded-full border border-beige-dark bg-white py-3 pr-12 pl-4 focus:border-gold focus:ring-2 focus:ring-gold/20"
+            aria-label={t.shop.searchDressAria}
+            className="w-full rounded-full border border-beige-dark bg-white py-3 pe-12 ps-4 focus:border-gold focus:ring-2 focus:ring-gold/20"
           />
         </div>
         <button
@@ -65,7 +71,7 @@ export function DressCatalog({
           )}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          تصفية
+          {t.shop.filters}
         </button>
       </div>
 
@@ -74,38 +80,38 @@ export function DressCatalog({
           <select
             value={style}
             onChange={(e) => setStyle(e.target.value)}
-            dir="rtl"
-            aria-label="تصفية حسب النمط"
+            dir={dir}
+            aria-label={t.shop.filterByStyle}
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
-            <option value="">كل الأنماط</option>
+            <option value="">{t.shop.allStyles}</option>
             {DRESS_STYLES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {resolveDressStyleLabel(s, locale)}
               </option>
             ))}
           </select>
           <select
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            dir="rtl"
-            aria-label="تصفية حسب اللون"
+            dir={dir}
+            aria-label={t.shop.filterByColor}
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
-            <option value="">كل الألوان</option>
+            <option value="">{t.shop.allColors}</option>
             {DRESS_COLORS.map((c) => (
               <option key={c} value={c}>
-                {c}
+                {resolveDressColorLabel(c, locale)}
               </option>
             ))}
           </select>
           <select
             value={size}
             onChange={(e) => setSize(e.target.value)}
-            aria-label="تصفية حسب المقاس"
+            aria-label={t.shop.filterBySize}
             className="rounded-xl border border-beige-dark bg-white px-4 py-3"
           >
-            <option value="">كل المقاسات</option>
+            <option value="">{t.shop.allSizes}</option>
             {DRESS_SIZES.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -123,22 +129,21 @@ export function DressCatalog({
               className="inline-flex items-center gap-1 text-sm text-gold sm:col-span-3"
             >
               <X className="h-4 w-4" />
-              مسح التصفية
+              {t.shop.clearFilters}
             </button>
           )}
         </div>
       )}
 
       <p className="mb-6 text-sm text-muted">
-        {filtered.length} {filtered.length === 1 ? "نتيجة" : "نتائج"}
+        {filtered.length}{" "}
+        {filtered.length === 1 ? t.shop.resultOne : t.shop.resultMany}
       </p>
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-beige-dark bg-beige/30 py-16 text-center">
-          <p className="text-lg text-muted">لم يتم العثور على نتائج</p>
-          <p className="mt-2 text-sm text-muted/70">
-            جربي تغيير معايير البحث أو التصفية
-          </p>
+          <p className="text-lg text-muted">{t.shop.noResultsFound}</p>
+          <p className="mt-2 text-sm text-muted/70">{t.shop.noResultsHint}</p>
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

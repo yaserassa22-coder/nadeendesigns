@@ -49,6 +49,17 @@ export type ExperiencePersonalizationUi = {
   extra_price: number;
 };
 
+/**
+ * Admin fee settings for gift wrap & card (stored in experience_config JSON).
+ * Entered manually per product in Experience Designer.
+ */
+export type ExperienceGiftUi = {
+  /** Charged when gift wrapping is enabled. */
+  wrap_price: number;
+  /** Charged when a gift card is also enabled. */
+  card_price: number;
+};
+
 /** Purchase UI visibility — quantity / summary already have section + feature gates. */
 export type ExperiencePurchaseUi = {
   /** Quantity selector inside the Experience Modal. Default true. */
@@ -61,6 +72,8 @@ export type ProductExperienceConfig = {
   template_id?: string | null;
   /** Luxury admin v2 personalization card fields */
   personalization_ui?: ExperiencePersonalizationUi;
+  /** Gift wrap & card fee fields (admin-entered). */
+  gift_ui?: ExperienceGiftUi;
   /** Purchase chrome inside the modal (quantity). */
   purchase_ui?: ExperiencePurchaseUi;
 };
@@ -71,9 +84,55 @@ export const DEFAULT_PERSONALIZATION_UI: ExperiencePersonalizationUi = {
   extra_price: 0,
 };
 
+export const DEFAULT_GIFT_UI: ExperienceGiftUi = {
+  wrap_price: 0,
+  card_price: 0,
+};
+
 export const DEFAULT_PURCHASE_UI: ExperiencePurchaseUi = {
   show_quantity: true,
 };
+
+/** Server + client: fee from admin gift_ui + selected gift options. */
+export function resolveGiftOptionsFee(
+  giftUi: ExperienceGiftUi | null | undefined,
+  gift: { enabled?: boolean; gift_card?: boolean } | null | undefined
+): number {
+  if (!gift?.enabled || !giftUi) return 0;
+  const wrap = Math.max(0, Number(giftUi.wrap_price) || 0);
+  const card = gift.gift_card
+    ? Math.max(0, Number(giftUi.card_price) || 0)
+    : 0;
+  return wrap + card;
+}
+
+/**
+ * Prefer gift_ui fees; if unset (0), inherit from catalog gift_wrap / greeting_card
+ * so existing store Extra Services prices still apply after deduping the UI.
+ */
+export function resolveEffectiveGiftUi(
+  giftUi: ExperienceGiftUi | null | undefined,
+  extraServices: Array<{
+    id: string;
+    price?: number;
+    pricing_mode?: string;
+    enabled?: boolean;
+  }> = []
+): ExperienceGiftUi {
+  const base = giftUi ?? DEFAULT_GIFT_UI;
+  const feeFrom = (id: string) => {
+    const svc = extraServices.find((s) => s.id === id);
+    if (!svc || svc.enabled === false) return 0;
+    if (svc.pricing_mode === "FREE") return 0;
+    const price = Math.max(0, Number(svc.price) || 0);
+    if (svc.pricing_mode === "FIXED_PRICE" || price > 0) return price;
+    return 0;
+  };
+  return {
+    wrap_price: base.wrap_price > 0 ? base.wrap_price : feeFrom("gift_wrap"),
+    card_price: base.card_price > 0 ? base.card_price : feeFrom("greeting_card"),
+  };
+}
 
 /** Friendly Arabic labels for store-owner UI (never show raw ids). */
 export const EXPERIENCE_SECTION_LABELS_AR: Record<ExperienceSectionId, string> =
@@ -448,6 +507,18 @@ export function normalizeProductExperienceConfig(
     ),
   };
 
+  const giftRaw = asObject(src.gift_ui);
+  const gift_ui: ExperienceGiftUi = {
+    wrap_price: Math.max(
+      0,
+      num(giftRaw.wrap_price, DEFAULT_GIFT_UI.wrap_price)
+    ),
+    card_price: Math.max(
+      0,
+      num(giftRaw.card_price, DEFAULT_GIFT_UI.card_price)
+    ),
+  };
+
   const purchaseRaw = asObject(src.purchase_ui);
   const purchase_ui: ExperiencePurchaseUi = {
     show_quantity: bool(
@@ -456,7 +527,13 @@ export function normalizeProductExperienceConfig(
     ),
   };
 
-  return { sections: ordered, template_id, personalization_ui, purchase_ui };
+  return {
+    sections: ordered,
+    template_id,
+    personalization_ui,
+    gift_ui,
+    purchase_ui,
+  };
 }
 
 export function defaultProductExperienceConfig(): ProductExperienceConfig {

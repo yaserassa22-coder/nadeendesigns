@@ -15,8 +15,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { DashboardCharts as ChartsData, NamedCount, TimePoint } from "@/lib/admin/dashboard-analytics";
+import type {
+  DashboardCharts as ChartsData,
+  NamedCount,
+  TimePoint,
+} from "@/lib/admin/dashboard-analytics";
 import { formatPrice } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import type { Locale } from "@/lib/i18n/types";
 
 const GOLD = "var(--gold)";
 const GOLD_DARK = "var(--gold-dark)";
@@ -32,13 +38,30 @@ const PIE_COLORS = [
   "#c4b09a",
 ];
 
+function localeTag(locale: Locale): string {
+  if (locale === "he") return "he-IL";
+  if (locale === "en") return "en-US";
+  return "ar-EG";
+}
+
+function formatMonthLabel(key: string, locale: Locale): string {
+  const [y, m] = key.split("-").map(Number);
+  if (!y || !m) return key;
+  return new Date(y, m - 1, 1).toLocaleDateString(localeTag(locale), {
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function ChartCard({
   title,
   empty,
+  emptyLabel,
   children,
 }: {
   title: string;
   empty?: boolean;
+  emptyLabel: string;
   children: React.ReactNode;
 }) {
   return (
@@ -46,7 +69,7 @@ function ChartCard({
       <h3 className="mb-4 text-base font-semibold text-foreground">{title}</h3>
       {empty ? (
         <p className="flex h-52 items-center justify-center text-sm text-muted">
-          لا توجد بيانات لهذه الفترة
+          {emptyLabel}
         </p>
       ) : (
         <div className="h-52 w-full" dir="ltr">
@@ -104,19 +127,37 @@ function hasCounts(rows: NamedCount[]): boolean {
 }
 
 export function DashboardCharts({ charts }: { charts: ChartsData }) {
+  const { t, locale } = useLocale();
+  const d = t.admin.dashboardUi;
+
+  const revenuePerMonth = charts.revenuePerMonth.map((p) => ({
+    ...p,
+    label: formatMonthLabel(p.label, locale),
+  }));
+  const bookingsPerMonth = charts.bookingsPerMonth.map((p) => ({
+    ...p,
+    label: formatMonthLabel(p.label, locale),
+  }));
+
   const pieData = charts.deliveryVsPickup.map((r) => ({
-    name: r.name,
+    name:
+      r.name === "delivery" || r.name === "توصيل"
+        ? d.chartDelivery
+        : r.name === "pickup" || r.name.includes("استلام")
+          ? d.chartPickup
+          : r.name,
     value: r.count,
   }));
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <ChartCard
-        title="الإيرادات شهرياً"
+        title={d.chartRevenueMonthly}
         empty={!hasValues(charts.revenuePerMonth)}
+        emptyLabel={d.chartEmpty}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={charts.revenuePerMonth}>
+          <AreaChart data={revenuePerMonth}>
             <defs>
               <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={GOLD} stopOpacity={0.35} />
@@ -138,12 +179,24 @@ export function DashboardCharts({ charts }: { charts: ChartsData }) {
         </ResponsiveContainer>
       </ChartCard>
 
-      <ChartCard title="الطلبات يومياً" empty={!hasValues(charts.ordersPerDay)}>
+      <ChartCard
+        title={d.chartOrdersDaily}
+        empty={!hasValues(charts.ordersPerDay)}
+        emptyLabel={d.chartEmpty}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={charts.ordersPerDay}>
             <CartesianGrid stroke={BEIGE} strokeDasharray="3 3" />
-            <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} interval="preserveStartEnd" />
-            <YAxis allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} width={32} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: MUTED, fontSize: 10 }}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fill: MUTED, fontSize: 11 }}
+              width={32}
+            />
             <Tooltip content={<CountTooltip />} />
             <Bar dataKey="value" fill={GOLD} radius={[4, 4, 0, 0]} />
           </BarChart>
@@ -151,21 +204,30 @@ export function DashboardCharts({ charts }: { charts: ChartsData }) {
       </ChartCard>
 
       <ChartCard
-        title="الحجوزات شهرياً"
+        title={d.chartBookingsMonthly}
         empty={!hasValues(charts.bookingsPerMonth)}
+        emptyLabel={d.chartEmpty}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={charts.bookingsPerMonth}>
+          <BarChart data={bookingsPerMonth}>
             <CartesianGrid stroke={BEIGE} strokeDasharray="3 3" />
             <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} />
-            <YAxis allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} width={32} />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fill: MUTED, fontSize: 11 }}
+              width={32}
+            />
             <Tooltip content={<CountTooltip />} />
             <Bar dataKey="value" fill={CHARCOAL} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
-      <ChartCard title="توصيل مقابل الاستلام" empty={!hasCounts(charts.deliveryVsPickup)}>
+      <ChartCard
+        title={d.chartDeliveryVsPickup}
+        empty={!hasCounts(charts.deliveryVsPickup)}
+        emptyLabel={d.chartEmpty}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -187,8 +249,9 @@ export function DashboardCharts({ charts }: { charts: ChartsData }) {
       </ChartCard>
 
       <ChartCard
-        title="أكثر المنتجات طلباً"
+        title={d.chartTopProducts}
         empty={!hasCounts(charts.mostOrderedProducts)}
+        emptyLabel={d.chartEmpty}
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -197,7 +260,11 @@ export function DashboardCharts({ charts }: { charts: ChartsData }) {
             margin={{ left: 8, right: 8 }}
           >
             <CartesianGrid stroke={BEIGE} strokeDasharray="3 3" />
-            <XAxis type="number" allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} />
+            <XAxis
+              type="number"
+              allowDecimals={false}
+              tick={{ fill: MUTED, fontSize: 11 }}
+            />
             <YAxis
               type="category"
               dataKey="name"
@@ -211,8 +278,9 @@ export function DashboardCharts({ charts }: { charts: ChartsData }) {
       </ChartCard>
 
       <ChartCard
-        title="أكثر التصنيفات طلباً"
+        title={d.chartTopCategories}
         empty={!hasCounts(charts.mostOrderedCategories)}
+        emptyLabel={d.chartEmpty}
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -221,7 +289,11 @@ export function DashboardCharts({ charts }: { charts: ChartsData }) {
             margin={{ left: 8, right: 8 }}
           >
             <CartesianGrid stroke={BEIGE} strokeDasharray="3 3" />
-            <XAxis type="number" allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} />
+            <XAxis
+              type="number"
+              allowDecimals={false}
+              tick={{ fill: MUTED, fontSize: 11 }}
+            />
             <YAxis
               type="category"
               dataKey="name"
@@ -235,14 +307,19 @@ export function DashboardCharts({ charts }: { charts: ChartsData }) {
       </ChartCard>
 
       <ChartCard
-        title="أكثر مناطق الشحن طلباً"
+        title={d.chartTopRegions}
         empty={!hasCounts(charts.mostRequestedRegions)}
-        >
+        emptyLabel={d.chartEmpty}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={charts.mostRequestedRegions}>
             <CartesianGrid stroke={BEIGE} strokeDasharray="3 3" />
             <XAxis dataKey="name" tick={{ fill: MUTED, fontSize: 10 }} />
-            <YAxis allowDecimals={false} tick={{ fill: MUTED, fontSize: 11 }} width={32} />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fill: MUTED, fontSize: 11 }}
+              width={32}
+            />
             <Tooltip content={<CountTooltip />} />
             <Bar dataKey="count" fill={CHARCOAL} radius={[4, 4, 0, 0]} />
           </BarChart>

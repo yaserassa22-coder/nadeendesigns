@@ -36,6 +36,14 @@ const productKindSchema = z
 /** Fields shared by create/update — no defaults (avoids wiping on partial PUT). */
 export const categoryFieldsSchema = z.object({
   name_ar: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل"),
+  name_en: z
+    .union([z.string(), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v === "" || v === undefined || v === null ? null : v)),
+  name_he: z
+    .union([z.string(), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v === "" || v === undefined || v === null ? null : v)),
   slug: z
     .string()
     .min(2, "المعرّف (slug) مطلوب")

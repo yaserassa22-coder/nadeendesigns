@@ -36,6 +36,7 @@ import {
 } from "@/lib/notifications/in-app";
 import { writeBoutiqueAccountReply } from "@/lib/admin/account-message-bridge";
 import { customerKeyFromContact } from "@/lib/customer-auth/otp";
+import { phoneDigits } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CUSTOMER_EMAIL_STATUSES,
@@ -192,7 +193,9 @@ async function deliverCustomerPreferredChannels(jobs: CustomerChannelJobs) {
 
   const runWhatsApp = async (): Promise<ChannelSendResult | null> => {
     if (!wantWa || !jobs.sendWhatsAppBody) return null;
-    if (!isWhatsAppConfigured()) {
+    const body = jobs.sendWhatsAppBody();
+    const direct = await sendWhatsApp({ to: jobs.phone!, body });
+    if (direct.ok) {
       await logNotification({
         orderId: jobs.orderId,
         customerId: jobs.customerId,
@@ -200,26 +203,33 @@ async function deliverCustomerPreferredChannels(jobs: CustomerChannelJobs) {
         channel: "whatsapp",
         orderStatus: jobs.orderStatus,
         recipient: jobs.phone,
-        status: "failed",
-        errorMessage: "Twilio WhatsApp غير مُعد",
+        status: "sent",
+        deliveryResult: direct.local ? "local_outbox" : direct.sid,
+        attempts: 1,
+        payload: { local: Boolean(direct.local) },
       });
-      return { ok: false, error: "Twilio WhatsApp غير مُعد", attempts: 0 };
+      return { ok: true, attempts: 1 };
     }
-    const body = jobs.sendWhatsAppBody();
-    return sendWithRetry(() => sendWhatsApp({ to: jobs.phone!, body }), {
+    await logNotification({
       orderId: jobs.orderId,
       customerId: jobs.customerId,
       notificationType: jobs.notificationType,
       channel: "whatsapp",
       orderStatus: jobs.orderStatus,
-      recipient: jobs.phone!,
-      skipDedupe: jobs.skipDedupe,
+      recipient: jobs.phone,
+      status: "failed",
+      errorMessage: direct.error,
+      attempts: 1,
     });
+    return { ok: false, error: direct.error, attempts: 1 };
   };
 
   const runEmail = async (): Promise<ChannelSendResult | null> => {
     if (!canEmail || !jobs.sendEmailPayload) return null;
-    if (!canAttemptEmail()) {
+    const { shouldUseLocalNotificationOutbox } = await import(
+      "@/lib/notifications/local-outbox"
+    );
+    if (!canAttemptEmail() && !shouldUseLocalNotificationOutbox()) {
       await logNotification({
         orderId: jobs.orderId,
         customerId: jobs.customerId,
@@ -233,25 +243,40 @@ async function deliverCustomerPreferredChannels(jobs: CustomerChannelJobs) {
       return { ok: false, error: "البريد متوقف أو غير مُعد", attempts: 0 };
     }
     const payload = jobs.sendEmailPayload();
-    return sendWithRetry(
-      () =>
-        sendEmail({
-          to: jobs.email!,
-          subject: payload.subject,
-          html: payload.html,
-          replyTo: payload.replyTo,
-          fromName: payload.fromName,
-        }),
-      {
+    const sendResult = await sendEmail({
+      to: jobs.email!,
+      subject: payload.subject,
+      html: payload.html,
+      replyTo: payload.replyTo,
+      fromName: payload.fromName,
+    });
+    if (sendResult.ok) {
+      await logNotification({
         orderId: jobs.orderId,
         customerId: jobs.customerId,
         notificationType: jobs.notificationType,
         channel: "email",
         orderStatus: jobs.orderStatus,
-        recipient: jobs.email!,
-        skipDedupe: jobs.skipDedupe,
-      }
-    );
+        recipient: jobs.email,
+        status: "sent",
+        deliveryResult: sendResult.local ? "local_outbox" : sendResult.id,
+        attempts: 1,
+        payload: { local: Boolean(sendResult.local) },
+      });
+      return { ok: true, attempts: 1 };
+    }
+    await logNotification({
+      orderId: jobs.orderId,
+      customerId: jobs.customerId,
+      notificationType: jobs.notificationType,
+      channel: "email",
+      orderStatus: jobs.orderStatus,
+      recipient: jobs.email,
+      status: "failed",
+      errorMessage: sendResult.error,
+      attempts: 1,
+    });
+    return { ok: false, error: sendResult.error, attempts: 1 };
   };
 
   // Both selected → WhatsApp first, Email fallback on failure
@@ -506,10 +531,14 @@ export async function notifyAdminNewOrder(order: ShopOrder) {
 /** Fired when a new order is created. */
 export async function onOrderSubmitted(order: ShopOrder) {
   try {
+    const { maybeIssueInvoiceAfterOrderEvent } = await import(
+      "@/lib/shop/issue-invoice"
+    );
     await Promise.allSettled([
       createInAppNotification({ order, status: "pending" }),
       notifyCustomerOrderStatus(order, "pending"),
       notifyAdminNewOrder(order),
+      maybeIssueInvoiceAfterOrderEvent(order, "submitted"),
     ]);
   } catch (e) {
     console.error("[notifications] onOrderSubmitted failed", e);
@@ -533,6 +562,12 @@ export async function onOrderStatusChanged(
 
   try {
     const nextOrder = { ...order, status: nextStatus };
+    if (nextStatus === "payment_received") {
+      const { maybeIssueInvoiceAfterOrderEvent } = await import(
+        "@/lib/shop/issue-invoice"
+      );
+      await maybeIssueInvoiceAfterOrderEvent(nextOrder, "payment_received");
+    }
     await createInAppNotification({ order: nextOrder, status: nextStatus });
     if (nextStatus === "awaiting_payment") {
       const amount =
@@ -718,6 +753,7 @@ export type BookingAdminNotifyResult = {
   whatsapp: {
     attempted: boolean;
     sent: boolean;
+    local?: boolean;
     skippedReason?: string;
     error?: string;
   };
@@ -757,19 +793,45 @@ async function resolveBookingCustomer(booking: {
     }
 
     if (booking.phone?.trim()) {
-      const { data } = await supabase
+      const digits = phoneDigits(booking.phone);
+      const { data: byPhone } = await supabase
         .from("customers")
         .select(select)
         .eq("phone", booking.phone.trim())
         .limit(1)
         .maybeSingle();
-      if (data?.id) {
+      if (byPhone?.id) {
         return {
-          id: String(data.id),
-          customer_key: (data.customer_key as string | null) ?? null,
-          phone: (data.phone as string | null) ?? null,
-          email: (data.email as string | null) ?? null,
+          id: String(byPhone.id),
+          customer_key: (byPhone.customer_key as string | null) ?? null,
+          phone: (byPhone.phone as string | null) ?? null,
+          email: (byPhone.email as string | null) ?? null,
         };
+      }
+      // Digit-normalized fallback (05… vs 972…)
+      if (digits.length >= 9) {
+        const { data: candidates } = await supabase
+          .from("customers")
+          .select(select)
+          .not("phone", "is", null)
+          .limit(200);
+        const hit = (candidates ?? []).find((c) => {
+          const d = phoneDigits(String(c.phone || ""));
+          return (
+            d === digits ||
+            (d.length >= 9 &&
+              digits.length >= 9 &&
+              (d.endsWith(digits.slice(-9)) || digits.endsWith(d.slice(-9))))
+          );
+        });
+        if (hit?.id) {
+          return {
+            id: String(hit.id),
+            customer_key: (hit.customer_key as string | null) ?? null,
+            phone: (hit.phone as string | null) ?? null,
+            email: (hit.email as string | null) ?? null,
+          };
+        }
       }
     }
 
@@ -833,7 +895,28 @@ export async function notifyBookingAdminAction(params: {
     params.nextStatus ||
     (params.action === "reply" ? "pending" : String(params.action));
   const prefs = resolveNotifyPrefs(params.booking);
-  const customer = await resolveBookingCustomer(params.booking);
+
+  // Always link/create customer so Account → الإشعارات can resolve the key
+  let linkedCustomerId = params.booking.customer_id?.trim() || null;
+  if (!linkedCustomerId && params.booking.phone?.trim()) {
+    try {
+      const { ensureCustomerForCheckout } = await import(
+        "@/lib/customer-auth/customer"
+      );
+      linkedCustomerId = await ensureCustomerForCheckout({
+        fullName: params.booking.name || "",
+        phone: params.booking.phone,
+        email: params.booking.email,
+      });
+    } catch (e) {
+      console.warn("[notifications] ensureCustomerForCheckout", e);
+    }
+  }
+
+  const customer = await resolveBookingCustomer({
+    ...params.booking,
+    customer_id: linkedCustomerId,
+  });
   // Prefer customers.customer_key so Account → الإشعارات can find the row.
   const key =
     customer?.customer_key?.trim() ||
@@ -864,7 +947,6 @@ export async function notifyBookingAdminAction(params: {
       const account = await writeBoutiqueAccountReply(supabase, {
         customerId: customer.id,
         body: params.body,
-        // Status-specific in-app row already written above.
         createInApp: false,
       });
       result.account = account.ok;
@@ -876,23 +958,49 @@ export async function notifyBookingAdminAction(params: {
     }
   }
 
-  if (!isNotificationsEnabled()) {
-    result.customerNotified = result.inApp || result.account;
-    return result;
-  }
-
+  // Warm email runtime. WhatsApp must NOT depend on the email master switch —
+  // guests often only have phone, and email may be local/disabled while Twilio works.
   await getEmailRuntime();
   const settings = await getNotificationSettings();
   const notificationType = `customer_booking_${params.action}`;
+  const { shouldUseLocalNotificationOutbox } = await import(
+    "@/lib/notifications/local-outbox"
+  );
+  const localOk = shouldUseLocalNotificationOutbox();
 
-  // WhatsApp — respect customer prefs (confirm must not ignore WA-only customers)
+  // WhatsApp — Twilio when configured; otherwise local outbox in dev
   if (prefs.whatsapp && params.booking.phone?.trim()) {
-    if (!isWhatsAppConfigured()) {
-      result.whatsapp = {
-        attempted: false,
-        sent: false,
-        skippedReason: "whatsapp_not_configured",
-      };
+    result.whatsapp.attempted = true;
+    const waBody = adminBookingStatusWhatsApp({
+      customerName: params.booking.name || "عزيزتي",
+      body: params.body,
+      settings,
+    });
+    const wa = await sendWhatsApp({
+      to: params.booking.phone,
+      body: waBody,
+    });
+    if (wa.ok) {
+      result.whatsapp.sent = true;
+      result.whatsapp.local = Boolean(wa.local);
+      if (wa.local) result.whatsapp.skippedReason = "local_outbox";
+      await logNotification({
+        orderId: params.booking.id,
+        customerId: key,
+        notificationType,
+        channel: "whatsapp",
+        orderStatus: String(status),
+        recipient: params.booking.phone,
+        status: "sent",
+        deliveryResult: wa.local ? "local_outbox" : wa.sid,
+        attempts: 1,
+        payload: { body: waBody.slice(0, 2000), local: Boolean(wa.local) },
+      });
+    } else {
+      result.whatsapp.error = wa.error;
+      if (/غير مُعد|Twilio/i.test(wa.error || "")) {
+        result.whatsapp.skippedReason = "whatsapp_not_configured";
+      }
       await logNotification({
         orderId: params.booking.id,
         customerId: key,
@@ -901,29 +1009,9 @@ export async function notifyBookingAdminAction(params: {
         orderStatus: String(status),
         recipient: params.booking.phone,
         status: "failed",
-        errorMessage: "Twilio WhatsApp غير مُعد",
+        errorMessage: wa.error,
+        attempts: 1,
       });
-    } else {
-      result.whatsapp.attempted = true;
-      const waBody = adminBookingStatusWhatsApp({
-        customerName: params.booking.name || "عزيزتي",
-        body: params.body,
-        settings,
-      });
-      const wa = await sendWithRetry(
-        () => sendWhatsApp({ to: params.booking.phone!, body: waBody }),
-        {
-          orderId: params.booking.id,
-          customerId: key,
-          notificationType,
-          channel: "whatsapp",
-          orderStatus: String(status),
-          recipient: params.booking.phone!,
-          skipDedupe: true,
-        }
-      );
-      result.whatsapp.sent = wa.ok;
-      if (!wa.ok) result.whatsapp.error = wa.error;
     }
   } else if (!prefs.whatsapp) {
     result.whatsapp.skippedReason = "customer_opted_out";
@@ -939,7 +1027,7 @@ export async function notifyBookingAdminAction(params: {
     result.email.skippedReason = "customer_opted_out";
   } else if (!to || !to.includes("@")) {
     result.email.skippedReason = "missing_customer_email";
-  } else if (!canAttemptEmail()) {
+  } else if (!canAttemptEmail() && !localOk) {
     result.email.skippedReason = "email_unavailable";
   } else {
     result.email.attempted = true;
@@ -972,6 +1060,11 @@ export async function notifyBookingAdminAction(params: {
         status: "sent",
         deliveryResult: sendResult.local ? "local_outbox" : sendResult.id,
         attempts: 1,
+        payload: {
+          subject: mail.subject,
+          body: params.body.slice(0, 2000),
+          local: Boolean(sendResult.local),
+        },
       });
     } else {
       result.email.error = sendResult.error;
@@ -989,11 +1082,11 @@ export async function notifyBookingAdminAction(params: {
     }
   }
 
+  // Local outbox counts as notified for local/dev testing of appointment status
   result.customerNotified =
     result.inApp ||
     result.account ||
     result.whatsapp.sent ||
-    (result.email.sent && !result.email.local) ||
     result.email.sent;
 
   return result;

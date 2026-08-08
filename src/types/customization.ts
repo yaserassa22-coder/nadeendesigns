@@ -1,4 +1,31 @@
 /** Veil / bridal robe embroidery personalization */
+export type PersonalizationFontAr =
+  | "classic_ar"
+  | "diwani"
+  | "naskh"
+  | "signature_ar"
+  | "kufi"
+  | "el_messiri"
+  | "cairo"
+  | "lateef"
+  | "elegant_script"
+  | "modern_script"
+  | "luxury_serif"
+  | "classic_serif"
+  | "parisienne"
+  | "dancing_script"
+  | "cinzel"
+  | "pinyon"
+  | "frank_ruhl"
+  | "heebo"
+  | "rubik";
+
+export type PersonalizationFontEn =
+  | "elegant_script"
+  | "modern_script"
+  | "luxury_serif"
+  | "classic_serif";
+
 export interface ProductPersonalization {
   product_type: "veils" | "robes";
   dress_id: string;
@@ -6,12 +33,10 @@ export interface ProductPersonalization {
   writing_language: "ar" | "en" | "both";
   text_ar: string;
   text_en: string;
-  font_ar: "classic_ar" | "diwani" | "naskh" | "signature_ar";
-  font_en:
-    | "elegant_script"
-    | "modern_script"
-    | "luxury_serif"
-    | "classic_serif";
+  /** Primary storefront font (Arabic / Latin / Hebrew samples). */
+  font_ar: PersonalizationFontAr;
+  /** Kept for older EN-only flows; still validated on save. */
+  font_en: PersonalizationFontEn;
   color:
     | "gold"
     | "silver"

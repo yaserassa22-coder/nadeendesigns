@@ -7,15 +7,22 @@ import { Button } from "@/components/ui/Button";
 import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
 import {
   getProductPrimaryAction,
+  primaryActionLabelForKind,
   resolveProductCommerceType,
   type ProductCommerceType,
   type ProductPrimaryAction,
 } from "@/lib/products/primary-action";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import type { ExtraServiceConfig } from "@/lib/products/order-experience";
+import {
+  isGiftCatalogServiceId,
+  resolvePersonalizationFee,
+} from "@/lib/products/order-experience";
 import type {
   ExperienceSectionConfig,
   ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
+import { resolveEffectiveGiftUi } from "@/lib/products/experience-designer";
 import type { ProductFeaturesConfig } from "@/lib/products/experience-features";
 import {
   featuresAllowGiftWrap,
@@ -41,6 +48,8 @@ export type ProductPrimaryCtaProps = {
   shopProductType?: ShopProductType;
   productId: string;
   nameAr: string;
+  nameEn?: string | null;
+  nameHe?: string | null;
   price?: number | null;
   salePrice?: number | null;
   rentalPrice?: number | null;
@@ -70,6 +79,8 @@ export function ProductPrimaryCta({
   shopProductType = "dress",
   productId,
   nameAr,
+  nameEn,
+  nameHe,
   price,
   salePrice,
   image,
@@ -84,8 +95,11 @@ export function ProductPrimaryCta({
   className,
 }: ProductPrimaryCtaProps) {
   const commerceType = resolveProductCommerceType(productType, fallbackType);
+  const { locale } = useLocale();
   const action =
-    primaryActionProp ?? getProductPrimaryAction(commerceType, fallbackType);
+    primaryActionProp ??
+    getProductPrimaryAction(commerceType, fallbackType, locale);
+  const displayLabel = primaryActionLabelForKind(action.kind, locale);
   const enabledFeatures =
     enabledFeatureIdsProp ??
     resolveEnabledFeatureIds({
@@ -101,7 +115,51 @@ export function ProductPrimaryCta({
     const allowPersonalization =
       featuresAllowPersonalization(enabledFeatures, shopProductType);
     const allowGift = featuresAllowGiftWrap(enabledFeatures);
+    const giftSectionOn =
+      allowGift &&
+      (sections?.some((s) => s.id === "gift_options" && s.enabled !== false) ??
+        experienceConfig?.sections?.some(
+          (s) => s.id === "gift_options" && s.enabled !== false
+        ) ??
+        true);
+    const giftUi = resolveEffectiveGiftUi(
+      experienceConfig?.gift_ui,
+      extraServices
+    );
+    const personalizationFeeDefault = resolvePersonalizationFee(
+      experienceConfig?.personalization_ui,
+      extraServices,
+      true
+    );
+    const experienceWithFees = experienceConfig
+      ? {
+          ...experienceConfig,
+          gift_ui: giftUi,
+          personalization_ui: {
+            ...(experienceConfig.personalization_ui ?? {
+              required: false,
+              max_characters: 40,
+              extra_price: 0,
+            }),
+            extra_price:
+              (experienceConfig.personalization_ui?.extra_price ?? 0) > 0
+                ? experienceConfig.personalization_ui!.extra_price
+                : personalizationFeeDefault,
+          },
+        }
+      : {
+          sections: sections ?? [],
+          gift_ui: giftUi,
+          personalization_ui: {
+            required: false,
+            max_characters: 40,
+            extra_price: personalizationFeeDefault,
+          },
+        };
     const gatedServices = extraServices.filter((s) => {
+      // Writing fee lives in Personalization; gift rows in Gift wrap & card.
+      if (s.id === "writing_personalization") return false;
+      if (giftSectionOn && isGiftCatalogServiceId(s.id)) return false;
       if (s.id === "gift_wrap") return allowGift;
       if (s.id === "greeting_card")
         return isFeatureEnabled(enabledFeatures, "gift_message");
@@ -117,17 +175,19 @@ export function ProductPrimaryCta({
         shopProductType={shopProductType}
         productId={productId}
         nameAr={nameAr}
+        nameEn={nameEn}
+        nameHe={nameHe}
         price={price}
         salePrice={salePrice}
         image={image}
         extraServices={gatedServices}
-        experienceConfig={experienceConfig}
+        experienceConfig={experienceWithFees}
         sections={sections}
         wishlist={showWishlist}
         enablePersonalization={allowPersonalization}
-        enableGiftWrapping={allowGift}
+        enableGiftWrapping={giftSectionOn}
         requiresShipping={action.requiresShipping}
-        addLabel={action.label}
+        addLabel={displayLabel}
         showFontSelection={isFeatureEnabled(enabledFeatures, "font_selection")}
         showColorSelection={isFeatureEnabled(
           enabledFeatures,
@@ -181,7 +241,7 @@ export function ProductPrimaryCta({
           className="h-[var(--xp-cta-height)] w-full rounded-[var(--xp-cta-radius)] px-8 py-0 sm:w-auto"
         >
           <Icon className="h-[var(--xp-cta-icon)] w-[var(--xp-cta-icon)]" />
-          {action.label}
+          {displayLabel}
         </Button>
       </Link>
     </div>

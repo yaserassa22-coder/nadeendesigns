@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 
 type ConfirmDialogProps = {
@@ -18,13 +19,17 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = "تأكيد",
-  cancelLabel = "إلغاء",
+  confirmLabel,
+  cancelLabel,
   danger = false,
   loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useLocale();
+  const resolvedConfirm = confirmLabel ?? t.common.confirm;
+  const resolvedCancel = cancelLabel ?? t.common.cancel;
+
   if (!open) return null;
 
   return (
@@ -32,7 +37,7 @@ export function ConfirmDialog({
       <button
         type="button"
         className="absolute inset-0 bg-charcoal/40"
-        aria-label="إغلاق"
+        aria-label={t.common.close}
         onClick={onCancel}
       />
       <div
@@ -46,7 +51,7 @@ export function ConfirmDialog({
         ) : null}
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={onCancel} disabled={loading}>
-            {cancelLabel}
+            {resolvedCancel}
           </Button>
           <Button
             onClick={onConfirm}
@@ -57,7 +62,7 @@ export function ConfirmDialog({
                 : undefined
             }
           >
-            {confirmLabel}
+            {resolvedConfirm}
           </Button>
         </div>
       </div>

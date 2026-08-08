@@ -7,6 +7,7 @@ import {
   formatExtraServicePriceLabel,
   type ExtraServiceConfig,
 } from "@/lib/products/order-experience";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type Props = {
   services: ExtraServiceConfig[];
@@ -24,9 +25,15 @@ export function ExtraServicesFields({
   services,
   selectedIds,
   onChange,
-  title = "خدمات إضافية",
-  description = "اختاري الخدمات التي ترغبين بإضافتها إلى طلبكِ.",
+  title,
+  description,
 }: Props) {
+  const { t } = useLocale();
+  const heading = title === undefined ? t.productExtras.extraServices : title;
+  const hint =
+    description === undefined
+      ? t.productExtras.extraServicesHint
+      : description;
   if (!services.length) return null;
 
   const toggle = (id: string, required: boolean) => {
@@ -37,7 +44,7 @@ export function ExtraServicesFields({
     onChange(enforceRequiredServiceIds(services, next));
   };
 
-  const showHeader = Boolean(title);
+  const showHeader = Boolean(heading);
 
   return (
     <div className="space-y-4">
@@ -45,10 +52,10 @@ export function ExtraServicesFields({
         <div>
           <div className="mb-1 inline-flex items-center gap-2 text-gold">
             <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-            <h3 className="text-lg font-semibold text-charcoal">{title}</h3>
+            <h3 className="text-lg font-semibold text-charcoal">{heading}</h3>
           </div>
-          {description ? (
-            <p className="text-sm text-muted">{description}</p>
+          {hint ? (
+            <p className="text-sm text-muted">{hint}</p>
           ) : null}
         </div>
       ) : null}
@@ -61,7 +68,10 @@ export function ExtraServicesFields({
               key={svc.id}
               name={svc.name_ar || svc.name}
               description={desc}
-              priceLabel={formatExtraServicePriceLabel(svc)}
+              priceLabel={formatExtraServicePriceLabel(
+                svc,
+                t.productExtras.free
+              )}
               selected={checked}
               required={Boolean(svc.required)}
               onToggle={() => toggle(svc.id, Boolean(svc.required))}

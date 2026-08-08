@@ -8,6 +8,7 @@ import {
   buildLineOrderOptions,
   enabledOrderOptions,
   lineChargedTotal,
+  resolvePersonalizationFee,
   resolveProductExtraServices,
   type ExtraServiceConfig,
   type LineExtraService,
@@ -20,6 +21,8 @@ import {
 } from "@/lib/products/order-experience";
 import {
   normalizeProductExperienceConfig,
+  resolveEffectiveGiftUi,
+  resolveGiftOptionsFee,
   type ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
 import { resolveProductPricing } from "@/lib/products/pricing";
@@ -40,6 +43,7 @@ export type CheckoutLineInput = {
   order_options?: LineOrderOptionValue[] | null;
   extra_services?: LineExtraService[] | null;
   personalization_fee?: number | null;
+  gift_fee?: number | null;
   requires_shipping?: boolean | null;
 };
 
@@ -216,15 +220,24 @@ export async function recalculateCheckoutLines(
       availableExtras,
       line.extra_services
     );
-    // Charge catalog personalization fee when the line has personalization.
-    // Never trust client personalization_fee — read from experience_config.
-    const persUi = catalog?.experience_config
+    // Charge catalog personalization + gift fees when selected.
+    // Never trust client fees — read from experience_config.
+    const expCfg = catalog?.experience_config
       ? normalizeProductExperienceConfig(catalog.experience_config)
-          .personalization_ui
       : null;
-    const personalizationFee =
-      line.personalization && persUi
-        ? Math.max(0, Number(persUi.extra_price) || 0)
+    const personalizationFee = line.personalization
+      ? resolvePersonalizationFee(
+          expCfg?.personalization_ui,
+          store.extra_services?.services ?? availableExtras,
+          true
+        )
+      : 0;
+    const giftFee =
+      line.gift_options && expCfg
+        ? resolveGiftOptionsFee(
+            resolveEffectiveGiftUi(expCfg.gift_ui, availableExtras),
+            line.gift_options
+          )
         : 0;
 
     const quantity = Math.max(1, Math.min(20, Math.floor(Number(line.quantity) || 1)));
@@ -232,6 +245,7 @@ export async function recalculateCheckoutLines(
       baseUnitPrice: baseUnit,
       quantity,
       personalizationFee,
+      giftFee,
       extraServices,
     });
     itemsSubtotal += lineTotal;
@@ -248,6 +262,7 @@ export async function recalculateCheckoutLines(
       order_options: orderOptions.length ? orderOptions : null,
       extra_services: extraServices.length ? extraServices : null,
       personalization_fee: personalizationFee > 0 ? personalizationFee : null,
+      gift_fee: giftFee > 0 ? giftFee : null,
       requires_shipping:
         line.requires_shipping === true
           ? true

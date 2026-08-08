@@ -4,16 +4,32 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import type { PurchaseFlow, PurchaseFlowCtaKind } from "@/lib/products/purchase-flows";
-import { PRODUCT_COMMERCE_TYPE_LABELS } from "@/lib/products/primary-action";
-
-const CTA_OPTIONS: { value: PurchaseFlowCtaKind; label: string }[] = [
-  { value: "add_to_cart", label: "أضف إلى السلة" },
-  { value: "book_appointment", label: "احجزي موعد" },
-  { value: "request_design", label: "اطلبي تصميم" },
-  { value: "book_now", label: "احجز الآن" },
-];
+import {
+  getProductCommerceTypeLabel,
+  primaryActionLabelForKind,
+} from "@/lib/products/primary-action";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export function PurchaseFlowsManager() {
+  const { locale } = useLocale();
+  const CTA_OPTIONS: { value: PurchaseFlowCtaKind; label: string }[] = [
+    {
+      value: "add_to_cart",
+      label: primaryActionLabelForKind("add_to_cart", locale),
+    },
+    {
+      value: "book_appointment",
+      label: primaryActionLabelForKind("book_appointment", locale),
+    },
+    {
+      value: "request_design",
+      label: primaryActionLabelForKind("request_design", locale),
+    },
+    {
+      value: "book_now",
+      label: primaryActionLabelForKind("book_now", locale),
+    },
+  ];
   const [flows, setFlows] = useState<PurchaseFlow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -95,10 +111,10 @@ export function PurchaseFlowsManager() {
       ) : null}
 
       {flows.map((flow, idx) => {
-        const typeLabel =
-          PRODUCT_COMMERCE_TYPE_LABELS[
-            flow.product_type as keyof typeof PRODUCT_COMMERCE_TYPE_LABELS
-          ] ?? flow.product_type;
+        const typeLabel = getProductCommerceTypeLabel(
+          flow.product_type,
+          locale
+        );
 
         return (
           <div

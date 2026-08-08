@@ -9,16 +9,15 @@ import { featuredImage } from "@/lib/products/featured-image";
 import { resolveProductCommerceType } from "@/lib/products/primary-action";
 import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { dressAvailability } from "@/lib/products/storefront-availability";
-import { getDressColorLabel } from "@/lib/colors";
-import { getDressStyleLabel } from "@/lib/styles";
 import { Button } from "@/components/ui/Button";
 import { RelatedProducts } from "@/components/dresses/RelatedProducts";
 import { ProductDetailLayout } from "@/components/product/ProductDetailLayout";
 import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
-import { Ruler, Palette } from "lucide-react";
 import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
+import { getStorefrontLocale } from "@/lib/i18n/server";
+import { getDictionary, localizedDescription, localizedName } from "@/lib/i18n";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -27,11 +26,16 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const dress = await getDressById(id);
-  if (!dress) return { title: "غير موجود" };
+  if (!dress) {
+    const locale = await getStorefrontLocale();
+    return { title: getDictionary(locale).common.notFound };
+  }
+  const locale = await getStorefrontLocale();
+  const title = localizedName(dress, locale, dress.name_ar);
   const og = featuredImage(dress.images);
   return {
-    title: dress.name_ar,
-    description: dress.description_ar,
+    title,
+    description: localizedDescription(dress, locale, dress.description_ar ?? ""),
     openGraph: { images: og ? [og] : [] },
   };
 }
@@ -41,6 +45,10 @@ export default async function DressDetailPage({ params }: Props) {
   const dress = await getDressById(id);
   if (!dress) notFound();
 
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+  const displayName = localizedName(dress, locale, dress.name_ar);
+
   const categories = await getCategories();
   const category =
     (dress.category_id
@@ -49,7 +57,9 @@ export default async function DressDetailPage({ params }: Props) {
     findCategoryMatch(categories, dress.category) ??
     null;
 
-  const categoryLabel = category?.name_ar ?? dress.category;
+  const categoryLabel = category
+    ? localizedName(category, locale, category.name_ar)
+    : dress.category;
   const categoryHref = category
     ? resolveCategoryHref(category)
     : "/wedding-dresses";
@@ -68,7 +78,7 @@ export default async function DressDetailPage({ params }: Props) {
     features_config: dress.features_config,
   });
   const primaryAction = experience.primaryAction;
-  const availability = dressAvailability(dress.is_available);
+  const availability = dressAvailability(dress.is_available, locale);
   const related = (
     await getDresses(
       dress.category_id
@@ -84,16 +94,13 @@ export default async function DressDetailPage({ params }: Props) {
     productKind: "dress" as const,
     productId: dress.id,
     productSlug: dress.id,
-    productTitle: dress.name_ar,
+    productTitle: displayName,
     productImageUrl: featuredImage(dress.images),
   };
   const wishlistEnabled = isFeatureEnabled(
     experience.enabledFeatureIds,
     "wishlist"
   );
-  const wishlistControl = wishlistEnabled ? (
-    <WishlistButton {...wishlistProps} />
-  ) : null;
 
   return (
     <>
@@ -101,47 +108,56 @@ export default async function DressDetailPage({ params }: Props) {
         productKind="dress"
         productId={dress.id}
         productSlug={dress.id}
-        productTitle={dress.name_ar}
+        productTitle={displayName}
         productImageUrl={featuredImage(dress.images)}
       />
       <ProductDetailLayout
         images={dress.images}
-        name={dress.name_ar}
+        name={displayName}
         categoryLabel={categoryLabel}
         price={dress.price}
         salePrice={dress.sale_price}
         rentalPrice={dress.rental_price}
         priceSuffix={
           primaryAction.isRentalPresentation && !dress.price
-            ? "/ إيجار"
+            ? t.product.rentalSuffix
             : undefined
         }
-        description={dress.description_ar}
+        description={localizedDescription(dress, locale, dress.description_ar ?? "")}
         available={availability.available}
         availabilityLabel={availability.label}
         isFeatured={dress.is_featured}
-        galleryWishlist={wishlistControl}
-        meta={
-          <>
-            {dress.style && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                <Palette className="h-4 w-4 text-gold" />
-                {getDressStyleLabel(dress.style)}
-              </span>
-            )}
-            {dress.size && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                <Ruler className="h-4 w-4 text-gold" />
-                {dress.size}
-              </span>
-            )}
-            {dress.color && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                {getDressColorLabel(dress.color)}
-              </span>
-            )}
-          </>
+        galleryWishlist={
+          wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
         }
+        metaItems={[
+          ...(dress.style
+            ? [
+                {
+                  key: "style",
+                  label: dress.style,
+                  icon: "palette" as const,
+                },
+              ]
+            : []),
+          ...(dress.size
+            ? [
+                {
+                  key: "size",
+                  label: dress.size,
+                  icon: "ruler" as const,
+                },
+              ]
+            : []),
+          ...(dress.color
+            ? [
+                {
+                  key: "color",
+                  label: dress.color,
+                },
+              ]
+            : []),
+        ]}
         actions={
           <ProductPrimaryCta
             productType={experience.commerceType}
@@ -150,6 +166,8 @@ export default async function DressDetailPage({ params }: Props) {
             shopProductType="dress"
             productId={dress.id}
             nameAr={dress.name_ar}
+            nameEn={dress.name_en}
+            nameHe={dress.name_he}
             price={dress.price}
             salePrice={dress.sale_price}
             rentalPrice={dress.rental_price}
@@ -158,7 +176,9 @@ export default async function DressDetailPage({ params }: Props) {
             experienceConfig={experience.experienceConfig}
             sections={experience.sections}
             featuresConfig={experience.featuresConfig}
-            wishlist={wishlistControl}
+            wishlist={
+              wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+            }
             bookingHref={
               primaryAction.kind === "book_now"
                 ? "/booking"
@@ -172,7 +192,7 @@ export default async function DressDetailPage({ params }: Props) {
           <div className="mt-6">
             <Link href={categoryHref} className="inline-block">
               <Button variant="ghost" size="md">
-                العودة للمجموعة
+                {t.product.backToCollection}
               </Button>
             </Link>
           </div>

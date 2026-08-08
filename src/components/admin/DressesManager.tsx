@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -22,7 +24,7 @@ import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { getDressStyleLabel } from "@/lib/styles";
 import {
-  PRODUCT_STATUS_LABELS,
+  getProductStatusLabel,
   deriveProductStatus,
 } from "@/lib/products/status";
 import { Button } from "@/components/ui/Button";
@@ -64,6 +66,8 @@ function DressesManagerInner({
   lockedCategoryId,
   lockedCategory,
 }: DressesManagerProps) {
+  const { t, locale } = useLocale();
+  const p = t.admin.productsUi;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -303,27 +307,27 @@ function DressesManagerInner({
   }, [categories]);
 
   const lockedLabel =
-    dressCategories.find((c) => c.id === resolvedLockId)?.name_ar ?? "تصنيف مقفل";
+    dressCategories.find((c) => c.id === resolvedLockId)?.name_ar ?? p.lockedCategory;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Input
-            label="بحث"
-            placeholder="بحث عن منتج، SKU…"
+            label={p.search}
+            placeholder={p.searchSkuPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {!resolvedLockId && (
             <Select
-              label="تصفية حسب التصنيف"
+              label={p.filterCategory}
               value={categoryFilter}
               onChange={(e) =>
                 setCategoryFilterAndUrl(e.target.value as string | "all")
               }
               options={[
-                { value: "all", label: "كل التصنيفات" },
+                { value: "all", label: p.allCategories },
                 ...dressCategories.map((c) => ({
                   value: c.id,
                   label: c.name_ar,
@@ -332,7 +336,7 @@ function DressesManagerInner({
             />
           )}
           <Select
-            label="الحالة"
+            label={p.status}
             value={statusFilter}
             onChange={(e) =>
               setStatusFilter(
@@ -340,46 +344,46 @@ function DressesManagerInner({
               )
             }
             options={[
-              { value: "all", label: "الكل" },
-              { value: "published", label: PRODUCT_STATUS_LABELS.published },
-              { value: "draft", label: PRODUCT_STATUS_LABELS.draft },
-              { value: "hidden", label: PRODUCT_STATUS_LABELS.hidden },
+              { value: "all", label: p.all },
+              { value: "published", label: getProductStatusLabel("published", locale) },
+              { value: "draft", label: getProductStatusLabel("draft", locale) },
+              { value: "hidden", label: getProductStatusLabel("hidden", locale) },
             ]}
           />
           <Select
-            label="التوفر"
+            label={p.availability}
             value={availabilityFilter}
             onChange={(e) =>
               setAvailabilityFilter(e.target.value as "all" | "yes" | "no")
             }
             options={[
-              { value: "all", label: "الكل" },
-              { value: "yes", label: "متوفر" },
-              { value: "no", label: "غير متوفر" },
+              { value: "all", label: p.all },
+              { value: "yes", label: p.available },
+              { value: "no", label: p.unavailable },
             ]}
           />
           <Select
-            label="مميز"
+            label={p.featured}
             value={featuredFilter}
             onChange={(e) =>
               setFeaturedFilter(e.target.value as "all" | "yes" | "no")
             }
             options={[
-              { value: "all", label: "الكل" },
-              { value: "yes", label: "مميز" },
-              { value: "no", label: "غير مميز" },
+              { value: "all", label: p.all },
+              { value: "yes", label: p.featured },
+              { value: "no", label: p.notFeatured },
             ]}
           />
           <div>
-            <p className="mb-1.5 text-sm text-muted">العرض</p>
+            <p className="mb-1.5 text-sm text-muted">{p.visibility}</p>
             <VisibilityFilter value={visibility} onChange={setVisibility} />
           </div>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
           {resolvedLockId && lockedCategory === "nouf_dresses"
-            ? "إضافة فستان نوف"
-            : "إضافة منتج"}
+            ? p.addNouf
+            : p.addProduct}
         </Button>
       </div>
 
@@ -388,18 +392,18 @@ function DressesManagerInner({
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">المنتج</th>
-                <th className="px-4 py-3 text-right font-medium">التصنيف</th>
-                <th className="px-4 py-3 text-right font-medium">السعر</th>
-                <th className="px-4 py-3 text-right font-medium">الحالة</th>
-                <th className="px-4 py-3 text-right font-medium">إجراءات</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colProduct}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colCategory}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colPrice}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colStatus}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colActions}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    لا توجد منتجات
+                    {p.empty}
                   </td>
                 </tr>
               ) : (
@@ -466,7 +470,7 @@ function DressesManagerInner({
                             )}
                           </span>
                         ) : dress.rental_price ? (
-                          `${formatPrice(dress.rental_price)} / إيجار`
+                          `${formatPrice(dress.rental_price)} ${p.rentalSuffix}`
                         ) : (
                           "—"
                         )}
@@ -481,7 +485,7 @@ function DressesManagerInner({
                                 : "bg-red-50 text-red-600"
                           }`}
                         >
-                          {PRODUCT_STATUS_LABELS[status]}
+                          {getProductStatusLabel(status, locale)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -490,7 +494,7 @@ function DressesManagerInner({
                             type="button"
                             onClick={() => openEdit(dress)}
                             className="rounded-lg p-2 text-gold hover:bg-gold/10"
-                            aria-label="تعديل"
+                            aria-label={p.edit}
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
@@ -557,11 +561,13 @@ function DressesManagerInner({
 }
 
 export function DressesManager(props: DressesManagerProps) {
+  const { t } = useLocale();
+  const p = t.admin.productsUi;
   return (
     <Suspense
       fallback={
         <div className="rounded-2xl border border-beige-dark bg-white p-8 text-sm text-muted">
-          جاري تحميل المنتجات…
+          {p.loading}
         </div>
       }
     >

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+
 import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Mail, Phone, X } from "lucide-react";
 import type { ContactMessage } from "@/types";
@@ -39,7 +42,11 @@ async function copyText(value: string) {
   }
 }
 
-export function MessagesManager({ initialMessages }: MessagesManagerProps) {
+export function MessagesManager({
+  initialMessages,
+}: MessagesManagerProps) {
+  const { t } = useLocale();
+  const mui = t.admin.messagesUi;
   const [messages, setMessages] = useState(initialMessages);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -70,15 +77,15 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
         throw new Error(
           data && !Array.isArray(data) && data.error
             ? data.error
-            : "تعذّر تحميل الرسائل"
+            : mui.loadFailed
         );
       }
       if (!Array.isArray(data)) {
-        throw new Error("استجابة غير صالحة من الخادم");
+        throw new Error(mui.invalidResponse);
       }
       setMessages(data);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "تعذّر تحميل الرسائل");
+      setLoadError(e instanceof Error ? e.message : mui.loadFailed);
     } finally {
       if (!opts?.silent) setLoading(false);
     }
@@ -188,7 +195,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
         last_reply_subject?: string;
       };
       if (!res.ok) {
-        const msg = data.error || "تعذّر إرسال الرد";
+        const msg = data.error || mui.sendFailed;
         setReplyError(
           process.env.NODE_ENV !== "production" && data.detail
             ? `${msg} — ${data.detail}`
@@ -217,29 +224,29 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
       notifyAdminInboxChanged();
       if (failed) {
         setReplySuccess(
-          `✓ ${data.message || "تم حفظ الرد"}. ${data.warning || "تعذّر الإرسال عبر البريد."}`
+          `✓ ${data.message || mui.replySaved}. ${data.warning || mui.replySavedEmailWarn}`
         );
-        setSnack("تم حفظ الرد — تحذير: فشل إرسال البريد");
+        setSnack(mui.emailSendFailed);
       } else if (local) {
         setReplySuccess(
-          `✓ ${data.message || "تم حفظ الرد محلياً"}${
+          `✓ ${data.message || mui.replySavedLocal}${
             data.warning ? `. ${data.warning}` : ""
           }`
         );
-        setSnack("تم حفظ الرد (وضع محلي)");
+        setSnack(mui.replySavedLocalSnack);
         window.setTimeout(() => {
           closeReply();
         }, 1200);
       } else {
-        setReplySuccess("✓ تم إرسال الرد بنجاح.");
-        setSnack("تم إرسال الرد عبر البريد");
+        setReplySuccess(mui.replySentOk);
+        setSnack(mui.replySentSnack);
         window.setTimeout(() => {
           setReplyTarget(null);
           setReplySuccess("");
         }, 1200);
       }
     } catch {
-      setReplyError("تعذّر الاتصال بالخادم. تحققي من الشبكة.");
+      setReplyError(mui.networkError);
     } finally {
       setReplySending(false);
     }
@@ -251,7 +258,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
       setCopyFlash(label);
       window.setTimeout(() => setCopyFlash(null), 1500);
     } else {
-      setSnack("تعذّر النسخ");
+      setSnack(mui.copyFailed);
     }
   };
 
@@ -281,9 +288,9 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal">الرسائل</h1>
+          <h1 className="text-2xl font-bold text-charcoal">{mui.title}</h1>
           <p className="mt-1 text-sm text-muted">
-            رسائل نموذج التواصل + رسائل حساب العميلة — الرد يصل للحساب والبريد
+            {mui.subtitle}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -293,15 +300,14 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
             loading={loading}
             onClick={() => void refreshMessages()}
           >
-            تحديث
+            {mui.refresh}
           </Button>
-          {/* API download endpoint — not a Next.js page route */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/admin/export?module=messages"
             className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
           >
-            تصدير CSV
+            {mui.exportCsv}
           </a>
         </div>
       </div>
@@ -314,13 +320,13 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Input
-          label="بحث"
+          label={mui.search}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="الاسم، البريد، الهاتف، الموضوع..."
+          placeholder={mui.searchPlaceholder}
         />
         <div>
-          <p className="mb-1.5 text-sm text-muted">العرض</p>
+          <p className="mb-1.5 text-sm text-muted">{mui.visibility}</p>
           <VisibilityFilter value={visibility} onChange={setVisibility} />
         </div>
       </div>
@@ -328,14 +334,14 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
       {copyFlash ? (
         <p className="text-xs text-emerald-700" role="status">
           <Check className="me-1 inline h-3.5 w-3.5" />
-          تم نسخ {copyFlash}
+          {formatMessage(mui.copied, { label: copyFlash })}
         </p>
       ) : null}
 
       <div className="space-y-4">
         {filtered.length === 0 ? (
           <p className="rounded-2xl border border-beige-dark bg-white p-8 text-center text-muted">
-            لا توجد رسائل
+            {mui.empty}
           </p>
         ) : (
           filtered.map((m) => (
@@ -369,33 +375,33 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                   {m.source === "account" ||
                   m.subject?.startsWith("[حساب]") ? (
                     <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-800">
-                      من الحساب
+                      {mui.fromAccount}
                     </span>
                   ) : (
                     <span className="rounded-full bg-beige px-2 py-0.5 text-xs text-muted">
-                      تواصل
+                      {mui.contact}
                     </span>
                   )}
                   {!m.is_read ? (
                     <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs text-gold">
-                      جديدة
+                      {mui.unread}
                     </span>
                   ) : (
-                    <span className="text-xs text-muted">مقروءة</span>
+                    <span className="text-xs text-muted">{mui.read}</span>
                   )}
                   {m.last_reply_status === "sent" ? (
                     <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                      تم الرد
+                      {mui.replied}
                     </span>
                   ) : null}
                   {m.last_reply_status === "local" ? (
                     <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-800">
-                      رد محلي
+                      {mui.localReply}
                     </span>
                   ) : null}
                   {m.last_reply_status === "failed" ? (
                     <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">
-                      فشل الرد
+                      {mui.replyFailed}
                     </span>
                   ) : null}
                   <RowLifecycleActions
@@ -414,7 +420,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                         setMessages((prev) =>
                           prev.filter((x) => x.id !== m.id)
                         );
-                        setSnack("تم نقل الرسالة إلى سلة المحذوفات");
+                        setSnack(mui.movedToTrash);
                         notifyAdminInboxChanged();
                         return;
                       }
@@ -444,7 +450,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
 
               {m.last_reply_at ? (
                 <p className="mt-2 text-xs text-muted">
-                  آخر رد:{" "}
+                  {mui.lastReply}{" "}
                   <span dir="ltr">
                     {formatDateTimeWestern(m.last_reply_at)}
                   </span>
@@ -468,24 +474,24 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                   }
                 >
                   <Mail className="h-3.5 w-3.5" />
-                  رد
+                  {mui.reply}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => void onCopy("البريد", m.email)}
+                  onClick={() => void onCopy(mui.copyEmail, m.email)}
                 >
                   <Copy className="h-3.5 w-3.5" />
-                  نسخ البريد
+                  {mui.copyEmail}
                 </Button>
                 {m.phone ? (
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => void onCopy("الهاتف", m.phone!)}
+                    onClick={() => void onCopy(mui.phone, m.phone!)}
                   >
                     <Phone className="h-3.5 w-3.5" />
-                    نسخ الهاتف
+                    {mui.copyPhone}
                   </Button>
                 ) : null}
                 {m.email ? (
@@ -497,7 +503,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                     )}`}
                     className="inline-flex items-center rounded-xl border border-beige-dark px-3 py-1.5 text-sm hover:bg-beige"
                   >
-                    فتح mailto
+                    {mui.openMailto}
                   </a>
                 ) : null}
                 {!m.is_read ? (
@@ -506,7 +512,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                     variant="ghost"
                     onClick={() => void markRead(m.id, true)}
                   >
-                    تعليم كمقروءة
+                    {mui.markRead}
                   </Button>
                 ) : (
                   <Button
@@ -514,7 +520,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                     variant="ghost"
                     onClick={() => void markRead(m.id, false)}
                   >
-                    تعليم كغير مقروءة
+                    {mui.markUnread}
                   </Button>
                 )}
               </div>
@@ -532,7 +538,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
         >
           <button
             type="button"
-            aria-label="إغلاق"
+            aria-label={mui.close}
             className="absolute inset-0"
             onClick={closeReply}
             disabled={replySending}
@@ -543,7 +549,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                 id="reply-modal-title"
                 className="text-lg font-semibold text-charcoal"
               >
-                رد على الرسالة
+                {mui.replyModalTitle}
               </h2>
               <button
                 type="button"
@@ -557,7 +563,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
 
             <div className="space-y-4 overflow-y-auto px-5 py-5">
               <div>
-                <p className="mb-1.5 text-sm text-muted">إلى</p>
+                <p className="mb-1.5 text-sm text-muted">{mui.to}</p>
                 <p
                   className="rounded-xl border border-beige-dark/60 bg-beige/30 px-3 py-2.5 text-sm text-charcoal"
                   dir="ltr"
@@ -566,18 +572,18 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                 </p>
               </div>
               <Input
-                label="الموضوع"
+                label={mui.subject}
                 value={replySubject}
                 onChange={(e) => setReplySubject(e.target.value)}
                 disabled={replySending}
               />
               <Textarea
-                label="الرسالة"
+                label={mui.message}
                 rows={8}
                 value={replyBody}
                 onChange={(e) => setReplyBody(e.target.value)}
                 disabled={replySending}
-                placeholder="اكتبي ردّاً مهنياً للعميلة…"
+                placeholder={mui.replyPlaceholder}
               />
               {replyError ? (
                 <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
@@ -597,7 +603,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                 onClick={closeReply}
                 disabled={replySending}
               >
-                إلغاء
+                {mui.cancel}
               </Button>
               <Button
                 loading={replySending}
@@ -609,7 +615,7 @@ export function MessagesManager({ initialMessages }: MessagesManagerProps) {
                 onClick={() => void sendReply()}
                 className={cn(replySending && "pointer-events-none")}
               >
-                إرسال
+                {mui.send}
               </Button>
             </div>
           </div>

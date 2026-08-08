@@ -24,6 +24,13 @@ import {
 import type { AccessoryShopItem } from "@/lib/data/shop-queries";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { featuredImage } from "@/lib/products/featured-image";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { localizedName } from "@/lib/i18n";
+import {
+  resolveCatalogLabel,
+  resolveCategoryDescription,
+  resolveCategoryLabel,
+} from "@/lib/i18n/category-labels";
 
 function serviceCardClassName(featured: boolean) {
   return [
@@ -43,15 +50,10 @@ const ICON_BY_LEGACY: Record<string, LucideIcon> = {
   bridal_robes: Heart,
 };
 
-const FALLBACK_DESC: Record<string, string> = {
-  wedding: "تصاميم فاخرة من أفخر الأقمشة العالمية لإطلالة لا تُنسى",
-  nouf_dresses:
-    "اكتشفي مجموعة فساتين نوف الحصرية، بتصاميم تجمع بين الأناقة، الفخامة، والتفاصيل الراقية",
-  rental: "إطلالة أحلامك بأسعار مناسبة مع خدمة تنظيف وصيانة",
-  custom_design: "صممي فستانكِ معنا من الصفر — قطعة فريدة على مقاسكِ وذوقكِ",
-  veils: "طرحة عروس أنيقة تكمل إطلالتكِ بلمسة من السحر والرقي",
-  bridal_robes: "برنص العروس الفاخر لجلسات التحضير والتصوير بأناقة مميزة",
-};
+function serviceFallback(key: string, t: ReturnType<typeof useLocale>["t"]): string {
+  const map = t.home.serviceFallbacks as Record<string, string>;
+  return map[key] || "";
+}
 
 const emptySubscribe = () => () => {};
 
@@ -99,6 +101,7 @@ function ServiceCard({
   coverImageUrl: string | null;
   featured?: boolean;
 }) {
+  const { t } = useLocale();
   return (
     <Link href={href} className={serviceCardClassName(featured)}>
       <div className="relative h-36 w-full overflow-hidden bg-gradient-to-br from-beige via-beige-dark/40 to-gold/20">
@@ -124,7 +127,7 @@ function ServiceCard({
       <div className="flex flex-1 flex-col p-6">
         {featured ? (
           <p className="mb-2 text-[11px] font-medium tracking-[0.2em] text-gold uppercase">
-            مجموعة مميزة
+            {t.home.featuredCollection}
           </p>
         ) : null}
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold transition-colors group-hover:bg-gold group-hover:text-white">
@@ -151,6 +154,7 @@ export function ServicesSection({
   categories,
   accessoryProducts = [],
 }: ServicesSectionProps) {
+  const { t, locale } = useLocale();
   // Caller (getHomepageCategories) applies is_visible + show_on_homepage.
   const visible = categories.filter(isHomepageCategory);
   const tree = buildCategoryTree(visible);
@@ -166,24 +170,23 @@ export function ServicesSection({
     <section id="categories" className="bg-beige/30 py-20 md:py-28">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <SectionHeading
-          subtitle="خدماتنا"
-          title="تجربة فاخرة من الألف إلى الياء"
-          description="نقدم لكِ تجربة متكاملة تجعل رحلة اختيار فستان أحلامك لا تُنسى"
+          subtitle={t.home.services}
+          title={t.home.featured}
+          description={t.account.subtitle}
         />
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {dressRoots.map((cat, i) => {
             const Icon =
               (cat.legacy_key && ICON_BY_LEGACY[cat.legacy_key]) || Crown;
-            const description =
-              cat.description_ar?.trim() ||
-              (cat.legacy_key && FALLBACK_DESC[cat.legacy_key]) ||
-              "";
+            const fb =
+              (cat.legacy_key && serviceFallback(cat.legacy_key, t)) || "";
+            const description = resolveCategoryDescription(cat, locale, fb);
             return (
               <Reveal key={cat.id} delay={i * 0.08} className="h-full">
                 <ServiceCard
                   href={resolveCategoryHref(cat)}
-                  title={cat.name_ar}
+                  title={resolveCategoryLabel(cat, locale)}
                   description={description}
                   Icon={Icon}
                   coverImageUrl={cat.cover_image_url}
@@ -198,16 +201,18 @@ export function ServicesSection({
           <div className="mt-14">
             <div className="mb-6 text-center">
               <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.25em] text-gold uppercase">
-                Accessories
+                {t.catalog.accessoriesEyebrow}
               </p>
               <h3 className="mt-2 text-2xl font-semibold text-charcoal">
-                {accessoriesRoot.name_ar}
+                {resolveCategoryLabel(accessoriesRoot, locale)}
               </h3>
-              {accessoriesRoot.description_ar?.trim() ? (
-                <p className="mt-2 text-sm text-muted">
-                  {accessoriesRoot.description_ar}
-                </p>
-              ) : null}
+              <p className="mt-2 text-sm text-muted">
+                {resolveCategoryDescription(
+                  accessoriesRoot,
+                  locale,
+                  t.catalog.accessoriesSubtitle
+                )}
+              </p>
               {accessoryChildren.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                   {accessoryChildren.map((cat) => (
@@ -216,14 +221,14 @@ export function ServicesSection({
                       href={resolveCategoryHref(cat)}
                       className="rounded-full border border-beige-dark bg-white px-4 py-1.5 text-sm text-charcoal transition-colors hover:border-gold hover:text-gold"
                     >
-                      {cat.name_ar}
+                      {resolveCategoryLabel(cat, locale)}
                     </Link>
                   ))}
                   <Link
                     href={resolveCategoryHref(accessoriesRoot)}
                     className="rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-sm text-gold transition-colors hover:bg-gold hover:text-white"
                   >
-                    عرض الكل
+                    {t.common.viewAll}
                   </Link>
                 </div>
               )}
@@ -235,6 +240,20 @@ export function ServicesSection({
                   const cover = featuredImage(product.images);
                   const Icon =
                     product.kind === "bridal_robe" ? Heart : Flower2;
+                  const productTitle = localizedName(
+                    {
+                      name_ar: product.name_ar,
+                      name_en: product.name_en,
+                      name_he: product.name_he,
+                    },
+                    locale,
+                    product.name_ar
+                  );
+                  const categoryLine = resolveCatalogLabel(
+                    product.category,
+                    locale,
+                    { kind: product.kind }
+                  );
                   return (
                     <Reveal
                       key={`${product.kind}-${product.id}`}
@@ -267,10 +286,10 @@ export function ServicesSection({
                         </div>
                         <div className="flex flex-1 flex-col p-5">
                           <p className="text-xs tracking-wide text-gold">
-                            {product.category}
+                            {categoryLine}
                           </p>
                           <h3 className="mt-1 text-lg font-semibold text-charcoal group-hover:text-gold">
-                            {product.name_ar}
+                            {productTitle}
                           </h3>
                           <ProductPrice
                             className="mt-3"
@@ -289,10 +308,14 @@ export function ServicesSection({
                   const Icon =
                     (cat.legacy_key && ICON_BY_LEGACY[cat.legacy_key]) ||
                     Flower2;
-                  const description =
-                    cat.description_ar?.trim() ||
-                    (cat.legacy_key && FALLBACK_DESC[cat.legacy_key]) ||
+                  const fb =
+                    (cat.legacy_key && serviceFallback(cat.legacy_key, t)) ||
                     "";
+                  const description = resolveCategoryDescription(
+                    cat,
+                    locale,
+                    fb
+                  );
                   return (
                     <Reveal
                       key={cat.id}
@@ -301,7 +324,7 @@ export function ServicesSection({
                     >
                       <ServiceCard
                         href={resolveCategoryHref(cat)}
-                        title={cat.name_ar}
+                        title={resolveCategoryLabel(cat, locale)}
                         description={description}
                         Icon={Icon}
                         coverImageUrl={cat.cover_image_url}

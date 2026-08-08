@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input, Textarea, Select } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -11,28 +11,43 @@ import {
   type StorePaymentProvider,
   type StoreSettings,
   type StoreSettingsSection,
+  type StoreTaxDocumentType,
   type SystemHealthReport,
   type SystemHealthStatus,
 } from "@/types/store";
 import { GlobalServicesManager } from "@/components/admin/GlobalServicesManager";
 import { CustomerAuthSettingsForm } from "@/components/admin/CustomerAuthSettingsForm";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import {
+  formatMessage,
+  LOCALES,
+  LOCALE_META,
+  normalizeEnabledLocales,
+  type Dictionary,
+  type Locale,
+} from "@/lib/i18n";
 
-const SECTIONS: { id: StoreSettingsSection | "health"; label: string }[] = [
-  { id: "general", label: "عام" },
-  { id: "payments", label: "المدفوعات" },
-  { id: "shipping", label: "الشحن" },
-  { id: "contact", label: "التواصل" },
-  { id: "social", label: "التواصل الاجتماعي" },
-  { id: "homepage", label: "الرئيسية" },
-  { id: "authentication", label: "المصادقة" },
-  { id: "notifications", label: "الإشعارات" },
-  { id: "order_options", label: "خيارات الطلب" },
-  { id: "extra_services", label: "خدمات إضافية" },
-  { id: "seo", label: "SEO" },
-  { id: "security", label: "الأمان" },
-  { id: "integrations", label: "التكاملات" },
-  { id: "health", label: "صحة النظام" },
-];
+function settingsSections(t: Dictionary): { id: StoreSettingsSection | "health"; label: string }[] {
+  const tabs = t.admin.settingsTabs;
+  return [
+    { id: "general", label: tabs.general },
+    { id: "payments", label: tabs.payments },
+    { id: "shipping", label: tabs.shipping },
+    { id: "contact", label: tabs.contact },
+    { id: "social", label: tabs.social },
+    { id: "homepage", label: tabs.homepage },
+    { id: "authentication", label: tabs.authentication },
+    { id: "notifications", label: tabs.notifications },
+    { id: "order_options", label: tabs.order_options },
+    { id: "extra_services", label: tabs.extra_services },
+    { id: "legal", label: tabs.legal },
+    { id: "tax", label: tabs.tax },
+    { id: "seo", label: tabs.seo },
+    { id: "security", label: tabs.security },
+    { id: "integrations", label: tabs.integrations },
+    { id: "health", label: tabs.health },
+  ];
+}
 
 const HEALTH_COLOR: Record<SystemHealthStatus, string> = {
   green: "bg-emerald-500",
@@ -84,11 +99,22 @@ function BackupStatusCard({
   status,
   note,
   lastAt,
+  labels,
   onUpdated,
 }: {
   status: StoreSettings["security"]["backup_status"];
   note: string;
   lastAt: string | null;
+  labels: {
+    title: string;
+    refresh: string;
+    refreshing: string;
+    lastChecked: string;
+    ok: string;
+    warning: string;
+    error: string;
+    unknown: string;
+  };
   onUpdated: (next: {
     backup_status: StoreSettings["security"]["backup_status"];
     backup_note: string;
@@ -100,12 +126,12 @@ function BackupStatusCard({
 
   const statusLabel =
     status === "ok"
-      ? "سليم"
+      ? labels.ok
       : status === "warning"
-        ? "تحذير"
+        ? labels.warning
         : status === "error"
-          ? "خطأ"
-          : "غير معروف";
+          ? labels.error
+          : labels.unknown;
 
   const tone =
     status === "ok"
@@ -142,6 +168,7 @@ function BackupStatusCard({
       void refresh();
     }, 0);
     return () => window.clearTimeout(timer);
+    // Auto-refresh once when the security section mounts via parent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -149,14 +176,14 @@ function BackupStatusCard({
     <div className={`rounded-xl border px-4 py-3 text-sm ${tone}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-medium">حالة النسخ الاحتياطي / الاتصال</p>
+          <p className="font-medium">{labels.title}</p>
           <p className="mt-1">
             <span className="font-semibold">{statusLabel}</span>
             <span className="text-muted"> — {note}</span>
           </p>
           {lastAt ? (
             <p className="mt-1 text-xs text-muted" dir="ltr">
-              آخر فحص: {lastAt}
+              {labels.lastChecked} {lastAt}
             </p>
           ) : null}
           {error ? <p className="mt-1 text-xs text-red-700">{error}</p> : null}
@@ -168,7 +195,7 @@ function BackupStatusCard({
           loading={busy}
           onClick={() => void refresh()}
         >
-          {busy ? "جاري التحديث…" : "تحديث الحالة"}
+          {busy ? labels.refreshing : labels.refresh}
         </Button>
       </div>
     </div>
@@ -180,6 +207,9 @@ export function StoreSettingsPanel({
 }: {
   initialSettings?: StoreSettings;
 }) {
+  const { t } = useLocale();
+  const sf = t.admin.settingsFields;
+  const SECTIONS = settingsSections(t);
   const [active, setActive] = useState<StoreSettingsSection | "health">(
     "general"
   );
@@ -253,6 +283,19 @@ export function StoreSettingsPanel({
             return { security: settings.security };
           case "integrations":
             return { integrations: settings.integrations };
+          case "legal":
+            return {
+              legal: {
+                ...settings.legal,
+                updated_at: new Date().toISOString(),
+              },
+            };
+          case "tax":
+            return { tax: settings.tax };
+          case "order_options":
+            return { order_options: settings.order_options };
+          case "extra_services":
+            return { extra_services: settings.extra_services };
           default:
             return {};
         }
@@ -264,11 +307,11 @@ export function StoreSettingsPanel({
         body: JSON.stringify({ settings: patch, sections: [section] }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? t.admin.ordersUi.saveFailed);
       if (data.settings) setSettings(data.settings);
-      setMessage("تم الحفظ بنجاح — التغييرات تظهر فوراً في المتجر");
+      setMessage(t.admin.ordersUi.saveSuccess);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل الحفظ");
+      setError(e instanceof Error ? e.message : t.admin.ordersUi.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -330,14 +373,14 @@ export function StoreSettingsPanel({
       <div className="rounded-2xl border border-beige-dark bg-white p-6 md:p-8">
         {active === "general" && (
           <Section
-            title="الإعدادات العامة"
-            description="اسم المتجر، الشعار، والعملة — تظهر فوراً في الهيدر والفوتر."
+            title={t.admin.settingsSections.general}
+            description={sf.generalDesc}
             onSave={() => saveSection("general")}
             saving={saving}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
-                label="اسم المتجر *"
+                label={sf.storeName}
                 value={settings.general.store_name}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -347,7 +390,7 @@ export function StoreSettingsPanel({
                 }
               />
               <Input
-                label="العملة"
+                label={sf.currency}
                 value={settings.general.currency}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -357,19 +400,31 @@ export function StoreSettingsPanel({
                 }
                 dir="ltr"
               />
-              <Input
-                label="اللغة"
-                value={settings.general.language}
+              <Select
+                label={sf.language}
+                value={(() => {
+                  const enabled = normalizeEnabledLocales(
+                    settings.general.enabled_locales
+                  );
+                  return enabled.includes(settings.general.language as Locale)
+                    ? settings.general.language
+                    : enabled[0] || "ar";
+                })()}
                 onChange={(e) =>
                   setSettings((s) => ({
                     ...s,
                     general: { ...s.general, language: e.target.value },
                   }))
                 }
-                dir="ltr"
+                options={normalizeEnabledLocales(
+                  settings.general.enabled_locales
+                ).map((code) => ({
+                  value: code,
+                  label: `${LOCALE_META[code].nativeName} / ${LOCALE_META[code].englishName}`,
+                }))}
               />
               <Input
-                label="المنطقة الزمنية"
+                label={sf.timezone}
                 value={settings.general.timezone}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -379,8 +434,57 @@ export function StoreSettingsPanel({
                 }
                 dir="ltr"
               />
+            </div>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium text-charcoal">
+                {sf.enabledLocales}
+              </p>
+              <p className="text-xs text-muted">{sf.enabledLocalesHint}</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {LOCALES.map((code) => {
+                  const enabledList = normalizeEnabledLocales(
+                    settings.general.enabled_locales
+                  );
+                  const enabled = enabledList.includes(code);
+                  const onlyOne = enabled && enabledList.length <= 1;
+                  return (
+                    <Toggle
+                      key={code}
+                      label={`${LOCALE_META[code].nativeName} (${LOCALE_META[code].englishName})`}
+                      checked={enabled}
+                      disabled={onlyOne}
+                      onChange={(v) => {
+                        setSettings((s) => {
+                          const current = normalizeEnabledLocales(
+                            s.general.enabled_locales
+                          );
+                          let next: Locale[] = v
+                            ? normalizeEnabledLocales([...current, code])
+                            : current.filter((c) => c !== code);
+                          if (next.length === 0) next = [code];
+                          const language = next.includes(
+                            s.general.language as Locale
+                          )
+                            ? s.general.language
+                            : next[0];
+                          return {
+                            ...s,
+                            general: {
+                              ...s.general,
+                              enabled_locales: next,
+                              language,
+                            },
+                          };
+                        });
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Input
-                label="البريد التجاري"
+                label={sf.businessEmail}
                 value={settings.general.business_email}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -391,7 +495,7 @@ export function StoreSettingsPanel({
                 dir="ltr"
               />
               <Input
-                label="هاتف العمل"
+                label={sf.businessPhone}
                 value={settings.general.business_phone}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -403,7 +507,7 @@ export function StoreSettingsPanel({
               />
             </div>
             <Textarea
-              label="وصف المتجر (عربي)"
+              label={sf.descriptionAr}
               value={settings.general.description_ar}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -413,8 +517,31 @@ export function StoreSettingsPanel({
               }
               rows={2}
             />
+            <Textarea
+              label={sf.descriptionHe}
+              value={settings.general.description_he}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  general: { ...s.general, description_he: e.target.value },
+                }))
+              }
+              rows={2}
+            />
+            <Textarea
+              label={sf.descriptionEn}
+              value={settings.general.description}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  general: { ...s.general, description: e.target.value },
+                }))
+              }
+              rows={2}
+              dir="ltr"
+            />
             <Input
-              label="العنوان (عربي)"
+              label={sf.addressAr}
               value={settings.general.business_address_ar}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -427,7 +554,34 @@ export function StoreSettingsPanel({
               }
             />
             <Input
-              label="ساعات العمل (عربي)"
+              label={sf.addressHe}
+              value={settings.general.business_address_he}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  general: {
+                    ...s.general,
+                    business_address_he: e.target.value,
+                  },
+                }))
+              }
+            />
+            <Input
+              label={sf.addressEn}
+              value={settings.general.business_address}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  general: {
+                    ...s.general,
+                    business_address: e.target.value,
+                  },
+                }))
+              }
+              dir="ltr"
+            />
+            <Input
+              label={sf.workingHoursAr}
               value={settings.general.working_hours_ar}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -436,9 +590,30 @@ export function StoreSettingsPanel({
                 }))
               }
             />
+            <Input
+              label={sf.workingHoursHe}
+              value={settings.general.working_hours_he}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  general: { ...s.general, working_hours_he: e.target.value },
+                }))
+              }
+            />
+            <Input
+              label={sf.workingHoursEn}
+              value={settings.general.working_hours}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  general: { ...s.general, working_hours: e.target.value },
+                }))
+              }
+              dir="ltr"
+            />
             <div className="grid gap-6 sm:grid-cols-2">
               <div>
-                <p className="mb-2 text-sm font-medium text-charcoal">الشعار</p>
+                <p className="mb-2 text-sm font-medium text-charcoal">{sf.logo}</p>
                 <ImageUpload
                   value={
                     settings.general.logo_url
@@ -456,7 +631,7 @@ export function StoreSettingsPanel({
               </div>
               <div>
                 <p className="mb-2 text-sm font-medium text-charcoal">
-                  أيقونة المتصفح (Favicon)
+                  {sf.favicon}
                 </p>
                 <ImageUpload
                   value={
@@ -479,8 +654,8 @@ export function StoreSettingsPanel({
 
         {active === "payments" && (
           <Section
-            title="طرق الدفع"
-            description="فعّلي الطرق الظاهرة في الدفع. علّمي «قريباً» للطرق غير المتصلة بعد — تظهر للزبونة مع شارة قريباً دون كسر الدفع عند الاستلام."
+            title={t.admin.settingsSections.payments}
+            description={sf.paymentsDesc}
             onSave={() => saveSection("payments")}
             saving={saving}
           >
@@ -493,21 +668,21 @@ export function StoreSettingsPanel({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-2">
                       <Input
-                        label="الاسم بالعربية"
+                        label={sf.nameAr}
                         value={p.name_ar}
                         onChange={(e) =>
                           updateProvider(p.id, { name_ar: e.target.value })
                         }
                       />
                       <Input
-                        label="الاسم (EN)"
+                        label={sf.nameEn}
                         value={p.name}
                         onChange={(e) =>
                           updateProvider(p.id, { name: e.target.value })
                         }
                       />
                       <Input
-                        label="الوصف بالعربية"
+                        label={sf.descriptionArShort}
                         value={p.description_ar}
                         onChange={(e) =>
                           updateProvider(p.id, {
@@ -525,11 +700,11 @@ export function StoreSettingsPanel({
                     <div className="flex flex-col gap-2">
                       {p.coming_soon ? (
                         <span className="rounded-lg bg-amber-50 px-2 py-1 text-center text-xs text-amber-800">
-                          قريباً
+                          {sf.comingSoon}
                         </span>
                       ) : null}
                       <Toggle
-                        label="ظاهر في المتجر"
+                        label={sf.visibleInStore}
                         checked={p.enabled || p.coming_soon}
                         onChange={(v) => {
                           if (!v) {
@@ -553,7 +728,7 @@ export function StoreSettingsPanel({
                         }}
                       />
                       <Toggle
-                        label="قريباً"
+                        label={sf.comingSoon}
                         checked={p.coming_soon}
                         disabled={p.id === "cod"}
                         onChange={(v) =>
@@ -565,16 +740,16 @@ export function StoreSettingsPanel({
                       />
                       {p.id !== "cod" ? (
                         <Toggle
-                          label="Configured (env)"
+                          label={sf.configuredEnv}
                           checked={p.configured}
                           onChange={(v) =>
                             updateProvider(p.id, { configured: v })
                           }
-                          hint="لا تخزّني أسراراً هنا — علّمي فقط أن الـ env جاهز"
+                          hint={sf.configuredEnvHint}
                         />
                       ) : null}
                       <label className="text-xs text-muted">
-                        ترتيب
+                        {sf.sortOrder}
                         <input
                           type="number"
                           className="mt-1 w-20 rounded-lg border border-beige-dark px-2 py-1 text-sm text-charcoal"
@@ -596,14 +771,14 @@ export function StoreSettingsPanel({
 
         {active === "shipping" && (
           <Section
-            title="الشحن"
-            description="يُزامن مع إعدادات الموقع الحالية دون كسر مناطق الشحن أو CMS."
+            title={t.admin.settingsSections.shipping}
+            description={sf.shippingDesc}
             onSave={() => saveSection("shipping")}
             saving={saving}
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <Toggle
-                label="تفعيل الشحن"
+                label={sf.shippingEnabled}
                 checked={settings.shipping.shipping_enabled}
                 onChange={(v) =>
                   setSettings((s) => ({
@@ -613,7 +788,7 @@ export function StoreSettingsPanel({
                 }
               />
               <Toggle
-                label="الاستلام من البوتيك"
+                label={sf.boutiquePickup}
                 checked={settings.shipping.boutique_pickup_enabled}
                 onChange={(v) =>
                   setSettings((s) => ({
@@ -623,7 +798,7 @@ export function StoreSettingsPanel({
                 }
               />
               <Toggle
-                label="التوصيل"
+                label={sf.deliveryEnabled}
                 checked={settings.shipping.delivery_enabled}
                 onChange={(v) =>
                   setSettings((s) => ({
@@ -635,7 +810,7 @@ export function StoreSettingsPanel({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
-                label={`رسوم الشحن الثابتة (${formatPrice(settings.shipping.shipping_flat_fee)})`}
+                label={formatMessage(sf.flatFee, { price: formatPrice(settings.shipping.shipping_flat_fee) })}
                 type="number"
                 min={0}
                 dir="ltr"
@@ -651,7 +826,7 @@ export function StoreSettingsPanel({
                 }
               />
               <Input
-                label="حد الشحن المجاني (0 = بدون)"
+                label={sf.freeThreshold}
                 type="number"
                 min={0}
                 dir="ltr"
@@ -671,7 +846,7 @@ export function StoreSettingsPanel({
               />
             </div>
             <Input
-              label="تقدير التوصيل الافتراضي (عربي)"
+              label={sf.estimatedDeliveryAr}
               value={settings.shipping.estimated_delivery_ar}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -682,12 +857,12 @@ export function StoreSettingsPanel({
                   },
                 }))
               }
-              placeholder="مثال: 3–5 أيام عمل"
+              placeholder={sf.estimatedDeliveryPlaceholder}
             />
             <p className="text-sm text-muted">
-              مناطق الشحن التفصيلية تُدار من{" "}
+              {sf.shippingRegionsHint}{" "}
               <Link href="/admin/shipping" className="text-gold underline">
-                إعدادات الشحن
+                {sf.shippingRegionsLink}
               </Link>
               .
             </p>
@@ -696,14 +871,14 @@ export function StoreSettingsPanel({
 
         {active === "contact" && (
           <Section
-            title="التواصل"
-            description="الهاتف والواتساب والبريد تظهر فوراً في الفوتر وزر واتساب."
+            title={t.admin.settingsSections.contact}
+            description={sf.contactDesc}
             onSave={() => saveSection("contact")}
             saving={saving}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
-                label="الهاتف"
+                label={sf.phone}
                 value={settings.contact.phone}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -714,7 +889,7 @@ export function StoreSettingsPanel({
                 dir="ltr"
               />
               <Input
-                label="واتساب (بدون +، مثال: 9725...)"
+                label={sf.whatsapp}
                 value={settings.contact.whatsapp}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -725,7 +900,7 @@ export function StoreSettingsPanel({
                 dir="ltr"
               />
               <Input
-                label="البريد"
+                label={sf.email}
                 value={settings.contact.email}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -736,7 +911,7 @@ export function StoreSettingsPanel({
                 dir="ltr"
               />
               <Input
-                label="إنستغرام"
+                label={sf.instagram}
                 value={settings.contact.instagram_url}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -747,7 +922,7 @@ export function StoreSettingsPanel({
                 dir="ltr"
               />
               <Input
-                label="فيسبوك"
+                label={sf.facebook}
                 value={settings.contact.facebook_url}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -758,7 +933,7 @@ export function StoreSettingsPanel({
                 dir="ltr"
               />
               <Input
-                label="تيك توك"
+                label={sf.tiktok}
                 value={settings.contact.tiktok_url}
                 onChange={(e) =>
                   setSettings((s) => ({
@@ -770,7 +945,7 @@ export function StoreSettingsPanel({
               />
             </div>
             <Input
-              label="الموقع / العنوان"
+              label={sf.location}
               value={settings.contact.location_ar}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -780,7 +955,7 @@ export function StoreSettingsPanel({
               }
             />
             <Input
-              label="رابط Google Maps"
+              label={sf.googleMaps}
               value={settings.contact.google_maps_url}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -795,19 +970,19 @@ export function StoreSettingsPanel({
 
         {active === "social" && (
           <Section
-            title="وسائل التواصل"
-            description="روابط الشبكات الاجتماعية للمتجر."
+            title={t.admin.settingsSections.social}
+            description={sf.socialDesc}
             onSave={() => saveSection("social")}
             saving={saving}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               {(
                 [
-                  ["instagram_url", "إنستغرام"],
-                  ["facebook_url", "فيسبوك"],
-                  ["tiktok_url", "تيك توك"],
-                  ["pinterest_url", "بينتريست"],
-                  ["youtube_url", "يوتيوب"],
+                  ["instagram_url", sf.instagram],
+                  ["facebook_url", sf.facebook],
+                  ["tiktok_url", sf.tiktok],
+                  ["pinterest_url", sf.pinterest],
+                  ["youtube_url", sf.youtube],
                 ] as const
               ).map(([key, label]) => (
                 <Input
@@ -829,19 +1004,19 @@ export function StoreSettingsPanel({
 
         {active === "homepage" && (
           <Section
-            title="أقسام الصفحة الرئيسية"
-            description="تفعيل/إخفاء الأقسام دون تعديل الكود. محتوى الهيرو من قائمة المحتوى."
+            title={t.admin.settingsSections.homepage}
+            description={sf.homepageDesc}
             onSave={() => saveSection("homepage")}
             saving={saving}
           >
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  ["hero", "الهيرو"],
-                  ["featured_categories", "التصنيفات المميزة"],
-                  ["featured_products", "المنتجات المميزة"],
-                  ["collections", "قسم التصميم الخاص"],
-                  ["instagram", "إنستغرام"],
+                  ["hero", sf.hero],
+                  ["featured_categories", sf.featuredCategories],
+                  ["featured_products", sf.featuredProducts],
+                  ["collections", sf.collectionsSection],
+                  ["instagram", sf.instagram],
                 ] as const
               ).map(([key, label]) => (
                 <Toggle
@@ -858,9 +1033,9 @@ export function StoreSettingsPanel({
               ))}
             </div>
             <p className="text-sm text-muted">
-              تحرير نصوص/صور الهيرو:{" "}
+              {sf.editHeroHint}{" "}
               <Link href="/admin/content/home" className="text-gold underline">
-                محتوى الرئيسية
+                {sf.homeContentLink}
               </Link>
             </p>
           </Section>
@@ -870,22 +1045,21 @@ export function StoreSettingsPanel({
           <div className="space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-charcoal">
-                مصادقة العملاء
+                {t.admin.settingsSections.authentication}
               </h2>
               <p className="mt-1 text-sm text-muted">
-                قنوات الدخول (بريد، زائرة، Google، Apple، واتساب…) — التفعيل،
-                قريباً، والترتيب من قاعدة البيانات. احفظي من زر النموذج أدناه.
+                {sf.authDesc}
               </p>
             </div>
             <div className="mb-2 grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  ["guest_checkout_enabled", "الشراء كزائرة"],
+                  ["guest_checkout_enabled", sf.guestCheckout],
                   ["google_enabled", "Google"],
                   ["apple_enabled", "Apple"],
-                  ["email_password_enabled", "البريد وكلمة المرور"],
-                  ["phone_otp_enabled", "واتساب OTP (نشط)"],
-                  ["registration_enabled", "التسجيل"],
+                  ["email_password_enabled", sf.emailPassword],
+                  ["phone_otp_enabled", sf.whatsappOtp],
+                  ["registration_enabled", sf.registration],
                 ] as const
               ).map(([key, label]) => (
                 <Toggle
@@ -907,7 +1081,7 @@ export function StoreSettingsPanel({
                 loading={saving}
                 onClick={() => saveSection("authentication")}
               >
-                حفظ المفاتيح السريعة
+                {sf.saveQuickKeys}
               </Button>
             </div>
             <CustomerAuthSettingsForm embedded />
@@ -916,14 +1090,14 @@ export function StoreSettingsPanel({
 
         {active === "notifications" && (
           <Section
-            title="قنوات الإشعارات"
-            description="SMS مستقبلاً. قوالب الطلبات من صفحة الإشعارات."
+            title={t.admin.settingsSections.notifications}
+            description={sf.notificationsDesc}
             onSave={() => saveSection("notifications")}
             saving={saving}
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <Toggle
-                label="البريد"
+                label={sf.notifEmail}
                 checked={settings.notifications.email_enabled}
                 onChange={(v) =>
                   setSettings((s) => ({
@@ -933,7 +1107,7 @@ export function StoreSettingsPanel({
                 }
               />
               <Toggle
-                label="واتساب"
+                label={sf.notifWhatsapp}
                 checked={settings.notifications.whatsapp_enabled}
                 onChange={(v) =>
                   setSettings((s) => ({
@@ -952,13 +1126,13 @@ export function StoreSettingsPanel({
                     notifications: { ...s.notifications, sms_enabled: v },
                   }))
                 }
-                hint="قريباً"
+                hint={sf.comingSoon}
               />
             </div>
             <p className="text-sm text-muted">
-              اتصال Resend وقوالب الرسائل:{" "}
+              {sf.resendTemplatesHint}{" "}
               <Link href="/admin/notifications" className="text-gold underline">
-                الإشعارات
+                {sf.notificationsLink}
               </Link>
             </p>
           </Section>
@@ -966,8 +1140,8 @@ export function StoreSettingsPanel({
 
         {active === "order_options" && (
           <Section
-            title="خيارات الطلب"
-            description="خيارات تُجمع من العميلة عند إتمام الطلب (تاريخ التوصيل، ملاحظات، …)."
+            title={t.admin.settingsSections.order_options}
+            description={sf.orderOptionsDesc}
             onSave={() => saveSection("order_options")}
             saving={saving}
           >
@@ -985,7 +1159,7 @@ export function StoreSettingsPanel({
                   </div>
                   <div className="flex items-center gap-4">
                     <Toggle
-                      label="مفعّل"
+                      label={sf.enabled}
                       checked={opt.enabled}
                       onChange={(v) =>
                         setSettings((s) => {
@@ -999,7 +1173,7 @@ export function StoreSettingsPanel({
                       }
                     />
                     <Toggle
-                      label="إلزامي"
+                      label={sf.required}
                       checked={opt.required}
                       disabled={!opt.enabled}
                       onChange={(v) =>
@@ -1022,8 +1196,8 @@ export function StoreSettingsPanel({
 
         {active === "extra_services" && (
           <Section
-            title="مكتبة الخدمات (Global Services)"
-            description="إنشاء الخدمات مرة واحدة: تسعير FREE/FIXED، إلزامي، محدد افتراضياً، ونطاق ظهور بالمعرّفات. تُزامَن مع جدول store_services."
+            title={t.admin.settingsSections.extra_services}
+            description={sf.extraServicesDesc}
             onSave={() => saveSection("extra_services")}
             saving={saving}
           >
@@ -1041,13 +1215,13 @@ export function StoreSettingsPanel({
 
         {active === "seo" && (
           <Section
-            title="SEO والتحليلات"
-            description="العنوان والوصف وOG والـ robots تُطبَّق على المتجر. معرّفات التحليلات تُحفظ للمرحلة التالية (لا تُحقَن تلقائياً بعد)."
+            title={t.admin.settingsSections.seo}
+            description={sf.seoDesc}
             onSave={() => saveSection("seo")}
             saving={saving}
           >
             <Input
-              label="عنوان الصفحة الافتراضي"
+              label={sf.defaultPageTitle}
               value={settings.seo.title}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -1057,7 +1231,7 @@ export function StoreSettingsPanel({
               }
             />
             <Textarea
-              label="الوصف"
+              label={sf.seoDescription}
               value={settings.seo.description}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -1068,7 +1242,7 @@ export function StoreSettingsPanel({
               rows={3}
             />
             <Input
-              label="الكلمات المفتاحية"
+              label={sf.keywords}
               value={settings.seo.keywords}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -1079,7 +1253,7 @@ export function StoreSettingsPanel({
             />
             <div>
               <p className="mb-2 text-sm font-medium text-charcoal">
-                صورة Open Graph
+                {sf.ogImage}
               </p>
               <ImageUpload
                 value={
@@ -1146,13 +1320,13 @@ export function StoreSettingsPanel({
 
         {active === "security" && (
           <Section
-            title="الأمان"
-            description="مهلة الجلسة، وضع الصيانة، وحالة الاتصال/النسخ الاحتياطي."
+            title={t.admin.settingsSections.security}
+            description={sf.securityDesc}
             onSave={() => saveSection("security")}
             saving={saving}
           >
             <Input
-              label="مهلة الجلسة (دقائق)"
+              label={sf.sessionTimeout}
               type="number"
               min={5}
               max={1440}
@@ -1171,11 +1345,9 @@ export function StoreSettingsPanel({
                 }))
               }
             />
-            <p className="-mt-2 text-xs text-muted">
-              تسجيل الخروج تلقائياً بعد فترة عدم نشاط — للإدارة والعميلات المسجّلات.
-            </p>
+            <p className="-mt-2 text-xs text-muted">{sf.sessionTimeoutHint}</p>
             <Toggle
-              label="وضع الصيانة"
+              label={sf.maintenanceMode}
               checked={settings.security.maintenance_mode}
               onChange={(v) =>
                 setSettings((s) => ({
@@ -1183,10 +1355,10 @@ export function StoreSettingsPanel({
                   security: { ...s.security, maintenance_mode: v },
                 }))
               }
-              hint="عند التفعيل يُغلق المتجر للجميع. لوحة التحكم /admin تبقى متاحة. احفظي ثم افتحي الصفحة الرئيسية."
+              hint={sf.maintenanceHint}
             />
             <Textarea
-              label="رسالة الصيانة (عربي)"
+              label={sf.maintenanceMessageAr}
               rows={2}
               value={settings.security.maintenance_message_ar}
               onChange={(e) =>
@@ -1200,7 +1372,7 @@ export function StoreSettingsPanel({
               }
             />
             <Textarea
-              label="رسالة الصيانة (عبري)"
+              label={sf.maintenanceMessageHe}
               rows={2}
               value={settings.security.maintenance_message_he}
               onChange={(e) =>
@@ -1214,7 +1386,7 @@ export function StoreSettingsPanel({
               }
             />
             <Textarea
-              label="رسالة الصيانة (EN)"
+              label={sf.maintenanceMessageEn}
               rows={2}
               value={settings.security.maintenance_message_en}
               onChange={(e) =>
@@ -1231,6 +1403,16 @@ export function StoreSettingsPanel({
               status={settings.security.backup_status}
               note={settings.security.backup_note}
               lastAt={settings.security.backup_last_at}
+              labels={{
+                title: sf.backupStatus,
+                refresh: sf.backupRefresh,
+                refreshing: sf.backupRefreshing,
+                lastChecked: sf.backupLastChecked,
+                ok: sf.backupStatusOk,
+                warning: sf.backupStatusWarning,
+                error: sf.backupStatusError,
+                unknown: sf.backupStatusUnknown,
+              }}
               onUpdated={(next) =>
                 setSettings((s) => ({
                   ...s,
@@ -1248,8 +1430,8 @@ export function StoreSettingsPanel({
 
         {active === "integrations" && (
           <Section
-            title="التكاملات"
-            description="حالة التكاملات فقط. الأسرار عبر متغيرات البيئة — ليست في قاعدة البيانات."
+            title={t.admin.settingsSections.integrations}
+            description={sf.integrationsDesc}
             onSave={() => saveSection("integrations")}
             saving={saving}
           >
@@ -1269,7 +1451,7 @@ export function StoreSettingsPanel({
                   <div className="flex flex-col gap-2">
                     {item.coming_soon ? (
                       <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                        قريباً
+                        {sf.comingSoon}
                       </span>
                     ) : null}
                     <Toggle
@@ -1290,16 +1472,270 @@ export function StoreSettingsPanel({
           </Section>
         )}
 
+        {active === "legal" && (
+          <Section
+            title={t.admin.settingsSections.legal}
+            description={sf.legalDesc}
+            onSave={() => saveSection("legal")}
+            saving={saving}
+          >
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+              {sf.legalBannerHint}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Toggle
+                checked={settings.legal.show_template_banner}
+                onChange={(v) =>
+                  setSettings((s) => ({
+                    ...s,
+                    legal: { ...s.legal, show_template_banner: v },
+                  }))
+                }
+                label={sf.showTemplateBanner}
+              />
+              <Toggle
+                checked={settings.legal.require_checkout_acceptance}
+                onChange={(v) =>
+                  setSettings((s) => ({
+                    ...s,
+                    legal: { ...s.legal, require_checkout_acceptance: v },
+                  }))
+                }
+                label={sf.requireCheckoutAcceptance}
+              />
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <Link
+                href="/legal/terms"
+                className="text-gold underline"
+                target="_blank"
+              >
+                {sf.previewTerms}
+              </Link>
+              <Link
+                href="/legal/privacy"
+                className="text-gold underline"
+                target="_blank"
+              >
+                {sf.previewPrivacy}
+              </Link>
+              <Link
+                href="/legal/returns"
+                className="text-gold underline"
+                target="_blank"
+              >
+                {sf.previewReturns}
+              </Link>
+              <Link
+                href="/legal/shipping"
+                className="text-gold underline"
+                target="_blank"
+              >
+                {sf.previewShipping}
+              </Link>
+              <Link
+                href="/contact"
+                className="text-gold underline"
+                target="_blank"
+              >
+                {sf.previewContact}
+              </Link>
+            </div>
+            {(
+              [
+                ["terms_ar", sf.termsAr],
+                ["terms_he", sf.termsHe],
+                ["privacy_ar", sf.privacyAr],
+                ["privacy_he", sf.privacyHe],
+                ["returns_ar", sf.returnsAr],
+                ["returns_he", sf.returnsHe],
+                ["shipping_policy_ar", sf.shippingPolicyAr],
+                ["shipping_policy_he", sf.shippingPolicyHe],
+                ["terms_en", sf.termsEn],
+                ["privacy_en", sf.privacyEn],
+                ["returns_en", sf.returnsEn],
+                ["shipping_policy_en", sf.shippingPolicyEn],
+              ] as const
+            ).map(([key, label]) => (
+              <Textarea
+                key={key}
+                label={label}
+                value={settings.legal[key]}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    legal: { ...s.legal, [key]: e.target.value },
+                  }))
+                }
+                rows={key.endsWith("_en") ? 4 : 8}
+                dir={key.endsWith("_en") ? "ltr" : "rtl"}
+              />
+            ))}
+          </Section>
+        )}
+
+        {active === "tax" && (
+          <Section
+            title={t.admin.settingsSections.tax}
+            description={sf.taxDesc}
+            onSave={() => saveSection("tax")}
+            saving={saving}
+          >
+            <div className="rounded-xl border border-beige-dark bg-beige/40 px-4 py-3 text-sm text-muted">
+              {settings.tax.provider_notes}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label={sf.businessId}
+                value={settings.tax.business_id}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tax: { ...s.tax, business_id: e.target.value },
+                  }))
+                }
+                dir="ltr"
+                placeholder="512345678"
+              />
+              <Select
+                label={sf.businessIdType}
+                value={settings.tax.business_id_type}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tax: {
+                      ...s.tax,
+                      business_id_type: e.target
+                        .value as StoreSettings["tax"]["business_id_type"],
+                    },
+                  }))
+                }
+                options={[
+                  { value: "authorized_dealer", label: sf.idAuthorizedDealer },
+                  { value: "company", label: sf.idCompany },
+                  { value: "exempt", label: sf.idExempt },
+                  { value: "other", label: sf.idOther },
+                ]}
+              />
+              <Input
+                label={sf.vatRate}
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={String(settings.tax.vat_rate)}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tax: {
+                      ...s.tax,
+                      vat_rate: Number(e.target.value) || 0,
+                    },
+                  }))
+                }
+                dir="ltr"
+              />
+              <Input
+                label={sf.invoicePrefix}
+                value={settings.tax.invoice_prefix}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tax: { ...s.tax, invoice_prefix: e.target.value },
+                  }))
+                }
+                dir="ltr"
+              />
+              <Input
+                label={sf.nextInvoiceNumber}
+                type="number"
+                min={1}
+                value={String(settings.tax.next_invoice_number)}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tax: {
+                      ...s.tax,
+                      next_invoice_number: Math.max(
+                        1,
+                        Math.floor(Number(e.target.value) || 1)
+                      ),
+                    },
+                  }))
+                }
+                dir="ltr"
+              />
+              <Select
+                label={sf.defaultDocumentType}
+                value={settings.tax.default_document_type}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tax: {
+                      ...s.tax,
+                      default_document_type: e.target
+                        .value as StoreTaxDocumentType,
+                    },
+                  }))
+                }
+                options={[
+                  {
+                    value: "tax_invoice_receipt",
+                    label: sf.docTaxInvoiceReceipt,
+                  },
+                  { value: "tax_invoice", label: sf.docTaxInvoice },
+                  { value: "receipt", label: sf.docReceipt },
+                ]}
+              />
+              <Select
+                label={sf.issueTrigger}
+                value={settings.tax.issue_trigger}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tax: {
+                      ...s.tax,
+                      issue_trigger: e.target
+                        .value as StoreSettings["tax"]["issue_trigger"],
+                    },
+                  }))
+                }
+                options={[
+                  { value: "on_order", label: sf.issueOnOrder },
+                  {
+                    value: "on_payment_received",
+                    label: sf.issueOnPayment,
+                  },
+                  { value: "manual", label: sf.issueManual },
+                ]}
+              />
+            </div>
+            <Toggle
+              checked={settings.tax.prices_include_vat}
+              onChange={(v) =>
+                setSettings((s) => ({
+                  ...s,
+                  tax: { ...s.tax, prices_include_vat: v },
+                }))
+              }
+              label={sf.pricesIncludeVat}
+              hint={sf.pricesIncludeVatHint}
+            />
+            <p className="text-xs text-muted">
+              {sf.taxFooterHint}
+            </p>
+          </Section>
+        )}
+
         {active === "health" && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-charcoal">
-                  صحة النظام
+                  {t.admin.settingsSections.health}
                 </h2>
                 <p className="text-sm text-muted">
-                  فحص مباشر لقاعدة البيانات والتخزين والبريد والمدفوعات
-                  والمصادقة والبيئة.
+                  {sf.healthDesc}
                 </p>
               </div>
               <Button
@@ -1308,7 +1744,7 @@ export function StoreSettingsPanel({
                 loading={healthLoading}
                 onClick={loadHealth}
               >
-                تحديث الفحص
+                {sf.refreshHealth}
               </Button>
             </div>
             {health ? (
@@ -1320,7 +1756,7 @@ export function StoreSettingsPanel({
                     className={`h-3 w-3 rounded-full ${HEALTH_COLOR[health.overall]}`}
                   />
                   <span className="text-sm font-medium text-charcoal">
-                    الحالة العامة: {health.overall}
+                    {formatMessage(sf.overallStatus, { status: health.overall })}
                   </span>
                   <span className="text-xs text-muted" dir="ltr">
                     {health.checked_at}
@@ -1368,6 +1804,7 @@ function Section({
   onSave: () => void;
   saving: boolean;
 }) {
+  const { t } = useLocale();
   return (
     <div className="space-y-6">
       <div>
@@ -1377,7 +1814,7 @@ function Section({
       <div className="space-y-4">{children}</div>
       <div className="border-t border-beige-dark pt-4">
         <Button type="button" loading={saving} onClick={onSave}>
-          حفظ هذا القسم
+          {t.admin.saveChanges}
         </Button>
       </div>
     </div>

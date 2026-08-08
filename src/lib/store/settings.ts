@@ -3,11 +3,13 @@ import {
   DEFAULT_STORE_INTEGRATIONS,
   DEFAULT_STORE_SETTINGS,
   type StoreAuthSettings,
+  type StoreBusinessIdType,
   type StoreContactSettings,
   type StoreExtraServicesSettings,
   type StoreGeneralSettings,
   type StoreHomepageSettings,
   type StoreIntegrationStub,
+  type StoreLegalSettings,
   type StoreNotificationChannelSettings,
   type StoreOrderOptionsSettings,
   type StorePaymentProvider,
@@ -17,6 +19,8 @@ import {
   type StoreSettingsSection,
   type StoreShippingSettings,
   type StoreSocialSettings,
+  type StoreTaxDocumentType,
+  type StoreTaxSettings,
 } from "@/types/store";
 import {
   normalizeExtraServices,
@@ -40,6 +44,11 @@ import {
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import type { SiteSettings } from "@/types";
+import {
+  normalizeEnabledLocales,
+  resolveEnabledLocale,
+  isLocale,
+} from "@/lib/i18n/config";
 
 export const STORE_SETTINGS_KEY = "store";
 
@@ -72,16 +81,26 @@ function normalizeProvider(
   fallback: StorePaymentProvider
 ): StorePaymentProvider {
   const src = asObject(raw);
+  const nameHe =
+    typeof src.name_he === "string" && src.name_he.trim()
+      ? src.name_he.trim()
+      : fallback.name_he ?? "";
+  const descriptionHe =
+    typeof src.description_he === "string" && src.description_he.trim()
+      ? src.description_he.trim()
+      : fallback.description_he ?? "";
   return {
     id: str(src.id, fallback.id),
     name: str(src.name, fallback.name),
     name_ar: str(src.name_ar, fallback.name_ar),
+    name_he: nameHe,
     enabled: bool(src.enabled, fallback.enabled),
     coming_soon: bool(src.coming_soon, fallback.coming_soon),
     sort_order: Math.floor(num(src.sort_order, fallback.sort_order)),
     icon: str(src.icon, fallback.icon),
     description: str(src.description, fallback.description),
     description_ar: str(src.description_ar, fallback.description_ar),
+    description_he: descriptionHe,
     configuration: asObject(src.configuration),
     secret_env_ref:
       src.secret_env_ref === null
@@ -150,20 +169,33 @@ function normalizeIntegrations(raw: unknown): StoreIntegrationStub[] {
 function normalizeGeneral(raw: unknown): StoreGeneralSettings {
   const d = DEFAULT_STORE_SETTINGS.general;
   const s = asObject(raw);
+  const enabled_locales = normalizeEnabledLocales(
+    s.enabled_locales !== undefined ? s.enabled_locales : d.enabled_locales
+  );
+  const languageRaw = str(s.language, d.language);
+  const language = resolveEnabledLocale(
+    isLocale(languageRaw) ? languageRaw : d.language,
+    enabled_locales,
+    enabled_locales[0]
+  );
   return {
     store_name: str(s.store_name, d.store_name),
     description: str(s.description, d.description),
     description_ar: str(s.description_ar, d.description_ar),
+    description_he: str(s.description_he, d.description_he),
     logo_url: str(s.logo_url, d.logo_url),
     favicon_url: str(s.favicon_url, d.favicon_url),
     business_email: str(s.business_email, d.business_email),
     business_phone: str(s.business_phone, d.business_phone),
     business_address: str(s.business_address, d.business_address),
     business_address_ar: str(s.business_address_ar, d.business_address_ar),
+    business_address_he: str(s.business_address_he, d.business_address_he),
     working_hours: str(s.working_hours, d.working_hours),
     working_hours_ar: str(s.working_hours_ar, d.working_hours_ar),
+    working_hours_he: str(s.working_hours_he, d.working_hours_he),
     currency: str(s.currency, d.currency),
-    language: str(s.language, d.language),
+    language,
+    enabled_locales,
     timezone: str(s.timezone, d.timezone),
   };
 }
@@ -316,6 +348,93 @@ function normalizeSecurity(raw: unknown): StoreSecuritySettings {
   };
 }
 
+function normalizeLegal(raw: unknown): StoreLegalSettings {
+  const d = DEFAULT_STORE_SETTINGS.legal;
+  const s = asObject(raw);
+  return {
+    terms_ar: str(s.terms_ar, d.terms_ar),
+    terms_he: str(s.terms_he, d.terms_he),
+    terms_en: str(s.terms_en, d.terms_en),
+    privacy_ar: str(s.privacy_ar, d.privacy_ar),
+    privacy_he: str(s.privacy_he, d.privacy_he),
+    privacy_en: str(s.privacy_en, d.privacy_en),
+    returns_ar: str(s.returns_ar, d.returns_ar),
+    returns_he: str(s.returns_he, d.returns_he),
+    returns_en: str(s.returns_en, d.returns_en),
+    shipping_policy_ar: str(s.shipping_policy_ar, d.shipping_policy_ar),
+    shipping_policy_he: str(s.shipping_policy_he, d.shipping_policy_he),
+    shipping_policy_en: str(s.shipping_policy_en, d.shipping_policy_en),
+    show_template_banner: bool(s.show_template_banner, d.show_template_banner),
+    require_checkout_acceptance: bool(
+      s.require_checkout_acceptance,
+      d.require_checkout_acceptance
+    ),
+    updated_at:
+      s.updated_at === null ? null : str(s.updated_at, d.updated_at ?? ""),
+  };
+}
+
+function normalizeTaxDocumentType(
+  value: unknown,
+  fallback: StoreTaxDocumentType
+): StoreTaxDocumentType {
+  const v = str(value, fallback);
+  if (v === "receipt" || v === "tax_invoice" || v === "tax_invoice_receipt") {
+    return v;
+  }
+  return fallback;
+}
+
+function normalizeBusinessIdType(
+  value: unknown,
+  fallback: StoreBusinessIdType
+): StoreBusinessIdType {
+  const v = str(value, fallback);
+  if (
+    v === "company" ||
+    v === "authorized_dealer" ||
+    v === "exempt" ||
+    v === "other"
+  ) {
+    return v;
+  }
+  return fallback;
+}
+
+function normalizeTax(raw: unknown): StoreTaxSettings {
+  const d = DEFAULT_STORE_SETTINGS.tax;
+  const s = asObject(raw);
+  const trigger = str(s.issue_trigger, d.issue_trigger);
+  const issue_trigger =
+    trigger === "on_order" ||
+    trigger === "on_payment_received" ||
+    trigger === "manual"
+      ? trigger
+      : d.issue_trigger;
+  return {
+    business_id: str(s.business_id, d.business_id),
+    business_id_type: normalizeBusinessIdType(
+      s.business_id_type,
+      d.business_id_type
+    ),
+    vat_rate: Math.min(100, Math.max(0, num(s.vat_rate, d.vat_rate))),
+    prices_include_vat: bool(s.prices_include_vat, d.prices_include_vat),
+    default_document_type: normalizeTaxDocumentType(
+      s.default_document_type,
+      d.default_document_type
+    ),
+    issue_trigger,
+    invoice_prefix: str(s.invoice_prefix, d.invoice_prefix).slice(0, 16),
+    next_invoice_number: Math.max(
+      1,
+      Math.floor(num(s.next_invoice_number, d.next_invoice_number, 1))
+    ),
+    provider: str(s.provider, d.provider),
+    provider_coming_soon: bool(s.provider_coming_soon, d.provider_coming_soon),
+    provider_notes: str(s.provider_notes, d.provider_notes),
+  };
+}
+
 /** Fill missing keys from defaults; preserve admin-saved empty strings. */
 export function normalizeStoreSettings(
   raw?: Partial<StoreSettings> | null
@@ -342,6 +461,8 @@ export function normalizeStoreSettings(
     extra_services: normalizeExtraServices(
       src.extra_services
     ) as StoreExtraServicesSettings,
+    legal: normalizeLegal(src.legal),
+    tax: normalizeTax(src.tax),
   };
 }
 
@@ -401,6 +522,10 @@ export function mergeStoreSettingsPatch(
             patch.extra_services.services ?? current.extra_services.services,
         }) as StoreExtraServicesSettings)
       : current.extra_services,
+    legal: patch.legal
+      ? { ...current.legal, ...patch.legal }
+      : current.legal,
+    tax: patch.tax ? { ...current.tax, ...patch.tax } : current.tax,
   };
   return normalizeStoreSettings(next);
 }
@@ -578,7 +703,11 @@ export async function saveStoreSettings(
       sitePatch.whatsapp = merged.contact.whatsapp;
       sitePatch.address_ar =
         merged.contact.location_ar || merged.general.business_address_ar;
+      sitePatch.address_he = merged.general.business_address_he;
+      sitePatch.address_en = merged.general.business_address;
       sitePatch.working_hours_ar = merged.general.working_hours_ar;
+      sitePatch.working_hours_he = merged.general.working_hours_he;
+      sitePatch.working_hours_en = merged.general.working_hours;
     }
     if (touch("social") || touch("contact")) {
       const ig =

@@ -3,10 +3,15 @@
 import type { ReactNode } from "react";
 import { ProductExperienceBuy } from "@/components/product/ProductExperienceBuy";
 import type { ExtraServiceConfig } from "@/lib/products/order-experience";
+import {
+  isGiftCatalogServiceId,
+  resolvePersonalizationFee,
+} from "@/lib/products/order-experience";
 import type {
   ExperienceSectionConfig,
   ProductExperienceConfig,
 } from "@/lib/products/experience-designer";
+import { resolveEffectiveGiftUi } from "@/lib/products/experience-designer";
 import {
   featuresAllowGiftWrap,
   featuresAllowPersonalization,
@@ -21,6 +26,8 @@ interface ShopCustomizeAndBuyProps {
   productType: ShopProductType;
   productId: string;
   nameAr: string;
+  nameEn?: string | null;
+  nameHe?: string | null;
   price: number;
   /** Optional sale — when lower than price, cart charges sale and keeps compare-at. */
   salePrice?: number | null;
@@ -46,6 +53,8 @@ export function ShopCustomizeAndBuy({
   productType,
   productId,
   nameAr,
+  nameEn,
+  nameHe,
   price,
   salePrice,
   image,
@@ -67,7 +76,50 @@ export function ShopCustomizeAndBuy({
     productType
   );
   const allowGift = featuresAllowGiftWrap(enabled);
+  const giftSectionOn =
+    allowGift &&
+    (sections?.some((s) => s.id === "gift_options" && s.enabled !== false) ??
+      experienceConfig?.sections?.some(
+        (s) => s.id === "gift_options" && s.enabled !== false
+      ) ??
+      true);
+  const giftUi = resolveEffectiveGiftUi(
+    experienceConfig?.gift_ui,
+    extraServices
+  );
+  const personalizationFeeDefault = resolvePersonalizationFee(
+    experienceConfig?.personalization_ui,
+    extraServices,
+    true
+  );
+  const experienceWithFees = experienceConfig
+    ? {
+        ...experienceConfig,
+        gift_ui: giftUi,
+        personalization_ui: {
+          ...(experienceConfig.personalization_ui ?? {
+            required: false,
+            max_characters: 40,
+            extra_price: 0,
+          }),
+          extra_price:
+            (experienceConfig.personalization_ui?.extra_price ?? 0) > 0
+              ? experienceConfig.personalization_ui!.extra_price
+              : personalizationFeeDefault,
+        },
+      }
+    : {
+        sections: sections ?? [],
+        gift_ui: giftUi,
+        personalization_ui: {
+          required: false,
+          max_characters: 40,
+          extra_price: personalizationFeeDefault,
+        },
+      };
   const gatedServices = extraServices.filter((s) => {
+    if (s.id === "writing_personalization") return false;
+    if (giftSectionOn && isGiftCatalogServiceId(s.id)) return false;
     if (s.id === "gift_wrap") return allowGift;
     if (s.id === "greeting_card")
       return isFeatureEnabled(enabled, "gift_message");
@@ -84,15 +136,17 @@ export function ShopCustomizeAndBuy({
       shopProductType={productType}
       productId={productId}
       nameAr={nameAr}
+      nameEn={nameEn}
+      nameHe={nameHe}
       price={price}
       salePrice={salePrice}
       image={image}
       extraServices={gatedServices}
-      experienceConfig={experienceConfig}
+      experienceConfig={experienceWithFees}
       sections={sections}
       wishlist={showWishlist}
       enablePersonalization={allowPersonalization}
-      enableGiftWrapping={allowGift}
+      enableGiftWrapping={giftSectionOn}
       showAddToCart={isFeatureEnabled(enabled, "add_to_cart")}
       showBuyNow={isFeatureEnabled(enabled, "buy_now")}
       requiresShipping

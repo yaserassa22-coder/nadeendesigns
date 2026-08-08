@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +14,7 @@ const ACCENT = "#C9A14A";
  * Session is established by /api/auth/callback before arriving here.
  */
 export default function ResetPasswordPage() {
+  const { t, locale } = useLocale();
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -21,11 +25,11 @@ export default function ResetPasswordPage() {
   async function submit() {
     setError(null);
     if (password.length < 6) {
-      setError("كلمة المرور من 6 أحرف على الأقل");
+      setError(t.account.passwordMin);
       return;
     }
     if (password !== confirm) {
-      setError("كلمتا المرور غير متطابقتين");
+      setError(t.account.passwordsMismatch);
       return;
     }
     setLoading(true);
@@ -37,11 +41,11 @@ export default function ResetPasswordPage() {
         body: JSON.stringify({ mode: "update_password", password }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "فشل التحديث");
+      if (!res.ok) throw new Error(data.error || t.account.updateFailed);
       setDone(true);
       window.setTimeout(() => router.replace("/account"), 1200);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل التحديث");
+      setError(e instanceof Error ? e.message : t.account.updateFailed);
     } finally {
       setLoading(false);
     }
@@ -57,10 +61,10 @@ export default function ResetPasswordPage() {
           NadEEN Designs
         </p>
         <h2 className="mt-2 font-[family-name:var(--font-amiri)] text-2xl text-charcoal">
-          إعادة تعيين كلمة المرور
+          {t.account.resetPasswordTitle}
         </h2>
         <p className="mt-1 text-sm text-muted">
-          اختاري كلمة مرور جديدة لحسابكِ.
+          {t.account.resetPasswordHint}
         </p>
       </div>
 
@@ -71,7 +75,7 @@ export default function ResetPasswordPage() {
       )}
       {done && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          تم تحديث كلمة المرور — جارٍ نقلكِ إلى حسابكِ…
+          {t.account.passwordUpdated}
         </div>
       )}
 
@@ -79,7 +83,7 @@ export default function ResetPasswordPage() {
         <div className="space-y-3">
           <label className="block space-y-1.5">
             <span className="text-xs font-medium text-muted">
-              كلمة المرور الجديدة
+              {t.account.newPassword}
             </span>
             <input
               type="password"
@@ -92,7 +96,7 @@ export default function ResetPasswordPage() {
           </label>
           <label className="block space-y-1.5">
             <span className="text-xs font-medium text-muted">
-              تأكيد كلمة المرور
+              {t.account.confirmPassword}
             </span>
             <input
               type="password"
@@ -110,7 +114,7 @@ export default function ResetPasswordPage() {
             style={{ backgroundColor: ACCENT }}
             onClick={() => void submit()}
           >
-            حفظ كلمة المرور
+            {t.account.savePassword}
           </Button>
         </div>
       )}

@@ -9,10 +9,19 @@ import { ProductCardImageCarousel } from "@/components/shop/ProductCardImageCaro
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { Input, Select } from "@/components/ui/Input";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage, localizedName } from "@/lib/i18n";
+import { resolveCatalogLabel } from "@/lib/i18n/category-labels";
+import {
+  resolveDressColorLabel,
+  resolveDressMaterialLabel,
+} from "@/lib/i18n/attribute-labels";
 
 interface ShopCatalogItem {
   id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   price: number;
   /** Optional — dresses may have sale; veils/robes typically omit. */
   sale_price?: number | null;
@@ -43,6 +52,7 @@ export function ShopCatalog({
   showCategoryFilter = false,
   categoryOptions = [],
 }: ShopCatalogProps) {
+  const { t, locale } = useLocale();
   const [search, setSearch] = useState("");
   const [color, setColor] = useState("");
   const [category, setCategory] = useState("");
@@ -59,54 +69,62 @@ export function ShopCatalog({
       if (color && item.color !== color) return false;
       if (category && item.category !== category) return false;
       if (!q) return true;
+      const display = localizedName(item, locale, item.name_ar).toLowerCase();
       return (
+        display.includes(q) ||
         item.name_ar.toLowerCase().includes(q) ||
+        (item.name_en?.toLowerCase().includes(q) ?? false) ||
+        (item.name_he?.toLowerCase().includes(q) ?? false) ||
         (item.material?.toLowerCase().includes(q) ?? false) ||
         (item.category?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [items, search, color, category]);
+  }, [items, search, color, category, locale]);
 
   return (
     <div className="space-y-8">
       <div className="grid gap-4 md:grid-cols-3">
         <Input
-          label="بحث"
+          label={t.common.search}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="ابحثي بالاسم..."
+          placeholder={t.shop.searchPlaceholder}
         />
         <Select
-          label="اللون"
+          label={t.shop.color}
           value={color}
           onChange={(e) => setColor(e.target.value)}
           options={[
-            { value: "", label: "الكل" },
-            ...colors.map((c) => ({ value: c, label: c })),
+            { value: "", label: t.shop.all },
+            ...colors.map((c) => ({
+              value: c,
+              label: resolveDressColorLabel(c, locale),
+            })),
           ]}
         />
         {showCategoryFilter ? (
           <Select
-            label="التصنيف"
+            label={t.shop.category}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             options={[
-              { value: "", label: "الكل" },
-              ...categoryOptions.map((c) => ({ value: c, label: c })),
+              { value: "", label: t.shop.all },
+              ...categoryOptions.map((c) => ({
+                value: c,
+                label: resolveCatalogLabel(c, locale),
+              })),
             ]}
           />
         ) : (
           <div className="flex items-end text-sm text-muted">
-            {filtered.length} منتج
+            {formatMessage(t.shop.productCount, { count: filtered.length })}
           </div>
         )}
       </div>
 
       {filtered.length === 0 ? (
         <p className="py-16 text-center text-muted">
-          {items.length === 0
-            ? "لا توجد منتجات في هذا القسم بعد"
-            : "لا توجد منتجات مطابقة للبحث أو التصفية"}
+          {items.length === 0 ? t.shop.noProductsInSection : t.shop.noMatch}
         </p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -119,6 +137,7 @@ export function ShopCatalog({
               basePath,
               href,
             });
+            const displayName = localizedName(item, locale, item.name_ar);
             return (
               <motion.article
                 key={`${productKind}-${item.id}`}
@@ -131,7 +150,7 @@ export function ShopCatalog({
                 <div className="relative">
                   <ProductCardImageCarousel
                     images={item.images}
-                    alt={item.name_ar}
+                    alt={displayName}
                     href={href}
                     roundedClassName="rounded-none"
                     priority={i < 3}
@@ -146,7 +165,7 @@ export function ShopCatalog({
                           productKind={productKind}
                           productId={item.id}
                           productSlug={item.id}
-                          productTitle={item.name_ar}
+                          productTitle={displayName}
                           productImageUrl={featuredImage(item.images)}
                         />
                       ),
@@ -155,18 +174,27 @@ export function ShopCatalog({
                   {!item.is_available && (
                     <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-charcoal/50">
                       <span className="rounded-full bg-white px-4 py-2 text-sm font-medium">
-                        غير متوفر
+                        {t.product.outOfStock}
                       </span>
                     </div>
                   )}
                 </div>
                 <Link href={href} className="block p-5">
                   <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
-                    {item.name_ar}
+                    {displayName}
                   </h3>
                   {(item.color || item.material) && (
                     <p className="mt-1 text-sm text-muted">
-                      {item.color || item.material}
+                      {[
+                        item.color
+                          ? resolveDressColorLabel(item.color, locale)
+                          : null,
+                        item.material
+                          ? resolveDressMaterialLabel(item.material, locale)
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   )}
                   <ProductPrice

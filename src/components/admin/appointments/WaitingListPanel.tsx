@@ -9,6 +9,8 @@ export function WaitingListPanel() {
   const [entries, setEntries] = useState<WaitingListEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,12 +37,43 @@ export function WaitingListPanel() {
   }, [load]);
 
   const setStatus = async (id: string, status: string) => {
+    setActionError(null);
     const res = await fetch("/api/admin/appointments/waiting-list", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
-    if (res.ok) void load();
+    if (res.ok) {
+      void load();
+      return;
+    }
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    setActionError(data.error || "فشل تحديث الحالة");
+  };
+
+  const removeEntry = async (entry: WaitingListEntry) => {
+    if (
+      !confirm(
+        `حذف «${entry.name}» من قائمة الانتظار نهائيًا؟ لا يمكن التراجع.`
+      )
+    ) {
+      return;
+    }
+    setActionError(null);
+    setDeletingId(entry.id);
+    try {
+      const res = await fetch(
+        `/api/admin/appointments/waiting-list?id=${encodeURIComponent(entry.id)}`,
+        { method: "DELETE" }
+      );
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "فشل الحذف");
+      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "فشل الحذف");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -48,14 +81,19 @@ export function WaitingListPanel() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-charcoal">قائمة الانتظار</h2>
-          <p className="text-sm text-muted">عند إلغاء موعد يُبلَّغ أول منتظرة (إن توفّر Twilio/Resend)</p>
+          <p className="text-sm text-muted">
+            عند إلغاء موعد يُبلَّغ أول منتظرة (إن توفّر Twilio/Resend)
+          </p>
         </div>
         <Button variant="outline" loading={loading} onClick={() => void load()}>
           تحديث
         </Button>
       </div>
-      {warning && (
-        <p className="text-sm text-amber-800">{warning}</p>
+      {warning && <p className="text-sm text-amber-800">{warning}</p>}
+      {actionError && (
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+          {actionError}
+        </p>
       )}
       {entries.length === 0 ? (
         <p className="text-sm text-muted">لا أحد في الانتظار</p>
@@ -106,6 +144,16 @@ export function WaitingListPanel() {
                         onClick={() => void setStatus(e.id, "cancelled")}
                       >
                         إلغاء
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={deletingId === e.id}
+                        disabled={deletingId !== null}
+                        className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+                        onClick={() => void removeEntry(e)}
+                      >
+                        حذف
                       </Button>
                     </div>
                   </td>

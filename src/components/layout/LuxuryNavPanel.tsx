@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import type { NavChild, NavItem } from "@/lib/categories/nav";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ function ChildCard({
   child: NavChild;
   onNavigate: () => void;
 }) {
+  const { t } = useLocale();
   return (
     <Link
       href={child.href}
@@ -69,7 +71,7 @@ function ChildCard({
           </p>
         ) : null}
         <span className="mt-1.5 inline-block text-[11px] tracking-wide text-gold opacity-0 transition-opacity group-hover:opacity-100">
-          استكشفي
+          {t.nav.explore}
         </span>
       </div>
     </Link>
@@ -83,6 +85,7 @@ function CompactList({
   item: NavItem;
   onNavigate: () => void;
 }) {
+  const { t } = useLocale();
   const rows =
     item.kind === "more" && item.overflowItems?.length
       ? item.overflowItems
@@ -126,7 +129,7 @@ function CompactList({
         onClick={onNavigate}
         className="block border-b border-beige-dark/50 px-4 py-2.5 text-sm font-medium text-gold hover:bg-beige focus-visible:bg-beige focus-visible:outline-none"
       >
-        عرض الكل
+        {t.nav.viewAll}
       </Link>
       {item.children.map((child) => (
         <Link
@@ -150,6 +153,7 @@ function MegaPanel({
   item: NavItem;
   onNavigate: () => void;
 }) {
+  const { t } = useLocale();
   const promo = hasPromo(item);
   const featured = featuredChild(item);
   const promoImage = item.coverImageUrl || featured?.coverImageUrl || null;
@@ -200,7 +204,7 @@ function MegaPanel({
                     onClick={onNavigate}
                     className="text-sm text-gold"
                   >
-                    عرض المجموعة
+                    {t.nav.viewCollection}
                   </Link>
                 </li>
               )}
@@ -241,7 +245,7 @@ function MegaPanel({
             onClick={onNavigate}
             className="shrink-0 text-xs font-medium tracking-wide text-gold transition-colors hover:text-gold-dark"
           >
-            عرض الكل
+            {t.nav.viewAll}
           </Link>
         </div>
         {cards.length > 0 ? (
@@ -280,7 +284,7 @@ function MegaPanel({
               </p>
             ) : null}
             <span className="mt-3 inline-block text-[11px] tracking-[0.15em] text-gold-light">
-              اكتشفي المزيد
+              {t.nav.discoverMore}
             </span>
           </div>
         </Link>

@@ -13,6 +13,8 @@ import {
   getProductPrimaryAction,
   resolveProductCommerceType,
 } from "@/lib/products/primary-action";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { localizedName } from "@/lib/i18n";
 
 interface DressCardProps {
   dress: Dress;
@@ -20,9 +22,11 @@ interface DressCardProps {
 }
 
 export function DressCard({ dress, index = 0 }: DressCardProps) {
+  const { t, locale } = useLocale();
+  const displayName = localizedName(dress, locale, dress.name_ar);
   // Rental presentation from product_type ONLY — never category name
   const commerceType = resolveProductCommerceType(dress.product_type);
-  const primaryAction = getProductPrimaryAction(commerceType);
+  const primaryAction = getProductPrimaryAction(commerceType, "ready_to_buy", locale);
   const isRental = primaryAction.isRentalPresentation;
   const pricing = resolveProductPricing({
     price: dress.price,
@@ -43,7 +47,7 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
       <div className="relative">
         <ProductCardImageCarousel
           images={dress.images}
-          alt={dress.name_ar}
+          alt={displayName}
           href={href}
           roundedClassName="rounded-none"
           priority={index < 3}
@@ -58,7 +62,7 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
                 productKind="dress"
                 productId={dress.id}
                 productSlug={dress.id}
-                productTitle={dress.name_ar}
+                productTitle={displayName}
                 productImageUrl={featuredImage(dress.images)}
               />
             ),
@@ -67,20 +71,23 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
         {!dress.is_available && (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-charcoal/50">
             <span className="rounded-full bg-white px-4 py-2 text-sm font-medium">
-              غير متوفر
+              {t.product.outOfStock}
             </span>
           </div>
         )}
       </div>
       <Link href={href} className="block p-5">
         <h3 className="text-lg font-semibold text-charcoal transition-colors group-hover:text-gold">
-          {dress.name_ar}
+          {displayName}
         </h3>
-        {dress.style && (
-          <p className="mt-1 text-sm text-muted">
-            {getDressStyleLabel(dress.style)}
-          </p>
-        )}
+        {dress.style &&
+          (() => {
+            const styleLabel = getDressStyleLabel(dress.style, locale);
+            if (!styleLabel) return null;
+            return (
+              <p className="mt-1 text-sm text-muted">{styleLabel}</p>
+            );
+          })()}
         {pricing.currentPrice != null && (
           <ProductPrice
             className="mt-3"
@@ -89,7 +96,7 @@ export function DressCard({ dress, index = 0 }: DressCardProps) {
             rentalPrice={dress.rental_price}
             forceRental={isRental && dress.price == null}
             priceSuffix={
-              isRental && !pricing.onSale ? "/ إيجار" : undefined
+              isRental && !pricing.onSale ? t.product.rentalSuffix : undefined
             }
             showSaleBadge={false}
           />

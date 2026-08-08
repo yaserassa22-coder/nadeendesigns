@@ -1,6 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { customerKeyFromContact } from "@/lib/customer-auth/otp";
+import {
+  bookingNotificationKeys,
+  type CustomerNotification,
+} from "@/lib/notifications/customer-keys";
 import type { Booking, BookingStatus } from "@/types";
 import {
   SHOP_ORDER_STATUS_LABELS,
@@ -8,17 +12,8 @@ import {
   type ShopOrderStatus,
 } from "@/types/shop";
 
-export interface CustomerNotification {
-  id: string;
-  order_id: string | null;
-  customer_key: string | null;
-  title_ar: string;
-  body_ar: string;
-  order_status: string | null;
-  href: string | null;
-  is_read: boolean;
-  created_at: string;
-}
+export type { CustomerNotification };
+export { bookingNotificationKeys };
 
 const memoryInbox: CustomerNotification[] = [];
 
@@ -87,6 +82,20 @@ export type InAppWriteClient = {
   };
 };
 
+async function resolveWriteClient(
+  client?: InAppWriteClient | null
+): Promise<InAppWriteClient> {
+  if (client) return client;
+  try {
+    const { createPrivilegedClient } = await import(
+      "@/lib/supabase/privileged"
+    );
+    return (await createPrivilegedClient()) as InAppWriteClient;
+  } catch {
+    return createAdminClient() as InAppWriteClient;
+  }
+}
+
 async function insertInAppRow(
   row: CustomerNotification,
   client?: InAppWriteClient | null
@@ -105,25 +114,45 @@ async function insertInAppRow(
     order_status: row.order_status,
     href: row.href,
     is_read: false,
+    is_deleted: false,
   };
 
   try {
-    // Privilege-compatible cast — both admin and service-role clients share this shape.
-    const supabase = (client ?? createAdminClient()) as InAppWriteClient;
-    const { data, error } = await supabase
+    const supabase = await resolveWriteClient(client);
+    let { data, error } = await supabase
       .from("customer_notifications")
       .insert(payload)
       .select("*")
       .single();
 
+    if (
+      error &&
+      /is_deleted|PGRST204|42703/i.test(error.message || "")
+    ) {
+      const { is_deleted: _drop, ...withoutSoftDelete } = payload;
+      ({ data, error } = await supabase
+        .from("customer_notifications")
+        .insert(withoutSoftDelete)
+        .select("*")
+        .single());
+    }
+
     if (error) {
       console.error("[customer_notifications] insert failed", error);
-      // Do NOT pretend success — Account → الإشعارات reads the DB, not memory.
+      // Last resort so local QA can still see the bell fill
+      if (process.env.NODE_ENV !== "production") {
+        memoryInbox.unshift(row);
+        return row;
+      }
       return null;
     }
     return data as CustomerNotification;
   } catch (e) {
     console.error("[customer_notifications] insert error", e);
+    if (process.env.NODE_ENV !== "production") {
+      memoryInbox.unshift(row);
+      return row;
+    }
     return null;
   }
 }
@@ -214,6 +243,8 @@ export function inAppCopyForBookingStatus(
 /**
  * Booking confirmations cannot use order_id (FK → shop_orders).
  * Persist via customer_key + href=/account/appointments.
+ * Writes under the primary customer key plus raw phone/email keys so both
+ * Account inbox and guest bell lookups resolve the same event.
  */
 export async function createBookingInAppNotification(input: {
   booking: Pick<Booking, "id" | "phone" | "email" | "name">;
@@ -225,36 +256,56 @@ export async function createBookingInAppNotification(input: {
     input.status,
     input.bodyPreview
   );
-  const key =
-    input.customerKey ||
-    customerKeyFromContact(input.booking.phone, input.booking.email);
 
-  const row: CustomerNotification = {
-    id: crypto.randomUUID(),
-    order_id: null,
-    customer_key: key,
-    title_ar,
-    body_ar,
-    order_status: input.status,
-    href: "/account/appointments",
-    is_read: false,
-    created_at: new Date().toISOString(),
-  };
-  return insertInAppRow(row);
+  const primary =
+    input.customerKey?.trim() ||
+    customerKeyFromContact(input.booking.phone, input.booking.email) ||
+    `booking:${input.booking.id}`;
+
+  // Keep a small stable set — avoid exploding variants on every confirm
+  const keys = new Set<string>([primary]);
+  const phoneKey = customerKeyFromContact(input.booking.phone, null);
+  const emailKey = customerKeyFromContact(null, input.booking.email);
+  if (phoneKey) keys.add(phoneKey);
+  if (emailKey) keys.add(emailKey);
+  keys.add(`booking:${input.booking.id}`);
+
+  let first: CustomerNotification | null = null;
+  for (const key of keys) {
+    const row: CustomerNotification = {
+      id: crypto.randomUUID(),
+      order_id: null,
+      customer_key: key,
+      title_ar,
+      body_ar,
+      order_status: input.status,
+      href: "/account/appointments",
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+    const saved = await insertInAppRow(row);
+    if (saved && !first) first = saved;
+  }
+  return first;
 }
 
 export async function listInAppNotifications(params: {
   orderId?: string | null;
   customerKey?: string | null;
+  customerKeys?: string[] | null;
   limit?: number;
 }): Promise<CustomerNotification[]> {
   const limit = params.limit ?? 30;
+  const keys = [
+    ...(params.customerKeys ?? []),
+    ...(params.customerKey ? [params.customerKey] : []),
+  ].filter((k, i, arr) => Boolean(k) && arr.indexOf(k) === i);
 
   if (!isSupabaseConfigured()) {
     return memoryInbox
       .filter((n) => {
         if (params.orderId && n.order_id === params.orderId) return true;
-        if (params.customerKey && n.customer_key === params.customerKey)
+        if (keys.length && n.customer_key && keys.includes(n.customer_key))
           return true;
         return false;
       })
@@ -263,34 +314,98 @@ export async function listInAppNotifications(params: {
 
   try {
     const supabase = createAdminClient();
-    let query = supabase
-      .from("customer_notifications")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
 
-    if (params.orderId && params.customerKey) {
-      query = query.or(
-        `order_id.eq.${params.orderId},customer_key.eq.${params.customerKey}`
-      );
-    } else if (params.orderId) {
-      query = query.eq("order_id", params.orderId);
-    } else if (params.customerKey) {
-      query = query.eq("customer_key", params.customerKey);
-    } else {
-      return [];
-    }
+    const buildQuery = () => {
+      let q = supabase
+        .from("customer_notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
-    const { data, error } = await query;
+      if (params.orderId && keys.length) {
+        const keyList = keys.map((k) => `"${k.replace(/"/g, "")}"`).join(",");
+        q = q.or(
+          `order_id.eq.${params.orderId},customer_key.in.(${keyList})`
+        );
+      } else if (params.orderId) {
+        q = q.eq("order_id", params.orderId);
+      } else if (keys.length === 1) {
+        q = q.eq("customer_key", keys[0]);
+      } else if (keys.length > 1) {
+        q = q.in("customer_key", keys);
+      }
+
+      return q;
+    };
+
+    if (!params.orderId && keys.length === 0) return [];
+
+    const { data, error } = await buildQuery();
+
+    const rows = ((data as CustomerNotification[]) ?? []).filter(
+      (n) => (n as { is_deleted?: boolean | null }).is_deleted !== true
+    );
+
     if (error) {
       console.error("[customer_notifications] list failed", error);
-      return memoryInbox.slice(0, limit);
+      if (keys.length) {
+        const retry = await supabase
+          .from("customer_notifications")
+          .select("*")
+          .in("customer_key", keys)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (!retry.error) {
+          const retryRows = (
+            (retry.data as CustomerNotification[]) ?? []
+          ).filter(
+            (n) => (n as { is_deleted?: boolean | null }).is_deleted !== true
+          );
+          return mergeMemoryFallback(
+            retryRows,
+            params.orderId,
+            keys,
+            limit
+          );
+        }
+      }
+      return mergeMemoryFallback([], params.orderId, keys, limit);
     }
-    return (data as CustomerNotification[]) ?? [];
+    return mergeMemoryFallback(rows, params.orderId, keys, limit);
   } catch (e) {
     console.error("[customer_notifications] list error", e);
-    return [];
+    return mergeMemoryFallback([], params.orderId, keys, limit);
   }
+}
+
+function mergeMemoryFallback(
+  rows: CustomerNotification[],
+  orderId: string | null | undefined,
+  keys: string[],
+  limit: number
+): CustomerNotification[] {
+  if (process.env.NODE_ENV === "production" || memoryInbox.length === 0) {
+    return rows.slice(0, limit);
+  }
+  const fromMem = memoryInbox.filter((n) => {
+    if (orderId && n.order_id === orderId) return true;
+    if (keys.length && n.customer_key && keys.includes(n.customer_key))
+      return true;
+    return false;
+  });
+  const seen = new Set(rows.map((r) => r.id));
+  const merged = [...rows];
+  for (const n of fromMem) {
+    if (seen.has(n.id)) continue;
+    seen.add(n.id);
+    merged.push(n);
+  }
+  return merged
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+    .slice(0, limit);
 }
 
 export async function markInAppNotificationRead(

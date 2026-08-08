@@ -175,21 +175,6 @@ const PENDING_ORDER_STATUSES: ShopOrderStatus[] = ["pending", "under_review"];
 const COMPLETED_ORDER_STATUSES: ShopOrderStatus[] = ["delivered", "completed"];
 const REVENUE_EXCLUDED: ShopOrderStatus[] = ["cancelled"];
 
-const MONTH_LABELS_AR = [
-  "يناير",
-  "فبراير",
-  "مارس",
-  "أبريل",
-  "مايو",
-  "يونيو",
-  "يوليو",
-  "أغسطس",
-  "سبتمبر",
-  "أكتوبر",
-  "نوفمبر",
-  "ديسمبر",
-];
-
 export const DATE_RANGE_PRESETS: {
   value: DateRangePreset;
   label: string;
@@ -364,9 +349,8 @@ function dayKey(d: Date): string {
 }
 
 function monthLabel(key: string): string {
-  const [y, m] = key.split("-");
-  const idx = Number(m) - 1;
-  return `${MONTH_LABELS_AR[idx] ?? m} ${y}`;
+  // Stable machine key (YYYY-MM); DashboardCharts localizes for the active locale.
+  return key;
 }
 
 function dayLabel(key: string): string {
@@ -762,8 +746,8 @@ export function computeCharts(
       value: bookingsMonth.get(k) ?? 0,
     })),
     deliveryVsPickup: [
-      { name: "توصيل", count: delivery },
-      { name: "استلام من البوتيك", count: pickup },
+      { name: "delivery", count: delivery },
+      { name: "pickup", count: pickup },
     ],
     mostOrderedProducts: [...productCounts.entries()]
       .map(([name, count]) => ({ name, count }))

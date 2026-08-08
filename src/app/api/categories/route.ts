@@ -127,6 +127,8 @@ export async function POST(request: Request) {
       parsed.product_kind ?? inferProductKind();
     const body = {
       name_ar: parsed.name_ar,
+      name_en: parsed.name_en ?? null,
+      name_he: parsed.name_he ?? null,
       slug: parsed.slug,
       parent_id: parsed.parent_id ?? null,
       sort_order: parsed.sort_order ?? 0,
@@ -154,7 +156,7 @@ export async function POST(request: Request) {
 
     if (
       error &&
-      /product_kind|seo_|visible_in_navigation|show_on_homepage|featured_collection|PGRST204|42703/i.test(
+      /product_kind|seo_|visible_in_navigation|show_on_homepage|featured_collection|name_en|name_he|PGRST204|42703/i.test(
         `${error.message}${error.code}`
       )
     ) {

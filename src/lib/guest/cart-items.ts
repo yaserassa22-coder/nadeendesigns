@@ -90,6 +90,7 @@ export function sanitizeGuestCartItems(raw: unknown[]): CartItem[] {
         : crypto.randomUUID();
 
     const persFee = Number(o.personalization_fee);
+    const giftFee = Number(o.gift_fee);
 
     out.push({
       line_id: lineId,
@@ -117,6 +118,7 @@ export function sanitizeGuestCartItems(raw: unknown[]): CartItem[] {
       extra_services: sanitizeExtraServices(o.extra_services),
       personalization_fee:
         Number.isFinite(persFee) && persFee > 0 ? persFee : null,
+      gift_fee: Number.isFinite(giftFee) && giftFee > 0 ? giftFee : null,
       requires_shipping:
         typeof o.requires_shipping === "boolean"
           ? o.requires_shipping

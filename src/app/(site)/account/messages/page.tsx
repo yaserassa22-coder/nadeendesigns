@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
@@ -11,6 +14,7 @@ type Msg = {
 };
 
 export default function AccountMessagesPage() {
+  const { t, locale } = useLocale();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [stub, setStub] = useState(false);
@@ -24,13 +28,13 @@ export default function AccountMessagesPage() {
       const res = await fetch("/api/account/messages");
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(d.error || "تعذّر تحميل الرسائل");
+        setError(d.error || t.account.messagesLoadFailed);
         return;
       }
       setMessages(d.messages ?? []);
       setStub(Boolean(d.stub));
     } catch {
-      setError("تعذّر تحميل الرسائل. تحققي من الاتصال.");
+      setError(t.account.messagesLoadFailed);
     } finally {
       setLoading(false);
     }
@@ -63,13 +67,13 @@ export default function AccountMessagesPage() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(d.error || "تعذّر إرسال الرسالة");
+        throw new Error(d.error || t.account.messageSendFailed);
       }
       setText("");
-      setSuccess("تم إرسال رسالتكِ بنجاح. سنرد عليكِ في أقرب وقت.");
+      setSuccess(t.account.messageSuccess);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+      setError(e instanceof Error ? e.message : t.common.errorGeneric);
     } finally {
       setSending(false);
     }
@@ -81,12 +85,12 @@ export default function AccountMessagesPage() {
     <div className="flex h-[28rem] flex-col rounded-2xl border border-beige-dark bg-white">
       {stub && (
         <p className="border-b border-beige-dark px-4 py-2 text-xs text-muted">
-          محادثة البوتيك جاهزة بعد ترحيل قاعدة البيانات — المرفقات لاحقاً.
+          {t.account.messagesMigrationHint}
         </p>
       )}
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {!messages.length && (
-          <p className="text-center text-sm text-muted">ابدئي المحادثة مع البوتيك.</p>
+          <p className="text-center text-sm text-muted">{t.account.startConversation}</p>
         )}
         {messages.map((m) => {
           const fromCustomer = m.sender === "customer";
@@ -100,7 +104,7 @@ export default function AccountMessagesPage() {
               }
             >
               <p className="mb-1 text-[11px] font-medium text-muted">
-                {fromCustomer ? "أنتِ" : "البوتيك"}
+                {fromCustomer ? t.account.you : t.account.boutique}
               </p>
               <p className="whitespace-pre-wrap">{m.body}</p>
             </div>
@@ -124,7 +128,7 @@ export default function AccountMessagesPage() {
       <div className="flex gap-2 border-t border-beige-dark p-3">
         <input
           className="flex-1 rounded-xl border border-beige-dark px-3 py-2 text-sm"
-          placeholder="اكتبني رسالتك…"
+          placeholder={t.account.messagePlaceholder}
           value={text}
           disabled={sending}
           onChange={(e) => setText(e.target.value)}
@@ -137,9 +141,7 @@ export default function AccountMessagesPage() {
           loading={sending}
           disabled={sending || !text.trim()}
           onClick={() => void send()}
-        >
-          إرسال
-        </Button>
+        >{t.common.send}</Button>
       </div>
     </div>
   );

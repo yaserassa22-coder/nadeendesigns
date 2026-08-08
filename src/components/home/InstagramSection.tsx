@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Camera, ExternalLink, Sparkles } from "lucide-react";
@@ -11,6 +14,7 @@ import {
 } from "@/lib/constants";
 
 export function InstagramSection() {
+  const { t } = useLocale();
   return (
     <section className="relative overflow-hidden py-20 md:py-28">
       <div className="absolute inset-0 luxury-gradient" />
@@ -33,13 +37,12 @@ export function InstagramSection() {
           </p>
 
           <h2 className="mt-4 text-3xl font-bold text-charcoal md:text-4xl lg:text-5xl">
-            تابعوا {SITE_NAME} على إنستغرام
+            {formatMessage(t.home.igTitle, { name: SITE_NAME })}
           </h2>
           <div className="decorative-line mx-auto mt-5 w-24" />
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-            تابعوا أحدث فساتين الزفاف، التصاميم الحصرية، وآخر أعمال{" "}
-            {SITE_NAME} عبر حسابنا الرسمي على إنستغرام.
+            {formatMessage(t.home.igBody, { name: SITE_NAME })}
           </p>
 
           <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gold/25 bg-white/70 px-5 py-2.5 backdrop-blur">
@@ -59,7 +62,7 @@ export function InstagramSection() {
               rel="noopener noreferrer"
             >
               <Button size="lg" className="shadow-lg shadow-gold/20">
-                زيارة حسابنا على إنستغرام
+                {t.home.igVisit}
                 <ExternalLink className="h-4 w-4" />
               </Button>
             </Link>

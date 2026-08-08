@@ -1,21 +1,27 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { CustomDesignQuestionnaire } from "@/components/forms/CustomDesignQuestionnaire";
+import { getStorefrontLocale } from "@/lib/i18n/server";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "تصميم فستان خاص",
-  description:
-    "استشارة تصميم فستان زفاف خاص — أخبِرينا عن رؤيتكِ لنصمم لكِ قطعة حصرية من Nadeen Designs.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.pages.customDesign.title,
+    description: t.pages.customDesign.metaDescription,
+  };
+}
 
-export default function CustomDesignPage() {
+export default async function CustomDesignPage() {
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+
   return (
     <>
       <PageHero
-        title="تصميم فستان خاص"
-        description={
-          "ليس كل فستان يُصنع ليُرتدى... بعض الفساتين تُصنع لتُخلّد ذكرى.\n\nفي Nadeen Designs نصمم لكِ فستانًا حصريًا يعكس شخصيتكِ، ويُنفذ بعناية فائقة ليكون قطعةً لا تشبه سواها."
-        }
+        title={t.pages.customDesign.title}
+        description={t.pages.customDesign.heroDescription}
       />
       <section className="relative overflow-hidden py-16 md:py-24">
         <div className="absolute inset-0 luxury-gradient" />

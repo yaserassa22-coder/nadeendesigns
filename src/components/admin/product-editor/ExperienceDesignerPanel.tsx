@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import { GlobalServicesManager } from "@/components/admin/GlobalServicesManager";
 import {
+  DEFAULT_GIFT_UI,
   DEFAULT_PERSONALIZATION_UI,
   DEFAULT_PURCHASE_UI,
   EXPERIENCE_SECTION_LABELS_AR,
@@ -183,8 +184,10 @@ export function ExperienceDesignerPanel({
 }: Props) {
   const config = normalizeProductExperienceConfig(value);
   const persUi = config.personalization_ui ?? DEFAULT_PERSONALIZATION_UI;
+  const giftUi = config.gift_ui ?? DEFAULT_GIFT_UI;
   const purchaseUi = config.purchase_ui ?? DEFAULT_PURCHASE_UI;
   const persSection = config.sections.find((s) => s.id === "personalization")!;
+  const giftSection = config.sections.find((s) => s.id === "gift_options")!;
   const summarySection = config.sections.find((s) => s.id === "summary")!;
 
   const [templates, setTemplates] = useState<ExperienceTemplateRow[]>([]);
@@ -236,6 +239,13 @@ export function ExperienceDesignerPanel({
     onChange({
       ...config,
       personalization_ui: { ...persUi, ...patch },
+    });
+  };
+
+  const patchGiftUi = (patch: Partial<typeof giftUi>) => {
+    onChange({
+      ...config,
+      gift_ui: { ...giftUi, ...patch },
     });
   };
 
@@ -526,7 +536,7 @@ export function ExperienceDesignerPanel({
               />
             </div>
             <Input
-              label="سعر إضافي"
+              label="سعر إضافي (اختياري — يتجاوز مكتبة الخدمات)"
               type="number"
               min={0}
               step="0.01"
@@ -538,6 +548,9 @@ export function ExperienceDesignerPanel({
                 })
               }
             />
+            <p className="sm:col-span-2 text-xs text-muted">
+              إن بقي 0، يُستخدم سعر «تخصيص الكتابة» من إعدادات المتجر → مكتبة الخدمات.
+            </p>
             <label className="flex items-center gap-2 self-end pb-2 text-sm">
               <input
                 type="checkbox"
@@ -572,6 +585,71 @@ export function ExperienceDesignerPanel({
         ) : null}
       </Card>
       ) : null}
+
+      <Card
+        title="تغليف وإهداء"
+        action={
+          <LuxuryToggle
+            checked={giftSection.enabled}
+            onChange={(enabled) => patchSection("gift_options", { enabled })}
+            label="مفعّل"
+          />
+        }
+      >
+        {giftSection.enabled ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="سعر التغليف"
+              type="number"
+              min={0}
+              step="0.01"
+              dir="ltr"
+              value={String(giftUi.wrap_price)}
+              onChange={(e) =>
+                patchGiftUi({
+                  wrap_price: Math.max(0, Number(e.target.value) || 0),
+                })
+              }
+            />
+            <Input
+              label="سعر بطاقة الإهداء"
+              type="number"
+              min={0}
+              step="0.01"
+              dir="ltr"
+              value={String(giftUi.card_price)}
+              onChange={(e) =>
+                patchGiftUi({
+                  card_price: Math.max(0, Number(e.target.value) || 0),
+                })
+              }
+            />
+            <div className="sm:col-span-2 rounded-xl border border-gold/25 bg-ivory/70 p-4">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gold">
+                <Gift className="h-3.5 w-3.5" /> الرسوم
+              </p>
+              <ul className="space-y-1 text-xs text-muted" dir="ltr">
+                <li>
+                  تغليف:{" "}
+                  {giftUi.wrap_price > 0
+                    ? `+${formatPrice(giftUi.wrap_price)}`
+                    : "مجاني"}
+                </li>
+                <li>
+                  بطاقة:{" "}
+                  {giftUi.card_price > 0
+                    ? `+${formatPrice(giftUi.card_price)}`
+                    : "مجاني"}
+                </li>
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted">
+            فعّلي القسم لإدخال رسوم التغليف وبطاقة الإهداء يدوياً.
+          </p>
+        )}
+      </Card>
 
       {/* Purchase chrome visibility */}
       <Card title="الشراء">

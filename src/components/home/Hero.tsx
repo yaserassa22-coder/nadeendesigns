@@ -4,7 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { SITE_NAME } from "@/lib/constants";
-import { splitTitleEmphasis } from "@/lib/cms/locale-text";
+import { pickCmsOrUi, splitTitleEmphasis } from "@/lib/cms/locale-text";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { getDictionary } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import type { SiteSettings } from "@/types";
 
@@ -12,26 +14,103 @@ interface HeroProps {
   settings: Pick<
     SiteSettings,
     | "hero_title_ar"
+    | "hero_title_he"
+    | "hero_title_en"
     | "hero_title_emphasis_ar"
+    | "hero_title_emphasis_he"
+    | "hero_title_emphasis_en"
     | "hero_subtitle_ar"
+    | "hero_subtitle_he"
+    | "hero_subtitle_en"
     | "hero_image_url"
     | "hero_image_alt_ar"
+    | "hero_image_alt_he"
+    | "hero_image_alt_en"
     | "hero_cta_primary_label_ar"
+    | "hero_cta_primary_label_he"
+    | "hero_cta_primary_label_en"
     | "hero_cta_primary_href"
     | "hero_cta_secondary_label_ar"
+    | "hero_cta_secondary_label_he"
+    | "hero_cta_secondary_label_en"
     | "hero_cta_secondary_href"
   >;
 }
 
 export function Hero({ settings }: HeroProps) {
-  const title = settings.hero_title_ar;
-  const emphasis = settings.hero_title_emphasis_ar;
+  const { locale, dir } = useLocale();
+  const ar = getDictionary("ar").home;
+  const he = getDictionary("he").home;
+  const en = getDictionary("en").home;
+
+  const title = pickCmsOrUi(
+    {
+      ar: settings.hero_title_ar,
+      he: settings.hero_title_he,
+      en: settings.hero_title_en,
+    },
+    locale,
+    { ar: ar.heroTitle, he: he.heroTitle, en: en.heroTitle }
+  );
+  const emphasis = pickCmsOrUi(
+    {
+      ar: settings.hero_title_emphasis_ar,
+      he: settings.hero_title_emphasis_he,
+      en: settings.hero_title_emphasis_en,
+    },
+    locale,
+    { ar: ar.heroEmphasis, he: he.heroEmphasis, en: en.heroEmphasis }
+  );
+  const subtitle = pickCmsOrUi(
+    {
+      ar: settings.hero_subtitle_ar,
+      he: settings.hero_subtitle_he,
+      en: settings.hero_subtitle_en,
+    },
+    locale,
+    { ar: ar.heroSubtitle, he: he.heroSubtitle, en: en.heroSubtitle }
+  );
+  const imageAlt = pickCmsOrUi(
+    {
+      ar: settings.hero_image_alt_ar,
+      he: settings.hero_image_alt_he,
+      en: settings.hero_image_alt_en,
+    },
+    locale,
+    { ar: SITE_NAME, he: SITE_NAME, en: SITE_NAME }
+  );
+  const ctaPrimary = pickCmsOrUi(
+    {
+      ar: settings.hero_cta_primary_label_ar,
+      he: settings.hero_cta_primary_label_he,
+      en: settings.hero_cta_primary_label_en,
+    },
+    locale,
+    { ar: ar.heroCtaPrimary, he: he.heroCtaPrimary, en: en.heroCtaPrimary }
+  );
+  const ctaSecondary = pickCmsOrUi(
+    {
+      ar: settings.hero_cta_secondary_label_ar,
+      he: settings.hero_cta_secondary_label_he,
+      en: settings.hero_cta_secondary_label_en,
+    },
+    locale,
+    {
+      ar: ar.heroCtaSecondary,
+      he: he.heroCtaSecondary,
+      en: en.heroCtaSecondary,
+    }
+  );
+
   const split = splitTitleEmphasis(title, emphasis);
   const imageUrl = settings.hero_image_url?.trim() || "/hero.webp";
+  const displayFont =
+    locale === "en"
+      ? "font-[family-name:var(--font-cormorant)]"
+      : "font-display-ar";
 
   return (
     <section className="relative flex min-h-[100svh] items-end overflow-hidden md:items-center">
-      {/* Full-bleed hero image */}
       <motion.div
         initial={{ opacity: 0, scale: 1.04 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -40,7 +119,7 @@ export function Hero({ settings }: HeroProps) {
       >
         <Image
           src={imageUrl}
-          alt={settings.hero_image_alt_ar}
+          alt={imageAlt}
           fill
           priority
           quality={85}
@@ -49,7 +128,6 @@ export function Hero({ settings }: HeroProps) {
         />
       </motion.div>
 
-      {/* Soft beige / ivory overlays */}
       <div className="absolute inset-0 bg-gradient-to-t from-[#2c2419]/55 via-[#f0ebe3]/35 to-[#faf8f5]/45" />
       <div className="absolute inset-0 bg-gradient-to-l from-transparent via-[#faf8f5]/15 to-[#faf8f5]/55" />
       <div className="absolute inset-0 bg-[#f0ebe3]/20 mix-blend-soft-light" />
@@ -74,18 +152,22 @@ export function Hero({ settings }: HeroProps) {
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.8, delay: 0.55 }}
-            className="mt-5 h-px w-24 origin-right bg-gold md:w-28"
+            className={`mt-5 h-px w-24 bg-gold md:w-28 ${
+              dir === "rtl" ? "origin-right" : "origin-left"
+            }`}
           />
 
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, delay: 0.5 }}
-            className="font-display-ar mt-7 max-w-xl text-[2.125rem] font-normal leading-[1.55] tracking-[0.02em] text-charcoal sm:text-[2.5rem] sm:leading-[1.5] md:text-[3.15rem] md:leading-[1.45] lg:text-[3.75rem] lg:leading-[1.4]"
+            className={`${displayFont} mt-7 max-w-xl text-[2.125rem] font-normal leading-[1.55] tracking-[0.02em] text-charcoal sm:text-[2.5rem] sm:leading-[1.5] md:text-[3.15rem] md:leading-[1.45] lg:text-[3.75rem] lg:leading-[1.4]`}
           >
             {split ? (
               <>
-                {split.before}
+                {split.before.trim() ? (
+                  <span className="block">{split.before.trimEnd()}</span>
+                ) : null}
                 <span className="relative inline-block font-bold">
                   {split.emphasis}
                   <span
@@ -106,7 +188,7 @@ export function Hero({ settings }: HeroProps) {
             transition={{ duration: 0.85, delay: 0.65 }}
             className="mt-7 max-w-lg whitespace-pre-line text-base leading-relaxed text-charcoal/75 md:text-lg"
           >
-            {settings.hero_subtitle_ar}
+            {subtitle}
           </motion.p>
 
           <motion.div
@@ -117,7 +199,7 @@ export function Hero({ settings }: HeroProps) {
           >
             <Link href={settings.hero_cta_primary_href || "/wedding-dresses"}>
               <Button size="lg" className="min-w-[10rem] shadow-lg shadow-gold/25">
-                {settings.hero_cta_primary_label_ar}
+                {ctaPrimary}
               </Button>
             </Link>
             <Link href={settings.hero_cta_secondary_href || "/booking"}>
@@ -126,7 +208,7 @@ export function Hero({ settings }: HeroProps) {
                 size="lg"
                 className="min-w-[10rem] border-gold bg-ivory/70 text-gold backdrop-blur-sm hover:bg-gold hover:text-white"
               >
-                {settings.hero_cta_secondary_label_ar}
+                {ctaSecondary}
               </Button>
             </Link>
           </motion.div>

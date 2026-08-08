@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
@@ -12,6 +15,7 @@ type Review = {
 };
 
 export default function AccountReviewsPage() {
+  const { t, locale } = useLocale();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(5);
   const [title, setTitle] = useState("");
@@ -26,12 +30,12 @@ export default function AccountReviewsPage() {
       const res = await fetch("/api/account/reviews");
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(d.error || "تعذّر تحميل المراجعات");
+        setError(d.error || t.account.reviewLoadFailed);
         return;
       }
       setReviews(d.reviews ?? []);
     } catch {
-      setError("تعذّر تحميل المراجعات. تحققي من الاتصال.");
+      setError(t.account.reviewLoadFailed);
     } finally {
       setLoading(false);
     }
@@ -57,15 +61,15 @@ export default function AccountReviewsPage() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(d.error || "تعذّر إرسال المراجعة");
+        throw new Error(d.error || t.account.reviewSubmitFailed);
       }
       setTitle("");
       setBody("");
       setRating(5);
-      setSuccess("تم إرسال مراجعتكِ بنجاح. شكراً لثقتكِ.");
+      setSuccess(t.account.reviewSuccess);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+      setError(e instanceof Error ? e.message : t.common.errorGeneric);
     } finally {
       setSubmitting(false);
     }
@@ -79,11 +83,11 @@ export default function AccountReviewsPage() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(d.error || "تعذّر حذف المراجعة");
+        throw new Error(d.error || t.account.reviewDeleteFailed);
       }
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذّر حذف المراجعة");
+      setError(e instanceof Error ? e.message : t.account.reviewDeleteFailed);
     }
   }
 
@@ -106,20 +110,18 @@ export default function AccountReviewsPage() {
               type="button"
               className="mt-2 text-xs text-red-700/80"
               onClick={() => void remove(r.id)}
-            >
-              حذف
-            </button>
+            >{t.common.delete}</button>
           </div>
         ))}
         {!reviews.length && (
-          <p className="text-sm text-muted">لا مراجعات بعد.</p>
+          <p className="text-sm text-muted">{t.account.noReviews}</p>
         )}
       </div>
 
       <div className="space-y-3 rounded-2xl border border-beige-dark bg-white p-5">
-        <h3 className="font-medium">مراجعة جديدة</h3>
+        <h3 className="font-medium">{t.account.newReview}</h3>
         <label className="block text-sm text-muted">
-          التقييم
+          {t.account.rating}
           <select
             className="mt-1 w-full rounded-xl border border-beige-dark px-3 py-2"
             value={rating}
@@ -134,21 +136,21 @@ export default function AccountReviewsPage() {
           </select>
         </label>
         <input
-          placeholder="عنوان"
+          placeholder={t.account.reviewTitlePlaceholder}
           className="w-full rounded-xl border border-beige-dark px-3 py-2.5 text-sm"
           value={title}
           disabled={submitting}
           onChange={(e) => setTitle(e.target.value)}
         />
         <textarea
-          placeholder="تفاصيل تجربتك"
+          placeholder={t.account.reviewBodyPlaceholder}
           className="w-full rounded-xl border border-beige-dark px-3 py-2.5 text-sm"
           rows={3}
           value={body}
           disabled={submitting}
           onChange={(e) => setBody(e.target.value)}
         />
-        <p className="text-xs text-muted">رفع الصور — جاهز لاحقاً عبر روابط.</p>
+        <p className="text-xs text-muted">{t.account.reviewPhotosHint}</p>
         {error ? (
           <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
         ) : null}
@@ -163,7 +165,7 @@ export default function AccountReviewsPage() {
           disabled={submitting}
           onClick={() => void submit()}
         >
-          إرسال للمراجعة
+          {t.account.submitReview}
         </Button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { Archive, ArchiveRestore, RotateCcw, Trash2 } from "lucide-react";
 import type { LifecycleModule } from "@/lib/admin/lifecycle-types";
 import { postLifecycle } from "@/lib/admin/lifecycle-client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type RowLifecycleActionsProps = {
   module: LifecycleModule;
@@ -17,6 +18,8 @@ type RowLifecycleActionsProps = {
   allowRestore?: boolean;
   /** When false, hide soft delete (manager/staff). Default false. */
   allowSoftDelete?: boolean;
+  /** Optional confirm prompt before soft delete (e.g. orders). */
+  confirmSoftDelete?: string;
 };
 
 export function RowLifecycleActions({
@@ -29,8 +32,19 @@ export function RowLifecycleActions({
   allowArchive = false,
   allowRestore = false,
   allowSoftDelete = false,
+  confirmSoftDelete,
 }: RowLifecycleActionsProps) {
+  const { t } = useLocale();
+  const lu = t.admin.lifecycleUi;
+
   const run = async (action: "archive" | "unarchive" | "soft_delete") => {
+    if (
+      action === "soft_delete" &&
+      confirmSoftDelete &&
+      !window.confirm(confirmSoftDelete)
+    ) {
+      return;
+    }
     const result = await postLifecycle({ action, module, id });
     if (!result.ok) {
       onError?.(result.error);
@@ -50,7 +64,7 @@ export function RowLifecycleActions({
           <button
             type="button"
             disabled={busy}
-            title="إلغاء الأرشفة"
+            title={lu.unarchive}
             onClick={() => void run("unarchive")}
             className="rounded-lg p-2 text-muted hover:bg-beige hover:text-charcoal disabled:opacity-50"
           >
@@ -61,7 +75,7 @@ export function RowLifecycleActions({
         <button
           type="button"
           disabled={busy}
-          title="أرشفة"
+          title={lu.archive}
           onClick={() => void run("archive")}
           className="rounded-lg p-2 text-muted hover:bg-beige hover:text-charcoal disabled:opacity-50"
         >
@@ -72,7 +86,7 @@ export function RowLifecycleActions({
         <button
           type="button"
           disabled={busy}
-          title="نقل إلى سلة المحذوفات"
+          title={lu.softDelete}
           onClick={() => void run("soft_delete")}
           className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
         >
@@ -94,10 +108,13 @@ export function RestoreButton({
   onRestored: () => void;
   onError?: (message: string) => void;
 }) {
+  const { t } = useLocale();
+  const restoreLabel = t.admin.lifecycleUi.restore;
+
   return (
     <button
       type="button"
-      title="استعادة"
+      title={restoreLabel}
       onClick={async () => {
         const result = await postLifecycle({
           action: "restore",
@@ -113,7 +130,7 @@ export function RestoreButton({
       className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gold hover:bg-beige"
     >
       <RotateCcw className="h-3.5 w-3.5" />
-      استعادة
+      {restoreLabel}
     </button>
   );
 }

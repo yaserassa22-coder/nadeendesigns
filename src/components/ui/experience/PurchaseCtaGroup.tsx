@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ShoppingBag, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export type PurchaseCtaSize = "sm" | "md" | "lg";
 
@@ -42,8 +43,8 @@ export function PurchaseCtaGroup({
   wishlist,
   onAddToCart,
   onBuyNow,
-  addLabel = "أضيفي للسلة",
-  buyLabel = "شراء الآن",
+  addLabel,
+  buyLabel,
   disabled = false,
   size = "lg",
   className,
@@ -52,6 +53,9 @@ export function PurchaseCtaGroup({
   showAddToCart = true,
   showBuyNow = true,
 }: Props) {
+  const { t } = useLocale();
+  const add = addLabel ?? t.productExtras.addToCart;
+  const buy = buyLabel ?? t.productExtras.buyNow;
   const h = heightClass[size];
 
   return (
@@ -87,7 +91,7 @@ export function PurchaseCtaGroup({
             )}
           >
             <Zap className={iconClass} strokeWidth={1.75} />
-            {buyLabel}
+            {buy}
           </Button>
         ) : null}
 
@@ -103,7 +107,7 @@ export function PurchaseCtaGroup({
             )}
           >
             <ShoppingBag className={iconClass} strokeWidth={1.75} />
-            {addLabel}
+            {add}
           </Button>
         ) : null}
 

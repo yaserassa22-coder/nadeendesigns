@@ -106,6 +106,7 @@ export function cartLineDisplayPrices(item: {
   compare_at_price?: number | null;
   quantity: number;
   personalization_fee?: number | null;
+  gift_fee?: number | null;
   extra_services?: Array<{ price: number }> | null;
 }): { price: number; salePrice: number | null } {
   const qty = Math.max(1, item.quantity);
@@ -115,7 +116,9 @@ export function cartLineDisplayPrices(item: {
   }, 0);
   const pers = Number(item.personalization_fee ?? 0);
   const persSafe = Number.isFinite(pers) && pers > 0 ? pers : 0;
-  const chargedUnit = item.unit_price + extras + persSafe;
+  const gift = Number(item.gift_fee ?? 0);
+  const giftSafe = Number.isFinite(gift) && gift > 0 ? gift : 0;
+  const chargedUnit = item.unit_price + extras + persSafe + giftSafe;
   const compare = item.compare_at_price;
   const onSale =
     compare != null &&
@@ -123,7 +126,7 @@ export function cartLineDisplayPrices(item: {
     compare > item.unit_price;
   if (onSale) {
     return {
-      price: (compare + extras + persSafe) * qty,
+      price: (compare + extras + persSafe + giftSafe) * qty,
       salePrice: chargedUnit * qty,
     };
   }

@@ -21,6 +21,7 @@ export type OrderOptionConfig = {
 };
 
 export type ExtraServiceId =
+  | "writing_personalization"
   | "gift_wrap"
   | "greeting_card"
   | "luxury_box"
@@ -150,7 +151,7 @@ export const DEFAULT_ORDER_OPTIONS: OrderOptionConfig[] = [
     key: "delivery_address",
     label: "Delivery Address",
     label_ar: "عنوان التوصيل",
-    enabled: true,
+    enabled: false,
     required: false,
   },
   {
@@ -171,7 +172,7 @@ export const DEFAULT_ORDER_OPTIONS: OrderOptionConfig[] = [
     key: "order_notes",
     label: "Order Notes",
     label_ar: "ملاحظات الطلب",
-    enabled: true,
+    enabled: false,
     required: false,
   },
 ];
@@ -200,30 +201,123 @@ function baseServiceDefaults(
 
 export const DEFAULT_EXTRA_SERVICES: ExtraServiceConfig[] = [
   baseServiceDefaults({
+    id: "writing_personalization",
+    name: "Writing Personalization",
+    name_ar: "تخصيص الكتابة",
+    sort_order: 0,
+  }),
+  baseServiceDefaults({
     id: "gift_wrap",
     name: "Gift Wrap",
     name_ar: "تغليف هدية",
-    sort_order: 0,
+    sort_order: 1,
   }),
   baseServiceDefaults({
     id: "greeting_card",
     name: "Greeting Card",
     name_ar: "بطاقة تهنئة",
-    sort_order: 1,
+    sort_order: 2,
   }),
   baseServiceDefaults({
     id: "luxury_box",
     name: "Luxury Box",
     name_ar: "علبة فاخرة",
-    sort_order: 2,
+    sort_order: 3,
   }),
   baseServiceDefaults({
     id: "express_delivery",
     name: "Express Delivery",
     name_ar: "توصيل سريع",
-    sort_order: 3,
+    sort_order: 4,
   }),
 ];
+
+/** Store-library service that prices writing personalization (not an Extra Services checkbox). */
+export const WRITING_PERSONALIZATION_SERVICE_ID = "writing_personalization";
+
+/** Catalog services owned by the Gift wrap & card section (not Extra Services). */
+export const GIFT_CATALOG_SERVICE_IDS = [
+  "gift_wrap",
+  "greeting_card",
+  "luxury_box",
+] as const;
+
+export function isGiftCatalogServiceId(id: string): boolean {
+  return (GIFT_CATALOG_SERVICE_IDS as readonly string[]).includes(id);
+}
+
+/** Services managed outside the Extra Services checkbox list. */
+export function isExperienceOwnedServiceId(id: string): boolean {
+  return (
+    id === WRITING_PERSONALIZATION_SERVICE_ID || isGiftCatalogServiceId(id)
+  );
+}
+
+/**
+ * Hide gift / writing library rows from Extra Services so customers
+ * never see the same option twice.
+ */
+export function excludeExperienceOwnedServices(
+  services: ExtraServiceConfig[],
+  opts: { giftSectionActive?: boolean; hideWriting?: boolean } = {}
+): ExtraServiceConfig[] {
+  const hideGift = opts.giftSectionActive !== false;
+  const hideWriting = opts.hideWriting !== false;
+  return services.filter((s) => {
+    if (hideWriting && s.id === WRITING_PERSONALIZATION_SERVICE_ID) {
+      return false;
+    }
+    if (hideGift && isGiftCatalogServiceId(s.id)) return false;
+    return true;
+  });
+}
+
+/**
+ * @deprecated Prefer excludeExperienceOwnedServices
+ */
+export function excludeGiftCatalogServices(
+  services: ExtraServiceConfig[],
+  giftSectionActive: boolean
+): ExtraServiceConfig[] {
+  return excludeExperienceOwnedServices(services, {
+    giftSectionActive,
+    hideWriting: true,
+  });
+}
+
+/**
+ * Fee when writing personalization is on a line.
+ * Prefer product experience_config.personalization_ui.extra_price when > 0;
+ * otherwise use store library `writing_personalization` FIXED_PRICE.
+ *
+ * Note: looks up the library row even when it is not offered as an Extra Services checkbox.
+ */
+export function resolvePersonalizationFee(
+  personalizationUi: { extra_price?: number } | null | undefined,
+  storeServices: Array<{
+    id: string;
+    enabled?: boolean;
+    price?: number;
+    pricing_mode?: string;
+  }> = [],
+  hasPersonalization: boolean
+): number {
+  if (!hasPersonalization) return 0;
+  const productFee = Math.max(
+    0,
+    Number(personalizationUi?.extra_price) || 0
+  );
+  if (productFee > 0) return productFee;
+  const svc = storeServices.find(
+    (s) => s.id === WRITING_PERSONALIZATION_SERVICE_ID
+  );
+  if (!svc || svc.enabled === false) return 0;
+  const price = Math.max(0, Number(svc.price) || 0);
+  if (svc.pricing_mode === "FREE") return 0;
+  // FIXED_PRICE or legacy rows that only stored a positive price
+  if (svc.pricing_mode === "FIXED_PRICE" || price > 0) return price;
+  return 0;
+}
 
 function normalizeVisibility(raw: unknown): ServiceVisibility {
   const src =
@@ -314,13 +408,16 @@ export function effectiveServiceUnitPrice(svc: {
   return price;
 }
 
-/** Storefront label: مجاني vs +₪40 */
-export function formatExtraServicePriceLabel(svc: {
-  pricing_mode?: ServicePricingMode | null;
-  price?: number | null;
-}): string {
+/** Storefront label: free vs +₪40 */
+export function formatExtraServicePriceLabel(
+  svc: {
+    pricing_mode?: ServicePricingMode | null;
+    price?: number | null;
+  },
+  freeLabel = "مجاني"
+): string {
   const amount = effectiveServiceUnitPrice(svc);
-  if (amount <= 0) return "مجاني";
+  if (amount <= 0) return freeLabel;
   const formatted = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
   }).format(amount);
@@ -569,14 +666,17 @@ export function enforceRequiredServiceIds(
   return [...next];
 }
 
-/** Enabled order options for storefront forms (inherits store + product override). */
+/**
+ * Storefront buy-flow order-options collection is retired.
+ * Address / notes belong on the normal checkout shipping + notes fields.
+ * Admin library + line-item schema remain for historical orders; do not
+ * re-expose these fields on product or checkout forms without an explicit product decision.
+ */
 export function enabledOrderOptions(
-  storeDefaults: StoreOrderOptionsSettings,
-  productOverride?: ProductOrderOptionsConfig | null
+  _storeDefaults: StoreOrderOptionsSettings,
+  _productOverride?: ProductOrderOptionsConfig | null
 ): OrderOptionConfig[] {
-  return resolveProductOrderOptions(storeDefaults, productOverride).filter(
-    (o) => o.enabled
-  );
+  return [];
 }
 
 /** Customer-selected order option values persisted on cart / order line items. */
@@ -610,25 +710,30 @@ export function sumExtraServicePrices(
 }
 
 /**
- * Charged unit price: base (sale-aware) + personalization fees (if any) + extras.
- * Personalization currently has no fee — keep hook for future admin pricing.
+ * Charged unit price: base + personalization fee + gift fee + extras.
  */
 export function chargedUnitPrice(input: {
   baseUnitPrice: number;
   personalizationFee?: number | null;
+  giftFee?: number | null;
   extraServices?: LineExtraService[] | null;
 }): number {
   const base = Number(input.baseUnitPrice);
   const baseSafe = Number.isFinite(base) && base >= 0 ? base : 0;
   const pers = Number(input.personalizationFee ?? 0);
   const persSafe = Number.isFinite(pers) && pers > 0 ? pers : 0;
-  return baseSafe + persSafe + sumExtraServicePrices(input.extraServices);
+  const gift = Number(input.giftFee ?? 0);
+  const giftSafe = Number.isFinite(gift) && gift > 0 ? gift : 0;
+  return (
+    baseSafe + persSafe + giftSafe + sumExtraServicePrices(input.extraServices)
+  );
 }
 
 export function lineChargedTotal(input: {
   baseUnitPrice: number;
   quantity: number;
   personalizationFee?: number | null;
+  giftFee?: number | null;
   extraServices?: LineExtraService[] | null;
 }): number {
   const qty = Math.max(1, Math.floor(Number(input.quantity) || 1));
@@ -636,6 +741,7 @@ export function lineChargedTotal(input: {
     chargedUnitPrice({
       baseUnitPrice: input.baseUnitPrice,
       personalizationFee: input.personalizationFee,
+      giftFee: input.giftFee,
       extraServices: input.extraServices,
     }) * qty
   );
@@ -647,6 +753,7 @@ export function cartExperienceSubtotal(
     unit_price: number;
     quantity: number;
     personalization_fee?: number | null;
+    gift_fee?: number | null;
     extra_services?: LineExtraService[] | null;
   }>
 ): number {
@@ -657,6 +764,7 @@ export function cartExperienceSubtotal(
         baseUnitPrice: i.unit_price,
         quantity: i.quantity,
         personalizationFee: i.personalization_fee,
+        giftFee: i.gift_fee,
         extraServices: i.extra_services,
       }),
     0
@@ -736,12 +844,14 @@ export function shopLineDisplayTotal(item: {
   unit_price: number;
   quantity: number;
   personalization_fee?: number | null;
+  gift_fee?: number | null;
   extra_services?: LineExtraService[] | null;
 }): number {
   return lineChargedTotal({
     baseUnitPrice: item.unit_price,
     quantity: item.quantity,
     personalizationFee: item.personalization_fee,
+    giftFee: item.gift_fee,
     extraServices: item.extra_services,
   });
 }
@@ -749,11 +859,13 @@ export function shopLineDisplayTotal(item: {
 export function shopLineDisplayUnit(item: {
   unit_price: number;
   personalization_fee?: number | null;
+  gift_fee?: number | null;
   extra_services?: LineExtraService[] | null;
 }): number {
   return chargedUnitPrice({
     baseUnitPrice: item.unit_price,
     personalizationFee: item.personalization_fee,
+    giftFee: item.gift_fee,
     extraServices: item.extra_services,
   });
 }

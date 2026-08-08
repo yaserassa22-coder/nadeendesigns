@@ -42,6 +42,8 @@ import { useWishlist } from "@/components/shop/WishlistProvider";
 import { NotificationCenter } from "@/components/layout/NotificationCenter";
 import { LuxuryNavPanel } from "@/components/layout/LuxuryNavPanel";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 /** Last-resort offline fallback only — live nav is DB-driven via layout. */
 const FALLBACK_ITEMS: NavItem[] = capTopLevelNav([
@@ -129,9 +131,12 @@ export function Header({
   const { count } = useCart();
   const { count: wishlistCount } = useWishlist();
   const { customer, user, openLogin } = useCustomerAuth();
+  const { t, dir } = useLocale();
   const baseId = useId();
   const searchHits = useMemo(() => collectSearchHits(items), [items]);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
+  /** Content reading direction inside the physical LTR header shell. */
+  const contentDir = dir;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -168,6 +173,7 @@ export function Header({
 
   return (
     <header
+      data-storefront-chrome
       className={cn(
         "fixed top-0 z-50 w-full transition-[background-color,box-shadow,padding,backdrop-filter] duration-500 ease-out",
         scrolled
@@ -188,11 +194,13 @@ export function Header({
       >
         {/* Column 1 — utilities (physical start / left) */}
         <div
-          dir="rtl"
+          dir={contentDir}
           className="flex min-w-0 items-center justify-self-start gap-x-3 xl:gap-x-5"
         >
+          <LanguageSwitcher variant="storefront" compact />
+
           <UtilityIconButton
-            label="بحث"
+            label={t.nav.search}
             onClick={() => setSearchOpen(true)}
           >
             <Search className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
@@ -200,23 +208,23 @@ export function Header({
 
           <UtilityLink
             href="/wishlist"
-            label="قائمة الأمنيات"
+            label={t.nav.wishlist}
             badge={wishlistCount > 0 ? wishlistCount : undefined}
           >
             <Heart className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
           </UtilityLink>
 
           {customer || user ? (
-            <UtilityLink href="/account" label="حسابي">
+            <UtilityLink href="/account" label={t.nav.account}>
               <User className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
             </UtilityLink>
           ) : (
-            <UtilityIconButton label="دخول" onClick={() => openLogin()}>
+            <UtilityIconButton label={t.nav.login} onClick={() => openLogin()}>
               <User className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
             </UtilityIconButton>
           )}
 
-          <UtilityLink href="/cart" label="السلة" badge={count > 0 ? count : undefined}>
+          <UtilityLink href="/cart" label={t.nav.cart} badge={count > 0 ? count : undefined}>
             <ShoppingBag className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
           </UtilityLink>
 
@@ -226,7 +234,7 @@ export function Header({
             href="/booking"
             className="ms-1 hidden whitespace-nowrap border-b border-gold/50 pb-0.5 text-[11px] font-medium tracking-[0.14em] text-gold transition-colors hover:border-gold hover:text-gold-dark xl:inline"
           >
-            احجزي موعدًا
+            {t.nav.bookAppointment}
           </Link>
         </div>
 
@@ -235,9 +243,9 @@ export function Header({
 
         {/* Column 3 — primary nav (physical end / right) */}
         <nav
-          dir="rtl"
+          dir={contentDir}
           className="flex min-w-0 flex-wrap items-center justify-self-end gap-x-0.5 xl:gap-x-1"
-          aria-label="التنقل الرئيسي"
+          aria-label={t.nav.mainAria}
         >
           {items.map((item) => (
             <DesktopNavItem
@@ -262,7 +270,7 @@ export function Header({
           type="button"
           className="justify-self-start rounded-full p-1.5 text-charcoal transition-colors hover:text-gold"
           onClick={() => setMobileOpen(true)}
-          aria-label="فتح القائمة"
+          aria-label={t.nav.openMenu}
         >
           <Menu className="h-6 w-6" strokeWidth={1.5} />
         </button>
@@ -275,8 +283,9 @@ export function Header({
         />
 
         <div className="flex shrink-0 items-center justify-self-end gap-0.5 sm:gap-1">
+          <LanguageSwitcher variant="storefront" compact />
           <UtilityIconButton
-            label="بحث"
+            label={t.nav.search}
             onClick={() => setSearchOpen(true)}
             className="p-1.5 sm:p-2"
           >
@@ -284,19 +293,19 @@ export function Header({
           </UtilityIconButton>
           <UtilityLink
             href="/wishlist"
-            label="قائمة الأمنيات"
+            label={t.nav.wishlist}
             badge={wishlistCount > 0 ? wishlistCount : undefined}
             className="p-1.5 sm:p-2"
           >
             <Heart className="h-5 w-5" strokeWidth={1.5} />
           </UtilityLink>
           {customer || user ? (
-            <UtilityLink href="/account" label="حسابي" className="p-1.5 sm:p-2">
+            <UtilityLink href="/account" label={t.nav.account} className="p-1.5 sm:p-2">
               <User className="h-5 w-5" strokeWidth={1.5} />
             </UtilityLink>
           ) : (
             <UtilityIconButton
-              label="دخول"
+              label={t.nav.login}
               onClick={() => openLogin()}
               className="p-1.5 sm:p-2"
             >
@@ -306,7 +315,7 @@ export function Header({
           <NotificationCenter />
           <UtilityLink
             href="/cart"
-            label="السلة"
+            label={t.nav.cart}
             badge={count > 0 ? count : undefined}
             className="p-1.5 sm:p-2"
           >
@@ -337,7 +346,7 @@ export function Header({
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                aria-label="إغلاق"
+                aria-label={t.common.close}
                 className="rounded-full p-1.5 text-charcoal transition-colors hover:text-gold"
               >
                 <X className="h-6 w-6" strokeWidth={1.5} />
@@ -345,7 +354,7 @@ export function Header({
             </div>
             <nav
               className="flex max-h-[calc(100vh-5.5rem)] flex-col gap-0.5 overflow-y-auto px-5 py-5"
-              aria-label="قائمة الجوال"
+              aria-label={t.nav.mainAria}
             >
               {items.map((item) => {
                 const hasPanel = itemHasPanel(item);
@@ -415,7 +424,7 @@ export function Header({
                               onClick={() => setMobileOpen(false)}
                               className="rounded-xl px-4 py-2.5 text-base font-medium text-gold hover:bg-beige"
                             >
-                              عرض الكل
+                              {t.nav.viewAll}
                             </Link>
                             {item.children.map((link) => (
                               <MobileChildLink
@@ -433,19 +442,22 @@ export function Header({
               })}
 
               <div className="mt-4 space-y-1 border-t border-beige-dark/60 pt-3">
+                <div className="mb-3 px-1">
+                  <LanguageSwitcher variant="storefront" compact={false} />
+                </div>
                 <Link
                   href="/booking"
                   onClick={() => setMobileOpen(false)}
                   className="mb-2 block rounded-xl bg-gold/10 px-4 py-3.5 text-center text-lg font-medium tracking-wide text-gold"
                 >
-                  احجزي موعدًا
+                  {t.nav.bookAppointment}
                 </Link>
                 <Link
                   href="/wishlist"
                   onClick={() => setMobileOpen(false)}
                   className="block rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
                 >
-                  قائمة الأمنيات
+                  {t.nav.wishlist}
                   {wishlistCount > 0 ? ` (${wishlistCount})` : ""}
                 </Link>
                 <Link
@@ -453,7 +465,7 @@ export function Header({
                   onClick={() => setMobileOpen(false)}
                   className="block rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
                 >
-                  السلة{count > 0 ? ` (${count})` : ""}
+                  {t.nav.cart}{count > 0 ? ` (${count})` : ""}
                 </Link>
                 {customer || user ? (
                   <Link
@@ -461,7 +473,7 @@ export function Header({
                     onClick={() => setMobileOpen(false)}
                     className="block rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
                   >
-                    حسابي
+                    {t.nav.account}
                   </Link>
                 ) : (
                   <button
@@ -474,7 +486,7 @@ export function Header({
                     }}
                     className="w-full rounded-xl px-4 py-3 text-start text-lg font-medium text-charcoal hover:bg-beige"
                   >
-                    دخول
+                    {t.nav.login}
                   </button>
                 )}
               </div>
@@ -672,15 +684,16 @@ function SearchDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const router = useRouter();
+  const { t, dir } = useLocale();
 
   useEffect(() => {
-    const t = window.setTimeout(() => inputRef.current?.focus(), 40);
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 40);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
@@ -716,14 +729,14 @@ function SearchDialog({
       <motion.div
         role="dialog"
         aria-modal="true"
-        aria-label="بحث"
+        aria-label={t.nav.search}
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
         className="w-full max-w-lg overflow-hidden rounded-2xl border border-beige-dark/80 bg-ivory shadow-[0_24px_60px_-28px_rgba(44,36,25,0.45)]"
         onClick={(e) => e.stopPropagation()}
-        dir="rtl"
+        dir={dir}
       >
         <form
           onSubmit={onSubmit}
@@ -738,14 +751,14 @@ function SearchDialog({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحثي في المجموعات..."
+            placeholder={t.nav.searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent text-base text-charcoal outline-none placeholder:text-muted/70"
             autoComplete="off"
           />
           <button
             type="button"
             onClick={onClose}
-            aria-label="إغلاق البحث"
+            aria-label={t.common.close}
             className="rounded-full p-1.5 text-muted transition-colors hover:text-charcoal"
           >
             <X className="h-4 w-4" strokeWidth={1.5} />
@@ -754,7 +767,7 @@ function SearchDialog({
         <ul className="max-h-72 overflow-y-auto py-2">
           {filtered.length === 0 ? (
             <li className="px-5 py-6 text-center text-sm text-muted">
-              لا توجد نتائج
+              {t.nav.noResults}
             </li>
           ) : (
             filtered.map((hit) => (
@@ -812,6 +825,7 @@ function MobileAccordionBranch({
   item: NavItem;
   onNavigate: () => void;
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   if (!item.children.length) {
     return (
@@ -848,7 +862,7 @@ function MobileAccordionBranch({
             onClick={onNavigate}
             className="rounded-xl px-4 py-2 text-sm font-medium text-gold hover:bg-beige"
           >
-            عرض الكل
+            {t.nav.viewAll}
           </Link>
           {item.children.map((child) => (
             <MobileChildLink

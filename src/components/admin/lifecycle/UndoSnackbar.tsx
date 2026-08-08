@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 
 type UndoSnackbarProps = {
@@ -13,15 +14,18 @@ type UndoSnackbarProps = {
 
 export function UndoSnackbar({
   message,
-  undoLabel = "تراجع",
+  undoLabel,
   onUndo,
   onDismiss,
   durationMs = 5000,
 }: UndoSnackbarProps) {
+  const { t } = useLocale();
+  const resolvedUndo = undoLabel ?? t.admin.lifecycleUi.undo;
+
   useEffect(() => {
     if (!message) return;
-    const t = window.setTimeout(onDismiss, durationMs);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(onDismiss, durationMs);
+    return () => window.clearTimeout(timer);
   }, [message, durationMs, onDismiss]);
 
   if (!message) return null;
@@ -37,14 +41,14 @@ export function UndoSnackbar({
               className="border-white/30 bg-transparent text-white hover:bg-white/10"
               onClick={onUndo}
             >
-              {undoLabel}
+              {resolvedUndo}
             </Button>
           ) : null}
           <button
             type="button"
             onClick={onDismiss}
             className="rounded-lg px-2 py-1 text-white/70 hover:bg-white/10 hover:text-white"
-            aria-label="إغلاق"
+            aria-label={t.common.close}
           >
             ✕
           </button>

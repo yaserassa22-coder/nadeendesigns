@@ -131,6 +131,13 @@ describe("experience designer", () => {
     });
     expect(cfg.purchase_ui).toEqual({ show_quantity: true });
   });
+
+  it("normalizes gift_ui fee defaults", () => {
+    const cfg = normalizeProductExperienceConfig({
+      gift_ui: { wrap_price: 15, card_price: 8 },
+    });
+    expect(cfg.gift_ui).toEqual({ wrap_price: 15, card_price: 8 });
+  });
 });
 
 describe("service visibility + defaults", () => {

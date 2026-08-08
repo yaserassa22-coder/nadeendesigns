@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Calendar, Sparkles } from "lucide-react";
 import type { Dress } from "@/types";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Select, Textarea } from "@/components/ui/Input";
 import { PersonalizationFonts } from "@/components/dresses/PersonalizationFonts";
 import { PersonalizationPreview } from "@/components/dresses/PersonalizationPreview";
 import {
@@ -14,25 +14,22 @@ import {
   type GiftWrappingState,
 } from "@/components/dresses/GiftWrappingSection";
 import {
-  ARABIC_FONT_OPTIONS,
-  ENGLISH_FONT_OPTIONS,
-  ROBE_POSITION_OPTIONS,
-  VEIL_POSITION_OPTIONS,
-  WRITING_COLOR_OPTIONS,
-  WRITING_LANGUAGE_OPTIONS,
+  arabicFontSelectOptions,
   categoryToServiceType,
   clearPersonalization,
+  englishFontFromPrimary,
   savePersonalization,
+  writingColorSelectOptions,
   type ArabicFont,
-  type EnglishFont,
   type WritingColor,
-  type WritingLanguage,
   type WritingPosition,
 } from "@/lib/personalization";
 import { clearGiftOptions, saveGiftOptions } from "@/lib/gift";
 import { giftOptionsSchema } from "@/lib/validations/gift";
 import { productPersonalizationSchema } from "@/lib/validations/personalization";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 
 interface PersonalizationFormProps {
   dress: Dress;
@@ -44,29 +41,17 @@ export function PersonalizationForm({
   productType,
 }: PersonalizationFormProps) {
   const router = useRouter();
-  const [writingLanguage, setWritingLanguage] =
-    useState<WritingLanguage>("ar");
-  const [textAr, setTextAr] = useState("");
-  const [textEn, setTextEn] = useState("");
+  const { t, locale } = useLocale();
+  const [text, setText] = useState("");
   const [fontAr, setFontAr] = useState<ArabicFont>("classic_ar");
-  const [fontEn, setFontEn] = useState<EnglishFont>("elegant_script");
   const [color, setColor] = useState<WritingColor>("gold");
-  const [position, setPosition] = useState<WritingPosition>(
-    productType === "robes" ? "back" : "bottom_corner"
-  );
+  const position: WritingPosition =
+    productType === "robes" ? "back" : "bottom_corner";
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [gift, setGift] = useState<GiftWrappingState>(DEFAULT_GIFT_STATE);
 
-  const positionOptions = useMemo(
-    () =>
-      productType === "robes" ? ROBE_POSITION_OPTIONS : VEIL_POSITION_OPTIONS,
-    [productType]
-  );
-
-  const showArabic =
-    writingLanguage === "ar" || writingLanguage === "both";
-  const showEnglish =
-    writingLanguage === "en" || writingLanguage === "both";
+  const arFontOptions = useMemo(() => arabicFontSelectOptions(locale), [locale]);
+  const colorOptions = useMemo(() => writingColorSelectOptions(locale), [locale]);
 
   const persistGift = (): boolean => {
     if (!gift.enabled) {
@@ -100,7 +85,7 @@ export function PersonalizationForm({
     } catch {
       setErrors((prev) => ({
         ...prev,
-        form: "تعذّر حفظ خيارات الإهداء. حاولي مرة أخرى.",
+        form: t.personalizationUi.saveGiftFailed,
       }));
       return false;
     }
@@ -114,11 +99,11 @@ export function PersonalizationForm({
         product_type: productType,
         dress_id: dress.id,
         dress_name_ar: dress.name_ar,
-        writing_language: writingLanguage,
-        text_ar: textAr,
-        text_en: textEn,
+        writing_language: "ar",
+        text_ar: text,
+        text_en: "",
         font_ar: fontAr,
-        font_en: fontEn,
+        font_en: englishFontFromPrimary(fontAr),
         color,
         position,
       });
@@ -136,7 +121,7 @@ export function PersonalizationForm({
       try {
         savePersonalization(parsed.data);
       } catch {
-        setErrors({ form: "تعذّر حفظ التخصيص. حاولي مرة أخرى." });
+        setErrors({ form: t.personalizationUi.saveFailed });
         return;
       }
     } else {
@@ -154,107 +139,47 @@ export function PersonalizationForm({
       <div className="text-center md:text-right">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-sm text-gold">
           <Sparkles className="h-4 w-4" />
-          تخصيص الكتابة
+          {t.personalizationUi.formTitle}
         </div>
         <h2 className="text-2xl font-bold text-charcoal md:text-3xl">
-          خصّصي الكتابة على{" "}
-          {productType === "veils" ? "طرحة العروس" : "برنص العروس"}
+          {t.personalizationUi.formTitle}{" "}
+          {productType === "veils"
+            ? t.personalizationUi.formSubtitleVeil
+            : t.personalizationUi.formSubtitleRobe}
         </h2>
-        <p className="mt-2 text-muted">
-          اختاري اللغة، الخط، اللون، وموضع الكتابة لإطلالة خاصة بكِ.
-        </p>
+        <p className="mt-2 text-muted">{t.personalizationUi.formHint}</p>
       </div>
 
       <div className="decorative-line w-full" />
 
+      <Textarea
+        label={t.personalizationUi.textRequired}
+        value={text}
+        maxLength={25}
+        rows={4}
+        dir="auto"
+        onChange={(e) => setText(e.target.value.slice(0, 25))}
+        error={errors.text_ar}
+        placeholder={t.personalizationUi.textPlaceholder}
+      />
+      <p className="text-xs text-muted">{t.personalizationUi.freeTextHint}</p>
+      <p className="text-xs text-muted">
+        {formatMessage(t.personalizationUi.maxChars, { count: 25 })}
+      </p>
+
       <Select
-        label="لغة الكتابة *"
-        value={writingLanguage}
-        onChange={(e) => {
-          setWritingLanguage(e.target.value as WritingLanguage);
-          setErrors({});
-        }}
-        options={WRITING_LANGUAGE_OPTIONS.map((o) => ({
-          value: o.value,
-          label: o.label,
-        }))}
+        label={`${t.personalizationUi.font} *`}
+        value={fontAr}
+        onChange={(e) => setFontAr(e.target.value as ArabicFont)}
+        options={arFontOptions}
       />
 
-      {writingLanguage === "both" ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="الاسم أو النص بالعربية"
-            value={textAr}
-            maxLength={25}
-            dir="rtl"
-            onChange={(e) => setTextAr(e.target.value.slice(0, 25))}
-            error={errors.text_ar}
-            placeholder="مثال: ندين"
-          />
-          <Input
-            label="Name or Text in English"
-            value={textEn}
-            maxLength={25}
-            dir="ltr"
-            onChange={(e) => setTextEn(e.target.value.slice(0, 25))}
-            error={errors.text_en}
-            placeholder="e.g. Nadeen"
-          />
-        </div>
-      ) : writingLanguage === "ar" ? (
-        <Input
-          label="الاسم أو النص بالعربية *"
-          value={textAr}
-          maxLength={25}
-          dir="rtl"
-          onChange={(e) => setTextAr(e.target.value.slice(0, 25))}
-          error={errors.text_ar}
-          placeholder="مثال: العروس سارة"
-        />
-      ) : (
-        <Input
-          label="Name or Text in English *"
-          value={textEn}
-          maxLength={25}
-          dir="ltr"
-          onChange={(e) => setTextEn(e.target.value.slice(0, 25))}
-          error={errors.text_en}
-          placeholder="e.g. Sarah"
-        />
-      )}
-
-      <p className="text-xs text-muted">حد أقصى 25 حرفًا لكل حقل</p>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {showArabic && (
-          <Select
-            label="خط العربية *"
-            value={fontAr}
-            onChange={(e) => setFontAr(e.target.value as ArabicFont)}
-            options={ARABIC_FONT_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
-          />
-        )}
-        {showEnglish && (
-          <Select
-            label="English Font *"
-            value={fontEn}
-            onChange={(e) => setFontEn(e.target.value as EnglishFont)}
-            dir="ltr"
-            options={ENGLISH_FONT_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
-          />
-        )}
-      </div>
-
       <div>
-        <p className="mb-3 text-sm font-medium text-charcoal">لون الكتابة *</p>
+        <p className="mb-3 text-sm font-medium text-charcoal">
+          {t.personalizationUi.writingColor} *
+        </p>
         <div className="flex flex-wrap gap-3">
-          {WRITING_COLOR_OPTIONS.map((opt) => (
+          {colorOptions.map((opt) => (
             <button
               key={opt.value}
               type="button"
@@ -276,32 +201,16 @@ export function PersonalizationForm({
         </div>
       </div>
 
-      <Select
-        label="موضع الكتابة *"
-        value={position}
-        onChange={(e) => setPosition(e.target.value as WritingPosition)}
-        dir="ltr"
-        options={positionOptions.map((o) => ({
-          value: o.value,
-          label: o.label,
-        }))}
-        error={errors.position}
-      />
-
       <PersonalizationPreview
-        writingLanguage={writingLanguage}
-        textAr={textAr}
-        textEn={textEn}
+        writingLanguage="ar"
+        textAr={text}
+        textEn=""
         fontAr={fontAr}
-        fontEn={fontEn}
+        fontEn={englishFontFromPrimary(fontAr)}
         color={color}
       />
 
-      <GiftWrappingSection
-        value={gift}
-        onChange={setGift}
-        errors={errors}
-      />
+      <GiftWrappingSection value={gift} onChange={setGift} errors={errors} />
 
       {errors.form && (
         <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
@@ -316,7 +225,7 @@ export function PersonalizationForm({
           onClick={() => goToBooking(true)}
         >
           <Calendar className="h-4 w-4" />
-          احجزي مع التخصيص
+          {t.personalizationUi.bookWith}
         </Button>
         <Button
           size="lg"
@@ -324,7 +233,7 @@ export function PersonalizationForm({
           className="w-full sm:w-auto"
           onClick={() => goToBooking(false)}
         >
-          احجزي بدون تخصيص
+          {t.personalizationUi.bookWithout}
         </Button>
       </div>
     </PersonalizationFonts>

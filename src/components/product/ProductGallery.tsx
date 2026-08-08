@@ -16,6 +16,8 @@ import {
 } from "@/components/product/ProductCardOverlay";
 import { featuredImage } from "@/lib/products/featured-image";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 
 interface ProductGalleryProps {
   images: string[] | null | undefined;
@@ -41,6 +43,7 @@ export function ProductGallery({
   badges,
   wishlist,
 }: ProductGalleryProps) {
+  const { t } = useLocale();
   const slides = (images ?? []).filter(Boolean);
   const slidesKey = slides.join("|");
   const [index, setIndex] = useState(0);
@@ -123,7 +126,11 @@ export function ProductGallery({
         className="group/gallery relative aspect-[3/4] overflow-hidden rounded-[var(--xp-card-radius-lg)] bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
         tabIndex={multi ? 0 : undefined}
         role={multi ? "region" : undefined}
-        aria-label={multi ? `معرض صور ${alt}` : undefined}
+        aria-label={
+          multi
+            ? formatMessage(t.productExtras.galleryAria, { alt })
+            : undefined
+        }
         aria-roledescription={multi ? "carousel" : undefined}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
@@ -182,16 +189,16 @@ export function ProductGallery({
           <>
             <button
               type="button"
-              aria-label="الصورة السابقة"
-              className="absolute start-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
+              aria-label={t.productExtras.prevImage}
+              className="absolute start-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
               onClick={() => go(safeIndex - 1)}
             >
               <ChevronRight className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <button
               type="button"
-              aria-label="الصورة التالية"
-              className="absolute end-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
+              aria-label={t.productExtras.nextImage}
+              className="absolute end-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-charcoal shadow-md backdrop-blur-sm transition hover:border-gold hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 md:flex"
               onClick={() => go(safeIndex + 1)}
             >
               <ChevronLeft className="h-5 w-5" strokeWidth={1.75} />
@@ -220,7 +227,7 @@ export function ProductGallery({
             <button
               key={`${src}-${i}`}
               type="button"
-              aria-label={`صورة ${i + 1}`}
+              aria-label={formatMessage(t.productExtras.imageN, { n: i + 1 })}
               aria-current={i === safeIndex}
               onClick={() => {
                 if (i === safeIndex) return;

@@ -1,10 +1,13 @@
+"use client";
+
 import { formatPrice } from "@/lib/utils";
 import { formatEstimatedDelivery } from "@/lib/shop/shipping";
 import {
-  DELIVERY_METHOD_LABELS,
+  getDeliveryMethodLabel,
   type DeliveryMethod,
   type ShippingRegion,
 } from "@/types/shop";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export type ShippingDisplay = {
   required?: boolean | null;
@@ -59,7 +62,7 @@ export function hasShippingDetails(s?: ShippingDisplay | null): boolean {
 
 export function ShippingDetailsBlock({
   shipping,
-  title = "عنوان التوصيل",
+  title,
   className,
   showZeroCost = false,
   showInternalNotes = false,
@@ -70,6 +73,8 @@ export function ShippingDetailsBlock({
   showZeroCost?: boolean;
   showInternalNotes?: boolean;
 }) {
+  const { locale, t } = useLocale();
+  const heading = title ?? t.shippingUi.addressTitle;
   if (!hasShippingDetails(shipping) && !showZeroCost) return null;
   if (!shipping) return null;
   const s = shipping;
@@ -79,20 +84,20 @@ export function ShippingDetailsBlock({
   if (isPickup) {
     return (
       <div className={className}>
-        <h3 className="text-sm font-semibold text-charcoal">{title}</h3>
+        <h3 className="text-sm font-semibold text-charcoal">{heading}</h3>
         <dl className="mt-2 space-y-1 text-sm text-muted">
           <div>
-            <dt className="inline text-charcoal/70">طريقة الاستلام: </dt>
-            <dd className="inline">{DELIVERY_METHOD_LABELS.pickup}</dd>
+            <dt className="inline text-charcoal/70">{t.shippingUi.deliveryMethod} </dt>
+            <dd className="inline">{getDeliveryMethodLabel("pickup", locale)}</dd>
           </div>
           <p className="mt-2 text-sm text-charcoal/80">
-            سيتم إشعارك عند جاهزية طلبك للاستلام من البوتيك.
+            {t.shippingUi.pickupReadyHint}
           </p>
           {(typeof s.cost === "number" && s.cost > 0) || showZeroCost ? (
             <div>
-              <dt className="inline text-charcoal/70">رسوم الشحن: </dt>
+              <dt className="inline text-charcoal/70">{t.shippingUi.shippingFee} </dt>
               <dd className="inline text-gold" dir="ltr">
-                مجاني
+                {t.shippingUi.free}
               </dd>
             </div>
           ) : null}
@@ -110,23 +115,23 @@ export function ShippingDetailsBlock({
 
   return (
     <div className={className}>
-      <h3 className="text-sm font-semibold text-charcoal">{title}</h3>
+      <h3 className="text-sm font-semibold text-charcoal">{heading}</h3>
       <dl className="mt-2 space-y-1 text-sm text-muted">
         {method && (
           <div>
-            <dt className="inline text-charcoal/70">طريقة الاستلام: </dt>
-            <dd className="inline">{DELIVERY_METHOD_LABELS[method]}</dd>
+            <dt className="inline text-charcoal/70">{t.shippingUi.deliveryMethod} </dt>
+            <dd className="inline">{getDeliveryMethodLabel(method, locale)}</dd>
           </div>
         )}
         {s.full_name && (
           <div>
-            <dt className="inline text-charcoal/70">المستلم: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.recipient} </dt>
             <dd className="inline">{s.full_name}</dd>
           </div>
         )}
         {s.phone && (
           <div>
-            <dt className="inline text-charcoal/70">الهاتف: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.phone} </dt>
             <dd className="inline" dir="ltr">
               {s.phone}
             </dd>
@@ -134,12 +139,12 @@ export function ShippingDetailsBlock({
         )}
         {regionLabel && (
           <div>
-            <dt className="inline text-charcoal/70">المنطقة: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.region} </dt>
             <dd className="inline">
               {regionLabel}
               {s.region_configured === false || s.fee_pending ? (
                 <span className="mr-2 text-xs text-amber-700">
-                  (غير مُعدّة في النظام)
+                  {t.shippingUi.regionUnconfigured}
                 </span>
               ) : null}
             </dd>
@@ -147,31 +152,31 @@ export function ShippingDetailsBlock({
         )}
         {s.city && (
           <div>
-            <dt className="inline text-charcoal/70">المدينة: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.city} </dt>
             <dd className="inline">{s.city}</dd>
           </div>
         )}
         {s.neighborhood && (
           <div>
-            <dt className="inline text-charcoal/70">الحي: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.neighborhood} </dt>
             <dd className="inline">{s.neighborhood}</dd>
           </div>
         )}
         {s.building_number && (
           <div>
-            <dt className="inline text-charcoal/70">رقم المبنى: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.building} </dt>
             <dd className="inline">{s.building_number}</dd>
           </div>
         )}
         {s.address && (
           <div>
-            <dt className="inline text-charcoal/70">العنوان: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.address} </dt>
             <dd className="inline whitespace-pre-wrap">{s.address}</dd>
           </div>
         )}
         {s.postal_code && (
           <div>
-            <dt className="inline text-charcoal/70">الرمز البريدي: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.postal} </dt>
             <dd className="inline" dir="ltr">
               {s.postal_code}
             </dd>
@@ -179,19 +184,19 @@ export function ShippingDetailsBlock({
         )}
         {s.notes && (
           <div>
-            <dt className="inline text-charcoal/70">ملاحظات التوصيل: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.deliveryNotes} </dt>
             <dd className="inline whitespace-pre-wrap">{s.notes}</dd>
           </div>
         )}
         {s.estimated_delivery && (
           <div>
-            <dt className="inline text-charcoal/70">مدة التوصيل المتوقعة: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.eta} </dt>
             <dd className="inline">{s.estimated_delivery}</dd>
           </div>
         )}
         {s.carrier_code && (
           <div>
-            <dt className="inline text-charcoal/70">شركة الشحن: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.carrier} </dt>
             <dd className="inline" dir="ltr">
               {s.carrier_code}
             </dd>
@@ -199,7 +204,7 @@ export function ShippingDetailsBlock({
         )}
         {s.tracking_number && (
           <div>
-            <dt className="inline text-charcoal/70">رقم التتبع: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.tracking} </dt>
             <dd className="inline" dir="ltr">
               {s.tracking_url ? (
                 <a
@@ -218,28 +223,26 @@ export function ShippingDetailsBlock({
         )}
         {s.fee_pending ? (
           <div className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900">
-            <dt className="inline font-medium">رسوم الشحن: </dt>
-            <dd className="inline">قيد المراجعة</dd>
-            <p className="mt-1 text-xs">
-              سيتم تحديد رسوم التوصيل بعد مراجعة المنطقة.
-            </p>
+            <dt className="inline font-medium">{t.shippingUi.shippingFee} </dt>
+            <dd className="inline">{t.shippingUi.feePending}</dd>
+            <p className="mt-1 text-xs">{t.shippingUi.feePendingHint}</p>
           </div>
         ) : (typeof s.cost === "number" && s.cost > 0) ||
           (showZeroCost &&
             (s.required || s.delivery_method === "delivery")) ? (
           <div>
-            <dt className="inline text-charcoal/70">رسوم الشحن: </dt>
+            <dt className="inline text-charcoal/70">{t.shippingUi.shippingFee} </dt>
             <dd className="inline text-gold" dir="ltr">
               {typeof s.cost === "number" && s.cost > 0
                 ? formatPrice(s.cost)
-                : "مجاني"}
+                : t.shippingUi.free}
             </dd>
           </div>
         ) : null}
         {showInternalNotes && s.internal_notes && (
           <div className="mt-2 rounded-lg border border-dashed border-beige-dark bg-beige/30 px-3 py-2">
             <dt className="text-xs font-medium text-charcoal/70">
-              ملاحظات شحن داخلية:
+              {t.shippingUi.internalNotes}
             </dt>
             <dd className="mt-1 whitespace-pre-wrap text-sm text-charcoal">
               {s.internal_notes}

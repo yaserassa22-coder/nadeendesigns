@@ -44,6 +44,14 @@
   --font-display-ar: var(--font-amiri);
 }
 
+html[data-locale="he"] {
+  --font-sans: var(--font-noto-hebrew);
+}
+
+html[data-locale="en"] {
+  --font-sans: var(--font-cormorant);
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--gold-light) var(--beige);
@@ -56,7 +64,8 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-noto-arabic), "Noto Sans Arabic", sans-serif;
+  font-family: var(--font-sans), "Noto Sans Arabic", "Noto Sans Hebrew",
+    "Cormorant Garamond", sans-serif;
 }
 
 ::selection {
@@ -151,6 +160,18 @@ body {
 .font-personalize-signature-ar {
   font-family: var(--font-pers-signature-ar), "Lemonada", cursive;
 }
+.font-personalize-kufi {
+  font-family: var(--font-pers-kufi), "Reem Kufi", sans-serif;
+}
+.font-personalize-el-messiri {
+  font-family: var(--font-pers-el-messiri), "El Messiri", serif;
+}
+.font-personalize-cairo {
+  font-family: var(--font-pers-cairo), "Cairo", sans-serif;
+}
+.font-personalize-lateef {
+  font-family: var(--font-pers-lateef), "Lateef", serif;
+}
 .font-personalize-elegant {
   font-family: var(--font-pers-elegant), "Great Vibes", cursive;
 }
@@ -160,15 +181,36 @@ body {
 .font-personalize-luxury {
   font-family: var(--font-cormorant), "Cormorant Garamond", serif;
 }
+.font-personalize-classic-en {
+  font-family: var(--font-pers-classic-en), "Playfair Display", serif;
+}
+.font-personalize-parisienne {
+  font-family: var(--font-pers-parisienne), "Parisienne", cursive;
+}
+.font-personalize-dancing {
+  font-family: var(--font-pers-dancing), "Dancing Script", cursive;
+}
+.font-personalize-cinzel {
+  font-family: var(--font-pers-cinzel), "Cinzel", serif;
+}
+.font-personalize-pinyon {
+  font-family: var(--font-pers-pinyon), "Pinyon Script", cursive;
+}
+.font-personalize-frank-ruhl {
+  font-family: var(--font-pers-frank-ruhl), "Frank Ruhl Libre", serif;
+}
+.font-personalize-heebo {
+  font-family: var(--font-pers-heebo), "Heebo", sans-serif;
+}
+.font-personalize-rubik {
+  font-family: var(--font-pers-rubik), "Rubik", sans-serif;
+}
 
 /* Premium Arabic display (hero / editorial) */
 .font-display-ar {
   font-family: var(--font-amiri), "Amiri", "Noto Naskh Arabic", serif;
   font-feature-settings: "kern" 1, "liga" 1;
   text-rendering: optimizeLegibility;
-}
-.font-personalize-classic-en {
-  font-family: var(--font-pers-classic-en), "Playfair Display", serif;
 }
 
 input:focus,
@@ -182,13 +224,16 @@ select:focus {
 @media print {
   aside,
   nav,
+  footer,
+  [data-storefront-chrome],
   .print\:hidden {
     display: none !important;
   }
   body {
     background: white !important;
   }
-  .shipping-slip {
+  .shipping-slip,
+  .invoice-print {
     box-shadow: none !important;
     max-width: none !important;
     padding: 12mm !important;

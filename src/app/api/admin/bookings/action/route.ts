@@ -140,6 +140,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Link guest/registered customer before notify so Account + in-app resolve
+    let linkedCustomerId =
+      (row as { customer_id?: string | null }).customer_id ?? null;
+    if (!linkedCustomerId) {
+      const { ensureCustomerForCheckout } = await import(
+        "@/lib/customer-auth/customer"
+      );
+      linkedCustomerId = await ensureCustomerForCheckout({
+        fullName: String(row.name || ""),
+        phone: String(row.phone || ""),
+        email: (row.email as string | null) ?? null,
+      });
+    }
+
     // Notify customer BEFORE / after status — run after we have row data.
     const notify = await notifyBookingAdminAction({
       booking: {
@@ -152,7 +166,7 @@ export async function POST(request: NextRequest) {
         service_type: (row.service_type || "wedding_dress") as Booking["service_type"],
         notify_email: (row as { notify_email?: boolean }).notify_email,
         notify_whatsapp: (row as { notify_whatsapp?: boolean }).notify_whatsapp,
-        customer_id: (row as { customer_id?: string | null }).customer_id ?? null,
+        customer_id: linkedCustomerId,
       },
       action,
       nextStatus,
@@ -187,6 +201,12 @@ export async function POST(request: NextRequest) {
       if (nextStatus === "completed") {
         patch.completed_at = now;
       }
+    }
+    if (
+      linkedCustomerId &&
+      !(row as { customer_id?: string | null }).customer_id
+    ) {
+      patch.customer_id = linkedCustomerId;
     }
 
     const { error: updateError } = await supabase
@@ -226,7 +246,8 @@ export async function POST(request: NextRequest) {
     if (nextStatus) parts.push("تم تحديث الحالة");
     if (notify.inApp) parts.push("إشعار في الحساب");
     if (notify.account) parts.push("رسالة في المحادثة");
-    if (notify.whatsapp.sent) parts.push("واتساب");
+    if (notify.whatsapp.sent && !notify.whatsapp.local) parts.push("واتساب");
+    if (notify.whatsapp.sent && notify.whatsapp.local) parts.push("واتساب محلي");
     if (emailResult.sent && !emailResult.local) parts.push("بريد");
     if (emailResult.sent && emailResult.local) parts.push("بريد محلي");
 
@@ -248,7 +269,12 @@ export async function POST(request: NextRequest) {
     }
     if (emailResult.sent && emailResult.local) {
       warningParts.push(
-        "البريد في الوضع المحلي — العميلة ترى التأكيد في الحساب/الواتساب إن توفّرا."
+        "البريد محفوظ في صندوق الإشعارات المحلي — راجعيه من الإشعارات → صندوق محلي."
+      );
+    }
+    if (notify.whatsapp.sent && notify.whatsapp.local) {
+      warningParts.push(
+        "واتساب محفوظ محليًا (بدون Twilio) — راجعيه من الإشعارات → صندوق محلي."
       );
     }
     if (
@@ -257,6 +283,11 @@ export async function POST(request: NextRequest) {
       (row as { notify_whatsapp?: boolean }).notify_whatsapp !== false
     ) {
       warningParts.push("واتساب غير مُعد (Twilio).");
+    }
+    if (!notify.customerNotified) {
+      warningParts.push(
+        "العميلة لم تستلم إشعارًا. تأكدي من وجود بريد أو هاتف على الحجز، وأن إشعارات البريد مفعّلة في وضع محلي أو Resend."
+      );
     }
 
     return NextResponse.json({

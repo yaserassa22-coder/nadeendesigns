@@ -15,6 +15,7 @@ import {
 } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { UndoSnackbar } from "@/components/admin/lifecycle/UndoSnackbar";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type CustomerRow = {
   customer_key: string;
@@ -26,6 +27,8 @@ type CustomerRow = {
 };
 
 export function CustomersOverlayManager() {
+  const { t } = useLocale();
+  const c = t.admin.customersUi;
   const { caps } = useAdminCapabilities();
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,10 +46,10 @@ export function CustomersOverlayManager() {
     try {
       const res = await fetch("/api/admin/customers", { cache: "no-store" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل جلب العملاء");
+      if (!res.ok) throw new Error(data.error || c.loadFailed);
       setRows((data.customers ?? []) as CustomerRow[]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل جلب العملاء");
+      setError(e instanceof Error ? e.message : c.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -101,7 +104,7 @@ export function CustomersOverlayManager() {
         )
       );
       setLastDeletedKey(key);
-      setSnack("تم نقل العميل إلى سلة المحذوفات");
+      setSnack(c.movedToTrash);
       setPendingDelete(null);
     } finally {
       setDeleting(false);
@@ -128,9 +131,9 @@ export function CustomersOverlayManager() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal">👥 العملاء</h1>
+          <h1 className="text-2xl font-bold text-charcoal">{c.title}</h1>
           <p className="mt-1 text-sm text-muted">
-            طبقة إدارة فوق مفاتيح العملاء (هاتف/بريد) — ليست CRM كاملة.
+            {c.subtitle}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -140,24 +143,24 @@ export function CustomersOverlayManager() {
               window.location.assign("/api/admin/export?module=customers");
             }}
           >
-            تصدير CSV
+            {c.exportCsv}
           </Button>
           <Button variant="outline" loading={loading} onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" />
-            تحديث
+            {c.refresh}
           </Button>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Input
-          label="بحث"
+          label={c.search}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="الاسم، الهاتف، البريد..."
+          placeholder={c.searchPlaceholder}
         />
         <div>
-          <p className="mb-1.5 text-sm text-muted">العرض</p>
+          <p className="mb-1.5 text-sm text-muted">{c.visibility}</p>
           <VisibilityFilter value={visibility} onChange={setVisibility} />
         </div>
       </div>
@@ -173,24 +176,23 @@ export function CustomersOverlayManager() {
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">الاسم</th>
-                <th className="px-4 py-3 text-right font-medium">الهاتف</th>
-                <th className="px-4 py-3 text-right font-medium">البريد</th>
-                <th className="px-4 py-3 text-right font-medium">إجراءات</th>
+                <th className="px-4 py-3 text-right font-medium">{c.colName}</th>
+                <th className="px-4 py-3 text-right font-medium">{c.colPhone}</th>
+                <th className="px-4 py-3 text-right font-medium">{c.colEmail}</th>
+                <th className="px-4 py-3 text-right font-medium">{c.colActions}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center text-muted">
-                    جاري التحميل...
+                    {c.loading}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center text-muted">
-                    لا يوجد عملاء في الطبقة الإدارية بعد. تُنشأ السجلات عند
-                    الأرشفة/الحذف.
+                    {c.emptyHint}
                   </td>
                 </tr>
               ) : (
@@ -217,7 +219,7 @@ export function CustomersOverlayManager() {
                           href={`/admin/customers/${encodeURIComponent(row.customer_key)}`}
                           className="rounded-lg border border-beige-dark px-2.5 py-1 text-xs hover:border-gold hover:text-gold"
                         >
-                          ملف العميل
+                          {c.profile}
                         </a>
                         {row.is_deleted ? (
                           caps.canRestore ? (
@@ -258,11 +260,11 @@ export function CustomersOverlayManager() {
                             {caps.canSoftDelete ? (
                               <button
                                 type="button"
-                                title="نقل إلى سلة المحذوفات"
+                                title={c.moveToTrash}
                                 onClick={() => setPendingDelete(row)}
                                 className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
                               >
-                                حذف
+                                {c.delete}
                               </button>
                             ) : null}
                           </>
@@ -279,13 +281,9 @@ export function CustomersOverlayManager() {
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
-        title="نقل العميل إلى سلة المحذوفات؟"
-        description={
-          pendingDelete
-            ? `سيتم إخفاء «${pendingDelete.display_name || pendingDelete.customer_key}» من قائمة العملاء النشطة. يمكن استعادته لاحقاً من سلة المحذوفات. الطلبات والحجوزات المرتبطة لا تُحذف.`
-            : undefined
-        }
-        confirmLabel="نقل إلى السلة"
+        title={c.deleteTitle}
+        description={pendingDelete ? c.deleteConfirm : undefined}
+        confirmLabel={c.moveToTrash}
         danger
         loading={deleting}
         onConfirm={() => void confirmSoftDelete()}

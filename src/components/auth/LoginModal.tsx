@@ -19,6 +19,9 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { PHONE_COUNTRIES, type CustomerAuthSettings } from "@/types/customer-auth";
 import type { AuthProviderPublic } from "@/lib/customer-auth/providers/types";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { pickLocalized } from "@/lib/cms/locale-text";
+import { formatMessage } from "@/lib/i18n";
 
 const ACCENT = "#C9A14A";
 
@@ -41,15 +44,6 @@ type Props = {
 };
 
 type Step = "choice" | "phone" | "otp" | "email" | "forgot";
-
-const ACCOUNT_BENEFITS = [
-  { icon: Package, label: "تتبع الطلبات" },
-  { icon: Truck, label: "الشحن والتوصيل" },
-  { icon: Calendar, label: "المواعيد" },
-  { icon: Heart, label: "قائمة الأمنيات" },
-  { icon: Palette, label: "التصاميم المحفوظة" },
-  { icon: Bell, label: "الإشعارات" },
-] as const;
 
 /** Thin UI icons — new providers can omit and get a generic icon. */
 function providerIcon(id: string) {
@@ -77,6 +71,15 @@ export function LoginModal({
   message,
   settings,
 }: Props) {
+  const { t, locale } = useLocale();
+  const ACCOUNT_BENEFITS = [
+    { icon: Package, label: t.auth.trackOrders },
+    { icon: Truck, label: t.auth.shippingDelivery },
+    { icon: Calendar, label: t.auth.appointments },
+    { icon: Heart, label: t.auth.wishlist },
+    { icon: Palette, label: t.auth.savedDesigns },
+    { icon: Bell, label: t.auth.notifications },
+  ] as const;
   const [step, setStep] = useState<Step>("choice");
   const [dial, setDial] = useState("+972");
   const [phone, setPhone] = useState("");
@@ -157,7 +160,7 @@ export function LoginModal({
       setError(
         e instanceof Error
           ? e.message
-          : "تعذّرت المتابعة كزائرة. حاولِي مرة أخرى."
+          : t.auth.errors.guestFailed
       );
     } finally {
       // Never leave the modal stuck on "جاري المتابعة…"
@@ -217,7 +220,7 @@ export function LoginModal({
         body: JSON.stringify({ dial, phone, remember }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل إرسال الرمز");
+      if (!res.ok) throw new Error(data.error || t.auth.errors.sendOtpFailed);
       setRequestId(data.request_id);
       setResendIn(data.resend_in ?? 60);
       setDevCode(data.dev_code ?? null);
@@ -225,7 +228,7 @@ export function LoginModal({
       setStep("otp");
       setTimeout(() => inputsRef.current[0]?.focus(), 80);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل إرسال الرمز");
+      setError(e instanceof Error ? e.message : t.auth.errors.sendOtpFailed);
     } finally {
       setLoading(false);
     }
@@ -253,13 +256,13 @@ export function LoginModal({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "رمز غير صحيح");
+      if (!res.ok) throw new Error(data.error || t.auth.errors.invalidOtp);
       await onSuccess();
       if (typeof window !== "undefined") {
         window.location.assign(data.redirect || "/account");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل التحقق");
+      setError(e instanceof Error ? e.message : t.auth.errors.verifyFailed);
       setOtp(["", "", "", "", "", ""]);
       setTimeout(() => inputsRef.current[0]?.focus(), 50);
     } finally {
@@ -301,11 +304,11 @@ export function LoginModal({
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
-        throw new Error(data.error || "المزوّد غير مُعد حالياً");
+        throw new Error(data.error || t.auth.errors.providerNotConfigured);
       }
       window.location.assign(data.url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذّر بدء تسجيل الدخول");
+      setError(e instanceof Error ? e.message : t.auth.errors.oauthStartFailed);
       setLoading(false);
     }
   }
@@ -319,13 +322,13 @@ export function LoginModal({
     setInfo(null);
     try {
       if (!trimmedEmail.includes("@")) {
-        throw new Error("أدخلي بريداً إلكترونياً صالحاً");
+        throw new Error(t.auth.errors.invalidEmail);
       }
       if (password.length < 6) {
-        throw new Error("كلمة المرور من 6 أحرف على الأقل");
+        throw new Error(t.auth.errors.passwordMin);
       }
       if (emailMode === "signup" && fullName.trim().length < 2) {
-        throw new Error("أدخلي الاسم الكامل");
+        throw new Error(t.auth.errors.fullNameRequired);
       }
       const res = await fetch(passwordUrl, {
         method: "POST",
@@ -345,14 +348,14 @@ export function LoginModal({
         message?: string;
         debug_link?: string;
       };
-      if (!res.ok) throw new Error(data.error || "فشل تسجيل الدخول");
+      if (!res.ok) throw new Error(data.error || t.auth.errors.loginFailed);
       // Account created but not yet a browser session — stay on sign-in.
       if (data.needs_email_confirm || data.signed_in === false) {
         setInfo(
           data.message ||
             (data.needs_email_confirm
-              ? "تم إنشاء الحساب. تحققي من بريدك لتأكيد الحساب، ثم سجّلي الدخول."
-              : "تم إنشاء الحساب. سجّلي الدخول بنفس البريد وكلمة المرور.")
+              ? t.auth.errors.accountCreatedConfirm
+              : t.auth.errors.accountCreatedLogin)
         );
         if (
           data.debug_link &&
@@ -369,7 +372,7 @@ export function LoginModal({
       }
       await onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل تسجيل الدخول");
+      setError(e instanceof Error ? e.message : t.auth.errors.loginFailed);
     } finally {
       setLoading(false);
     }
@@ -385,7 +388,7 @@ export function LoginModal({
     setDebugResetHref(null);
     try {
       if (!trimmedEmail.includes("@")) {
-        throw new Error("أدخلي بريداً إلكترونياً صالحاً");
+        throw new Error(t.auth.errors.invalidEmail);
       }
       const res = await fetch(passwordUrl, {
         method: "POST",
@@ -403,7 +406,7 @@ export function LoginModal({
         if (data.no_account) {
           setError(
             data.error ||
-              "لا يوجد حساب بهذا البريد. أنشئي حساباً جديداً أولاً، ثم يمكنكِ استعادة كلمة المرور."
+              t.auth.errors.noAccountForEmail
           );
           setEmailMode("signup");
           setStep("email");
@@ -415,20 +418,32 @@ export function LoginModal({
         ) {
           setDebugResetHref(data.debug_link);
         }
-        throw new Error(data.error || "تعذّر إرسال الرابط");
+        throw new Error(data.error || t.auth.errors.resetSendFailed);
       }
       setInfo(
         data.message ||
-          "أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدكِ. تحققي من الوارد والبريد غير الهام."
+          t.auth.errors.resetSent
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذّر إرسال الرابط");
+      setError(e instanceof Error ? e.message : t.auth.errors.resetSendFailed);
     } finally {
       setLoading(false);
     }
   }
 
-  const otpLabel = activeOtpProvider?.label.ar || "واتساب";
+  const otpLabel =
+    (activeOtpProvider
+      ? pickLocalized(
+          activeOtpProvider.label.ar,
+          activeOtpProvider.label.en,
+          t.auth.whatsapp,
+          locale,
+          activeOtpProvider.label.he
+        )
+      : null) || t.auth.whatsapp;
+
+  const providerText = (label: { ar: string; en?: string; he?: string }) =>
+    pickLocalized(label.ar, label.en, label.ar, locale, label.he);
 
   return (
     <AnimatePresence>
@@ -438,7 +453,7 @@ export function LoginModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          dir="rtl"
+          dir={locale === "en" ? "ltr" : "rtl"}
         >
           <div
             aria-hidden
@@ -467,7 +482,7 @@ export function LoginModal({
                 type="button"
                 onClick={handleClose}
                 className="absolute start-4 top-4 rounded-full p-2 text-muted hover:bg-beige hover:text-charcoal"
-                aria-label="إغلاق"
+                aria-label={t.auth.close}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -482,14 +497,14 @@ export function LoginModal({
                 </h2>
                 <p className="mt-2 text-sm text-muted">
                   {step === "choice"
-                    ? "اختاري طريقة المتابعة"
+                    ? t.auth.chooseMethod
                     : step === "phone"
-                      ? `أدخلي رقمك لاستلام رمز التحقق عبر ${otpLabel}.`
+                      ? formatMessage(t.auth.otpIntroPhone, { channel: otpLabel })
                       : step === "otp"
-                        ? `أدخلي الرمز الذي وصلَكِ عبر ${otpLabel}.`
+                        ? formatMessage(t.auth.otpIntroCode, { channel: otpLabel })
                         : step === "forgot"
-                          ? "أدخلي بريدك لنرسل رابط إعادة تعيين كلمة المرور."
-                          : "البريد وكلمة المرور"}
+                          ? t.auth.forgotIntro
+                          : t.auth.emailPassword}
                 </p>
               </div>
 
@@ -515,7 +530,7 @@ export function LoginModal({
                         className="font-medium underline"
                         style={{ color: ACCENT }}
                       >
-                        فتح رابط إعادة التعيين (وضع التطوير)
+                        {t.auth.openResetLinkDev}
                       </a>
                     </p>
                   )}
@@ -547,7 +562,7 @@ export function LoginModal({
                     ))}
                   </ul>
 
-                  {/* Order: Email → Guest → OAuth → OTP → قريباً (admin sort within groups) */}
+                  {/* Order: Email → Guest → OAuth → OTP → coming soon (admin sort within groups) */}
                   {emailProvider && (
                     <button
                       type="button"
@@ -559,7 +574,7 @@ export function LoginModal({
                       style={{ backgroundColor: ACCENT }}
                     >
                       <Mail className="h-4 w-4" />
-                      {emailProvider.label.ar}
+                      {emailProvider.label && providerText(emailProvider.label)}
                     </button>
                   )}
 
@@ -571,20 +586,22 @@ export function LoginModal({
                       className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-beige-dark bg-ivory/80 px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/40 disabled:opacity-60"
                     >
                       {providerIcon(guestProvider.id)}
-                      {loading ? "جاري المتابعة…" : guestProvider.label.ar}
+                      {loading
+                        ? t.common.loading
+                        : providerText(guestProvider.label)}
                     </button>
                   )}
 
                   {oauthProviders.map((p) => (
                     <OAuthButton
                       key={p.id}
-                      label={p.label.ar}
+                      label={providerText(p.label)}
                       icon={providerIcon(p.id)}
                       ready={p.ready}
                       enabled={p.enabled}
                       loading={loading}
                       onClick={() => void startOAuth(p.id)}
-                      disabledHint="قريباً"
+                      disabledHint={t.auth.comingSoon}
                     />
                   ))}
 
@@ -600,7 +617,7 @@ export function LoginModal({
                       className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-beige-dark bg-white px-5 py-3.5 text-sm font-semibold text-charcoal transition hover:border-[color:#C9A14A] hover:bg-beige/40"
                     >
                       {providerIcon(p.id)}
-                      {p.label.ar}
+                      {providerText(p.label)}
                     </button>
                   ))}
 
@@ -613,12 +630,12 @@ export function LoginModal({
                       className="relative flex min-h-[52px] w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-2xl border border-dashed border-beige-dark bg-beige/30 px-5 py-3.5 text-sm font-medium text-muted opacity-80"
                     >
                       {providerIcon(p.id)}
-                      <span>{p.label.ar}</span>
+                      <span>{providerText(p.label)}</span>
                       <span
                         className="absolute start-4 top-1/2 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white"
                         style={{ backgroundColor: ACCENT }}
                       >
-                        قريباً
+                        {t.auth.comingSoon}
                       </span>
                     </button>
                   ))}
@@ -628,7 +645,7 @@ export function LoginModal({
               {step === "phone" && (
                 <div className="space-y-4">
                   <label className="block text-sm text-muted">
-                    رقم الهاتف
+                    {t.auth.phone}
                   </label>
                   <div className="flex gap-2" dir="ltr">
                     <select
@@ -653,7 +670,7 @@ export function LoginModal({
                     />
                   </div>
                   <p className="text-xs text-muted">
-                    سنرسل رمز تحقق لمرة واحدة عبر {otpLabel} — لا نشارك رقمكِ.
+                    {formatMessage(t.auth.otpHint, { channel: otpLabel })}
                   </p>
                   <label className="flex items-center gap-2 text-sm text-muted">
                     <input
@@ -662,7 +679,7 @@ export function LoginModal({
                       onChange={(e) => setRemember(e.target.checked)}
                       className="accent-[color:#C9A14A]"
                     />
-                    تذكّر هذا الجهاز
+                    {t.auth.rememberDevice}
                   </label>
                   <div className="flex gap-2">
                     <Button
@@ -670,9 +687,7 @@ export function LoginModal({
                       variant="outline"
                       className="flex-1"
                       onClick={() => setStep("choice")}
-                    >
-                      رجوع
-                    </Button>
+                    >{t.common.back}</Button>
                     <Button
                       type="button"
                       className="flex-1 gap-2"
@@ -681,7 +696,7 @@ export function LoginModal({
                       onClick={() => void requestOtp()}
                     >
                       {providerIcon(activeOtpProvider?.id || "whatsapp")}
-                      إرسال الرمز
+                      {t.auth.sendCode}
                     </Button>
                   </div>
                 </div>
@@ -690,11 +705,11 @@ export function LoginModal({
               {step === "otp" && (
                 <div className="space-y-4">
                   <p className="text-center text-sm text-muted">
-                    أدخلي الرمز المكوّن من 6 أرقام
+                    {t.auth.enterSixDigit}
                     {destinationHint ? (
                       <>
                         {" "}
-                        المرسل إلى{" "}
+                        {t.auth.sentTo}{" "}
                         <span dir="ltr" className="text-charcoal">
                           {destinationHint}
                         </span>
@@ -703,7 +718,7 @@ export function LoginModal({
                   </p>
                   {devCode && (
                     <p className="rounded-xl bg-beige px-3 py-2 text-center text-xs text-muted">
-                      وضع التطوير — الرمز:{" "}
+                      {t.auth.devModeCode}{" "}
                       <strong dir="ltr">{devCode}</strong>
                     </p>
                   )}
@@ -733,7 +748,7 @@ export function LoginModal({
                       style={{ backgroundColor: ACCENT }}
                       onClick={() => void verifyOtp()}
                     >
-                      تأكيد والدخول
+                      {t.auth.confirmAndEnter}
                     </Button>
                     <button
                       type="button"
@@ -747,15 +762,15 @@ export function LoginModal({
                       )}
                     >
                       {resendIn > 0
-                        ? `إعادة الإرسال بعد ${resendIn}ث`
-                        : `إعادة إرسال الرمز عبر ${otpLabel}`}
+                        ? formatMessage(t.auth.resendAfter, { seconds: resendIn })
+                        : formatMessage(t.auth.resendVia, { channel: otpLabel })}
                     </button>
                     <button
                       type="button"
                       className="text-sm text-muted hover:underline"
                       onClick={() => setStep("phone")}
                     >
-                      تغيير الرقم
+                      {t.auth.changeNumber}
                     </button>
                   </div>
                 </div>
@@ -771,7 +786,7 @@ export function LoginModal({
                     }}
                     className="mb-1 text-sm text-muted hover:underline"
                   >
-                    ← رجوع
+                    {locale === "en" ? "→ " : "← "}{t.common.back}
                   </button>
                   <div className="flex gap-2 rounded-xl bg-beige/60 p-1 text-sm">
                     <button
@@ -788,7 +803,7 @@ export function LoginModal({
                         setEmailMode("signin");
                       }}
                     >
-                      دخول
+                      {t.auth.login}
                     </button>
                     <button
                       type="button"
@@ -804,18 +819,18 @@ export function LoginModal({
                         setEmailMode("signup");
                       }}
                     >
-                      حساب جديد
+                      {t.auth.newAccount}
                     </button>
                   </div>
                   {emailMode === "signup" && (
                     <label className="block space-y-1.5">
                       <span className="text-xs font-medium text-muted">
-                        الاسم الكامل
+                        {t.auth.fullName}
                       </span>
                       <input
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="الاسم الكامل"
+                        placeholder={t.auth.fullName}
                         autoComplete="name"
                         className="w-full rounded-xl border border-beige-dark bg-white px-4 py-3 text-sm text-charcoal outline-none focus:border-[color:#C9A14A] focus:ring-2 focus:ring-[color:#C9A14A]/30"
                       />
@@ -823,7 +838,7 @@ export function LoginModal({
                   )}
                   <label className="block space-y-1.5">
                     <span className="text-xs font-medium text-muted">
-                      البريد الإلكتروني
+                      {t.auth.email}
                     </span>
                     <input
                       type="email"
@@ -837,7 +852,7 @@ export function LoginModal({
                   </label>
                   <label className="block space-y-1.5">
                     <span className="text-xs font-medium text-muted">
-                      كلمة المرور
+                      {t.auth.password}
                     </span>
                     <input
                       type="password"
@@ -864,7 +879,7 @@ export function LoginModal({
                           setStep("forgot");
                         }}
                       >
-                        نسيتِ كلمة المرور؟
+                        {t.auth.forgotPassword}
                       </button>
                     </div>
                   )}
@@ -874,9 +889,7 @@ export function LoginModal({
                       variant="outline"
                       className="flex-1"
                       onClick={() => setStep("choice")}
-                    >
-                      رجوع
-                    </Button>
+                    >{t.common.back}</Button>
                     <Button
                       type="button"
                       className="flex-1"
@@ -885,7 +898,7 @@ export function LoginModal({
                       onClick={() => void submitEmail()}
                     >
                       <Mail className="me-1 h-4 w-4" />
-                      {emailMode === "signup" ? "إنشاء حساب" : "دخول"}
+                      {emailMode === "signup" ? t.auth.createAccount : t.auth.login}
                     </Button>
                   </div>
                 </div>
@@ -903,11 +916,11 @@ export function LoginModal({
                     }}
                     className="mb-1 text-sm text-muted hover:underline"
                   >
-                    ← رجوع لتسجيل الدخول
+                    {t.auth.backToLogin}
                   </button>
                   <label className="block space-y-1.5">
                     <span className="text-xs font-medium text-muted">
-                      البريد الإلكتروني
+                      {t.auth.email}
                     </span>
                     <input
                       type="email"
@@ -920,8 +933,7 @@ export function LoginModal({
                     />
                   </label>
                   <p className="text-xs text-muted">
-                    يجب أن يكون لديكِ حساب مسجّل بهذا البريد. إن لم تنشئي حساباً
-                    بعد، ارجعي وأنشئي حساباً جديداً أولاً.
+                    {t.auth.forgotNeedAccount}
                   </p>
                   <Button
                     type="button"
@@ -930,7 +942,7 @@ export function LoginModal({
                     style={{ backgroundColor: ACCENT }}
                     onClick={() => void submitForgot()}
                   >
-                    إرسال رابط الاستعادة
+                    {t.auth.sendResetLink}
                   </Button>
                 </div>
               )}
@@ -950,7 +962,7 @@ function buildLegacyProviders(
   if (settings?.email_password_enabled !== false) {
     list.push({
       id: "email",
-      label: { ar: "البريد وكلمة المرور", en: "Email and password" },
+      label: { ar: "البريد وكلمة المرور", he: "אימייל וסיסמה", en: "Email and password" },
       capabilities: ["password"],
       order: 10,
       primary: true,
@@ -964,7 +976,7 @@ function buildLegacyProviders(
   if (settings?.guest_checkout_enabled !== false) {
     list.push({
       id: "guest",
-      label: { ar: "المتابعة كزائرة", en: "Continue as guest" },
+      label: { ar: "المتابعة كزائرة", he: "המשך כאורחת", en: "Continue as guest" },
       capabilities: ["guest"],
       order: 20,
       primary: true,
@@ -978,7 +990,7 @@ function buildLegacyProviders(
     const ready = Boolean(settings?.google_ready);
     list.push({
       id: "google",
-      label: { ar: "المتابعة مع Google", en: "Continue with Google" },
+      label: { ar: "المتابعة مع Google", he: "המשך עם Google", en: "Continue with Google" },
       capabilities: ["oauth"],
       order: 30,
       primary: true,
@@ -993,7 +1005,7 @@ function buildLegacyProviders(
     const ready = Boolean(settings?.apple_ready);
     list.push({
       id: "apple",
-      label: { ar: "المتابعة مع Apple", en: "Continue with Apple" },
+      label: { ar: "المتابعة مع Apple", he: "המשך עם Apple", en: "Continue with Apple" },
       capabilities: ["oauth"],
       order: 40,
       primary: true,
@@ -1006,7 +1018,7 @@ function buildLegacyProviders(
   }
   list.push({
     id: "whatsapp",
-    label: { ar: "المتابعة مع واتساب", en: "Continue with WhatsApp" },
+    label: { ar: "المتابعة مع واتساب", he: "המשך עם וואטסאפ", en: "Continue with WhatsApp" },
     capabilities: ["otp"],
     order: 50,
     primary: true,
@@ -1059,9 +1071,7 @@ function OAuthButton({
         <span
           className="absolute start-4 top-1/2 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white"
           style={{ backgroundColor: ACCENT }}
-        >
-          قريباً
-        </span>
+        >{disabledHint}</span>
       ) : null}
     </button>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import {
   BarChart3,
@@ -137,8 +139,13 @@ function SimpleTable({
   headers: string[];
   rows: Array<Array<string | number>>;
 }) {
+  const { t } = useLocale();
   if (!rows.length) {
-    return <p className="py-6 text-center text-sm text-muted">لا توجد بيانات</p>;
+    return (
+      <p className="py-6 text-center text-sm text-muted">
+        {t.admin.reportsUi.noData}
+      </p>
+    );
   }
   return (
     <div className="overflow-x-auto">
@@ -168,7 +175,13 @@ function SimpleTable({
   );
 }
 
-export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse }) {
+export function ReportsCenter({
+  initialData,
+}: {
+  initialData: ReportsApiResponse;
+}) {
+  const { t } = useLocale();
+  const r = t.admin.reportsUi;
   const [data, setData] = useState(initialData);
   const [section, setSection] = useState<ReportSection>("overview");
   const [filters, setFilters] = useState<FiltersState>(() =>
@@ -205,12 +218,12 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
           );
           const json = (await res.json()) as ReportsApiResponse;
           if (!res.ok) {
-            setError(json.error || "تعذر تحميل التقارير");
+            setError(json.error || r.loadFailed);
             return;
           }
           setData(json);
         } catch (e) {
-          setError(e instanceof Error ? e.message : "تعذر تحميل التقارير");
+          setError(e instanceof Error ? e.message : r.loadFailed);
         }
       });
     },
@@ -226,7 +239,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
   const exportReport = (format: "csv" | "xlsx" | "pdf") => {
     if (section === "financial" && !data.permissions.canExportFinancial) {
-      setError("غير مصرح بتصدير التقارير المالية");
+      setError(r.exportDenied);
       return;
     }
     const href = `/api/admin/reports/export?${buildQuery(filters, section)}&format=${format}`;
@@ -273,12 +286,12 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok) {
-        setEmailMsg(json.error || "فشل الإرسال");
+        setEmailMsg(json.error || r.sendFailed);
         return;
       }
-      setEmailMsg("تم إرسال التقرير بنجاح");
+      setEmailMsg(r.emailSent);
     } catch (e) {
-      setEmailMsg(e instanceof Error ? e.message : "فشل الإرسال");
+      setEmailMsg(e instanceof Error ? e.message : r.sendFailed);
     } finally {
       setEmailBusy(false);
     }
@@ -306,15 +319,15 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
         note?: string;
       };
       if (!res.ok) {
-        setScheduleMsg(json.error || "فشل الحفظ");
+        setScheduleMsg(json.error || r.saveFailed);
         return;
       }
       setScheduleMsg(
         json.note ||
-          "تم حفظ الجدول (مستقبلي — لن يُرسل تلقائياً حتى يتوفر المشغّل)."
+          r.scheduleSaved
       );
     } catch (e) {
-      setScheduleMsg(e instanceof Error ? e.message : "فشل الحفظ");
+      setScheduleMsg(e instanceof Error ? e.message : r.saveFailed);
     }
   };
 
@@ -341,10 +354,10 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
         <div>
           <p className="text-sm text-gold">{SITE_NAME}</p>
           <h1 className="mt-1 font-[family-name:var(--font-cormorant)] text-3xl font-semibold tracking-wide text-foreground">
-            مركز التقارير
+            {r.title}
           </h1>
           <p className="mt-2 text-sm text-muted">
-            تحليلات للقراءة فقط · الفترة:{" "}
+            {r.subtitle}{" "}
             {new Date(data.range.from).toLocaleDateString("ar-SA")} —{" "}
             {new Date(data.range.to).toLocaleDateString("ar-SA")}
           </p>
@@ -352,13 +365,13 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
             {DEFAULT_SETTINGS.email} · {DEFAULT_SETTINGS.phone} ·{" "}
             {DEFAULT_SETTINGS.address_ar}
             <br />
-            تاريخ الإنشاء: {new Date().toLocaleString("ar-SA")}
+            {r.createdAt} {new Date().toLocaleString()}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
           <Button type="button" variant="outline" size="sm" onClick={printReport}>
             <Printer className="ms-1 h-4 w-4" />
-            طباعة
+            {r.print}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => exportReport("csv")}>
             <Download className="ms-1 h-4 w-4" />
@@ -391,10 +404,10 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
         ))}
       </div>
 
-      <Panel title="الفلاتر" action={<CalendarDays className="h-4 w-4 text-gold print:hidden" />}>
+      <Panel title={r.filters} action={<CalendarDays className="h-4 w-4 text-gold print:hidden" />}>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 print:hidden">
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">الفترة</span>
+            <span className="mb-1 block text-muted">{r.period}</span>
             <select
               className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
               value={filters.preset}
@@ -415,7 +428,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
           {filters.preset === "custom" ? (
             <>
               <Input
-                label="من"
+                label={r.from}
                 type="date"
                 value={filters.from}
                 onChange={(e) =>
@@ -423,7 +436,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                 }
               />
               <Input
-                label="إلى"
+                label={r.to}
                 type="date"
                 value={filters.to}
                 onChange={(e) =>
@@ -433,7 +446,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
             </>
           ) : null}
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">التصنيف</span>
+            <span className="mb-1 block text-muted">{r.category}</span>
             <select
               className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
               value={filters.category}
@@ -441,7 +454,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                 setFilters((f) => ({ ...f, category: e.target.value }))
               }
             >
-              <option value="">الكل</option>
+              <option value="">{r.all}</option>
               {data.filterOptions.categories.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -450,7 +463,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
             </select>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">المنتج</span>
+            <span className="mb-1 block text-muted">{r.product}</span>
             <select
               className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
               value={filters.product}
@@ -458,7 +471,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                 setFilters((f) => ({ ...f, product: e.target.value }))
               }
             >
-              <option value="">الكل</option>
+              <option value="">{r.all}</option>
               {data.filterOptions.products.slice(0, 200).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -467,7 +480,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
             </select>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">منطقة الشحن</span>
+            <span className="mb-1 block text-muted">{r.shippingRegion}</span>
             <select
               className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
               value={filters.shippingRegion}
@@ -475,7 +488,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                 setFilters((f) => ({ ...f, shippingRegion: e.target.value }))
               }
             >
-              <option value="">الكل</option>
+              <option value="">{r.all}</option>
               {data.filterOptions.regions.map((r) => (
                 <option key={r} value={r}>
                   {r}
@@ -484,7 +497,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
             </select>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">طريقة الاستلام</span>
+            <span className="mb-1 block text-muted">{r.deliveryMethod}</span>
             <select
               className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
               value={filters.deliveryMethod}
@@ -492,13 +505,13 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                 setFilters((f) => ({ ...f, deliveryMethod: e.target.value }))
               }
             >
-              <option value="">الكل</option>
-              <option value="delivery">توصيل</option>
-              <option value="pickup">استلام من البوتيك</option>
+              <option value="">{r.all}</option>
+              <option value="delivery">{r.delivery}</option>
+              <option value="pickup">{r.pickup}</option>
             </select>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">حالة الطلب</span>
+            <span className="mb-1 block text-muted">{r.orderStatus}</span>
             <select
               className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
               value={filters.orderStatus}
@@ -506,7 +519,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                 setFilters((f) => ({ ...f, orderStatus: e.target.value }))
               }
             >
-              <option value="">الكل</option>
+              <option value="">{r.all}</option>
               {data.filterOptions.orderStatuses.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -515,7 +528,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
             </select>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">حالة الحجز</span>
+            <span className="mb-1 block text-muted">{r.bookingStatus}</span>
             <select
               className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
               value={filters.bookingStatus}
@@ -523,7 +536,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                 setFilters((f) => ({ ...f, bookingStatus: e.target.value }))
               }
             >
-              <option value="">الكل</option>
+              <option value="">{r.all}</option>
               {data.filterOptions.bookingStatuses.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -532,7 +545,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
             </select>
           </label>
           <Input
-            label="عميل (اسم / جوال / بريد)"
+            label={r.customer}
             value={filters.customer}
             onChange={(e) =>
               setFilters((f) => ({ ...f, customer: e.target.value }))
@@ -540,7 +553,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
           />
           <div className="flex items-end">
             <Button type="button" onClick={applyFilters} disabled={pending} className="w-full">
-              {pending ? "جاري التحديث..." : "تطبيق"}
+              {pending ? r.updating : r.apply}
             </Button>
           </div>
         </div>
@@ -556,16 +569,16 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
       {(section === "overview" || section === "sales" || section === "financial") && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi title="إجمالي الإيرادات" value={formatPrice(data.sales.totalRevenue)} />
-          <Kpi title="صافي الإيرادات" value={formatPrice(data.sales.netRevenue)} />
-          <Kpi title="عدد الطلبات" value={data.sales.ordersCount} />
-          <Kpi title="متوسط قيمة الطلب" value={formatPrice(data.sales.aov)} />
-          <Kpi title="منتجات مباعة" value={data.sales.productsSold} />
-          <Kpi title="متوسط رسوم الشحن" value={formatPrice(data.sales.avgShippingFee)} />
-          <Kpi title="متوسط الخصم" value={formatPrice(data.sales.avgDiscount)} />
+          <Kpi title={r.kpiGrossRevenue} value={formatPrice(data.sales.totalRevenue)} />
+          <Kpi title={r.kpiNetRevenue} value={formatPrice(data.sales.netRevenue)} />
+          <Kpi title={r.kpiOrdersCount} value={data.sales.ordersCount} />
+          <Kpi title={r.kpiAov} value={formatPrice(data.sales.aov)} />
+          <Kpi title={r.kpiProductsSold} value={data.sales.productsSold} />
+          <Kpi title={r.kpiAvgShipping} value={formatPrice(data.sales.avgShippingFee)} />
+          <Kpi title={r.kpiAvgDiscount} value={formatPrice(data.sales.avgDiscount)} />
           {data.financial ? (
             <Kpi
-              title="طلبات معلّقة"
+              title={r.kpiPendingOrders}
               value={data.financial.outstandingOrders}
               hint={formatPrice(data.financial.outstandingValue)}
             />
@@ -575,67 +588,67 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
       {(section === "overview" || section === "bookings") && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi title="حجوزات جديدة" value={data.bookings.newCount} />
-          <Kpi title="مؤكدة" value={data.bookings.confirmed} />
-          <Kpi title="مكتملة" value={data.bookings.completed} />
-          <Kpi title="ملغاة" value={data.bookings.cancelled} />
-          <Kpi title="لم تحضر" value={data.bookings.noShows ?? 0} />
+          <Kpi title={r.kpiNewBookings} value={data.bookings.newCount} />
+          <Kpi title={r.kpiConfirmed} value={data.bookings.confirmed} />
+          <Kpi title={r.kpiCompleted} value={data.bookings.completed} />
+          <Kpi title={r.kpiCancelled} value={data.bookings.cancelled} />
+          <Kpi title={r.kpiNoShow} value={data.bookings.noShows ?? 0} />
           <Kpi
-            title="نسبة الإلغاء %"
+            title={r.kpiCancelRate}
             value={data.bookings.cancelRate ?? 0}
           />
           <Kpi
-            title="نسبة عدم الحضور %"
+            title={r.kpiNoShowRate}
             value={data.bookings.noShowRate ?? 0}
           />
           <Kpi
-            title="إيرادات الحجوزات"
+            title={r.kpiBookingRevenue}
             value={formatPrice(data.bookings.bookingRevenue)}
-            hint="مستقبلي — لا يوجد سعر للحجز بعد"
+            hint={r.kpiBookingRevenueHint}
           />
         </div>
       )}
 
       {(section === "overview" || section === "customers") && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi title="عملاء جدد" value={data.customers.newCustomers} />
-          <Kpi title="عملاء عائدون" value={data.customers.returningCustomers} />
-          <Kpi title="متوسط الإنفاق" value={formatPrice(data.customers.avgSpend)} />
-          <Kpi title="طلبات لكل عميل" value={data.customers.ordersPerCustomer} />
+          <Kpi title={r.kpiNewCustomers} value={data.customers.newCustomers} />
+          <Kpi title={r.kpiReturning} value={data.customers.returningCustomers} />
+          <Kpi title={r.kpiAvgSpend} value={formatPrice(data.customers.avgSpend)} />
+          <Kpi title={r.kpiOrdersPerCustomer} value={data.customers.ordersPerCustomer} />
         </div>
       )}
 
       {(section === "overview" || section === "shipping") && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi title="توصيل" value={data.shipping.deliveryCount} />
-          <Kpi title="استلام من البوتيك" value={data.shipping.pickupCount} />
-          <Kpi title="متوسط تكلفة الشحن" value={formatPrice(data.shipping.avgShippingCost)} />
-          <Kpi title="رسوم معلّقة" value={data.shipping.pendingShippingFees} />
+          <Kpi title={r.kpiDelivery} value={data.shipping.deliveryCount} />
+          <Kpi title={r.kpiPickup} value={data.shipping.pickupCount} />
+          <Kpi title={r.kpiAvgShipCost} value={formatPrice(data.shipping.avgShippingCost)} />
+          <Kpi title={r.kpiPendingFees} value={data.shipping.pendingShippingFees} />
           <Kpi
-            title="متوسط وقت التوصيل"
+            title={r.kpiAvgDeliveryTime}
             value={
               data.shipping.avgDeliveryTimeHours == null
                 ? "—"
-                : `${data.shipping.avgDeliveryTimeHours} س`
+                : formatMessage(r.hoursShort, { n: data.shipping.avgDeliveryTimeHours })
             }
-            hint="مستقبلي — يحتاج طوابع حالات"
+            hint={r.kpiAvgDeliveryHint}
           />
         </div>
       )}
 
       {section === "financial" && data.financial ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi title="الإجمالي (Gross)" value={formatPrice(data.financial.gross)} />
-          <Kpi title="الصافي (Net)" value={formatPrice(data.financial.net)} />
-          <Kpi title="دخل الشحن" value={formatPrice(data.financial.shippingIncome)} />
-          <Kpi title="خصومات ممنوحة" value={formatPrice(data.financial.discountsGiven)} />
+          <Kpi title={r.kpiGross} value={formatPrice(data.financial.gross)} />
+          <Kpi title={r.kpiNet} value={formatPrice(data.financial.net)} />
+          <Kpi title={r.kpiShipIncome} value={formatPrice(data.financial.shippingIncome)} />
+          <Kpi title={r.kpiDiscounts} value={formatPrice(data.financial.discountsGiven)} />
           <Kpi
-            title="المستردات"
+            title={r.kpiRefunds}
             value={formatPrice(data.financial.refunds)}
-            hint="مستقبلي"
+            hint={r.future}
           />
           <Kpi
-            title="قيمة معلّقة"
+            title={r.kpiPendingValue}
             value={formatPrice(data.financial.outstandingValue)}
           />
         </div>
@@ -644,7 +657,7 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
       {(section === "overview" ||
         section === "insights" ||
         section === "sales") && (
-        <Panel title="رؤى الأعمال" action={<BarChart3 className="h-4 w-4 text-gold" />}>
+        <Panel title={r.businessInsights} action={<BarChart3 className="h-4 w-4 text-gold" />}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {data.insights.map((insight) => (
               <div
@@ -674,9 +687,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
       {(section === "overview" || section === "products") && (
         <div className="grid gap-4 xl:grid-cols-2">
-          <Panel title="أفضل المنتجات مبيعاً">
+          <Panel title={r.topProducts}>
             <SimpleTable
-              headers={["المنتج", "الكمية", "الطلبات", "الإيرادات"]}
+              headers={[r.colProduct, r.colQty, r.colOrders, r.colRevenue]}
               rows={data.products.bestSelling.map((p) => [
                 p.name,
                 p.quantity,
@@ -685,9 +698,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
               ])}
             />
           </Panel>
-          <Panel title="أقل المنتجات مبيعاً">
+          <Panel title={r.lowProducts}>
             <SimpleTable
-              headers={["المنتج", "الكمية", "الإيرادات"]}
+              headers={[r.colProduct, r.colQty, r.colRevenue]}
               rows={data.products.worstSelling.map((p) => [
                 p.name,
                 p.quantity,
@@ -695,18 +708,18 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
               ])}
             />
           </Panel>
-          <Panel title="لم تُطلب أبداً">
+          <Panel title={r.neverOrdered}>
             <SimpleTable
-              headers={["المنتج", "النوع"]}
+              headers={[r.colProduct, r.colType]}
               rows={data.products.neverOrdered.map((p) => [
                 p.name,
                 p.product_type,
               ])}
             />
           </Panel>
-          <Panel title="أعلى إيراداً">
+          <Panel title={r.topRevenue}>
             <SimpleTable
-              headers={["المنتج", "الإيرادات", "الكمية"]}
+              headers={[r.colProduct, r.colRevenue, r.colQty]}
               rows={data.products.highestRevenue.map((p) => [
                 p.name,
                 formatPrice(p.revenue),
@@ -714,9 +727,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
               ])}
             />
           </Panel>
-          <Panel title="الأعلى مشاهدة">
+          <Panel title={r.mostViewed}>
             <p className="text-sm text-muted">
-              مستقبلي — تتبّع المشاهدات غير مفعّل بعد.
+              {r.mostViewedHint}
             </p>
           </Panel>
         </div>
@@ -724,9 +737,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
       {(section === "overview" || section === "categories") && (
         <div className="grid gap-4 xl:grid-cols-2">
-          <Panel title="أفضل التصنيفات">
+          <Panel title={r.topCategories}>
             <SimpleTable
-              headers={["التصنيف", "الكمية", "الإيرادات"]}
+              headers={[r.colCategory, r.colQty, r.colRevenue]}
               rows={data.categories.bestSelling.map((c) => [
                 c.name,
                 c.quantity,
@@ -734,9 +747,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
               ])}
             />
           </Panel>
-          <Panel title="إيرادات التصنيفات">
+          <Panel title={r.categoryRevenue}>
             <SimpleTable
-              headers={["التصنيف", "الطلبات", "الإيرادات"]}
+              headers={[r.colCategory, r.colOrders, r.colRevenue]}
               rows={data.categories.categoryRevenue.map((c) => [
                 c.name,
                 c.orders_count,
@@ -749,9 +762,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
       {(section === "overview" || section === "customers") && (
         <div className="grid gap-4 xl:grid-cols-2">
-          <Panel title="أكثر العملاء طلباً">
+          <Panel title={r.topCustomersOrders}>
             <SimpleTable
-              headers={["الاسم", "الطلبات", "الإنفاق"]}
+              headers={[r.colName, r.colOrders, r.colSpend]}
               rows={data.customers.topCustomers.map((c) => [
                 c.name,
                 c.orders,
@@ -759,9 +772,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
               ])}
             />
           </Panel>
-          <Panel title="أعلى إنفاقاً">
+          <Panel title={r.topSpenders}>
             <SimpleTable
-              headers={["الاسم", "الجوال", "الإنفاق"]}
+              headers={[r.colName, r.colPhone, r.colSpend]}
               rows={data.customers.highestSpending.map((c) => [
                 c.name,
                 c.phone ?? "—",
@@ -774,36 +787,36 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
       {(section === "overview" || section === "bookings") && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Panel title="أكثر الخدمات طلباً">
+          <Panel title={r.topServices}>
             <SimpleTable
-              headers={["الخدمة", "العدد"]}
+              headers={[r.colService, r.colCount]}
               rows={data.bookings.mostRequestedServices.map((s) => [
                 s.name,
                 s.count,
               ])}
             />
           </Panel>
-          <Panel title="الساعات الأكثر ازدحامًا">
+          <Panel title={r.peakHours}>
             <SimpleTable
-              headers={["الساعة", "العدد"]}
+              headers={[r.colHour, r.colCount]}
               rows={(data.bookings.busyHours ?? []).map((s) => [
                 s.name,
                 s.count,
               ])}
             />
           </Panel>
-          <Panel title="الأيام الأكثر ازدحامًا">
+          <Panel title={r.peakDays}>
             <SimpleTable
-              headers={["اليوم", "العدد"]}
+              headers={[r.colDay, r.colCount]}
               rows={(data.bookings.busyDays ?? []).map((s) => [
                 s.name,
                 s.count,
               ])}
             />
           </Panel>
-          <Panel title="حسب مصدر الحجز">
+          <Panel title={r.bySource}>
             <SimpleTable
-              headers={["المصدر", "العدد"]}
+              headers={[r.colSource, r.colCount]}
               rows={(data.bookings.bySource ?? []).map((s) => [
                 s.name,
                 s.count,
@@ -814,9 +827,9 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
       )}
 
       {(section === "overview" || section === "shipping") && (
-        <Panel title="أكثر المناطق اختياراً">
+        <Panel title={r.topRegions}>
           <SimpleTable
-            headers={["المنطقة", "العدد"]}
+            headers={[r.colRegion, r.colCount]}
             rows={data.shipping.mostSelectedRegions.map((r) => [
               r.name,
               r.count,
@@ -827,19 +840,19 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
 
       <div className="grid gap-4 lg:grid-cols-2 print:hidden">
         <Panel
-          title="إرسال التقرير بالبريد"
+          title={r.emailReport}
           action={<Mail className="h-4 w-4 text-gold" />}
         >
           <div className="space-y-3">
             <Input
-              label="البريد الإلكتروني"
+              label={r.emailLabel}
               type="email"
               value={emailTo}
               onChange={(e) => setEmailTo(e.target.value)}
               placeholder="name@example.com"
             />
             <label className="block text-sm">
-              <span className="mb-1 block text-muted">قالب الفترة</span>
+              <span className="mb-1 block text-muted">{r.periodTemplate}</span>
               <select
                 className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
                 value={emailPreset}
@@ -847,14 +860,14 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                   setEmailPreset(e.target.value as ReportEmailPreset)
                 }
               >
-                <option value="daily">يومي</option>
-                <option value="weekly">أسبوعي</option>
-                <option value="monthly">شهري</option>
-                <option value="custom">حسب الفلاتر الحالية</option>
+                <option value="daily">{r.daily}</option>
+                <option value="weekly">{r.weekly}</option>
+                <option value="monthly">{r.monthly}</option>
+                <option value="custom">{r.customFilters}</option>
               </select>
             </label>
             <Button type="button" onClick={sendEmail} disabled={emailBusy}>
-              {emailBusy ? "جاري الإرسال..." : "إرسال الآن"}
+              {emailBusy ? r.sending : r.sendNow}
             </Button>
             {emailMsg ? (
               <p className="text-sm text-muted">{emailMsg}</p>
@@ -863,22 +876,21 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
         </Panel>
 
         <Panel
-          title="جدولة التقارير (مستقبلي)"
+          title={r.scheduleTitle}
           action={<Wallet className="h-4 w-4 text-gold" />}
         >
           <p className="mb-3 text-sm text-muted">
-            يُحفظ الجدول في قاعدة البيانات فقط. لن يُرسل تلقائياً حتى يتوفر مشغّل
-            الجدولة (cron).
+            {r.scheduleHint}
           </p>
           <div className="space-y-3">
             <Input
-              label="البريد"
+              label={r.emailLabel}
               type="email"
               value={scheduleEmail}
               onChange={(e) => setScheduleEmail(e.target.value)}
             />
             <label className="block text-sm">
-              <span className="mb-1 block text-muted">التكرار</span>
+              <span className="mb-1 block text-muted">{r.frequency}</span>
               <select
                 className="w-full rounded-xl border border-beige-dark bg-background px-3 py-2"
                 value={scheduleFreq}
@@ -888,13 +900,13 @@ export function ReportsCenter({ initialData }: { initialData: ReportsApiResponse
                   )
                 }
               >
-                <option value="daily">يومي</option>
-                <option value="weekly">أسبوعي</option>
-                <option value="monthly">شهري</option>
+                <option value="daily">{r.daily}</option>
+                <option value="weekly">{r.weekly}</option>
+                <option value="monthly">{r.monthly}</option>
               </select>
             </label>
             <Button type="button" variant="outline" onClick={saveSchedule}>
-              حفظ الجدول
+              {r.saveSchedule}
             </Button>
             {scheduleMsg ? (
               <p className="text-sm text-muted">{scheduleMsg}</p>

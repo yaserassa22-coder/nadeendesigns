@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -31,6 +33,8 @@ export function CustomerAuthSettingsForm({
 }: {
   embedded?: boolean;
 }) {
+  const { t } = useLocale();
+  const a = t.admin.authSettings;
   const [settings, setSettings] = useState<CustomerAuthSettings>(
     DEFAULT_CUSTOMER_AUTH_SETTINGS
   );
@@ -75,12 +79,12 @@ export function CustomerAuthSettingsForm({
         body: JSON.stringify(settings),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error || a.saveFailed);
       setSettings(data.settings);
       setFlags(data.flags ?? {});
-      setMessage("تم حفظ قنوات مصادقة العملاء");
+      setMessage(a.saveOk);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "فشل");
+      setMessage(e instanceof Error ? e.message : a.failed);
     } finally {
       setSaving(false);
     }
@@ -104,10 +108,9 @@ export function CustomerAuthSettingsForm({
     >
       {!embedded && (
         <div>
-          <h2 className="text-xl font-bold text-charcoal">مصادقة العملاء</h2>
+          <h2 className="text-xl font-bold text-charcoal">{a.title}</h2>
           <p className="mt-1 text-sm text-muted">
-            تحكّمي بظهور وترتيب قنوات الدخول وشارة «قريباً» دون تعديل الكود.
-            الأسرار تبقى في البيئة (مثل Resend) — هنا التفعيل والإعداد فقط.
+            {a.description}
           </p>
         </div>
       )}
@@ -131,7 +134,7 @@ export function CustomerAuthSettingsForm({
                     {ch.id} · order {ch.sort_order}
                   </p>
                   <Input
-                    label="التسمية بالعربية"
+                    label={a.labelAr}
                     value={ch.label_ar}
                     onChange={(e) =>
                       updateChannel(ch.id, { label_ar: e.target.value })
@@ -156,7 +159,7 @@ export function CustomerAuthSettingsForm({
                   ) : null}
                   {isWhatsApp ? (
                     <label className="block text-sm">
-                      <span className="text-muted">مزوّد واتساب (غير سرّي)</span>
+                      <span className="text-muted">{a.whatsappProvider}</span>
                       <select
                         className="mt-1 w-full rounded-xl border border-beige-dark px-3 py-2 text-sm"
                         value={provider}
@@ -169,7 +172,7 @@ export function CustomerAuthSettingsForm({
                           })
                         }
                       >
-                        <option value="auto">تلقائي (auto)</option>
+                        <option value="auto">{a.providerAuto}</option>
                         <option value="meta">Meta Cloud API</option>
                         <option value="twilio">Twilio WhatsApp</option>
                         <option value="360dialog">360dialog</option>
@@ -180,7 +183,7 @@ export function CustomerAuthSettingsForm({
                 <div className="flex flex-col gap-2">
                   {ch.coming_soon ? (
                     <span className="rounded-lg bg-amber-50 px-2 py-1 text-center text-xs text-amber-800">
-                      قريباً
+                      {a.comingSoon}
                     </span>
                   ) : null}
                   <label className="flex items-center gap-2 text-sm">
@@ -192,7 +195,7 @@ export function CustomerAuthSettingsForm({
                         updateChannel(ch.id, { enabled: e.target.checked })
                       }
                     />
-                    مفعّل / ظاهر
+                    {a.enabledVisible}
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -206,7 +209,7 @@ export function CustomerAuthSettingsForm({
                         })
                       }
                     />
-                    قريباً
+                    {a.comingSoon}
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -217,7 +220,7 @@ export function CustomerAuthSettingsForm({
                         updateChannel(ch.id, { configured: e.target.checked })
                       }
                     />
-                    مُعدّ (env جاهز)
+                    {a.configuredEnv}
                   </label>
                   <div className="flex gap-1">
                     <button
@@ -231,7 +234,7 @@ export function CustomerAuthSettingsForm({
                         }))
                       }
                     >
-                      أعلى
+                      {a.moveUp}
                     </button>
                     <button
                       type="button"
@@ -244,7 +247,7 @@ export function CustomerAuthSettingsForm({
                         }))
                       }
                     >
-                      أسفل
+                      {a.moveDown}
                     </button>
                   </div>
                 </div>
@@ -256,7 +259,7 @@ export function CustomerAuthSettingsForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="text-sm">
-          <span className="text-muted">انتهاء OTP (ثانية)</span>
+          <span className="text-muted">{a.otpExpiry}</span>
           <input
             type="number"
             min={60}
@@ -272,7 +275,7 @@ export function CustomerAuthSettingsForm({
           />
         </label>
         <label className="text-sm">
-          <span className="text-muted">أقصى محاولات</span>
+          <span className="text-muted">{a.maxAttempts}</span>
           <input
             type="number"
             min={3}
@@ -288,7 +291,7 @@ export function CustomerAuthSettingsForm({
           />
         </label>
         <label className="text-sm">
-          <span className="text-muted">إعادة إرسال (ثانية)</span>
+          <span className="text-muted">{a.resendSeconds}</span>
           <input
             type="number"
             min={30}
@@ -306,7 +309,7 @@ export function CustomerAuthSettingsForm({
       </div>
 
       <div className="rounded-xl bg-beige/50 px-4 py-3 text-xs text-muted">
-        <p className="font-medium text-charcoal">حالة البيئة (أسرار):</p>
+        <p className="font-medium text-charcoal">{a.envStatus}</p>
         <ul className="mt-1 list-inside list-disc">
           <li>Supabase: {flags.supabaseConfigured ? "✓" : "✗"}</li>
           <li>
@@ -318,25 +321,22 @@ export function CustomerAuthSettingsForm({
             (NEXT_PUBLIC_APPLE_AUTH_ENABLED)
           </li>
           <li>
-            واتساب OTP:{" "}
+            {a.whatsappOtp}{" "}
             {flags.whatsappConfigured || flags.smsConfigured ? "✓" : "✗"}
           </li>
-          <li>مزوّد واتساب env: {String(flags.whatsappProvider || "auto")}</li>
+          <li>{a.whatsappProviderEnv} {String(flags.whatsappProvider || "auto")}</li>
           <li>
-            Resend / بريد الاستعادة: {flags.emailConfigured ? "✓" : "✗"} — من
-            الإشعارات
+            {a.resendRecovery} {flags.emailConfigured ? "✓" : "✗"} — {a.fromNotifications}
           </li>
         </ul>
         <p className="mt-2 leading-relaxed">
-          عند شراء واتساب للأعمال: اختاري المزوّد أعلاه، أزيلي «قريباً»، فعّلي
-          القناة، وأضيفي المفاتيح في البيئة (نفس نمط Resend — لا حاجة لتعديل
-          الكود لإظهار الزر). قوالب الإشعارات من صفحة الإشعارات.
+          {a.footerHint}
         </p>
       </div>
 
       {message && <p className="text-sm text-muted">{message}</p>}
       <Button loading={saving} onClick={() => void save()}>
-        حفظ قنوات المصادقة
+        {a.save}
       </Button>
     </div>
   );

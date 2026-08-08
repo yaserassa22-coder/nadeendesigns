@@ -5,16 +5,15 @@ import type { ProductPersonalization } from "@/types";
 import {
   getArabicFontLabel,
   getEnglishFontLabel,
-  getPositionLabel,
   getWritingColorHex,
   getWritingColorLabel,
-  getWritingLanguageLabel,
   ARABIC_FONT_CLASS,
   ENGLISH_FONT_CLASS,
 } from "@/lib/personalization";
 import { cn } from "@/lib/utils";
 import { PersonalizationFonts } from "@/components/dresses/PersonalizationFonts";
 import { PersonalizationPreview } from "@/components/dresses/PersonalizationPreview";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface PersonalizationSummaryProps {
   personalization: ProductPersonalization;
@@ -24,9 +23,11 @@ interface PersonalizationSummaryProps {
 
 export function PersonalizationSummary({
   personalization,
-  title = "تفاصيل التخصيص",
+  title,
   compact = false,
 }: PersonalizationSummaryProps) {
+  const { t, locale } = useLocale();
+  const heading = title ?? t.personalizationUi.summaryTitle;
   const {
     dress_name_ar,
     writing_language,
@@ -35,19 +36,19 @@ export function PersonalizationSummary({
     font_ar,
     font_en,
     color,
-    position,
-    product_type,
   } = personalization;
+
+  const displayText = (text_ar || text_en || "").trim();
 
   return (
     <PersonalizationFonts className="rounded-2xl border border-gold/25 bg-beige/30 p-5 md:p-6">
       <div className="mb-4 flex items-center gap-2 text-gold">
         <Sparkles className="h-5 w-5" />
-        <h3 className="font-semibold text-charcoal">{title}</h3>
+        <h3 className="font-semibold text-charcoal">{heading}</h3>
       </div>
 
       <p className="mb-4 text-sm text-muted">
-        المنتج:{" "}
+        {t.personalizationUi.product}{" "}
         <span className="font-medium text-charcoal">{dress_name_ar}</span>
       </p>
 
@@ -64,68 +65,54 @@ export function PersonalizationSummary({
         </div>
       )}
 
-      {compact && (text_ar || text_en) && (
+      {compact && displayText ? (
         <div className="mb-4 text-center">
-          {text_ar &&
-            (writing_language === "ar" || writing_language === "both") && (
-              <p
-                dir="rtl"
-                className={cn("text-xl", ARABIC_FONT_CLASS[font_ar])}
-                style={{ color: getWritingColorHex(color) }}
-              >
-                {text_ar}
-              </p>
-            )}
-          {text_en &&
-            (writing_language === "en" || writing_language === "both") && (
-              <p
-                dir="ltr"
-                className={cn("text-xl", ENGLISH_FONT_CLASS[font_en])}
-                style={{ color: getWritingColorHex(color) }}
-              >
-                {text_en}
-              </p>
-            )}
+          {text_ar ? (
+            <p
+              dir="auto"
+              className={cn("whitespace-pre-wrap text-xl", ARABIC_FONT_CLASS[font_ar])}
+              style={{ color: getWritingColorHex(color) }}
+            >
+              {text_ar}
+            </p>
+          ) : null}
+          {text_en && writing_language !== "ar" ? (
+            <p
+              dir="ltr"
+              className={cn("whitespace-pre-wrap text-xl", ENGLISH_FONT_CLASS[font_en])}
+              style={{ color: getWritingColorHex(color) }}
+            >
+              {text_en}
+            </p>
+          ) : null}
         </div>
-      )}
+      ) : null}
 
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
+        {displayText ? (
+          <div className="sm:col-span-2">
+            <dt className="text-muted">{t.personalizationUi.text}</dt>
+            <dd className="whitespace-pre-wrap font-medium text-charcoal" dir="auto">
+              {displayText}
+            </dd>
+          </div>
+        ) : null}
         <div>
-          <dt className="text-muted">لغة الكتابة</dt>
+          <dt className="text-muted">{t.personalizationUi.font}</dt>
           <dd className="font-medium text-charcoal">
-            {getWritingLanguageLabel(writing_language)}
+            {text_ar || writing_language === "ar" || writing_language === "both"
+              ? getArabicFontLabel(font_ar, locale)
+              : getEnglishFontLabel(font_en, locale)}
           </dd>
         </div>
-        {(writing_language === "ar" || writing_language === "both") && (
-          <div>
-            <dt className="text-muted">خط العربية</dt>
-            <dd className="font-medium text-charcoal">
-              {getArabicFontLabel(font_ar)}
-            </dd>
-          </div>
-        )}
-        {(writing_language === "en" || writing_language === "both") && (
-          <div>
-            <dt className="text-muted">English Font</dt>
-            <dd className="font-medium text-charcoal" dir="ltr">
-              {getEnglishFontLabel(font_en)}
-            </dd>
-          </div>
-        )}
         <div>
-          <dt className="text-muted">لون الكتابة</dt>
+          <dt className="text-muted">{t.personalizationUi.writingColor}</dt>
           <dd className="flex items-center gap-2 font-medium text-charcoal">
             <span
               className="inline-block h-3.5 w-3.5 rounded-full border border-beige-dark"
               style={{ backgroundColor: getWritingColorHex(color) }}
             />
-            {getWritingColorLabel(color)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted">موضع الكتابة</dt>
-          <dd className="font-medium text-charcoal" dir="ltr">
-            {getPositionLabel(position, product_type)}
+            {getWritingColorLabel(color, locale)}
           </dd>
         </div>
       </dl>

@@ -10,6 +10,7 @@ import {
   type WritingLanguage,
 } from "@/lib/personalization";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface PersonalizationPreviewProps {
   writingLanguage: WritingLanguage;
@@ -28,6 +29,7 @@ export function PersonalizationPreview({
   fontEn,
   color,
 }: PersonalizationPreviewProps) {
+  const { t } = useLocale();
   const showAr =
     (writingLanguage === "ar" || writingLanguage === "both") && textAr.trim();
   const showEn =
@@ -47,14 +49,14 @@ export function PersonalizationPreview({
       </p>
 
       {!showAr && !showEn ? (
-        <p className="text-sm text-muted">أدخلي النص لمعاينة الكتابة</p>
+        <p className="text-sm text-muted">{t.personalizationUi.previewEmpty}</p>
       ) : (
         <div className="flex flex-col items-center justify-center gap-3">
           {showAr && (
             <p
-              dir="rtl"
+              dir="auto"
               className={cn(
-                "text-3xl leading-relaxed md:text-4xl",
+                "whitespace-pre-wrap text-3xl leading-relaxed md:text-4xl",
                 ARABIC_FONT_CLASS[fontAr]
               )}
               style={{ color: hex }}
@@ -66,7 +68,7 @@ export function PersonalizationPreview({
             <p
               dir="ltr"
               className={cn(
-                "text-3xl leading-relaxed tracking-wide md:text-4xl",
+                "whitespace-pre-wrap text-3xl leading-relaxed tracking-wide md:text-4xl",
                 ENGLISH_FONT_CLASS[fontEn]
               )}
               style={{ color: hex }}

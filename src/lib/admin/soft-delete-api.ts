@@ -62,6 +62,14 @@ export async function handleModuleDelete(options: {
   }
 
   const supabase = await createPrivilegedClient();
+
+  if (!permanent && module === "bookings") {
+    const { prepareBookingSoftDelete } = await import(
+      "@/lib/admin/booking-soft-delete"
+    );
+    await prepareBookingSoftDelete(supabase, id);
+  }
+
   const result = permanent
     ? await permanentDeleteRecord(supabase, module, id, actor)
     : await softDeleteRecord(supabase, module, id, actor);

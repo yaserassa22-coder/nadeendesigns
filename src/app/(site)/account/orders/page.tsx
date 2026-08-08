@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { getShopOrderStatusLabel } from "@/lib/i18n";
+import type { ShopOrderStatus } from "@/types/shop";
 
 type Order = {
   id: string;
@@ -13,6 +16,7 @@ type Order = {
 };
 
 export default function AccountOrdersPage() {
+  const { t, locale } = useLocale();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,8 +37,8 @@ export default function AccountOrdersPage() {
   if (!orders.length) {
     return (
       <Empty
-        title="لا طلبات بعد"
-        hint="يمكنك الطلب كزائرة في أي وقت — ستُربط الطلبات بحسابك عند تطابق الهاتف أو البريد."
+        title={t.account.ordersEmptyTitle}
+        hint={t.account.ordersEmptyHint}
       />
     );
   }
@@ -52,10 +56,12 @@ export default function AccountOrdersPage() {
             </p>
             <p className="text-xs text-muted">
               {o.created_at
-                ? new Date(o.created_at).toLocaleDateString("ar")
+                ? new Date(o.created_at).toLocaleDateString(locale === "he" ? "he" : locale === "en" ? "en" : "ar")
                 : ""}{" "}
-              · {o.status || "—"}
-              {o.tracking_number ? ` · تتبع: ${o.tracking_number}` : ""}
+              · {o.status
+                ? getShopOrderStatusLabel(o.status as ShopOrderStatus, locale)
+                : "—"}
+              {o.tracking_number ? ` · ${t.account.tracking}: ${o.tracking_number}` : ""}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -65,9 +71,7 @@ export default function AccountOrdersPage() {
             <Link
               href={`/orders/${o.id}`}
               className="rounded-xl border border-beige-dark px-3 py-1.5 text-sm hover:border-[color:#C9A14A]"
-            >
-              عرض / تتبع
-            </Link>
+            >{t.account.viewTrack}</Link>
           </div>
         </div>
       ))}

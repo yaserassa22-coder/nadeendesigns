@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
 
 interface CmsLivePreviewProps {
@@ -11,10 +12,13 @@ interface CmsLivePreviewProps {
 
 /** Shared RTL live-preview chrome for CMS editors. */
 export function CmsLivePreview({
-  title = "معاينة مباشرة",
+  title,
   children,
   className,
 }: CmsLivePreviewProps) {
+  const { t } = useLocale();
+  const cu = t.admin.cmsUi;
+
   return (
     <div
       className={cn(
@@ -23,10 +27,10 @@ export function CmsLivePreview({
       )}
     >
       <div className="border-b border-beige-dark bg-white/80 px-4 py-3">
-        <p className="text-xs font-medium tracking-wide text-muted">{title}</p>
-        <p className="mt-0.5 text-[11px] text-muted/80">
-          تتحدث أثناء الكتابة — دون الحاجة للحفظ
+        <p className="text-xs font-medium tracking-wide text-muted">
+          {title ?? cu.livePreviewTitle}
         </p>
+        <p className="mt-0.5 text-[11px] text-muted/80">{cu.livePreviewHint}</p>
       </div>
       <div dir="rtl" className="max-h-[70vh] overflow-y-auto p-4">
         {children}

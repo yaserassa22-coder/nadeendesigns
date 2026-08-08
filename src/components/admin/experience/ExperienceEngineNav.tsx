@@ -3,19 +3,41 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 const LINKS = [
-  { href: "/admin/experience", label: "نظرة عامة", exact: true },
-  { href: "/admin/experience/features", label: "الميزات" },
-  { href: "/admin/experience/services", label: "الخدمات" },
-  { href: "/admin/experience/product-types", label: "أنواع المنتجات" },
-  { href: "/admin/experience/purchase-flows", label: "مسارات الشراء" },
-  { href: "/admin/experience/templates", label: "القوالب" },
-  { href: "/admin/experience/preview", label: "معاينة" },
+  { href: "/admin/experience", key: "overview" as const, exact: true },
+  { href: "/admin/experience/features", key: "features" as const },
+  { href: "/admin/experience/services", key: "services" as const },
+  { href: "/admin/experience/product-types", key: "productTypes" as const },
+  { href: "/admin/experience/purchase-flows", key: "purchaseFlows" as const },
+  { href: "/admin/experience/templates", key: "templates" as const },
+  { href: "/admin/experience/preview", key: "preview" as const },
 ] as const;
 
 export function ExperienceEngineNav() {
   const pathname = usePathname();
+  const { t } = useLocale();
+  const eu = t.admin.experienceUi;
+
+  const labelFor = (key: (typeof LINKS)[number]["key"]) => {
+    switch (key) {
+      case "overview":
+        return eu.overview;
+      case "features":
+        return eu.features;
+      case "services":
+        return eu.services;
+      case "productTypes":
+        return eu.productTypes;
+      case "purchaseFlows":
+        return eu.purchaseFlows;
+      case "templates":
+        return eu.templates;
+      case "preview":
+        return eu.preview;
+    }
+  };
 
   return (
     <nav className="flex flex-wrap gap-2 border-b border-beige-dark pb-4">
@@ -35,7 +57,7 @@ export function ExperienceEngineNav() {
                 : "bg-beige/50 text-charcoal hover:bg-beige"
             )}
           >
-            {link.label}
+            {labelFor(link.key)}
           </Link>
         );
       })}

@@ -1,8 +1,11 @@
+"use client";
+
 import { cn, formatPrice } from "@/lib/utils";
 import {
   resolveProductPricing,
   type ResolveProductPricingInput,
 } from "@/lib/products/pricing";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export type ProductPriceSize = "sm" | "md" | "lg";
 
@@ -55,6 +58,7 @@ export function ProductPrice({
   priceSuffix,
   className,
 }: ProductPriceProps) {
+  const { t } = useLocale();
   const pricing = resolveProductPricing({
     price,
     salePrice,
@@ -66,7 +70,7 @@ export function ProductPrice({
 
   const sizes = sizeClasses[size];
   const suffix =
-    priceSuffix ?? (pricing.isRental ? "/ إيجار" : undefined);
+    priceSuffix ?? (pricing.isRental ? t.product.rentalSuffix : undefined);
 
   if (pricing.onSale && pricing.regularPrice != null && pricing.salePrice != null) {
     return (

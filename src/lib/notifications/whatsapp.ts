@@ -1,4 +1,8 @@
 import { isWhatsAppConfigured } from "@/lib/notifications/config";
+import {
+  pushLocalOutbox,
+  shouldUseLocalNotificationOutbox,
+} from "@/lib/notifications/local-outbox";
 import { phoneDigits } from "@/lib/phone";
 
 /** Normalize phone to E.164-ish digits for Twilio WhatsApp. */
@@ -15,21 +19,38 @@ export function normalizeWhatsAppTo(phone: string): string | null {
   return digits;
 }
 
+export type SendWhatsAppResult =
+  | { ok: true; sid?: string; local?: boolean }
+  | { ok: false; error: string; local?: boolean };
+
 export async function sendWhatsApp(params: {
   to: string;
   body: string;
-}): Promise<{ ok: true; sid?: string } | { ok: false; error: string }> {
+}): Promise<SendWhatsAppResult> {
+  const toDigits = normalizeWhatsAppTo(params.to);
+  if (!toDigits && !params.to.startsWith("whatsapp:")) {
+    return { ok: false, error: "رقم واتساب غير صالح" };
+  }
+
   if (!isWhatsAppConfigured()) {
+    if (shouldUseLocalNotificationOutbox()) {
+      const row = pushLocalOutbox({
+        channel: "whatsapp",
+        to: params.to,
+        body: params.body,
+        meta: { reason: "twilio_not_configured" },
+      });
+      console.info("[whatsapp] local outbox (Twilio not configured)", {
+        id: row.id,
+        to: params.to,
+      });
+      return { ok: true, sid: row.id, local: true };
+    }
     return {
       ok: false,
       error:
         "WhatsApp غير مُعد. أضيفي TWILIO_ACCOUNT_SID و TWILIO_AUTH_TOKEN و TWILIO_WHATSAPP_FROM",
     };
-  }
-
-  const toDigits = normalizeWhatsAppTo(params.to);
-  if (!toDigits) {
-    return { ok: false, error: "رقم واتساب غير صالح" };
   }
 
   const sid = process.env.TWILIO_ACCOUNT_SID!.trim();

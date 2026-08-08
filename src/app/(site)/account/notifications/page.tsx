@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -16,8 +18,8 @@ type AccountNotification = {
   read_at?: string | null;
 };
 
-function notificationTitle(n: AccountNotification) {
-  return n.title_ar || n.title || n.message || "إشعار";
+function notificationTitle(n: AccountNotification, fallback: string) {
+  return n.title_ar || n.title || n.message || fallback;
 }
 
 function notificationBody(n: AccountNotification) {
@@ -25,6 +27,7 @@ function notificationBody(n: AccountNotification) {
 }
 
 export default function AccountNotificationsPage() {
+  const { t, locale } = useLocale();
   const [items, setItems] = useState<AccountNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +46,7 @@ export default function AccountNotificationsPage() {
   if (!items.length) {
     return (
       <div className="rounded-2xl border border-dashed border-beige-dark bg-white/60 px-6 py-12 text-center text-sm text-muted">
-        لا إشعارات حالياً.
+        {t.account.noNotifications}
       </div>
     );
   }
@@ -51,7 +54,7 @@ export default function AccountNotificationsPage() {
   return (
     <div className="space-y-2">
       {items.map((n) => {
-        const title = notificationTitle(n);
+        const title = notificationTitle(n, t.account.notificationFallback);
         const body = notificationBody(n);
         const href = n.href?.trim() || null;
         const content = (

@@ -7,6 +7,8 @@ export type CategoryProductKind =
 export interface Category {
   id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   slug: string;
   parent_id: string | null;
   sort_order: number;

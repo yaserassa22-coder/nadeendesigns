@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type GuestRow = {
   id: string;
@@ -33,6 +34,8 @@ type Kpis = {
 };
 
 export default function AdminGuestsPage() {
+  const { t, dir } = useLocale();
+  const g = t.admin.guestsUi;
   const [guests, setGuests] = useState<GuestRow[]>([]);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [filter, setFilter] = useState("all");
@@ -48,15 +51,15 @@ export default function AdminGuestsPage() {
       if (q.trim()) params.set("q", q.trim());
       const res = await fetch(`/api/admin/guests?${params}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل التحميل");
+      if (!res.ok) throw new Error(data.error || g.loadFailed);
       setGuests(data.guests ?? []);
       setKpis(data.kpis ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل");
+      setError(e instanceof Error ? e.message : g.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, [filter, q]);
+  }, [filter, q, g.loadFailed]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -66,27 +69,27 @@ export default function AdminGuestsPage() {
   }, [load]);
 
   return (
-    <div className="space-y-8" dir="rtl">
+    <div className="space-y-8" dir={dir}>
       <div>
         <h1 className="font-[family-name:var(--font-amiri)] text-3xl text-charcoal">
-          إدارة ضيوف المتجر
+          {g.title}
         </h1>
-        <p className="mt-2 text-sm text-muted">
-          جلسات الضيف عبر cookie آمن — الأمنيات، السلة، الطلبات، والتحويل لحسابات
-          مسجّلة.
-        </p>
+        <p className="mt-2 text-sm text-muted">{g.subtitle}</p>
       </div>
 
       {kpis && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {[
-            { label: "إجمالي الضيوف", value: kpis.total_guests },
-            { label: "ضيوف عائدون", value: kpis.returning_guests },
-            { label: "عملاء مسجّلون", value: kpis.registered_customers },
-            { label: "معدل التحويل %", value: kpis.conversion_rate },
-            { label: "ضيوف محوّلون", value: kpis.converted_guests },
+            { label: g.kpiTotalGuests, value: kpis.total_guests },
+            { label: g.kpiReturningGuests, value: kpis.returning_guests },
             {
-              label: "سلال ضيوف مهجورة",
+              label: g.kpiRegisteredCustomers,
+              value: kpis.registered_customers,
+            },
+            { label: g.kpiConversionRate, value: kpis.conversion_rate },
+            { label: g.kpiConvertedGuests, value: kpis.converted_guests },
+            {
+              label: g.kpiAbandonedCarts,
               value: kpis.abandoned_guest_carts,
             },
           ].map((k) => (
@@ -107,11 +110,11 @@ export default function AdminGuestsPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-beige-dark bg-white p-5">
             <h2 className="mb-3 text-sm font-semibold text-charcoal">
-              الأكثر إضافة للأمنيات
+              {g.mostWishlisted}
             </h2>
             <ul className="space-y-2 text-sm">
               {kpis.most_wishlisted.length === 0 && (
-                <li className="text-muted">لا بيانات بعد</li>
+                <li className="text-muted">{g.noDataYet}</li>
               )}
               {kpis.most_wishlisted.map((item) => (
                 <li
@@ -126,11 +129,11 @@ export default function AdminGuestsPage() {
           </div>
           <div className="rounded-2xl border border-beige-dark bg-white p-5">
             <h2 className="mb-3 text-sm font-semibold text-charcoal">
-              الأكثر مشاهدة
+              {g.mostViewed}
             </h2>
             <ul className="space-y-2 text-sm">
               {kpis.most_viewed.length === 0 && (
-                <li className="text-muted">لا بيانات بعد</li>
+                <li className="text-muted">{g.noDataYet}</li>
               )}
               {kpis.most_viewed.map((item) => (
                 <li
@@ -152,14 +155,14 @@ export default function AdminGuestsPage() {
           onChange={(e) => setFilter(e.target.value)}
           className="rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm"
         >
-          <option value="all">الكل</option>
-          <option value="active">ضيوف نشطون</option>
-          <option value="converted">محوّلون لحساب</option>
+          <option value="all">{g.filterAll}</option>
+          <option value="active">{g.filterActive}</option>
+          <option value="converted">{g.filterConverted}</option>
         </select>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="بحث guest_id…"
+          placeholder={g.searchPlaceholder}
           className="min-w-[200px] flex-1 rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm"
           dir="ltr"
         />
@@ -168,7 +171,7 @@ export default function AdminGuestsPage() {
           onClick={() => void load()}
           className="rounded-xl bg-gold px-4 py-2 text-sm font-medium text-white"
         >
-          تحديث
+          {g.refresh}
         </button>
       </div>
 
@@ -183,54 +186,54 @@ export default function AdminGuestsPage() {
           <thead className="border-b border-beige-dark bg-beige/40 text-muted">
             <tr>
               <th className="px-4 py-3 text-right font-medium">guest_id</th>
-              <th className="px-4 py-3 text-right font-medium">آخر ظهور</th>
-              <th className="px-4 py-3 text-right font-medium">أُنشئ</th>
-              <th className="px-4 py-3 text-right font-medium">طلبات</th>
-              <th className="px-4 py-3 text-right font-medium">حجوزات</th>
-              <th className="px-4 py-3 text-right font-medium">أمنيات</th>
-              <th className="px-4 py-3 text-right font-medium">سلة</th>
-              <th className="px-4 py-3 text-right font-medium">الحالة</th>
+              <th className="px-4 py-3 text-right font-medium">{g.colLastSeen}</th>
+              <th className="px-4 py-3 text-right font-medium">{g.colCreated}</th>
+              <th className="px-4 py-3 text-right font-medium">{g.colOrders}</th>
+              <th className="px-4 py-3 text-right font-medium">{g.colBookings}</th>
+              <th className="px-4 py-3 text-right font-medium">{g.colWishlist}</th>
+              <th className="px-4 py-3 text-right font-medium">{g.colCart}</th>
+              <th className="px-4 py-3 text-right font-medium">{g.colStatus}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-muted">
-                  جاري التحميل…
+                  {g.loading}
                 </td>
               </tr>
             )}
             {!loading && guests.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-muted">
-                  لا يوجد ضيوف بعد
+                  {g.empty}
                 </td>
               </tr>
             )}
-            {guests.map((g) => (
+            {guests.map((row) => (
               <tr
-                key={g.id}
+                key={row.id}
                 className="border-b border-beige-dark/60 last:border-0"
               >
                 <td className="px-4 py-3 font-mono text-xs" dir="ltr">
-                  {g.guest_id.slice(0, 8)}…
+                  {row.guest_id.slice(0, 8)}…
                 </td>
-                <td className="px-4 py-3">{formatDate(g.last_seen)}</td>
-                <td className="px-4 py-3">{formatDate(g.created_at)}</td>
-                <td className="px-4 py-3">{g.counts.orders}</td>
-                <td className="px-4 py-3">{g.counts.bookings}</td>
-                <td className="px-4 py-3">{g.counts.wishlist}</td>
-                <td className="px-4 py-3">{g.counts.cart_items}</td>
+                <td className="px-4 py-3">{formatDate(row.last_seen)}</td>
+                <td className="px-4 py-3">{formatDate(row.created_at)}</td>
+                <td className="px-4 py-3">{row.counts.orders}</td>
+                <td className="px-4 py-3">{row.counts.bookings}</td>
+                <td className="px-4 py-3">{row.counts.wishlist}</td>
+                <td className="px-4 py-3">{row.counts.cart_items}</td>
                 <td className="px-4 py-3">
-                  {g.converted_to_customer_id ? (
+                  {row.converted_to_customer_id ? (
                     <Link
-                      href={`/admin/customers/${g.converted_to_customer_id}`}
+                      href={`/admin/customers/${row.converted_to_customer_id}`}
                       className="text-gold hover:underline"
                     >
-                      محوّل
+                      {g.statusConverted}
                     </Link>
                   ) : (
-                    <span className="text-muted">ضيف</span>
+                    <span className="text-muted">{g.statusGuest}</span>
                   )}
                 </td>
               </tr>

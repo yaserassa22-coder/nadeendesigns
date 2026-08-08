@@ -4,25 +4,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
-
-const NAV = [
-  { href: "/account", label: "نظرة عامة", exact: true },
-  { href: "/account/orders", label: "الطلبات" },
-  { href: "/account/appointments", label: "المواعيد" },
-  { href: "/wishlist", label: "قائمة الأمنيات" },
-  { href: "/account/designs", label: "التصاميم المحفوظة" },
-  { href: "/account/addresses", label: "العناوين" },
-  { href: "/account/reviews", label: "المراجعات" },
-  { href: "/account/notifications", label: "الإشعارات" },
-  { href: "/account/messages", label: "الرسائل" },
-  { href: "/account/profile", label: "الملف الشخصي" },
-] as const;
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 
 export function AccountShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { customer, logout, loading } = useCustomerAuth();
+  const { t } = useLocale();
 
-  const name = customer?.full_name?.trim() || "عزيزتي";
+  const name = customer?.full_name?.trim() || "…";
+
+  const nav = [
+    { href: "/account", label: t.account.overview, exact: true },
+    { href: "/account/orders", label: t.account.orders },
+    { href: "/account/appointments", label: t.account.appointments },
+    { href: "/wishlist", label: t.account.wishlist },
+    { href: "/account/designs", label: t.account.designs },
+    { href: "/account/addresses", label: t.account.addresses },
+    { href: "/account/reviews", label: t.account.reviews },
+    { href: "/account/notifications", label: t.account.notifications },
+    { href: "/account/messages", label: t.account.messages },
+    { href: "/account/profile", label: t.account.profile },
+  ] as const;
 
   return (
     <div className="luxury-gradient min-h-[70vh] pb-16 pt-28">
@@ -32,20 +35,20 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
             className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.25em]"
             style={{ color: "#C9A14A" }}
           >
-            NadEEN Designs
+            {t.account.brandEyebrow}
           </p>
           <h1 className="mt-2 font-[family-name:var(--font-amiri)] text-3xl text-charcoal md:text-4xl">
-            {loading ? "…" : `مرحباً، ${name}`}
+            {loading
+              ? "…"
+              : formatMessage(t.account.welcome, { name })}
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-muted">
-            أديري رحلتك العرائسية — الطلبات، المواعيد، والأمنيات في مكان واحد.
-          </p>
+          <p className="mt-2 max-w-xl text-sm text-muted">{t.account.subtitle}</p>
         </header>
 
         <div className="flex flex-col gap-8 lg:flex-row">
           <aside className="lg:w-56 shrink-0">
             <nav className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
-              {NAV.map((item) => {
+              {nav.map((item) => {
                 const exact = "exact" in item && item.exact;
                 const active = exact
                   ? pathname === item.href
@@ -70,14 +73,14 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
                 onClick={() => void logout(false)}
                 className="whitespace-nowrap rounded-xl px-4 py-2.5 text-start text-sm text-red-700/80 hover:bg-red-50"
               >
-                تسجيل الخروج
+                {t.account.logout}
               </button>
               <button
                 type="button"
                 onClick={() => void logout(true)}
                 className="whitespace-nowrap rounded-xl px-4 py-2.5 text-start text-xs text-muted hover:bg-beige"
               >
-                الخروج من كل الأجهزة
+                {t.account.logoutAll}
               </button>
             </nav>
           </aside>

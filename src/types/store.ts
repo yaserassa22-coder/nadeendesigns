@@ -8,9 +8,25 @@
  * already reads from `site` are synced on save so CMS + shipping merges stay safe.
  */
 
+import {
+  DEFAULT_PRIVACY_AR,
+  DEFAULT_PRIVACY_EN,
+  DEFAULT_PRIVACY_HE,
+  DEFAULT_RETURNS_AR,
+  DEFAULT_RETURNS_EN,
+  DEFAULT_RETURNS_HE,
+  DEFAULT_SHIPPING_POLICY_AR,
+  DEFAULT_SHIPPING_POLICY_EN,
+  DEFAULT_SHIPPING_POLICY_HE,
+  DEFAULT_TERMS_AR,
+  DEFAULT_TERMS_EN,
+  DEFAULT_TERMS_HE,
+} from "@/lib/legal/default-policies";
+
 export type StorePaymentProviderId =
   | "cod"
   | "credit_card"
+  | "bit"
   | "stripe"
   | "paypal"
   | "tranzila"
@@ -22,12 +38,14 @@ export type StorePaymentProvider = {
   id: StorePaymentProviderId | string;
   name: string;
   name_ar: string;
+  name_he?: string;
   enabled: boolean;
   coming_soon: boolean;
   sort_order: number;
   icon: string;
   description: string;
   description_ar: string;
+  description_he?: string;
   /** Non-secret config bag (public keys, publishable ids, display labels). */
   configuration: Record<string, unknown>;
   /** Env var name hint — never store secret values in DB. */
@@ -39,16 +57,27 @@ export type StoreGeneralSettings = {
   store_name: string;
   description: string;
   description_ar: string;
+  description_he: string;
   logo_url: string;
   favicon_url: string;
   business_email: string;
   business_phone: string;
+  /** English address (storefront EN). */
   business_address: string;
   business_address_ar: string;
+  business_address_he: string;
+  /** English working hours (storefront EN). */
   working_hours: string;
   working_hours_ar: string;
+  working_hours_he: string;
   currency: string;
+  /** Default storefront locale when visitor has no preference. */
   language: string;
+  /**
+   * Locales customers may choose in the storefront language bar.
+   * Subset of ar | he | en. Always includes at least one.
+   */
+  enabled_locales: string[];
   timezone: string;
 };
 
@@ -191,6 +220,69 @@ export type StoreExtraServicesSettings = {
   services: StoreExtraService[];
 };
 
+/**
+ * Legal / policy page content — admin-editable (AR / HE / EN).
+ * Defaults are Israel-oriented starter templates (not legal advice).
+ */
+export type StoreLegalSettings = {
+  terms_ar: string;
+  terms_he: string;
+  terms_en: string;
+  privacy_ar: string;
+  privacy_he: string;
+  privacy_en: string;
+  returns_ar: string;
+  returns_he: string;
+  returns_en: string;
+  shipping_policy_ar: string;
+  shipping_policy_he: string;
+  shipping_policy_en: string;
+  /** Shown on legal pages — reminds merchant these are templates */
+  show_template_banner: boolean;
+  /** Require checkout checkbox accepting terms + privacy */
+  require_checkout_acceptance: boolean;
+  updated_at: string | null;
+};
+
+/**
+ * Israeli tax / invoice settings for internal חשבונית / קבלה documents.
+ * No government API integration yet — structure ready for future providers.
+ */
+export type StoreTaxDocumentType =
+  | "receipt"
+  | "tax_invoice"
+  | "tax_invoice_receipt";
+
+export type StoreBusinessIdType =
+  | "company"
+  | "authorized_dealer"
+  | "exempt"
+  | "other";
+
+export type StoreTaxSettings = {
+  /** ח.פ. / ע.מ. / מספר עוסק */
+  business_id: string;
+  business_id_type: StoreBusinessIdType;
+  /** VAT rate percent, e.g. 18 for Israel (admin-configurable) */
+  vat_rate: number;
+  /** When true, catalog prices already include VAT */
+  prices_include_vat: boolean;
+  /** Default document type issued for shop orders */
+  default_document_type: StoreTaxDocumentType;
+  /**
+   * When to issue: on_order (after place) | on_payment_received | manual
+   */
+  issue_trigger: "on_order" | "on_payment_received" | "manual";
+  /** Invoice number prefix, e.g. INV */
+  invoice_prefix: string;
+  /** Next sequential number (also mirrored in invoice_sequence table) */
+  next_invoice_number: number;
+  /** Future provider stub — green_invoice / morning / hashavshevet / none */
+  provider: "none" | "green_invoice" | "morning" | "hashavshevet" | "icount" | "easycount" | "internal" | string;
+  provider_coming_soon: boolean;
+  provider_notes: string;
+};
+
 export type StoreSettings = {
   general: StoreGeneralSettings;
   payments: {
@@ -208,6 +300,10 @@ export type StoreSettings = {
   /** Sprint 2 Phase 1 — config only; checkout wiring is Phase 2 */
   order_options: StoreOrderOptionsSettings;
   extra_services: StoreExtraServicesSettings;
+  /** Legal pages (terms, privacy, returns, shipping policy) */
+  legal: StoreLegalSettings;
+  /** Israeli VAT + tax document settings */
+  tax: StoreTaxSettings;
 };
 
 export type StoreSettingsSection =
@@ -223,7 +319,9 @@ export type StoreSettingsSection =
   | "security"
   | "integrations"
   | "order_options"
-  | "extra_services";
+  | "extra_services"
+  | "legal"
+  | "tax";
 
 export type SystemHealthStatus = "green" | "yellow" | "red";
 
@@ -247,12 +345,14 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     id: "cod",
     name: "Cash on Delivery",
     name_ar: "الدفع عند الاستلام",
+    name_he: "תשלום במסירה",
     enabled: true,
     coming_soon: false,
     sort_order: 0,
     icon: "banknote",
     description: "Pay when you receive your order",
     description_ar: "ادفعي عند استلام طلبكِ من البوتيك أو مع المندوب",
+    description_he: "שלמי בעת קבלת ההזמנה מהבוטיק או עם השליח",
     configuration: {},
     secret_env_ref: null,
     configured: true,
@@ -261,12 +361,30 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     id: "credit_card",
     name: "Credit Card",
     name_ar: "بطاقة ائتمان",
+    name_he: "כרטיס אשראי",
     enabled: true,
     coming_soon: true,
     sort_order: 1,
     icon: "credit-card",
     description: "Pay by credit or debit card",
     description_ar: "الدفع ببطاقة ائتمان أو بطاقة بنكية — قريباً",
+    description_he: "תשלום בכרטיס אשראי או כרטיס בנקאי — בקרוב",
+    configuration: {},
+    secret_env_ref: null,
+    configured: false,
+  },
+  {
+    id: "bit",
+    name: "Bit",
+    name_ar: "Bit",
+    name_he: "ביט",
+    enabled: false,
+    coming_soon: true,
+    sort_order: 2,
+    icon: "smartphone",
+    description: "Pay with Bit",
+    description_ar: "الدفع عبر Bit — فعّلي من لوحة الإدارة",
+    description_he: "תשלום בביט — הפעילו מלוח הניהול",
     configuration: {},
     secret_env_ref: null,
     configured: false,
@@ -277,7 +395,7 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     name_ar: "سترايب",
     enabled: true,
     coming_soon: true,
-    sort_order: 2,
+    sort_order: 3,
     icon: "credit-card",
     description: "Cards via Stripe",
     description_ar: "بطاقات عبر سترايب — قريباً",
@@ -291,7 +409,7 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     name_ar: "باي بال",
     enabled: true,
     coming_soon: true,
-    sort_order: 3,
+    sort_order: 4,
     icon: "wallet",
     description: "PayPal checkout",
     description_ar: "باي بال — قريباً",
@@ -305,7 +423,7 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     name_ar: "ترانزيلا",
     enabled: true,
     coming_soon: true,
-    sort_order: 4,
+    sort_order: 5,
     icon: "credit-card",
     description: "Israeli payment gateway",
     description_ar: "بوابة ترانزيلا — قريباً",
@@ -319,7 +437,7 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     name_ar: "تحويل بنكي",
     enabled: true,
     coming_soon: true,
-    sort_order: 5,
+    sort_order: 6,
     icon: "building",
     description: "Manual bank transfer",
     description_ar: "تحويل بنكي يدوي — قريباً",
@@ -333,7 +451,7 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     name_ar: "Apple Pay",
     enabled: true,
     coming_soon: true,
-    sort_order: 6,
+    sort_order: 7,
     icon: "smartphone",
     description: "Apple Pay",
     description_ar: "Apple Pay — قريباً",
@@ -347,7 +465,7 @@ export const DEFAULT_PAYMENT_PROVIDERS: StorePaymentProvider[] = [
     name_ar: "Google Pay",
     enabled: true,
     coming_soon: true,
-    sort_order: 7,
+    sort_order: 8,
     icon: "smartphone",
     description: "Google Pay",
     description_ar: "Google Pay — قريباً",
@@ -428,6 +546,16 @@ export const DEFAULT_STORE_INTEGRATIONS: StoreIntegrationStub[] = [
     env_refs: ["NEXT_PUBLIC_GA_MEASUREMENT_ID"],
     notes: "Measurement ID also editable in SEO section",
   },
+  {
+    id: "green_invoice",
+    name: "Green Invoice / Morning",
+    enabled: false,
+    coming_soon: true,
+    configured: false,
+    env_refs: ["GREEN_INVOICE_API_KEY", "MORNING_API_KEY"],
+    notes:
+      "Future Israeli e-invoicing provider — internal documents only for now; secrets via env when connected.",
+  },
 ];
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
@@ -436,16 +564,20 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     description: "Luxury bridal boutique",
     description_ar:
       "بوتيك فاخر لفساتين الزفاف والإكسسوارات",
+    description_he: "בוטיק יוקרתי לשמלות כלה ואקססוריז",
     logo_url: "",
     favicon_url: "",
     business_email: "hello@nadeendesigns.com",
     business_phone: "+966500000000",
-    business_address: "Riyadh, Saudi Arabia",
-    business_address_ar: "الرياض، المملكة العربية السعودية",
-    working_hours: "Sat–Thu 10:00–21:00",
-    working_hours_ar: "السبت - الخميس: 10:00 ص - 9:00 م",
+    business_address: "Israel",
+    business_address_ar: "إسرائيل",
+    business_address_he: "ישראל",
+    working_hours: "Sun–Sat: 10:00–21:00",
+    working_hours_ar: "الأحد - السبت: 10:00 ص - 9:00 م",
+    working_hours_he: "ראשון–שבת: 10:00–21:00",
     currency: "ILS",
     language: "ar",
+    enabled_locales: ["ar", "he", "en"],
     timezone: "Asia/Jerusalem",
   },
   payments: {
@@ -574,6 +706,23 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   extra_services: {
     services: [
       {
+        id: "writing_personalization",
+        name: "Writing Personalization",
+        name_ar: "تخصيص الكتابة",
+        description: "",
+        description_ar: "",
+        pricing_mode: "FREE",
+        price: 0,
+        enabled: false,
+        visible: true,
+        required: false,
+        default_selected: false,
+        available_online: true,
+        available_in_store: false,
+        sort_order: 0,
+        visibility: { scope: "all" },
+      },
+      {
         id: "gift_wrap",
         name: "Gift Wrap",
         name_ar: "تغليف هدية",
@@ -587,7 +736,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         default_selected: false,
         available_online: true,
         available_in_store: false,
-        sort_order: 0,
+        sort_order: 1,
         visibility: { scope: "all" },
       },
       {
@@ -604,7 +753,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         default_selected: false,
         available_online: true,
         available_in_store: false,
-        sort_order: 1,
+        sort_order: 2,
         visibility: { scope: "all" },
       },
       {
@@ -621,7 +770,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         default_selected: false,
         available_online: true,
         available_in_store: false,
-        sort_order: 2,
+        sort_order: 3,
         visibility: { scope: "all" },
       },
       {
@@ -638,9 +787,40 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
         default_selected: false,
         available_online: true,
         available_in_store: false,
-        sort_order: 3,
+        sort_order: 4,
         visibility: { scope: "all" },
       },
     ],
+  },
+  legal: {
+    terms_ar: DEFAULT_TERMS_AR,
+    terms_he: DEFAULT_TERMS_HE,
+    terms_en: DEFAULT_TERMS_EN,
+    privacy_ar: DEFAULT_PRIVACY_AR,
+    privacy_he: DEFAULT_PRIVACY_HE,
+    privacy_en: DEFAULT_PRIVACY_EN,
+    returns_ar: DEFAULT_RETURNS_AR,
+    returns_he: DEFAULT_RETURNS_HE,
+    returns_en: DEFAULT_RETURNS_EN,
+    shipping_policy_ar: DEFAULT_SHIPPING_POLICY_AR,
+    shipping_policy_he: DEFAULT_SHIPPING_POLICY_HE,
+    shipping_policy_en: DEFAULT_SHIPPING_POLICY_EN,
+    show_template_banner: true,
+    require_checkout_acceptance: true,
+    updated_at: null,
+  },
+  tax: {
+    business_id: "",
+    business_id_type: "authorized_dealer",
+    vat_rate: 18,
+    prices_include_vat: true,
+    default_document_type: "tax_invoice_receipt",
+    issue_trigger: "on_order",
+    invoice_prefix: "ND",
+    next_invoice_number: 1,
+    provider: "none",
+    provider_coming_soon: true,
+    provider_notes:
+      "المستندات داخلية حاليًا (جاهزة للإدارة). ربط Green Invoice / Morning / Hashavshevet قادم — بدون API حكومي بعد.",
   },
 };

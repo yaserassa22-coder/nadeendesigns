@@ -8,10 +8,6 @@ import { PageHero } from "@/components/dresses/DressCatalog";
 import { GiftOptionsSummary } from "@/components/dresses/GiftOptionsSummary";
 import { PersonalizationSummary } from "@/components/dresses/PersonalizationSummary";
 import { OrderOptionsSummary } from "@/components/product/OrderOptionsSummary";
-import {
-  OrderOptionsFields,
-  type OrderOptionValues,
-} from "@/components/product/OrderOptionsFields";
 import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary";
 import { useCart } from "@/components/shop/CartProvider";
 import {
@@ -19,6 +15,7 @@ import {
   type RegionSelection,
 } from "@/components/shop/RegionAutocomplete";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import {
@@ -35,12 +32,12 @@ import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { cartLineDisplayPrices } from "@/lib/products/pricing";
+import { formatMessage } from "@/lib/i18n";
+import { resolveOrderLineName } from "@/lib/i18n/order-item-labels";
 import {
-  buildLineOrderOptions,
-  enabledOrderOptions,
-  validateOrderOptionValues,
-  type OrderOptionConfig,
-} from "@/lib/products/order-experience";
+  resolvePaymentMethodDescription,
+  resolvePaymentMethodName,
+} from "@/lib/i18n/payment-labels";
 import {
   defaultDeliveryMethod,
   formatEstimatedDelivery,
@@ -80,6 +77,7 @@ const emptyShipping = (): ShippingForm => ({
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { t, locale } = useLocale();
   const { items, subtotal, needsShipping, clearCart } = useCart();
   const {
     user,
@@ -112,20 +110,19 @@ export default function CheckoutPage() {
   const [paymentMethods, setPaymentMethods] = useState<
     {
       id: string;
+      name?: string;
       name_ar: string;
+      name_he?: string;
+      description?: string;
       description_ar: string;
+      description_he?: string;
+      description_en?: string;
       coming_soon?: boolean;
     }[]
   >([]);
-  const [checkoutOrderOptions, setCheckoutOrderOptions] = useState<
-    OrderOptionConfig[]
-  >([]);
-  const [orderOptionValues, setOrderOptionValues] = useState<OrderOptionValues>(
-    {}
-  );
-  const [orderOptionErrors, setOrderOptionErrors] = useState<
-    Record<string, string>
-  >({});
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("cod");
+  const [requireLegalAcceptance, setRequireLegalAcceptance] = useState(true);
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
@@ -148,18 +145,23 @@ export default function CheckoutPage() {
         setDeliveryMethod(defaultDeliveryMethod(normalized));
         if (storeData?.payments && Array.isArray(storeData.payments)) {
           setPaymentMethods(storeData.payments);
+          const firstLive = storeData.payments.find(
+            (p: { coming_soon?: boolean; id: string }) => !p.coming_soon
+          );
+          if (firstLive?.id) setSelectedPaymentId(firstLive.id);
         } else {
           setPaymentMethods([
             {
               id: "cod",
-              name_ar: "الدفع عند الاستلام",
-              description_ar: "ادفعي عند استلام طلبكِ",
+              name_ar: t.checkout.codFallbackName,
+              description_ar: t.checkout.codFallbackDescription,
             },
           ]);
+          setSelectedPaymentId("cod");
         }
-        if (storeData?.order_options) {
-          setCheckoutOrderOptions(
-            enabledOrderOptions(storeData.order_options)
+        if (storeData?.legal) {
+          setRequireLegalAcceptance(
+            storeData.legal.require_checkout_acceptance !== false
           );
         }
       })
@@ -171,8 +173,8 @@ export default function CheckoutPage() {
           setPaymentMethods([
             {
               id: "cod",
-              name_ar: "الدفع عند الاستلام",
-              description_ar: "ادفعي عند استلام طلبكِ",
+              name_ar: t.checkout.codFallbackName,
+              description_ar: t.checkout.codFallbackDescription,
             },
           ]);
         }
@@ -270,12 +272,16 @@ export default function CheckoutPage() {
 
   const placeOrder = async () => {
     setError("");
+    if (requireLegalAcceptance && !acceptedLegal) {
+      setError(t.checkout.errors.acceptTerms);
+      return;
+    }
     if (items.length === 0) {
-      setError("السلة فارغة");
+      setError(t.checkout.errors.emptyCart);
       return;
     }
     if (!settingsLoaded) {
-      setError("جاري تحميل إعدادات الشحن… انتظري لحظة ثم حاولي مرة أخرى.");
+      setError(t.checkout.errors.settingsLoading);
       return;
     }
     // Contact name/phone may be empty if the customer only filled delivery
@@ -289,7 +295,7 @@ export default function CheckoutPage() {
       phone.trim() || (deliveryMethod === "delivery" ? shippingPhone : "");
 
     if (!isValidPersonName(contactName) || !isValidCheckoutPhone(contactPhone)) {
-      setError("الاسم ورقم الهاتف مطلوبان");
+      setError(t.checkout.errors.namePhoneRequired);
       return;
     }
     const notifyError = validateNotificationPreferences(notifyPrefs, {
@@ -302,54 +308,41 @@ export default function CheckoutPage() {
     }
     if (needsShipping) {
       if (!deliveryMethod) {
-        setError("يرجى اختيار طريقة استلام الطلب");
+        setError(t.checkout.errors.chooseDeliveryMethod);
         return;
       }
       if (deliveryMethod === "pickup" && !pickupEnabled) {
-        setError("الاستلام من البوتيك غير متاح حالياً");
+        setError(t.checkout.errors.pickupUnavailable);
         return;
       }
       if (deliveryMethod === "delivery" && !deliveryEnabled) {
-        setError("التوصيل غير متاح حالياً");
+        setError(t.checkout.errors.deliveryUnavailable);
         return;
       }
       if (deliveryMethod === "delivery") {
         const recipientName = shippingName || contactName;
         const recipientPhone = shippingPhone || contactPhone;
         if (!isValidPersonName(recipientName)) {
-          setError("اسم المستلم مطلوب للتوصيل");
+          setError(t.checkout.errors.recipientNameRequired);
           return;
         }
         if (!isValidCheckoutPhone(recipientPhone)) {
-          setError("هاتف التوصيل مطلوب");
+          setError(t.checkout.errors.shippingPhoneRequired);
           return;
         }
         if (regionSel.regionText.trim().length < 2) {
-          setError("المنطقة / المدينة مطلوبة للتوصيل");
+          setError(t.checkout.errors.regionRequired);
           return;
         }
         if (shipping.city.trim().length < 2) {
-          setError("البلدة / المدينة مطلوبة للتوصيل");
+          setError(t.checkout.errors.cityRequired);
           return;
         }
         if (shipping.address.trim().length < 5) {
-          setError("العنوان التفصيلي مطلوب للتوصيل");
+          setError(t.checkout.errors.addressRequired);
           return;
         }
       }
-    }
-
-    if (checkoutOrderOptions.length) {
-      const optErrors = validateOrderOptionValues(
-        checkoutOrderOptions,
-        orderOptionValues
-      );
-      if (Object.keys(optErrors).length) {
-        setOrderOptionErrors(optErrors);
-        setError("أكملي خيارات الطلب المطلوبة.");
-        return;
-      }
-      setOrderOptionErrors({});
     }
 
     setSaving(true);
@@ -358,9 +351,6 @@ export default function CheckoutPage() {
       shippingName || (deliveryMethod === "delivery" ? contactName : "");
     const recipientPhone =
       shippingPhone || (deliveryMethod === "delivery" ? contactPhone : "");
-    const lineOrderOptions = checkoutOrderOptions.length
-      ? buildLineOrderOptions(checkoutOrderOptions, orderOptionValues)
-      : null;
     const payload = {
       name: contactName,
       phone: contactPhone,
@@ -373,6 +363,7 @@ export default function CheckoutPage() {
       shipping_required: needsShipping,
       delivery_method: needsShipping ? deliveryMethod : null,
       shipping_cost: shippingCost,
+      payment_provider_id: selectedPaymentId || "cod",
       shipping:
         needsShipping && deliveryMethod === "delivery"
           ? {
@@ -397,11 +388,10 @@ export default function CheckoutPage() {
         image: i.image,
         personalization: i.personalization,
         gift_options: i.gift_options,
-        order_options: lineOrderOptions?.length
-          ? lineOrderOptions
-          : i.order_options,
+        order_options: null,
         extra_services: i.extra_services,
         personalization_fee: i.personalization_fee ?? null,
+        gift_fee: i.gift_fee ?? null,
         requires_shipping: i.requires_shipping,
       })),
     };
@@ -417,36 +407,35 @@ export default function CheckoutPage() {
       try {
         data = await res.json();
       } catch {
-        throw new Error("تعذّر قراءة رد الخادم بعد إرسال الطلب.");
+        throw new Error(t.checkout.errors.serverResponse);
       }
 
       if (!res.ok) {
         throw new Error(
           data.error ||
-            `فشل إرسال الطلب (رمز ${res.status}). راجعي اتصال قاعدة البيانات.`
+            formatMessage(t.checkout.errors.submitFailedStatus, { status: res.status })
         );
       }
 
       if (data.order?.id) {
         clearCart();
         try {
-          sessionStorage.setItem(
-            "nadeen_last_order",
-            JSON.stringify(data.order)
-          );
+          const orderJson = JSON.stringify(data.order);
+          sessionStorage.setItem("nadeen_last_order", orderJson);
+          localStorage.setItem("nadeen_last_order", orderJson);
           sessionStorage.setItem("nadeen_order_just_placed", data.order.id);
         } catch {
           /* ignore */
         }
         router.push(`/orders/${data.order.id}`);
       } else {
-        setError("تم إنشاء الطلب لكن تعذّر فتح صفحة التأكيد.");
+        setError(t.checkout.errors.confirmPageFailed);
       }
     } catch (e) {
       setError(
         e instanceof Error
           ? e.message
-          : "فشل تأكيد الطلب. تحققي من اتصال الإنترنت وحاولي مرة أخرى."
+          : t.checkout.errors.orderFailed
       );
     } finally {
       setSaving(false);
@@ -455,13 +444,17 @@ export default function CheckoutPage() {
 
   const submit = async () => {
     setError("");
+    if (requireLegalAcceptance && !acceptedLegal) {
+      setError(t.checkout.errors.acceptTerms);
+      return;
+    }
     // Soft auth prompt only after basic contact fields look ready
     if (!isLoggedIn) {
       if (!guestCheckoutEnabled) {
         openLogin({
           redirect: "/checkout",
-          message: "يلزم تسجيل الدخول لإتمام الطلب حالياً.",
-        });
+          message: t.checkout.loginRequired,
+          });
         return;
       }
       if (!guestMode) {
@@ -476,7 +469,7 @@ export default function CheckoutPage() {
           !isValidPersonName(contactName) ||
           !isValidCheckoutPhone(contactPhone)
         ) {
-          setError("الاسم ورقم الهاتف مطلوبان");
+          setError(t.checkout.errors.namePhoneRequired);
           return;
         }
         setAuthPromptOpen(true);
@@ -491,30 +484,30 @@ export default function CheckoutPage() {
     : !needsShipping
       ? "—"
       : deliveryMethod === "pickup"
-        ? "مجاني"
+        ? t.common.free
         : feePending
-          ? "قيد المراجعة"
+          ? t.checkout.feePending
           : freeShipping || shippingCost === 0
             ? settings?.shipping_enabled === false
-              ? "معطّل"
-              : "مجاني"
+              ? t.common.disabled
+              : t.common.free
             : formatPrice(shippingCost);
 
   return (
     <>
       <PageHero
-        title="إتمام الطلب"
-        description="أدخلي بياناتكِ لتأكيد الطلب."
+        title={t.checkout.title}
+        description={t.checkout.description}
       />
       <section className="py-16 md:py-24">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-8 lg:grid-cols-5">
           <div className="space-y-4 lg:col-span-2">
-            <h2 className="text-xl font-semibold">ملخص الطلب</h2>
+            <h2 className="text-xl font-semibold">{t.checkout.orderSummary}</h2>
             {items.length === 0 ? (
               <div className="rounded-2xl border border-beige-dark p-6 text-sm text-muted">
-                السلة فارغة.{" "}
+                {t.cart.emptyTitle}.{" "}
                 <Link href="/cart" className="text-gold underline">
-                  العودة للسلة
+                  {t.cart.title}
                 </Link>
               </div>
             ) : (
@@ -522,6 +515,15 @@ export default function CheckoutPage() {
                 {items.map((item, index) => {
                   const thumb = featuredImage(
                     item.image ? [item.image] : undefined
+                  );
+                  const displayName = resolveOrderLineName(
+                    {
+                      name_ar: item.name_ar,
+                      name_en: item.name_en,
+                      name_he: item.name_he,
+                      product_type: item.product_type,
+                    },
+                    locale
                   );
                   return (
                     <div
@@ -532,7 +534,7 @@ export default function CheckoutPage() {
                         {thumb && (
                           <Image
                             src={thumb}
-                            alt={item.name_ar}
+                            alt={displayName}
                             fill
                             className="object-cover"
                             sizes="56px"
@@ -540,8 +542,10 @@ export default function CheckoutPage() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">{item.name_ar}</p>
-                        <p className="text-muted">الكمية: {item.quantity}</p>
+                        <p className="font-medium">{displayName}</p>
+                        <p className="text-muted">
+                          {t.common.quantity}: {item.quantity}
+                        </p>
                         {!hidePrice && (
                           <ProductPrice
                             className="mt-1"
@@ -577,7 +581,7 @@ export default function CheckoutPage() {
                 <div className="space-y-2 rounded-2xl border border-beige-dark bg-beige/20 p-4 text-sm">
                   {!hidePrice && (
                     <div className="flex justify-between gap-3">
-                      <span>مجموع المنتجات</span>
+                      <span>{t.checkout.productsTotal}</span>
                       <span className="text-gold" dir="ltr">
                         {formatPrice(subtotal)}
                       </span>
@@ -585,11 +589,11 @@ export default function CheckoutPage() {
                   )}
                   {hidePrice && (
                     <p className="text-xs text-muted">
-                      تم إخفاء أسعار المنتجات بناءً على خيار الهدية.
+                      {t.cart.pricesHidden}
                     </p>
                   )}
                   <div className="flex justify-between gap-3">
-                    <span>رسوم الشحن</span>
+                    <span>{t.checkout.shippingFee}</span>
                     <span className="text-gold" dir="ltr">
                       {shippingFeeLabel}
                     </span>
@@ -602,11 +606,11 @@ export default function CheckoutPage() {
                       freeShipping)) && (
                     <p className="text-xs text-muted">
                       {feePending
-                        ? "رسوم التوصيل تُحدَّد بعد اختيار المنطقة."
+                        ? t.checkout.feePendingHint
                         : [
-                            freeShipping ? "شحن مجاني" : null,
+                            freeShipping ? t.checkout.freeShipping : null,
                             estimatedLabel
-                              ? `التوصيل خلال ${estimatedLabel}`
+                              ? formatMessage(t.checkout.deliveryEta, { eta: estimatedLabel })
                               : null,
                           ]
                             .filter(Boolean)
@@ -616,7 +620,7 @@ export default function CheckoutPage() {
                   {!hidePrice && (
                     <div className="flex justify-between gap-3 border-t border-beige-dark pt-2 text-base font-semibold">
                       <span>
-                        {feePending ? "إجمالي المنتجات" : "الإجمالي"}
+                        {feePending ? t.checkout.productsTotalOnly : t.common.total}
                       </span>
                       <span className="text-gold" dir="ltr">
                         {!settingsLoaded ? "…" : formatPrice(orderTotal)}
@@ -635,22 +639,22 @@ export default function CheckoutPage() {
               void submit();
             }}
           >
-            <h2 className="text-lg font-semibold text-charcoal">بيانات التواصل</h2>
+            <h2 className="text-lg font-semibold text-charcoal">{t.checkout.contactDetails}</h2>
             <Input
-              label="الاسم الكامل *"
+              label={`${t.checkout.name} *`}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
             />
             <Input
-              label="رقم الهاتف *"
+              label={`${t.checkout.phone} *`}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               dir="ltr"
               autoComplete="tel"
             />
             <Input
-              label="البريد الإلكتروني"
+              label={t.checkout.email}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -658,22 +662,11 @@ export default function CheckoutPage() {
               autoComplete="email"
             />
             <Textarea
-              label="ملاحظات عامة"
+              label={t.checkout.notes}
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-
-            {checkoutOrderOptions.length > 0 ? (
-              <div className="border-t border-beige-dark pt-6">
-                <OrderOptionsFields
-                  options={checkoutOrderOptions}
-                  values={orderOptionValues}
-                  onChange={setOrderOptionValues}
-                  errors={orderOptionErrors}
-                />
-              </div>
-            ) : null}
 
             <div className="border-t border-beige-dark pt-6">
               <NotificationPreferences
@@ -687,16 +680,16 @@ export default function CheckoutPage() {
               <div className="space-y-4 border-t border-beige-dark pt-6">
                 <div>
                   <h2 className="text-lg font-semibold text-charcoal">
-                    طريقة استلام الطلب
+                    {t.checkout.deliveryMethodTitle}
                   </h2>
                   <p className="mt-1 text-sm text-muted">
-                    اختاري الاستلام من البوتيك أو التوصيل.
+                    {t.checkout.deliveryMethodHint}
                   </p>
                 </div>
 
                 {!pickupEnabled && !deliveryEnabled ? (
                   <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    الاستلام والتوصيل غير متاحين حالياً. تواصلي مع البوتيك.
+                    {t.checkout.deliveryUnavailableBoth}
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -711,7 +704,7 @@ export default function CheckoutPage() {
                         />
                         <span>
                           <span className="font-medium text-charcoal">
-                            الاستلام من البوتيك (مجاناً)
+                            {t.checkout.pickupFree}
                           </span>
                         </span>
                       </label>
@@ -732,7 +725,7 @@ export default function CheckoutPage() {
                           }}
                           className="mt-0.5 accent-gold"
                         />
-                        <span className="font-medium text-charcoal">التوصيل</span>
+                        <span className="font-medium text-charcoal">{t.checkout.delivery}</span>
                       </label>
                     )}
                   </div>
@@ -740,7 +733,7 @@ export default function CheckoutPage() {
 
                 {deliveryMethod === "pickup" && pickupEnabled && (
                   <p className="rounded-xl border border-beige-dark bg-beige/30 px-4 py-3 text-sm text-charcoal/80">
-                    سيتم إشعارك عند جاهزية طلبك للاستلام من البوتيك.
+                    {t.checkout.pickupReadyNote}
                   </p>
                 )}
 
@@ -754,7 +747,7 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <Input
-                      label="اسم المستلم *"
+                      label={`${t.checkout.recipientName} *`}
                       value={shipping.full_name}
                       onChange={(e) =>
                         updateShipping("full_name", e.target.value)
@@ -762,34 +755,34 @@ export default function CheckoutPage() {
                       autoComplete="shipping name"
                     />
                     <Input
-                      label="هاتف التوصيل *"
+                      label={`${t.checkout.shippingPhone} *`}
                       value={shipping.phone}
                       onChange={(e) => updateShipping("phone", e.target.value)}
                       dir="ltr"
                       autoComplete="shipping tel"
                     />
                     <Input
-                      label="البلدة / المدينة *"
+                      label={`${t.checkout.townCity} *`}
                       value={shipping.city}
                       onChange={(e) => updateShipping("city", e.target.value)}
                       autoComplete="shipping address-level2"
                     />
                     <Input
-                      label="الحي"
+                      label={t.checkout.neighborhood}
                       value={shipping.neighborhood}
                       onChange={(e) =>
                         updateShipping("neighborhood", e.target.value)
                       }
                     />
                     <Input
-                      label="رقم المبنى"
+                      label={t.checkout.building}
                       value={shipping.building_number}
                       onChange={(e) =>
                         updateShipping("building_number", e.target.value)
                       }
                     />
                     <Input
-                      label="الرمز البريدي (اختياري)"
+                      label={t.checkout.postalCode}
                       value={shipping.postal_code}
                       onChange={(e) =>
                         updateShipping("postal_code", e.target.value)
@@ -799,7 +792,7 @@ export default function CheckoutPage() {
                     />
                     <div className="sm:col-span-2">
                       <Textarea
-                        label="العنوان التفصيلي *"
+                        label={`${t.checkout.addressDetail} *`}
                         rows={3}
                         value={shipping.address}
                         onChange={(e) =>
@@ -809,7 +802,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="sm:col-span-2">
                       <Textarea
-                        label="ملاحظات التوصيل (اختياري)"
+                        label={t.checkout.deliveryNotes}
                         rows={2}
                         value={shipping.notes}
                         onChange={(e) => updateShipping("notes", e.target.value)}
@@ -824,45 +817,89 @@ export default function CheckoutPage() {
               <div className="space-y-3 border-t border-beige-dark pt-6">
                 <div>
                   <h2 className="text-lg font-semibold text-charcoal">
-                    طريقة الدفع
+                    {t.checkout.paymentMethod}
                   </h2>
                   <p className="mt-1 text-sm text-muted">
-                    الطرق المتاحة حالياً حسب إعدادات المتجر.
+                    {t.checkout.paymentHint}
                   </p>
                 </div>
                 <div className="space-y-2">
                   {paymentMethods.map((method) => {
                     const soon = Boolean(method.coming_soon);
+                    const selected = selectedPaymentId === method.id;
                     return (
-                      <div
+                      <label
                         key={method.id}
-                        className={`relative rounded-xl border px-4 py-3 text-sm ${
+                        className={`relative flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
                           soon
-                            ? "border-dashed border-beige-dark bg-beige/40 text-muted"
-                            : "border-gold/40 bg-gold/5"
+                            ? "cursor-not-allowed border-dashed border-beige-dark bg-beige/40 text-muted"
+                            : selected
+                              ? "border-gold bg-gold/10"
+                              : "border-gold/40 bg-gold/5"
                         }`}
                       >
-                        <p
-                          className={`font-medium ${soon ? "text-muted" : "text-charcoal"}`}
-                        >
-                          {method.name_ar}
-                        </p>
-                        {method.description_ar ? (
-                          <p className="mt-0.5 text-muted">
-                            {method.description_ar}
+                        <input
+                          type="radio"
+                          name="payment_provider"
+                          className="mt-1 accent-gold"
+                          disabled={soon}
+                          checked={!soon && selected}
+                          onChange={() => {
+                            if (!soon) setSelectedPaymentId(method.id);
+                          }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`font-medium ${soon ? "text-muted" : "text-charcoal"}`}
+                          >
+                            {resolvePaymentMethodName(method, locale)}
                           </p>
-                        ) : null}
+                          {resolvePaymentMethodDescription(method, locale) ? (
+                            <p className="mt-0.5 text-muted">
+                              {resolvePaymentMethodDescription(method, locale)}
+                            </p>
+                          ) : null}
+                        </div>
                         {soon ? (
-                          <span className="absolute start-3 top-1/2 -translate-y-1/2 rounded-full bg-gold px-2 py-0.5 text-[10px] font-semibold text-white">
-                            قريباً
+                          <span className="rounded-full bg-gold px-2 py-0.5 text-[10px] font-semibold text-white">
+                            {t.common.comingSoon}
                           </span>
                         ) : null}
-                      </div>
+                      </label>
                     );
                   })}
                 </div>
               </div>
             )}
+
+            {requireLegalAcceptance ? (
+              <label className="flex items-start gap-3 rounded-xl border border-beige-dark/70 bg-beige/30 px-4 py-3 text-sm text-charcoal">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-gold"
+                  checked={acceptedLegal}
+                  onChange={(e) => setAcceptedLegal(e.target.checked)}
+                />
+                <span>
+                  {t.checkout.acceptTerms}{" "}
+                  <Link
+                    href="/legal/terms"
+                    target="_blank"
+                    className="text-gold underline"
+                  >
+                    {t.footer.terms}
+                  </Link>
+                  {" · "}
+                  <Link
+                    href="/legal/privacy"
+                    target="_blank"
+                    className="text-gold underline"
+                  >
+                    {t.footer.privacy}
+                  </Link>
+                </span>
+              </label>
+            ) : null}
 
             {error && (
               <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600" role="alert">
@@ -876,10 +913,11 @@ export default function CheckoutPage() {
               disabled={
                 items.length === 0 ||
                 !settingsLoaded ||
-                (needsShipping && !pickupEnabled && !deliveryEnabled)
+                (needsShipping && !pickupEnabled && !deliveryEnabled) ||
+                (requireLegalAcceptance && !acceptedLegal)
               }
             >
-              تأكيد الطلب
+              {saving ? t.checkout.placing : t.checkout.placeOrder}
             </Button>
           </form>
         </div>
@@ -892,17 +930,17 @@ export default function CheckoutPage() {
         >
           <button
             type="button"
-            aria-label="إغلاق"
+            aria-label={t.common.close}
             className="absolute inset-0 bg-charcoal/40 backdrop-blur-sm"
             onClick={() => setAuthPromptOpen(false)}
           />
           <div className="relative z-10 m-4 w-full max-w-md rounded-2xl border border-beige-dark bg-white p-6 shadow-[0_24px_80px_rgba(44,36,25,0.18)]">
             <div className="mb-4 h-1 w-full rounded-full bg-gradient-to-l from-gold via-gold/60 to-gold" />
             <h3 className="font-[family-name:var(--font-amiri)] text-xl text-charcoal">
-              هل ترغبين بإنشاء حساب لحفظ طلباتك وتتبع الشحن بسهولة؟
+              {t.checkout.authPromptTitle}
             </h3>
             <p className="mt-2 text-sm text-muted">
-              يمكنكِ المتابعة كزائرة دون تسجيل — أو إنشاء حساب لربط الطلبات.
+              {t.checkout.authPromptBody}
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
               <Button
@@ -914,12 +952,12 @@ export default function CheckoutPage() {
                     openLogin({
                       redirect: "/checkout",
                       message:
-                        "أنشئي حساباً لحفظ طلباتك وتتبع الشحن بسهولة.",
+                        t.checkout.authPromptLoginMessage,
                     });
                   }, 0);
                 }}
               >
-                إنشاء حساب
+                {t.checkout.authPromptCreate}
               </Button>
               <Button
                 type="button"
@@ -931,7 +969,7 @@ export default function CheckoutPage() {
                   void placeOrder();
                 }}
               >
-                المتابعة كزائرة
+                {t.checkout.authPromptGuest}
               </Button>
             </div>
           </div>

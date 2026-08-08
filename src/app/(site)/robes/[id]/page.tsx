@@ -12,6 +12,12 @@ import { featuredImage } from "@/lib/products/featured-image";
 import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { shopStockAvailability } from "@/lib/products/storefront-availability";
 import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
+import { getStorefrontLocale } from "@/lib/i18n/server";
+import {
+  getDictionary,
+  localizedDescription,
+  localizedName,
+} from "@/lib/i18n";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,11 +26,15 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const robe = await getBridalRobeById(id);
-  if (!robe) return { title: "غير موجود" };
+  if (!robe) {
+    const locale = await getStorefrontLocale();
+    return { title: getDictionary(locale).common.notFound };
+  }
+  const locale = await getStorefrontLocale();
   const og = featuredImage(robe.images);
   return {
-    title: robe.name_ar,
-    description: robe.description_ar,
+    title: localizedName(robe, locale, robe.name_ar),
+    description: localizedDescription(robe, locale, robe.description_ar ?? ""),
     openGraph: { images: og ? [og] : [] },
   };
 }
@@ -33,6 +43,9 @@ export default async function RobeDetailPage({ params }: Props) {
   const { id } = await params;
   const robe = await getBridalRobeById(id);
   if (!robe) notFound();
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+  const displayName = localizedName(robe, locale, robe.name_ar);
 
   const related = (await getBridalRobes())
     .filter((r) => r.id !== robe.id)
@@ -40,11 +53,13 @@ export default async function RobeDetailPage({ params }: Props) {
     .map((r) => ({
       id: r.id,
       name_ar: r.name_ar,
+      name_en: r.name_en,
+      name_he: r.name_he,
       price: r.price,
       sale_price: r.sale_price,
       images: r.images,
       href: `/robes/${r.id}`,
-      subtitle: r.size || r.color || undefined,
+      subtitle: r.color || r.size || r.material || undefined,
       kind: "bridal_robe" as const,
       is_featured: r.is_featured,
     }));
@@ -52,6 +67,7 @@ export default async function RobeDetailPage({ params }: Props) {
   const stock = shopStockAvailability({
     isAvailable: robe.is_available,
     stockQuantity: robe.stock_quantity,
+    locale,
   });
   const experience = await resolveStorefrontProductExperience({
     productId: robe.id,
@@ -71,15 +87,13 @@ export default async function RobeDetailPage({ params }: Props) {
     productKind: "bridal_robe" as const,
     productId: robe.id,
     productSlug: robe.id,
-    productTitle: robe.name_ar,
+    productTitle: displayName,
     productImageUrl: featuredImage(robe.images),
   };
-  const wishlistControl = isFeatureEnabled(
+  const wishlistEnabled = isFeatureEnabled(
     experience.enabledFeatureIds,
     "wishlist"
-  ) ? (
-    <WishlistButton {...wishlistProps} />
-  ) : null;
+  );
 
   return (
     <>
@@ -87,39 +101,29 @@ export default async function RobeDetailPage({ params }: Props) {
         productKind="bridal_robe"
         productId={robe.id}
         productSlug={robe.id}
-        productTitle={robe.name_ar}
+        productTitle={displayName}
         productImageUrl={featuredImage(robe.images)}
       />
       <ProductDetailLayout
         images={robe.images}
-        name={robe.name_ar}
-        categoryLabel="برنص العروس"
+        name={displayName}
+        categoryLabel={t.nav.robes}
         price={robe.price}
         salePrice={robe.sale_price}
-        description={robe.description_ar}
+        description={localizedDescription(robe, locale, robe.description_ar ?? "")}
         available={stock.available}
         availabilityLabel={stock.label}
         isFeatured={robe.is_featured}
-        galleryWishlist={wishlistControl}
-        meta={
-          <>
-            {robe.color && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                {robe.color}
-              </span>
-            )}
-            {robe.size && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                {robe.size}
-              </span>
-            )}
-            {robe.material && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                {robe.material}
-              </span>
-            )}
-          </>
+        galleryWishlist={
+          wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
         }
+        metaItems={[
+          ...(robe.color ? [{ key: "color", label: robe.color }] : []),
+          ...(robe.size ? [{ key: "size", label: robe.size }] : []),
+          ...(robe.material
+            ? [{ key: "material", label: robe.material }]
+            : []),
+        ]}
         actions={
           stock.available ? (
             <ProductPrimaryCta
@@ -130,6 +134,8 @@ export default async function RobeDetailPage({ params }: Props) {
               shopProductType="bridal_robe"
               productId={robe.id}
               nameAr={robe.name_ar}
+              nameEn={robe.name_en}
+              nameHe={robe.name_he}
               price={robe.price}
               salePrice={robe.sale_price}
               image={featuredImage(robe.images)}
@@ -137,17 +143,19 @@ export default async function RobeDetailPage({ params }: Props) {
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
-              wishlist={wishlistControl}
+              wishlist={
+                wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+              }
             />
-          ) : (
-            wishlistControl
-          )
+          ) : wishlistEnabled ? (
+            <WishlistButton {...wishlistProps} />
+          ) : null
         }
         below={
           <div className="mt-6">
             <Link href="/robes" className="inline-block">
               <Button variant="ghost" size="md">
-                العودة لبرنص العروس
+                {t.product.backToRobes}
               </Button>
             </Link>
           </div>

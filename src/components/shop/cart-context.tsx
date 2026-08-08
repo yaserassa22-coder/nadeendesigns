@@ -20,6 +20,8 @@ export type CartAddToCartInput = {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   /** Base charged unit price (use sale when on sale). */
   unit_price: number;
   /** Regular / list price when charging a sale price. */
@@ -31,6 +33,7 @@ export type CartAddToCartInput = {
   order_options?: LineOrderOptionValue[] | null;
   extra_services?: LineExtraService[] | null;
   personalization_fee?: number | null;
+  gift_fee?: number | null;
   /** Set true for future accessory products under اكسسوارات العروس */
   requires_shipping?: boolean;
 };

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
@@ -15,10 +18,11 @@ type Addr = {
 };
 
 export default function AccountAddressesPage() {
+  const { t, locale } = useLocale();
   const [addresses, setAddresses] = useState<Addr[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
-    label: "المنزل",
+    label: t.account.addressDefault,
     full_name: "",
     phone: "",
     city: "",
@@ -68,7 +72,7 @@ export default function AccountAddressesPage() {
             <div>
               <p className="font-medium">
                 {a.label}
-                {a.is_default ? " · افتراضي" : ""}
+                {a.is_default ? ` · ${t.account.addressDefault}` : ""}
               </p>
               <p className="text-sm text-muted">
                 {a.full_name} · {[a.street, a.city, a.region].filter(Boolean).join("، ")}
@@ -78,26 +82,24 @@ export default function AccountAddressesPage() {
               type="button"
               className="text-xs text-red-700/80"
               onClick={() => void remove(a.id)}
-            >
-              حذف
-            </button>
+            >{t.common.delete}</button>
           </div>
         ))}
         {!addresses.length && (
-          <p className="text-sm text-muted">لا عناوين محفوظة بعد.</p>
+          <p className="text-sm text-muted">{t.account.noAddresses}</p>
         )}
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-beige-dark bg-white p-5 sm:grid-cols-2">
-        <h3 className="sm:col-span-2 font-medium">عنوان جديد</h3>
+        <h3 className="sm:col-span-2 font-medium">{t.account.newAddress}</h3>
         {(
           [
-            ["label", "التسمية"],
-            ["full_name", "الاسم"],
-            ["phone", "الهاتف"],
-            ["city", "المدينة"],
-            ["region", "المنطقة"],
-            ["street", "الشارع"],
+            ["label", t.account.addressLabel],
+            ["full_name", t.account.fullName],
+            ["phone", t.account.phone],
+            ["city", t.account.city],
+            ["region", t.account.region],
+            ["street", t.account.street],
           ] as const
         ).map(([k, label]) => (
           <input
@@ -113,7 +115,7 @@ export default function AccountAddressesPage() {
           style={{ backgroundColor: "#C9A14A" }}
           onClick={() => void add()}
         >
-          إضافة عنوان
+          {t.account.addAddress}
         </Button>
       </div>
     </div>

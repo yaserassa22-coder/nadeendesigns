@@ -1,28 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ZoomIn } from "lucide-react";
 import type { GalleryItem } from "@/types";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
-const CATEGORIES = [
-  { value: "all", label: "الكل" },
-  { value: "wedding", label: "زفاف" },
-  { value: "nouf_dresses", label: "فساتين نوف" },
-  { value: "details", label: "تفاصيل" },
-  { value: "boutique", label: "البوتيك" },
-  { value: "events", label: "فعاليات" },
-];
+const CATEGORY_KEYS = [
+  "all",
+  "wedding",
+  "nouf_dresses",
+  "details",
+  "boutique",
+  "events",
+] as const;
 
 interface GalleryGridProps {
   items: GalleryItem[];
 }
 
 export function GalleryGrid({ items }: GalleryGridProps) {
+  const { t } = useLocale();
   const [filter, setFilter] = useState("all");
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
+
+  const categories = useMemo(
+    () =>
+      CATEGORY_KEYS.map((value) => ({
+        value,
+        label: t.galleryUi[value],
+      })),
+    [t]
+  );
 
   const filtered =
     filter === "all" ? items : items.filter((i) => i.category === filter);
@@ -30,7 +41,7 @@ export function GalleryGrid({ items }: GalleryGridProps) {
   return (
     <>
       <div className="mb-8 flex flex-wrap justify-center gap-2">
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <button
             key={cat.value}
             type="button"
@@ -89,7 +100,7 @@ export function GalleryGrid({ items }: GalleryGridProps) {
               type="button"
               onClick={() => setLightbox(null)}
               className="absolute top-6 right-6 text-white"
-              aria-label="إغلاق"
+              aria-label={t.common.close}
             >
               <X className="h-8 w-8" />
             </button>
@@ -105,11 +116,8 @@ export function GalleryGrid({ items }: GalleryGridProps) {
                 alt={lightbox.title_ar}
                 width={1200}
                 height={1600}
-                className="max-h-[85vh] w-auto rounded-xl object-contain"
+                className="max-h-[90vh] w-auto object-contain"
               />
-              <p className="mt-4 text-center text-lg text-white">
-                {lightbox.title_ar}
-              </p>
             </motion.div>
           </motion.div>
         )}

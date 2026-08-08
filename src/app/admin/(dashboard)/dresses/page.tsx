@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { DressesManager } from "@/components/admin/DressesManager";
+import { AdminProductsPageHeader } from "@/components/admin/AdminPageHeader";
 import { getAdminDresses } from "@/lib/admin/data";
 import { getAdminCategories } from "@/lib/admin/categories-data";
 import { selectDressAssignableCategories } from "@/types/category";
+import { getLocale } from "@/lib/i18n/server";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "إدارة المنتجات",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return { title: getDictionary(locale).admin.productsUi.pageTitle };
+}
 
 /** Always load fresh categories for product Create/Edit selectors. */
 export const dynamic = "force-dynamic";
@@ -42,19 +46,12 @@ export default async function AdminDressesPage({ searchParams }: Props) {
       : "all";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-charcoal">إدارة المنتجات</h1>
-        <p className="mt-2 text-muted">
-          إدارة{" "}
-          {dressCategories.map((c) => c.name_ar).join(" · ") || "التصنيفات الديناميكية"}
-        </p>
-      </div>
+    <AdminProductsPageHeader categories={dressCategories}>
       <DressesManager
         initialDresses={dresses}
         initialCategories={categories}
         initialCategoryFilter={initialCategory}
       />
-    </div>
+    </AdminProductsPageHeader>
   );
 }

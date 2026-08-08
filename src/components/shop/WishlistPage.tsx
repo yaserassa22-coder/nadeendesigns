@@ -6,6 +6,8 @@ import { Heart, Trash2 } from "lucide-react";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { Button } from "@/components/ui/Button";
 import { useWishlist } from "@/components/shop/WishlistProvider";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 import {
   wishlistKindLabel,
   wishlistProductHref,
@@ -13,19 +15,17 @@ import {
 
 export function WishlistPage() {
   const { items, ready, remove, count } = useWishlist();
+  const { t } = useLocale();
+
+  const description = !ready
+    ? t.common.loading
+    : count
+      ? formatMessage(t.wishlist.savedCount, { count })
+      : t.wishlist.emptyHint;
 
   return (
     <>
-      <PageHero
-        title="قائمة الأمنيات"
-        description={
-          ready
-            ? count
-              ? `${count} قطعة محفوظة`
-              : "احفظي القطع التي تحبينها."
-            : "جاري التحميل…"
-        }
-      />
+      <PageHero title={t.wishlist.title} description={description} />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-4 md:px-8">
           {!ready ? (
@@ -34,18 +34,17 @@ export function WishlistPage() {
             <div className="rounded-3xl border border-dashed border-beige-dark bg-white/70 px-6 py-14 text-center">
               <Heart className="mx-auto h-8 w-8 text-gold/70" strokeWidth={1.5} />
               <p className="mt-4 font-[family-name:var(--font-amiri)] text-xl text-charcoal">
-                قائمة الأمنيات فارغة
+                {t.wishlist.empty}
               </p>
               <p className="mt-2 text-sm text-muted">
-                اضغطي على القلب بجانب أي قطعة لإضافتها هنا — بدون الحاجة لتسجيل
-                الدخول.
+                {t.wishlist.emptyDescription}
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 <Link href="/wedding-dresses">
-                  <Button>فساتين الزفاف</Button>
+                  <Button>{t.nav.weddingDresses}</Button>
                 </Link>
                 <Link href="/veils">
-                  <Button variant="outline">طرحة العروس</Button>
+                  <Button variant="outline">{t.nav.veils}</Button>
                 </Link>
               </div>
             </div>
@@ -81,10 +80,10 @@ export function WishlistPage() {
                         href={href}
                         className="block truncate font-medium text-charcoal hover:text-gold"
                       >
-                        {item.product_title || "قطعة"}
+                        {item.product_title || t.wishlist.piece}
                       </Link>
                       <p className="mt-1 text-xs text-muted">
-                        {wishlistKindLabel(item.product_kind)}
+                        {wishlistKindLabel(item.product_kind, t.cart)}
                       </p>
                       <button
                         type="button"
@@ -100,7 +99,7 @@ export function WishlistPage() {
                         className="mt-3 inline-flex items-center gap-1 text-xs text-red-700/80 hover:underline"
                       >
                         <Trash2 className="h-3 w-3" />
-                        إزالة
+                        {t.wishlist.remove}
                       </button>
                     </div>
                   </li>

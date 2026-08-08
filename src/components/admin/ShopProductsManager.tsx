@@ -1,5 +1,11 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+import { resolveCatalogLabel } from "@/lib/i18n/category-labels";
+import { resolveDressColorLabel } from "@/lib/i18n/attribute-labels";
+import { localizedName } from "@/lib/i18n/localize";
+
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Pencil, Plus, X } from "lucide-react";
@@ -61,6 +67,8 @@ export function ShopProductsManager({
   title,
   initialItems,
 }: ShopProductsManagerProps) {
+  const { t, locale } = useLocale();
+  const p = t.admin.productsUi;
   const apiPath = kind === "veils" ? "/api/veils" : "/api/bridal-robes";
   const [items, setItems] = useState(initialItems);
   const [search, setSearch] = useState("");
@@ -162,7 +170,7 @@ export function ShopProductsManager({
 
   const save = async () => {
     if (!form.name_ar.trim()) {
-      setError("الاسم مطلوب");
+      setError(p.nameRequired);
       return;
     }
     setSaving(true);
@@ -176,7 +184,7 @@ export function ShopProductsManager({
         ),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? p.saveFailed);
       if (editing) {
         setItems((prev) => prev.map((i) => (i.id === editing.id ? data : i)));
       } else {
@@ -187,7 +195,7 @@ export function ShopProductsManager({
       setError(
         e instanceof Error
           ? e.message
-          : "فشل حفظ المنتج. راجعي اتصال Supabase وجداول المتجر."
+          : p.saveFailedHint
       );
     } finally {
       setSaving(false);
@@ -200,27 +208,27 @@ export function ShopProductsManager({
         <div>
           <h1 className="text-2xl font-bold text-charcoal">{title}</h1>
           <p className="mt-1 text-sm text-muted">
-            إدارة كاملة — إضافة، تعديل، أرشفة، نقل للسلة، بحث وتصفية
+            {p.manageSubtitle}
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
-          إضافة جديد
+          {p.addNew}
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Input
-          label="بحث"
+          label={p.search}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
             setPage(1);
           }}
-          placeholder="الاسم، اللون، الخامة..."
+          placeholder={p.searchPlaceholder}
         />
         <div>
-          <p className="mb-1.5 text-sm text-muted">العرض</p>
+          <p className="mb-1.5 text-sm text-muted">{p.visibility}</p>
           <VisibilityFilter
             value={visibility}
             onChange={(v) => {
@@ -230,20 +238,20 @@ export function ShopProductsManager({
           />
         </div>
         <Select
-          label="التوفر"
+          label={p.availability}
           value={availability}
           onChange={(e) => {
             setAvailability(e.target.value as "all" | "yes" | "no");
             setPage(1);
           }}
           options={[
-            { value: "all", label: "الكل" },
-            { value: "yes", label: "متوفر" },
-            { value: "no", label: "غير متوفر" },
+            { value: "all", label: p.all },
+            { value: "yes", label: p.available },
+            { value: "no", label: p.unavailable },
           ]}
         />
         <div className="flex items-end text-sm text-muted">
-          {filtered.length} منتج
+          {formatMessage(p.productCount, { count: filtered.length })}
         </div>
       </div>
 
@@ -252,11 +260,11 @@ export function ShopProductsManager({
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">المنتج</th>
-                <th className="px-4 py-3 text-right font-medium">السعر</th>
-                <th className="px-4 py-3 text-right font-medium">المخزون</th>
-                <th className="px-4 py-3 text-right font-medium">الحالة</th>
-                <th className="px-4 py-3 text-right font-medium">إجراءات</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colProduct}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colPrice}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colStock}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colStatus}</th>
+                <th className="px-4 py-3 text-right font-medium">{p.colActions}</th>
               </tr>
             </thead>
             <tbody>
@@ -264,8 +272,8 @@ export function ShopProductsManager({
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted">
                     {items.length === 0
-                      ? "لا توجد منتجات بعد"
-                      : "لا توجد نتائج مطابقة للبحث أو التصفية"}
+                      ? p.emptyYet
+                      : p.emptyFiltered}
                   </td>
                 </tr>
               ) : (
@@ -277,7 +285,7 @@ export function ShopProductsManager({
                           {featuredImage(item.images) && (
                             <Image
                               src={featuredImage(item.images)!}
-                              alt={item.name_ar}
+                              alt={localizedName(item, locale, item.name_ar)}
                               fill
                               className="object-cover"
                               sizes="48px"
@@ -286,12 +294,14 @@ export function ShopProductsManager({
                         </div>
                         <div>
                           <p className="font-medium text-charcoal">
-                            {item.name_ar}
+                            {localizedName(item, locale, item.name_ar)}
                           </p>
                           <p className="text-xs text-muted">
-                            {item.color || "—"}
-                            {"category" in item
-                              ? ` · ${item.category}`
+                            {item.color
+                              ? resolveDressColorLabel(item.color, locale)
+                              : "—"}
+                            {"category" in item && item.category
+                              ? ` · ${resolveCatalogLabel(item.category, locale)}`
                               : "size" in item && item.size
                                 ? ` · ${item.size}`
                                 : ""}
@@ -311,11 +321,11 @@ export function ShopProductsManager({
                             : "bg-red-50 text-red-600"
                         }`}
                       >
-                        {item.is_available ? "متوفر" : "غير متوفر"}
+                        {item.is_available ? p.available : p.unavailable}
                       </span>
                       {item.is_featured && (
                         <span className="mr-2 rounded-full bg-gold/10 px-2.5 py-1 text-xs text-gold">
-                          مميز
+                          {p.featured}
                         </span>
                       )}
                     </td>
@@ -325,7 +335,7 @@ export function ShopProductsManager({
                           type="button"
                           onClick={() => openEdit(item)}
                           className="rounded-lg p-2 text-gold hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
-                          aria-label={`تعديل ${item.name_ar}`}
+                          aria-label={`${p.edit} ${item.name_ar}`}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -380,10 +390,10 @@ export function ShopProductsManager({
             disabled={safePage <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
-            السابق
+            {p.prev}
           </Button>
           <span className="text-sm text-muted">
-            صفحة {safePage} من {pageCount}
+            {formatMessage(p.pageOf, { page: safePage, pages: pageCount })}
           </span>
           <Button
             variant="outline"
@@ -391,7 +401,7 @@ export function ShopProductsManager({
             disabled={safePage >= pageCount}
             onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
           >
-            التالي
+            {p.next}
           </Button>
         </div>
       )}
@@ -401,17 +411,17 @@ export function ShopProductsManager({
           className="fixed inset-0 z-50 flex items-end justify-center bg-charcoal/40 p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
-          aria-label={editing ? "تعديل المنتج" : "إضافة منتج"}
+          aria-label={editing ? p.editProduct : p.addProductTitle}
         >
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold">
-                {editing ? "تعديل المنتج" : "إضافة منتج"}
+                {editing ? p.editProduct : p.addProductTitle}
               </h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="إغلاق"
+                aria-label={p.close}
                 className="rounded-lg p-1 text-charcoal hover:bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
               >
                 <X className="h-5 w-5" />
@@ -421,7 +431,7 @@ export function ShopProductsManager({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Input
-                  label="الاسم *"
+                  label={p.nameAr}
                   value={form.name_ar}
                   onChange={(e) =>
                     setForm({ ...form, name_ar: e.target.value })
@@ -430,29 +440,28 @@ export function ShopProductsManager({
               </div>
               <div className="sm:col-span-2">
                 <Textarea
-                  label="الوصف"
+                  label={p.description}
                   rows={10}
                   value={form.description_ar}
                   onChange={(e) =>
                     setForm({ ...form, description_ar: e.target.value })
                   }
-                  placeholder="وصف المنتج… Enter لسطر جديد (عربي / English) — بدون حد للطول"
+                  placeholder={p.descriptionPlaceholder}
                   className="min-h-[12rem] resize-y whitespace-pre-wrap font-normal"
                 />
                 <p className="mt-1 text-xs text-muted">
-                  وصف غير محدود الطول. يُحفظ التنسيق (الأسطر الجديدة) ويظهر كما هو
-                  في صفحة المنتج.
+                  {p.descriptionHint}
                 </p>
               </div>
               <Input
-                label="السعر (₪) *"
+                label={p.price}
                 type="number"
                 dir="ltr"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
               />
               <Input
-                label="سعر التخفيض (₪)"
+                label={p.salePrice}
                 type="number"
                 dir="ltr"
                 value={form.sale_price}
@@ -461,7 +470,7 @@ export function ShopProductsManager({
                 }
               />
               <Input
-                label="الكمية في المخزون"
+                label={p.stock}
                 type="number"
                 dir="ltr"
                 value={form.stock_quantity}
@@ -471,19 +480,19 @@ export function ShopProductsManager({
               />
               {kind === "veils" ? (
                 <Select
-                  label="التصنيف"
+                  label={p.category}
                   value={form.category}
                   onChange={(e) =>
                     setForm({ ...form, category: e.target.value })
                   }
                   options={VEIL_CATEGORY_OPTIONS.map((c) => ({
                     value: c,
-                    label: c,
+                    label: resolveCatalogLabel(c, locale),
                   }))}
                 />
               ) : (
                 <Select
-                  label="المقاس"
+                  label={p.size}
                   value={form.size}
                   onChange={(e) => setForm({ ...form, size: e.target.value })}
                   options={[
@@ -493,16 +502,19 @@ export function ShopProductsManager({
                 />
               )}
               <Select
-                label="اللون"
+                label={p.color}
                 value={form.color}
                 onChange={(e) => setForm({ ...form, color: e.target.value })}
                 options={[
                   { value: "", label: "—" },
-                  ...DRESS_COLORS.map((c) => ({ value: c, label: c })),
+                  ...DRESS_COLORS.map((c) => ({
+                    value: c,
+                    label: resolveDressColorLabel(c, locale),
+                  })),
                 ]}
               />
               <Input
-                label="الخامة / Material"
+                label={p.material}
                 value={form.material}
                 onChange={(e) =>
                   setForm({ ...form, material: e.target.value })
@@ -522,7 +534,7 @@ export function ShopProductsManager({
                     setForm({ ...form, is_available: e.target.checked })
                   }
                 />
-                متوفر
+                {p.available}
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -532,7 +544,7 @@ export function ShopProductsManager({
                     setForm({ ...form, is_featured: e.target.checked })
                   }
                 />
-                مميز
+                {p.featured}
               </label>
             </div>
 
@@ -544,10 +556,10 @@ export function ShopProductsManager({
 
             <div className="mt-6 flex gap-3">
               <Button loading={saving} onClick={save}>
-                حفظ
+                {p.save}
               </Button>
               <Button variant="outline" onClick={() => setOpen(false)}>
-                إلغاء
+                {p.cancel}
               </Button>
             </div>
           </div>

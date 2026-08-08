@@ -2,7 +2,43 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCustomerApi } from "@/lib/customer-auth/customer";
 import { phoneDigits } from "@/lib/phone";
-import { isMissingTableError } from "@/lib/supabase/errors";
+import {
+  isMissingColumnError,
+  isMissingTableError,
+} from "@/lib/supabase/errors";
+
+const SELECT_CANDIDATES = [
+  "id, name, phone, email, status, total, created_at, items, shipping_city, tracking_number, customer_id, invoice_number, invoice_type, invoice_issued_at",
+  "id, name, phone, email, status, total, created_at, items, shipping_city, tracking_number, customer_id",
+  "id, name, phone, email, status, total, created_at, items",
+] as const;
+
+type OrderRow = {
+  id: string;
+  phone?: string | null;
+  email?: string | null;
+  created_at?: string;
+  [key: string]: unknown;
+};
+
+async function queryOrders(
+  run: (
+    cols: string
+  ) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>
+): Promise<OrderRow[]> {
+  for (const cols of SELECT_CANDIDATES) {
+    const { data, error } = await run(cols);
+    if (!error) {
+      return Array.isArray(data) ? (data as OrderRow[]) : [];
+    }
+    if (isMissingTableError(error, "shop_orders")) return [];
+    if (!isMissingColumnError(error)) {
+      console.error("[account/orders]", error);
+      return [];
+    }
+  }
+  return [];
+}
 
 /** Orders matched by customer_id or phone/email identity. */
 export async function GET() {
@@ -11,34 +47,31 @@ export async function GET() {
 
   const supabase = createAdminClient();
   const c = auth.customer;
-  const selectCols =
-    "id, name, phone, email, status, total, payment_status, created_at, items, shipping_city, tracking_number, customer_id";
+  const map = new Map<string, OrderRow>();
 
-  const map = new Map<string, Record<string, unknown>>();
+  const byId = await queryOrders(async (cols) =>
+    supabase
+      .from("shop_orders")
+      .select(cols)
+      .eq("customer_id", c.id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+  );
 
-  const { data: byId, error: byIdErr } = await supabase
-    .from("shop_orders")
-    .select(selectCols)
-    .eq("customer_id", c.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (byIdErr && !isMissingTableError(byIdErr, "shop_orders")) {
-    // customer_id column may be missing pre-migration — fall through
-  }
-
-  for (const row of byId ?? []) {
-    map.set(String(row.id), row as Record<string, unknown>);
+  for (const row of byId) {
+    map.set(String(row.id), row);
   }
 
   if (c.phone) {
     const digits = phoneDigits(c.phone);
-    const { data } = await supabase
-      .from("shop_orders")
-      .select(selectCols)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    for (const row of data ?? []) {
+    const listed = await queryOrders(async (cols) =>
+      supabase
+        .from("shop_orders")
+        .select(cols)
+        .order("created_at", { ascending: false })
+        .limit(100)
+    );
+    for (const row of listed) {
       const rowDigits = phoneDigits(String(row.phone || ""));
       if (
         rowDigits &&
@@ -47,20 +80,23 @@ export async function GET() {
           rowDigits.endsWith(digits.slice(-9)) ||
           digits.endsWith(rowDigits.slice(-9)))
       ) {
-        map.set(String(row.id), row as Record<string, unknown>);
+        map.set(String(row.id), row);
       }
     }
   }
 
   if (c.email) {
-    const { data } = await supabase
-      .from("shop_orders")
-      .select(selectCols)
-      .ilike("email", c.email)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    for (const row of data ?? []) {
-      map.set(String(row.id), row as Record<string, unknown>);
+    const email = c.email;
+    const byEmail = await queryOrders(async (cols) =>
+      supabase
+        .from("shop_orders")
+        .select(cols)
+        .ilike("email", email)
+        .order("created_at", { ascending: false })
+        .limit(50)
+    );
+    for (const row of byEmail) {
+      map.set(String(row.id), row);
     }
   }
 

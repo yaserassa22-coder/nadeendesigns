@@ -1,4 +1,6 @@
 import { DRESS_STYLES, STYLE_LEGACY_MAP } from "@/lib/constants";
+import { resolveDressStyleLabel } from "@/lib/i18n/attribute-labels";
+import type { Locale } from "@/lib/i18n/types";
 
 export type DressStyle = (typeof DRESS_STYLES)[number];
 
@@ -12,6 +14,10 @@ export function normalizeDressStyle(style: string | null | undefined): string | 
   return STYLE_LEGACY_MAP[trimmed] ?? trimmed;
 }
 
-export function getDressStyleLabel(style: string | null | undefined): string {
-  return normalizeDressStyle(style) ?? "";
+/** Display label for the active locale (DB value stays Arabic). */
+export function getDressStyleLabel(
+  style: string | null | undefined,
+  locale: Locale = "ar"
+): string {
+  return resolveDressStyleLabel(style, locale);
 }

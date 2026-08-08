@@ -1,4 +1,6 @@
 import type { GiftOptions } from "@/types/customization";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import type { Locale } from "@/lib/i18n/types";
 
 export type { GiftOptions };
 
@@ -6,14 +8,40 @@ export const GIFT_STORAGE_KEY = "nadeen_gift_options";
 
 export type GiftBoxType = GiftOptions["gift_box"];
 
-export const GIFT_BOX_OPTIONS: { value: GiftBoxType; label: string }[] = [
-  { value: "standard", label: "تغليف فاخر قياسي" },
-  { value: "luxury_box", label: "صندوق هدايا فاخر" },
-  { value: "luxury_ribbon", label: "صندوق فاخر مع شريط ذهبي" },
+export const GIFT_BOX_VALUES: GiftBoxType[] = [
+  "standard",
+  "luxury_box",
+  "luxury_ribbon",
 ];
 
-export function getGiftBoxLabel(value: GiftBoxType): string {
-  return GIFT_BOX_OPTIONS.find((o) => o.value === value)?.label ?? value;
+const AR_FALLBACK: Record<GiftBoxType, string> = {
+  standard: "تغليف فاخر قياسي",
+  luxury_box: "صندوق هدايا فاخر",
+  luxury_ribbon: "صندوق فاخر مع شريط ذهبي",
+};
+
+/** Legacy constant — Arabic labels. Prefer getGiftBoxOptions(locale). */
+export const GIFT_BOX_OPTIONS: { value: GiftBoxType; label: string }[] =
+  GIFT_BOX_VALUES.map((value) => ({
+    value,
+    label: AR_FALLBACK[value],
+  }));
+
+export function getGiftBoxLabel(
+  value: GiftBoxType,
+  locale: Locale = "ar"
+): string {
+  const g = getDictionary(locale).gift;
+  if (value === "standard") return g.boxStandard;
+  if (value === "luxury_box") return g.boxLuxury;
+  return g.boxRibbon;
+}
+
+export function getGiftBoxOptions(locale: Locale = "ar") {
+  return GIFT_BOX_VALUES.map((value) => ({
+    value,
+    label: getGiftBoxLabel(value, locale),
+  }));
 }
 
 export function saveGiftOptions(data: GiftOptions | null) {

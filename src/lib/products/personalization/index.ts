@@ -18,12 +18,18 @@ export {
   VEIL_POSITION_OPTIONS,
   ARABIC_FONT_CLASS,
   ENGLISH_FONT_CLASS,
+  englishFontFromPrimary,
   getWritingColorHex,
   getWritingLanguageLabel,
   getArabicFontLabel,
   getEnglishFontLabel,
   getWritingColorLabel,
   getPositionLabel,
+  writingLanguageSelectOptions,
+  arabicFontSelectOptions,
+  englishFontSelectOptions,
+  writingColorSelectOptions,
+  positionSelectOptions,
   supportsPersonalization,
   categoryToServiceType,
   savePersonalization,
@@ -44,10 +50,10 @@ export { productPersonalizationSchema } from "@/lib/validations/personalization"
 
 import type { ProductPersonalization } from "@/lib/personalization";
 import {
-  ROBE_POSITION_OPTIONS,
-  VEIL_POSITION_OPTIONS,
+  positionSelectOptions,
   type PersonalizationProductType,
 } from "@/lib/personalization";
+import type { Locale } from "@/lib/i18n/types";
 import { productPersonalizationSchema } from "@/lib/validations/personalization";
 import type { ShopProductType } from "@/types/shop";
 
@@ -60,11 +66,12 @@ export function shopTypeToPersonalizationType(
   return null;
 }
 
-/** Position options for a personalization product kind (existing lists). */
+/** Position options for a personalization product kind (localized). */
 export function getPersonalizationPositionOptions(
-  type: PersonalizationProductType
+  type: PersonalizationProductType,
+  locale: Locale = "ar"
 ) {
-  return type === "robes" ? ROBE_POSITION_OPTIONS : VEIL_POSITION_OPTIONS;
+  return positionSelectOptions(type, locale);
 }
 
 /**

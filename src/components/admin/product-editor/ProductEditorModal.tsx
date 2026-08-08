@@ -11,10 +11,11 @@ import {
 import type { Dress } from "@/types";
 import type { Category } from "@/types/category";
 import { DRESS_COLORS, DRESS_SIZES, DRESS_STYLES } from "@/lib/constants";
-import { getDressColorLabel } from "@/lib/colors";
-import { getDressStyleLabel } from "@/lib/styles";
+import { getDressColorLabel, normalizeDressColor } from "@/lib/colors";
+import { getDressStyleLabel, normalizeDressStyle } from "@/lib/styles";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { resolveCategoryLabel } from "@/lib/i18n/category-labels";
 import {
-  AUTOSAVE_STATUS_LABEL,
   productDraftStorageKey,
   type AutosaveUiStatus,
 } from "@/lib/admin/product-draft";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/products/slug-sku";
 import {
   PRODUCT_STATUS_LABELS,
+  getProductStatusLabel,
   deriveProductStatus,
   type ProductStatus,
 } from "@/lib/products/status";
@@ -39,7 +41,6 @@ import {
   fetchAdminCategories,
 } from "@/lib/admin/fetch-admin-categories";
 import {
-  productCommerceTypeOptions,
   resolveProductCommerceType,
   type ProductCommerceType,
 } from "@/lib/products/primary-action";
@@ -111,16 +112,6 @@ export type DressFormState = {
   /** Feature library assignment */
   features_config: ProductFeaturesConfig | null;
 };
-
-const TABS: { id: ProductEditorTab; label: string }[] = [
-  { id: "general", label: "عام" },
-  { id: "pricing", label: "التسعير" },
-  { id: "media", label: "الوسائط" },
-  { id: "organization", label: "التنظيم" },
-  { id: "features", label: "الميزات" },
-  { id: "experience", label: "تجربة المنتج" },
-  { id: "advanced", label: "متقدم" },
-];
 
 const AUTOSAVE_MS = 1400;
 
@@ -252,8 +243,8 @@ export function dressToForm(
     cost_price: dress.cost_price?.toString() ?? "",
     rental_price: dress.rental_price?.toString() ?? "",
     size: dress.size ?? "",
-    color: getDressColorLabel(dress.color) || "",
-    style: getDressStyleLabel(dress.style) || "",
+    color: normalizeDressColor(dress.color) || "",
+    style: normalizeDressStyle(dress.style) || "",
     tags: (dress.tags ?? []).join("، "),
     status,
     is_featured: dress.is_featured,
@@ -413,6 +404,30 @@ export function ProductEditorModal({
   onSaved,
   onCreated,
 }: ProductEditorModalProps) {
+  const { t, locale, dir } = useLocale();
+  const pe = t.admin.productEditor;
+  const tabs: { id: ProductEditorTab; label: string }[] = [
+    { id: "general", label: pe.tabGeneral },
+    { id: "pricing", label: pe.tabPricing },
+    { id: "media", label: pe.tabMedia },
+    { id: "organization", label: pe.tabOrganization },
+    { id: "features", label: pe.tabFeatures },
+    { id: "experience", label: pe.tabExperience },
+    { id: "advanced", label: pe.tabAdvanced },
+  ];
+  const commerceTypeOptions: { value: ProductCommerceType; label: string }[] = [
+    { value: "ready_to_buy", label: pe.commerceReadyToBuy },
+    { value: "bridal_accessory", label: pe.commerceBridalAccessory },
+    { value: "rental_dress", label: pe.commerceRentalDress },
+    { value: "custom_design", label: pe.commerceCustomDesign },
+    { value: "service", label: pe.commerceService },
+  ];
+  const autosaveLabel: Record<AutosaveUiStatus, string> = {
+    idle: "",
+    saving: pe.autosaveSaving,
+    saved: pe.autosaveSaved,
+    failed: pe.autosaveFailed,
+  };
   const [tab, setTab] = useState<ProductEditorTab>("general");
   const [saving, setSaving] = useState(false);
   const [autosaveStatus, setAutosaveStatus] =
@@ -485,12 +500,12 @@ export function ProductEditorModal({
       const current = formRef.current;
       const currentEditing = editingRef.current;
       if (!current.name_ar.trim()) {
-        if (opts?.force) setError("اسم الفستان مطلوب");
+        if (opts?.force) setError(pe.nameRequired);
         return null;
       }
       const categoryId = lockedCategoryId ?? current.category_id;
       if (!categoryId) {
-        if (opts?.force) setError("التصنيف مطلوب");
+        if (opts?.force) setError(pe.categoryRequired);
         return null;
       }
 
@@ -517,7 +532,7 @@ export function ProductEditorModal({
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error ?? "فشل الحفظ");
+          throw new Error(data.error ?? pe.saveFailed);
         }
         const dress = data as Dress;
         writeLocalDraft(
@@ -541,7 +556,7 @@ export function ProductEditorModal({
         const msg =
           e instanceof Error
             ? e.message
-            : "فشل حفظ الفستان. راجعي اتصال Supabase ورفع الصور.";
+            : pe.saveFailedHint;
         if (opts?.force) setError(msg);
         return null;
       } finally {
@@ -555,6 +570,7 @@ export function ProductEditorModal({
       onSaved,
       onClose,
       setError,
+      pe,
     ]
   );
 
@@ -609,7 +625,7 @@ export function ProductEditorModal({
 
   const regular = form.price ? Number(form.price) : null;
   const sale = form.sale_price ? Number(form.sale_price) : null;
-  const statusLabel = AUTOSAVE_STATUS_LABEL[autosaveStatus];
+  const statusLabel = autosaveLabel[autosaveStatus];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-charcoal/40 p-0 sm:items-center sm:p-4">
@@ -617,16 +633,17 @@ export function ProductEditorModal({
         className={`flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[92vh] sm:rounded-2xl ${
           tab === "experience" ? "max-w-4xl" : "max-w-3xl"
         }`}
+        dir={dir}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-beige-dark px-5 py-4 sm:px-6">
           <h2 className="text-xl font-semibold text-charcoal">
-            {editing ? "تعديل المنتج" : "إضافة منتج"}
+            {editing ? pe.editTitle : pe.addTitle}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="إغلاق"
+            aria-label={pe.closeAria}
             className="rounded-lg p-2 text-muted hover:bg-beige/60"
           >
             <X className="h-5 w-5" />
@@ -636,20 +653,20 @@ export function ProductEditorModal({
         {/* Tabs */}
         <div className="shrink-0 overflow-x-auto border-b border-beige-dark px-3 sm:px-4">
           <div className="flex min-w-max gap-1 py-2" role="tablist">
-            {TABS.map((t) => (
+            {tabs.map((tabItem) => (
               <button
-                key={t.id}
+                key={tabItem.id}
                 type="button"
                 role="tab"
-                aria-selected={tab === t.id}
-                onClick={() => setTab(t.id)}
+                aria-selected={tab === tabItem.id}
+                onClick={() => setTab(tabItem.id)}
                 className={`rounded-xl px-3.5 py-2 text-sm transition-colors ${
-                  tab === t.id
+                  tab === tabItem.id
                     ? "bg-gold text-white"
                     : "text-muted hover:bg-beige/70 hover:text-charcoal"
                 }`}
               >
-                {t.label}
+                {tabItem.label}
               </button>
             ))}
           </div>
@@ -660,42 +677,42 @@ export function ProductEditorModal({
           {tab === "general" && (
             <div className="grid gap-5 sm:grid-cols-2">
               <Input
-                label="الاسم بالعربية *"
+                label={pe.nameAr}
                 value={form.name_ar}
                 onChange={(e) => patch({ name_ar: e.target.value })}
               />
               <Input
-                label="الاسم بالإنجليزية"
+                label={pe.nameEn}
                 value={form.name_en}
                 onChange={(e) => patch({ name_en: e.target.value })}
                 dir="ltr"
               />
               <div className="sm:col-span-2">
                 <Textarea
-                  label="وصف قصير"
+                  label={pe.shortDescription}
                   rows={2}
                   value={form.short_description}
                   onChange={(e) =>
                     patch({ short_description: e.target.value })
                   }
-                  placeholder="سطر أو سطران يظهران في القوائم…"
+                  placeholder={pe.shortDescriptionPlaceholder}
                 />
               </div>
               <div className="sm:col-span-2">
                 <Textarea
-                  label="الوصف الكامل"
+                  label={pe.fullDescription}
                   rows={8}
                   value={form.description_ar}
                   onChange={(e) =>
                     patch({ description_ar: e.target.value })
                   }
-                  placeholder="وصف المنتج… Enter لسطر جديد — بدون حد للطول"
+                  placeholder={pe.fullDescriptionPlaceholder}
                   className="min-h-[10rem] resize-y whitespace-pre-wrap font-normal"
                 />
               </div>
               <div>
                 <Input
-                  label="المعرّف (Slug)"
+                  label={pe.slug}
                   value={form.slug}
                   onChange={(e) =>
                     patch({ slug: e.target.value, slugTouched: true })
@@ -712,12 +729,12 @@ export function ProductEditorModal({
                     })
                   }
                 >
-                  إعادة توليد تلقائي
+                  {pe.regenerate}
                 </button>
               </div>
               <div>
                 <Input
-                  label="SKU"
+                  label={pe.sku}
                   value={form.sku}
                   onChange={(e) =>
                     patch({ sku: e.target.value, skuTouched: true })
@@ -737,35 +754,41 @@ export function ProductEditorModal({
                     })
                   }
                 >
-                  إعادة توليد تلقائي
+                  {pe.regenerate}
                 </button>
               </div>
               <Select
-                label="النمط"
+                label={pe.style}
                 value={form.style}
                 onChange={(e) => patch({ style: e.target.value })}
-                dir="rtl"
+                dir={dir}
                 options={[
-                  { value: "", label: "— اختاري النمط —" },
-                  ...DRESS_STYLES.map((s) => ({ value: s, label: s })),
+                  { value: "", label: pe.chooseStyle },
+                  ...DRESS_STYLES.map((s) => ({
+                    value: s,
+                    label: getDressStyleLabel(s, locale),
+                  })),
                 ]}
               />
               <Select
-                label="اللون"
+                label={pe.color}
                 value={form.color}
                 onChange={(e) => patch({ color: e.target.value })}
-                dir="rtl"
+                dir={dir}
                 options={[
-                  { value: "", label: "— اختاري اللون —" },
-                  ...DRESS_COLORS.map((c) => ({ value: c, label: c })),
+                  { value: "", label: pe.chooseColor },
+                  ...DRESS_COLORS.map((c) => ({
+                    value: c,
+                    label: getDressColorLabel(c, locale),
+                  })),
                 ]}
               />
               <Select
-                label="المقاس"
+                label={pe.size}
                 value={form.size}
                 onChange={(e) => patch({ size: e.target.value })}
                 options={[
-                  { value: "", label: "—" },
+                  { value: "", label: pe.dash },
                   ...DRESS_SIZES.map((s) => ({ value: s, label: s })),
                 ]}
               />
@@ -776,35 +799,35 @@ export function ProductEditorModal({
             <div className="space-y-6">
               <div className="grid gap-5 sm:grid-cols-2">
                 <Input
-                  label="السعر العادي"
+                  label={pe.priceRegular}
                   type="number"
                   value={form.price}
                   onChange={(e) => patch({ price: e.target.value })}
                   dir="ltr"
                 />
                 <Input
-                  label="سعر التخفيض"
+                  label={pe.priceSale}
                   type="number"
                   value={form.sale_price}
                   onChange={(e) => patch({ sale_price: e.target.value })}
                   dir="ltr"
                 />
                 <Input
-                  label="سعر التكلفة (للإدارة فقط)"
+                  label={pe.priceCost}
                   type="number"
                   value={form.cost_price}
                   onChange={(e) => patch({ cost_price: e.target.value })}
                   dir="ltr"
                 />
                 <Input
-                  label="سعر الإيجار"
+                  label={pe.priceRental}
                   type="number"
                   value={form.rental_price}
                   onChange={(e) => patch({ rental_price: e.target.value })}
                   dir="ltr"
                 />
                 <Input
-                  label="العملة"
+                  label={pe.currency}
                   value={currencyCode === "ILS" ? "₪ ILS" : currencyCode}
                   disabled
                   dir="ltr"
@@ -813,7 +836,7 @@ export function ProductEditorModal({
 
               <div className="rounded-2xl border border-beige-dark bg-beige/30 px-5 py-6">
                 <p className="mb-3 text-sm font-medium text-muted">
-                  معاينة السعر
+                  {pe.pricePreview}
                 </p>
                 {regular != null && Number.isFinite(regular) ? (
                   <ProductPrice
@@ -829,7 +852,7 @@ export function ProductEditorModal({
                     }
                   />
                 ) : (
-                  <span className="text-muted">—</span>
+                  <span className="text-muted">{pe.dash}</span>
                 )}
               </div>
             </div>
@@ -837,10 +860,7 @@ export function ProductEditorModal({
 
           {tab === "media" && (
             <div className="space-y-3">
-              <p className="text-sm text-muted">
-                الصورة الأولى هي الرئيسية (المميزة). اسحبي لإعادة الترتيب أو
-                اضغطي النجمة.
-              </p>
+              <p className="text-sm text-muted">{pe.mediaHint}</p>
               <ImageUpload
                 value={form.images}
                 onChange={(images) => patch({ images })}
@@ -851,10 +871,10 @@ export function ProductEditorModal({
           {tab === "organization" && (
             <div className="grid gap-5 sm:grid-cols-2">
               {lockedCategoryId ? (
-                <Input label="التصنيف" value={lockedLabel} disabled />
+                <Input label={pe.category} value={lockedLabel} disabled />
               ) : (
                 <Select
-                  label="التصنيف"
+                  label={pe.category}
                   value={form.category_id}
                   onChange={(e) => patch({ category_id: e.target.value })}
                   disabled={categoriesLoading && dressCategories.length === 0}
@@ -862,21 +882,21 @@ export function ProductEditorModal({
                     dressCategories.length > 0
                       ? dressCategories.map((c) => ({
                           value: c.id,
-                          label: c.name_ar,
+                          label: resolveCategoryLabel(c, locale),
                         }))
                       : [
                           {
                             value: form.category_id || "",
                             label: categoriesLoading
-                              ? "جاري تحميل التصنيفات…"
-                              : "— لا توجد تصنيفات —",
+                              ? pe.loadingCategories
+                              : pe.noCategories,
                           },
                         ]
                   }
                 />
               )}
               <Select
-                label="نوع المنتج"
+                label={pe.productType}
                 value={form.product_type}
                 onChange={(e) => {
                   const product_type = e.target
@@ -889,39 +909,38 @@ export function ProductEditorModal({
                     ),
                   });
                 }}
-                options={productCommerceTypeOptions()}
+                options={commerceTypeOptions}
               />
               <p className="sm:col-span-2 text-xs text-muted">
-                يحدد زر الواجهة — مستقل عن التصنيف.
+                {pe.productTypeHint}
               </p>
               <Select
-                label="المجموعة"
+                label={pe.collection}
                 value={form.collection_id}
                 onChange={(e) => patch({ collection_id: e.target.value })}
                 options={[
-                  { value: "", label: "— بدون مجموعة —" },
+                  { value: "", label: pe.noCollection },
                   ...collectionCategories.map((c) => ({
                     value: c.id,
-                    label: c.name_ar,
+                    label: resolveCategoryLabel(c, locale),
                   })),
                 ]}
               />
               {collectionCategories.length === 0 && (
                 <p className="sm:col-span-2 text-xs text-muted">
-                  لا توجد مجموعات مميزة بعد. فعّلي «مجموعة مميزة» من إدارة
-                  التصنيفات.
+                  {pe.noCollectionsHint}
                 </p>
               )}
               <div className="sm:col-span-2">
                 <Input
-                  label="الوسوم (افصلي بفاصلة)"
+                  label={pe.tags}
                   value={form.tags}
                   onChange={(e) => patch({ tags: e.target.value })}
-                  placeholder="عروس، كلاسيك، دانتيل"
+                  placeholder={pe.tagsPlaceholder}
                 />
               </div>
               <Select
-                label="الظهور"
+                label={pe.visibility}
                 value={form.status}
                 onChange={(e) =>
                   patch({ status: e.target.value as ProductStatus })
@@ -930,7 +949,7 @@ export function ProductEditorModal({
                   Object.keys(PRODUCT_STATUS_LABELS) as ProductStatus[]
                 ).map((s) => ({
                   value: s,
-                  label: PRODUCT_STATUS_LABELS[s],
+                  label: getProductStatusLabel(s, locale),
                 }))}
               />
               <div className="flex items-end pb-2">
@@ -943,7 +962,7 @@ export function ProductEditorModal({
                       patch({ is_featured: e.target.checked })
                     }
                   />
-                  منتج مميز في الواجهة
+                  {pe.featuredProduct}
                 </label>
               </div>
             </div>
@@ -961,7 +980,7 @@ export function ProductEditorModal({
             <ExperienceDesignerPanel
               value={form.experience_config}
               onChange={(experience_config) => patch({ experience_config })}
-              productNameAr={form.name_ar || "المنتج"}
+              productNameAr={form.name_ar || pe.productFallback}
               productType={form.product_type}
               featuresConfig={form.features_config}
               supportsPersonalization
@@ -997,30 +1016,30 @@ export function ProductEditorModal({
           {tab === "advanced" && (
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="rounded-xl border border-beige-dark bg-beige/20 px-4 py-3 text-sm">
-                <p className="text-muted">التوفر في المتجر</p>
+                <p className="text-muted">{pe.availability}</p>
                 <p className="mt-1 font-medium text-charcoal">
                   {form.status === "published"
-                    ? "متاح للعرض والشراء"
-                    : "غير ظاهر للعملاء"}
+                    ? pe.availableForSale
+                    : pe.notVisibleToCustomers}
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  غيّري الظهور من تبويب التنظيم.
+                  {pe.changeVisibilityHint}
                 </p>
               </div>
               <div className="rounded-xl border border-beige-dark px-4 py-3 text-sm">
-                <p className="text-muted">تاريخ الإنشاء</p>
+                <p className="text-muted">{pe.createdAt}</p>
                 <p className="mt-1 font-medium text-charcoal" dir="ltr">
                   {editing?.created_at
                     ? formatDateTimeWestern(editing.created_at)
-                    : "— عند الحفظ لأول مرة"}
+                    : pe.onFirstSave}
                 </p>
               </div>
               <div className="rounded-xl border border-beige-dark px-4 py-3 text-sm sm:col-span-2">
-                <p className="text-muted">آخر تحديث</p>
+                <p className="text-muted">{pe.updatedAt}</p>
                 <p className="mt-1 font-medium text-charcoal" dir="ltr">
                   {editing?.updated_at
                     ? formatDateTimeWestern(editing.updated_at)
-                    : "—"}
+                    : pe.dash}
                 </p>
               </div>
             </div>
@@ -1050,7 +1069,7 @@ export function ProductEditorModal({
             </p>
             <div className="flex gap-3">
               <Button variant="ghost" onClick={onClose}>
-                إلغاء
+                {t.common.cancel}
               </Button>
               <Button
                 loading={saving}
@@ -1058,7 +1077,7 @@ export function ProductEditorModal({
                   void persistServer({ force: true, closeOnSuccess: true })
                 }
               >
-                حفظ
+                {t.common.save}
               </Button>
             </div>
           </div>

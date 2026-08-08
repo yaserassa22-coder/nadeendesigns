@@ -15,12 +15,14 @@ import {
   ShippingDetailsBlock,
 } from "@/components/shop/ShippingDetailsBlock";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { localizedName } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import { featuredImage } from "@/lib/products/featured-image";
 import { formatDate, formatPrice } from "@/lib/utils";
 import {
-  DELIVERY_METHOD_LABELS,
   getOrderStatusLabel,
+  getDeliveryMethodLabel,
   type ShopOrder,
   type ShopOrderStatus,
 } from "@/types/shop";
@@ -66,6 +68,7 @@ export default function CustomerOrderPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
   const { user, customer, openLogin } = useCustomerAuth();
+  const { t, locale } = useLocale();
   const [order, setOrder] = useState<ShopOrder | null>(null);
   const [error, setError] = useState("");
   const [refreshWarning, setRefreshWarning] = useState("");
@@ -97,16 +100,16 @@ export default function CustomerOrderPage() {
     const loadFromServer = async () => {
       try {
         const res = await fetch(`/api/orders/${id}`);
-        let data: ShopOrder & { error?: string } = { error: "الطلب غير موجود" } as ShopOrder & {
+        let data: ShopOrder & { error?: string } = { error: t.orders.notFound } as ShopOrder & {
           error?: string;
         };
         try {
           data = await res.json();
         } catch {
-          throw new Error("تعذّر قراءة رد الخادم");
+          throw new Error(t.orders.serverResponseFailed);
         }
         if (!res.ok) {
-          throw new Error(data.error || "الطلب غير موجود");
+          throw new Error(data.error || t.orders.notFound);
         }
         if (cancelled) return;
         setOrder(data);
@@ -123,11 +126,11 @@ export default function CustomerOrderPage() {
       } catch (e) {
         if (cancelled) return;
         if (!cached) {
-          setError(e instanceof Error ? e.message : "تعذّر تحميل الطلب");
+          setError(e instanceof Error ? e.message : t.orders.loadFailed);
         } else if (!placedNow) {
           // Stale cache from a prior visit — warn only when refresh truly fails.
           setRefreshWarning(
-            "تعذّر تحديث حالة الطلب من الخادم. تُعرض آخر نسخة محفوظة."
+            t.orders.staleWarning
           );
         }
         // After successful checkout we already have the create response in
@@ -147,10 +150,10 @@ export default function CustomerOrderPage() {
   if (!id) {
     return (
       <>
-        <PageHero title="الطلب غير موجود" description="معرّف الطلب غير صالح" />
+        <PageHero title={t.orders.notFound} description={t.orders.invalidId} />
         <section className="py-16 text-center">
           <Link href="/">
-            <Button>العودة للرئيسية</Button>
+            <Button>{t.orders.backHome}</Button>
           </Link>
         </section>
       </>
@@ -160,8 +163,8 @@ export default function CustomerOrderPage() {
   if (loading) {
     return (
       <>
-        <PageHero title="تفاصيل طلبكِ" description="جاري التحميل…" />
-        <section className="py-16 text-center text-muted">جاري التحميل…</section>
+        <PageHero title={t.orders.detailTitle} description={t.orders.loading} />
+        <section className="py-16 text-center text-muted">{t.orders.loading}</section>
       </>
     );
   }
@@ -169,10 +172,10 @@ export default function CustomerOrderPage() {
   if (!order) {
     return (
       <>
-        <PageHero title="الطلب غير موجود" description={error || "تعذّر العثور على الطلب"} />
+        <PageHero title={t.orders.notFound} description={error || t.orders.loadFailed} />
         <section className="py-16 text-center">
           <Link href="/">
-            <Button>العودة للرئيسية</Button>
+            <Button>{t.orders.backHome}</Button>
           </Link>
         </section>
       </>
@@ -191,7 +194,7 @@ export default function CustomerOrderPage() {
 
   return (
     <>
-      <PageHero title="تفاصيل طلبكِ" description={`رقم الطلب ${orderNo}`} />
+      <PageHero title={t.orders.detailTitle} description={`${t.orders.orderNumber} ${orderNo}`} />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-3xl space-y-6 px-4 md:px-8">
           {justPlaced && (
@@ -199,9 +202,9 @@ export default function CustomerOrderPage() {
               className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800"
               role="status"
             >
-              <p className="font-semibold">تم استلام طلبكِ بنجاح</p>
+              <p className="font-semibold">{t.orders.successTitle}</p>
               <p className="mt-1">
-                شكرًا لكِ. سنوافيكِ بالتحديثات عبر الإشعارات والبريد عند التأكيد.
+                {t.orders.successBody}
               </p>
             </div>
           )}
@@ -214,11 +217,10 @@ export default function CustomerOrderPage() {
               }}
             >
               <p className="font-semibold">
-                أنشئي حساباً لربط هذا الطلب وتتبعه بسهولة
+                {t.orders.createAccountTitle}
               </p>
               <p className="mt-1 text-muted">
-                عند التسجيل بنفس رقم الهاتف أو البريد، نربط طلباتكِ السابقة
-                بحسابكِ تلقائياً متى أمكن.
+                {t.orders.createAccountBody}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -228,18 +230,18 @@ export default function CustomerOrderPage() {
                     openLogin({
                       redirect: "/account/orders",
                       message:
-                        "أنشئي حساباً لربط طلبكِ وتتبع الشحن من لوحة حسابكِ.",
+                        t.orders.createAccountMessage,
                     })
                   }
                 >
-                  إنشاء حساب
+                  {t.orders.createAccountCta}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setLinkPromptDismissed(true)}
                 >
-                  لاحقاً
+                  {t.common.later}
                 </Button>
               </div>
             </div>
@@ -250,45 +252,45 @@ export default function CustomerOrderPage() {
             </p>
           )}
           <div className="rounded-2xl border border-beige-dark bg-white p-6">
-            <h2 className="text-lg font-semibold text-charcoal">حالة الشحن / الطلب</h2>
+            <h2 className="text-lg font-semibold text-charcoal">{t.orders.shippingStatusTitle}</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex flex-wrap items-baseline gap-x-2">
-                <dt className="text-muted">رقم الطلب:</dt>
+                <dt className="text-muted">{t.orders.orderNumber}</dt>
                 <dd className="font-medium" dir="ltr">
                   {orderNo}
                 </dd>
               </div>
               <div className="flex flex-wrap items-baseline gap-x-2">
-                <dt className="text-muted">الاسم:</dt>
+                <dt className="text-muted">{t.orders.name}</dt>
                 <dd>{order.shipping_full_name || order.name}</dd>
               </div>
               <div className="flex flex-wrap items-baseline gap-x-2">
-                <dt className="text-muted">حالة الطلب:</dt>
+                <dt className="text-muted">{t.orders.orderStatus}</dt>
                 <dd>
                   <span className="inline-flex rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-sm">
-                    {getOrderStatusLabel(status, order.delivery_method)}
+                    {getOrderStatusLabel(status, order.delivery_method, locale)}
                   </span>
                 </dd>
               </div>
               {order.delivery_method && (
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <dt className="text-muted">طريقة الاستلام:</dt>
-                  <dd>{DELIVERY_METHOD_LABELS[order.delivery_method]}</dd>
+                  <dt className="text-muted">{t.orders.deliveryMethod}</dt>
+                  <dd>{getDeliveryMethodLabel(order.delivery_method, locale)}</dd>
                 </div>
               )}
               <div className="flex flex-wrap items-baseline gap-x-2">
-                <dt className="text-muted">حالة الشحن:</dt>
-                <dd>{getOrderStatusLabel(status, order.delivery_method)}</dd>
+                <dt className="text-muted">{t.orders.shippingStatus}</dt>
+                <dd>{getOrderStatusLabel(status, order.delivery_method, locale)}</dd>
               </div>
               {order.carrier_code && (
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <dt className="text-muted">شركة الشحن:</dt>
+                  <dt className="text-muted">{t.orders.carrier}</dt>
                   <dd dir="ltr">{order.carrier_code}</dd>
                 </div>
               )}
               {order.tracking_number && (
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <dt className="text-muted">رقم التتبع:</dt>
+                  <dt className="text-muted">{t.orders.trackingNumber}</dt>
                   <dd dir="ltr">
                     {order.tracking_url ? (
                       <a
@@ -307,7 +309,7 @@ export default function CustomerOrderPage() {
               )}
               {(order.estimated_delivery || ship.estimated_delivery) && (
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <dt className="text-muted">مدة التوصيل المتوقعة:</dt>
+                  <dt className="text-muted">{t.orders.estimatedDelivery}</dt>
                   <dd>
                     {order.estimated_delivery || ship.estimated_delivery}
                   </dd>
@@ -317,28 +319,28 @@ export default function CustomerOrderPage() {
             {order.delivery_method === "pickup" &&
               status === "ready_for_pickup" && (
                 <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  طلبك جاهز للاستلام من البوتيك.
+                  {t.orders.readyForPickup}
                 </p>
               )}
             {order.delivery_method === "delivery" && status === "shipped" && (
               <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                تم تجهيز طلبك وسيتم شحنه.
+                {t.orders.readyToShip}
               </p>
             )}
             {order.delivery_method === "pickup" &&
               status !== "ready_for_pickup" &&
               status !== "delivered" && (
                 <p className="mt-3 text-sm text-muted">
-                  يمكنك استلام طلبك من البوتيك بعد إشعارك بجاهزية الطلب.
+                  {t.orders.pickupHint}
                 </p>
               )}
             <p className="mt-3 text-xs text-muted">
-              تاريخ الطلب: {formatDate(order.created_at)}
+              {t.orders.orderDate} {formatDate(order.created_at)}
             </p>
           </div>
 
           <div className="rounded-2xl border border-beige-dark bg-white p-6">
-            <h2 className="text-lg font-semibold text-charcoal">المنتجات</h2>
+            <h2 className="text-lg font-semibold text-charcoal">{t.orders.products}</h2>
             <ul className="mt-4 space-y-3">
               {(order.items ?? []).map((item, idx) => {
                 const thumb = featuredImage(
@@ -353,7 +355,7 @@ export default function CustomerOrderPage() {
                       {thumb && (
                         <Image
                           src={thumb}
-                          alt={item.name_ar}
+                          alt={localizedName(item, locale, item.name_ar)}
                           fill
                           className="object-cover"
                           sizes="48px"
@@ -362,7 +364,7 @@ export default function CustomerOrderPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">
-                        {item.name_ar} × {item.quantity}
+                        {localizedName(item, locale, item.name_ar)} × {item.quantity}
                       </p>
                       {!hidePrice && (
                         <p className="text-sm text-gold" dir="ltr">
@@ -404,8 +406,8 @@ export default function CustomerOrderPage() {
               <ShippingDetailsBlock
                 title={
                   order.delivery_method === "pickup"
-                    ? "الاستلام من البوتيك"
-                    : "عنوان الشحن"
+                    ? t.orders.pickupFromBoutique
+                    : t.orders.shippingAddress
                 }
                 shipping={ship}
                 showZeroCost
@@ -415,37 +417,37 @@ export default function CustomerOrderPage() {
 
           {!hidePrice && (
             <div className="rounded-2xl border border-beige-dark bg-beige/20 p-6 text-sm">
-              <h2 className="text-lg font-semibold text-charcoal">الدفع</h2>
+              <h2 className="text-lg font-semibold text-charcoal">{t.orders.payment}</h2>
               <div className="mt-3 space-y-2">
                 <div className="flex justify-between gap-3">
-                  <span>مجموع المنتجات</span>
+                  <span>{t.orders.productsTotal}</span>
                   <span dir="ltr">{formatPrice(itemsSubtotal)}</span>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <span>رسوم الشحن</span>
+                  <span>{t.orders.shippingFee}</span>
                   <span dir="ltr">
                     {order.delivery_method === "delivery" ||
                     order.shipping_required
                       ? order.shipping_fee_pending
-                        ? "قيد المراجعة"
+                        ? t.common.underReview
                         : shippingCost > 0
                           ? formatPrice(shippingCost)
-                          : "مجاني"
+                          : t.common.free
                       : order.delivery_method === "pickup"
-                        ? "مجاني"
+                        ? t.common.free
                         : "—"}
                   </span>
                 </div>
                 {order.shipping_fee_pending && (
                   <p className="text-xs text-amber-800">
-                    سيتم تحديد رسوم التوصيل بعد مراجعة المنطقة.
+                    {t.orders.feePendingHint}
                   </p>
                 )}
                 <div className="flex justify-between gap-3 border-t border-beige-dark pt-2 text-base font-semibold">
                   <span>
                     {order.shipping_fee_pending
-                      ? "إجمالي المنتجات"
-                      : "إجمالي الطلب"}
+                      ? t.orders.productsTotalOnly
+                      : t.orders.orderTotal}
                   </span>
                   <span className="text-gold" dir="ltr">
                     {formatPrice(Number(order.total))}
@@ -457,10 +459,10 @@ export default function CustomerOrderPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link href="/">
-              <Button>العودة للرئيسية</Button>
+              <Button>{t.orders.backHome}</Button>
             </Link>
             <Link href="/veils">
-              <Button variant="outline">متابعة التسوق</Button>
+              <Button variant="outline">{t.orders.continueShopping}</Button>
             </Link>
           </div>
         </div>

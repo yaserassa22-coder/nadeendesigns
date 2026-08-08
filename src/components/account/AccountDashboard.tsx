@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 function Skeleton() {
   return (
@@ -14,6 +15,7 @@ function Skeleton() {
 }
 
 export function AccountDashboard() {
+  const { t } = useLocale();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<unknown[]>([]);
   const [appointments, setAppointments] = useState<unknown[]>([]);
@@ -48,22 +50,22 @@ export function AccountDashboard() {
 
   const cards = [
     {
-      title: "الطلبات الأخيرة",
+      title: t.account.recentOrders,
       count: orders.length,
       href: "/account/orders",
-      empty: "لا توجد طلبات بعد — تسوّقي كزائرة أو بعد تسجيل الدخول.",
+      empty: t.account.recentOrdersEmpty,
     },
     {
-      title: "المواعيد",
+      title: t.account.appointments,
       count: appointments.length,
       href: "/account/appointments",
-      empty: "لا مواعيد مرتبطة بحسابك بعد.",
+      empty: t.account.appointmentsEmpty,
     },
     {
-      title: "قائمة الأمنيات",
+      title: t.account.wishlist,
       count: wishlist.length,
       href: "/wishlist",
-      empty: "أضيفي قطعاً إلى الأمنيات لحفظها هنا.",
+      empty: t.account.wishlistEmpty,
     },
   ];
 
@@ -91,10 +93,8 @@ export function AccountDashboard() {
         href="/account/designs"
         className="rounded-2xl border border-dashed border-beige-dark bg-white/50 p-5 sm:col-span-2 lg:col-span-3"
       >
-        <p className="text-sm font-medium text-charcoal">التصاميم المحفوظة</p>
-        <p className="mt-1 text-xs text-muted">
-          واجهة جاهزة — ستظهر التصاميم هنا عند تفعيل ميزة التصميم المخصص.
-        </p>
+        <p className="text-sm font-medium text-charcoal">{t.account.designs}</p>
+        <p className="mt-1 text-xs text-muted">{t.account.designsTeaserHint}</p>
       </Link>
     </div>
   );

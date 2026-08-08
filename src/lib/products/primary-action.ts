@@ -17,6 +17,9 @@
  * Legacy aliases (accessory, rental) are accepted on read and normalized.
  */
 
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import type { Locale } from "@/lib/i18n/types";
+
 export const PRODUCT_COMMERCE_TYPES = [
   "ready_to_buy",
   "bridal_accessory",
@@ -140,10 +143,56 @@ export function resolveProductCommerceType(
 /** Primary storefront action from product_type only. */
 export function getProductPrimaryAction(
   productType: ProductCommerceType | string | null | undefined,
-  fallback: ProductCommerceType = "ready_to_buy"
+  fallback: ProductCommerceType = "ready_to_buy",
+  locale: Locale = "ar"
 ): ProductPrimaryAction {
   const type = resolveProductCommerceType(productType, fallback);
-  return ACTIONS[type];
+  const base = ACTIONS[type];
+  return {
+    ...base,
+    label: primaryActionLabelForKind(base.kind, locale),
+  };
+}
+
+export function primaryActionLabelForKind(
+  kind: ProductPrimaryActionKind,
+  locale: Locale = "ar"
+): string {
+  const t = getDictionary(locale);
+  switch (kind) {
+    case "add_to_cart":
+      return t.product.addToCart;
+    case "book_appointment":
+      return t.nav.bookAppointment;
+    case "request_design":
+      return t.product.requestDesign;
+    case "book_now":
+      return t.product.bookNow;
+    default:
+      return t.product.addToCart;
+  }
+}
+
+export function getProductCommerceTypeLabel(
+  value: ProductCommerceType | string,
+  locale: Locale = "ar"
+): string {
+  const type = resolveProductCommerceType(value);
+  const pe = getDictionary(locale).admin.productEditor;
+  switch (type) {
+    case "ready_to_buy":
+      return pe.commerceReadyToBuy;
+    case "bridal_accessory":
+      return pe.commerceBridalAccessory;
+    case "rental_dress":
+      return pe.commerceRentalDress;
+    case "custom_design":
+      return pe.commerceCustomDesign;
+    case "service":
+      return pe.commerceService;
+    default:
+      return String(value);
+  }
 }
 
 /**

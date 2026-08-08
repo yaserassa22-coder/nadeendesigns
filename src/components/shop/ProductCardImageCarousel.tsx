@@ -13,6 +13,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCardMediaOverlay } from "@/components/product/ProductCardMediaOverlay";
 import { featuredImage } from "@/lib/products/featured-image";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 
 /**
  * Serializable card chrome + wishlist element.
@@ -57,6 +59,7 @@ export function ProductCardImageCarousel({
   priority = false,
   overlay,
 }: ProductCardImageCarouselProps) {
+  const { t } = useLocale();
   const slides = (images ?? []).filter(Boolean);
   const imageKey = slides.join("|");
   const [index, setIndex] = useState(0);
@@ -184,7 +187,7 @@ export function ProductCardImageCarousel({
         <>
           <button
             type="button"
-            aria-label="الصورة السابقة"
+            aria-label={t.productExtras.prevImage}
             className="absolute start-2 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-charcoal shadow-sm transition hover:bg-gold hover:text-white md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
             onClick={(e) => {
               e.preventDefault();
@@ -197,7 +200,7 @@ export function ProductCardImageCarousel({
           </button>
           <button
             type="button"
-            aria-label="الصورة التالية"
+            aria-label={t.productExtras.nextImage}
             className="absolute end-2 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-charcoal shadow-sm transition hover:bg-gold hover:text-white md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
             onClick={(e) => {
               e.preventDefault();
@@ -214,7 +217,7 @@ export function ProductCardImageCarousel({
               <button
                 key={`${slides[i]}-${i}`}
                 type="button"
-                aria-label={`صورة ${i + 1}`}
+                aria-label={formatMessage(t.productExtras.imageN, { n: i + 1 })}
                 aria-current={i === safeIndex}
                 className={cn(
                   "pointer-events-auto h-1.5 rounded-full transition-all",

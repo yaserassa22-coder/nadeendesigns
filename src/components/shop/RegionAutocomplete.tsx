@@ -17,6 +17,8 @@ import {
   formatEstimatedDelivery,
 } from "@/lib/shop/shipping";
 import type { ShippingRegion } from "@/types/shop";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { localizedName } from "@/lib/i18n/localize";
 
 export type RegionSelection = {
   regionId: string | null;
@@ -37,15 +39,20 @@ export function RegionAutocomplete({
   regions,
   value,
   onChange,
-  label = "المنطقة",
+  label,
   error,
   disabled,
 }: RegionAutocompleteProps) {
+  const { t, locale } = useLocale();
+  const regionLabel = label ?? t.shippingUi.regionLabel;
   const inputId = useId();
   const listId = useId();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
+
+  const regionDisplayName = (r: ShippingRegion) =>
+    localizedName(r, locale, r.name_ar);
 
   const suggestions = useMemo(
     () => filterRegionsByQuery(regions, value.regionText, 12),
@@ -63,18 +70,23 @@ export function RegionAutocomplete({
   const selectRegion = (r: ShippingRegion) => {
     onChange({
       regionId: r.id,
-      regionText: r.name_ar,
+      regionText: regionDisplayName(r),
       matched: r,
     });
     setOpen(false);
   };
 
   const onInput = (text: string) => {
-    const exact = regions.find(
-      (r) =>
-        r.name_ar.trim() === text.trim() ||
-        (r.name_en?.trim() ?? "") === text.trim()
-    );
+    const exact = regions.find((r) => {
+      const ar = r.name_ar.trim();
+      const en = (r.name_en?.trim() ?? "");
+      const display = regionDisplayName(r).trim();
+      return (
+        ar === text.trim() ||
+        en === text.trim() ||
+        display === text.trim()
+      );
+    });
     onChange({
       regionId: exact?.id ?? null,
       regionText: text,
@@ -87,16 +99,16 @@ export function RegionAutocomplete({
   const feeLabel = (r: ShippingRegion) =>
     Number(r.shipping_fee) > 0
       ? formatPrice(Number(r.shipping_fee))
-      : "مجاني";
+      : t.shippingUi.free;
 
   const unknown =
     value.regionText.trim().length >= 2 && !value.matched && !value.regionId;
 
   return (
     <div className="space-y-2" ref={wrapRef}>
-      {label && (
+      {regionLabel && (
         <label htmlFor={inputId} className="block text-sm font-medium text-charcoal">
-          {label} *
+          {regionLabel} *
         </label>
       )}
       <div className="relative">
@@ -108,7 +120,7 @@ export function RegionAutocomplete({
           aria-autocomplete="list"
           disabled={disabled}
           autoComplete="off"
-          placeholder="اكتب اسم المنطقة أو المدينة..."
+          placeholder={t.shippingUi.regionPlaceholder}
           value={value.regionText}
           onChange={(e) => onInput(e.target.value)}
           onFocus={() => setOpen(true)}
@@ -161,8 +173,10 @@ export function RegionAutocomplete({
                     onClick={() => selectRegion(r)}
                   >
                     <span>
-                      <span className="font-medium text-charcoal">{r.name_ar}</span>
-                      {r.name_en ? (
+                      <span className="font-medium text-charcoal">
+                        {regionDisplayName(r)}
+                      </span>
+                      {r.name_en && locale !== "en" ? (
                         <span className="mt-0.5 block text-xs text-muted" dir="ltr">
                           {r.name_en}
                         </span>
@@ -185,7 +199,7 @@ export function RegionAutocomplete({
       </div>
       {unknown && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          سيتم مراجعة رسوم التوصيل من قبل إدارة البوتيك.
+          {t.shippingUi.boutiqueReviewHint}
         </p>
       )}
       {error && <p className="text-sm text-red-500">{error}</p>}

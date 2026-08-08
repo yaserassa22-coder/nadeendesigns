@@ -6,6 +6,7 @@ export type AuthCapability = "oauth" | "otp" | "guest" | "password";
 
 export type LocalizedLabel = {
   ar: string;
+  he?: string;
   en: string;
 };
 

@@ -2,6 +2,9 @@
 
 import { isValidCheckoutPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { getDictionary } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
 
 export type NotificationPreferenceValue = {
   notify_whatsapp: boolean;
@@ -50,7 +53,7 @@ function ChannelCheckbox({
   );
 }
 
-/** Shared RTL notification channel picker for Checkout and Booking only. */
+/** Shared notification channel picker for Checkout and Booking. */
 export function NotificationPreferences({
   value,
   onChange,
@@ -58,12 +61,13 @@ export function NotificationPreferences({
   idPrefix = "notify",
   className,
 }: NotificationPreferencesProps) {
+  const { t } = useLocale();
   return (
     <fieldset className={cn("space-y-3", className)}>
       <legend className="text-lg font-semibold text-charcoal">
-        كيف ترغب باستلام تحديثات طلبك؟
+        {t.notify.title}
       </legend>
-      <p className="text-sm text-muted">اختاري قناة واحدة أو الاثنتين معًا.</p>
+      <p className="text-sm text-muted">{t.notify.hint}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <ChannelCheckbox
           id={`${idPrefix}-whatsapp`}
@@ -71,13 +75,13 @@ export function NotificationPreferences({
           onChange={(checked) =>
             onChange({ ...value, notify_whatsapp: checked })
           }
-          label="WhatsApp"
+          label={t.notify.whatsapp}
         />
         <ChannelCheckbox
           id={`${idPrefix}-email`}
           checked={value.notify_email}
           onChange={(checked) => onChange({ ...value, notify_email: checked })}
-          label="Email"
+          label={t.notify.email}
         />
       </div>
       {error && (
@@ -89,21 +93,23 @@ export function NotificationPreferences({
   );
 }
 
-/** Client-side validation for selected channels. Returns Arabic error or null. */
+/** Client-side validation for selected channels. Returns localized error or null. */
 export function validateNotificationPreferences(
   prefs: NotificationPreferenceValue,
-  contact: { phone: string; email: string }
+  contact: { phone: string; email: string },
+  locale: Locale = "ar"
 ): string | null {
+  const t = getDictionary(locale).notify.errors;
   if (!prefs.notify_whatsapp && !prefs.notify_email) {
-    return "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)";
+    return t.channelRequired;
   }
   if (prefs.notify_whatsapp && !isValidCheckoutPhone(contact.phone)) {
-    return "رقم واتساب غير صالح — أدخلي رقم هاتف صحيح لاستلام التحديثات عبر WhatsApp";
+    return t.invalidWhatsapp;
   }
   if (prefs.notify_email) {
     const email = contact.email.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return "البريد الإلكتروني مطلوب وصالح عند اختيار التحديثات عبر Email";
+      return t.emailRequired;
     }
   }
   return null;

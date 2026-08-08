@@ -95,3 +95,34 @@ export async function PATCH(request: Request) {
   }
   return NextResponse.json({ success: true });
 }
+
+export async function DELETE(request: Request) {
+  const { error: authError } = await requireAdminApi("canMutateStore");
+  if (authError) return authError;
+
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "المعرّف مطلوب" }, { status: 400 });
+  }
+
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { error: "قاعدة البيانات غير مُعدّة" },
+      { status: 503 }
+    );
+  }
+
+  const supabase = await createPrivilegedClient();
+  const { error } = await supabase.from("waiting_list").delete().eq("id", id);
+
+  if (error) {
+    if (isMissingTableError(error, "waiting_list")) {
+      return NextResponse.json(
+        { error: "جدول waiting_list غير موجود" },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  return NextResponse.json({ success: true });
+}

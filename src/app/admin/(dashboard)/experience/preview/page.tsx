@@ -2,40 +2,41 @@ import type { Metadata } from "next";
 import { ExperienceEngineShell } from "@/components/admin/experience/ExperienceEngineShell";
 import {
   PRODUCT_COMMERCE_TYPES,
-  PRODUCT_COMMERCE_TYPE_LABELS,
   applyPurchaseFlowOverride,
+  getProductCommerceTypeLabel,
   getProductPrimaryAction,
 } from "@/lib/products/primary-action";
 import { defaultFeatureIdsForProduct } from "@/lib/products/experience-features";
 import { listPurchaseFlows } from "@/lib/products/purchase-flows";
+import { getLocale } from "@/lib/i18n/server";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "معاينة التجربة",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return { title: getDictionary(locale).admin.experienceUi.preview };
+}
 
 export default async function ExperiencePreviewPage() {
+  const locale = await getLocale();
   const flows = await listPurchaseFlows();
 
   return (
-    <ExperienceEngineShell
-      title="معاينة"
-      description="مرجع لمسارات الشراء المحفوظة (من محرك التجربة). المعاينة الحية للمنتج تتم من محرر المنتج ← تجربة المنتج."
-    >
+    <ExperienceEngineShell page="preview">
       <div className="overflow-x-auto rounded-2xl border border-beige-dark bg-white">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-beige-dark bg-beige/40 text-start">
-              <th className="px-4 py-3 font-medium">نوع المنتج</th>
-              <th className="px-4 py-3 font-medium">الزر الأساسي</th>
-              <th className="px-4 py-3 font-medium">سلة / شراء</th>
-              <th className="px-4 py-3 font-medium">ميزات افتراضية</th>
+              <th className="px-4 py-3 font-medium">product_type</th>
+              <th className="px-4 py-3 font-medium">primary</th>
+              <th className="px-4 py-3 font-medium">cart / buy</th>
+              <th className="px-4 py-3 font-medium">default features</th>
             </tr>
           </thead>
           <tbody>
             {PRODUCT_COMMERCE_TYPES.map((type) => {
               const flow = flows.find((f) => f.product_type === type);
               const action = applyPurchaseFlowOverride(
-                getProductPrimaryAction(type),
+                getProductPrimaryAction(type, "ready_to_buy", locale),
                 flow
               );
               const features = defaultFeatureIdsForProduct({
@@ -45,17 +46,17 @@ export default async function ExperiencePreviewPage() {
                 <tr key={type} className="border-b border-beige-dark/60">
                   <td className="px-4 py-3">
                     <p className="font-medium text-charcoal">
-                      {PRODUCT_COMMERCE_TYPE_LABELS[type]}
+                      {getProductCommerceTypeLabel(type, locale)}
                     </p>
                     <p className="text-xs text-muted" dir="ltr">
                       {type}
                     </p>
                   </td>
                   <td className="px-4 py-3 text-gold">{action.label}</td>
-                  <td className="px-4 py-3 text-muted">
-                    {action.hideCart ? "مخفي" : "ظاهر"}
+                  <td className="px-4 py-3 text-muted" dir="ltr">
+                    {action.hideCart ? "hidden" : "visible"}
                     {" / "}
-                    {action.hideBuyNow ? "مخفي" : "ظاهر"}
+                    {action.hideBuyNow ? "hidden" : "visible"}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted" dir="ltr">
                     {features.join(", ")}

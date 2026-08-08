@@ -3,25 +3,37 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CheckCircle, Send } from "lucide-react";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
-const contactSchema = z.object({
-  name: z.string().min(2, "الاسم مطلوب"),
-  email: z.string().email("البريد الإلكتروني غير صالح"),
-  phone: z.string().optional(),
-  subject: z.string().min(3, "الموضوع مطلوب"),
-  message: z.string().min(10, "الرسالة قصيرة جدًا"),
-});
-
-type ContactFormData = z.infer<typeof contactSchema>;
+type ContactFormData = {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+};
 
 export function ContactForm() {
+  const { t } = useLocale();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [devDetail, setDevDetail] = useState("");
+
+  const contactSchema = useMemo(
+    () =>
+      z.object({
+        name: z.string().min(2, t.common.required),
+        email: z.string().email(t.common.required),
+        phone: z.string().optional(),
+        subject: z.string().min(3, t.common.required),
+        message: z.string().min(10, t.common.required),
+      }),
+    [t]
+  );
 
   const {
     register,
@@ -54,12 +66,12 @@ export function ContactForm() {
             [payload.code, payload.detail].filter(Boolean).join(" — ")
           );
         }
-        throw new Error(payload.error ?? "حدث خطأ");
+        throw new Error(payload.error ?? t.common.errorGeneric);
       }
       setSuccess(true);
       reset();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+      setError(e instanceof Error ? e.message : t.common.errorGeneric);
     }
   };
 
@@ -67,12 +79,10 @@ export function ContactForm() {
     return (
       <div className="rounded-2xl border border-gold/30 bg-gold/5 p-8 text-center">
         <CheckCircle className="mx-auto h-12 w-12 text-gold" />
-        <h3 className="mt-4 text-xl font-semibold">
-          تم إرسال رسالتكِ بنجاح
-        </h3>
-        <p className="mt-2 text-muted">سنتواصل معكِ في أقرب وقت</p>
+        <h3 className="mt-4 text-xl font-semibold">{t.contact.success}</h3>
+        <p className="mt-2 text-muted">{t.contact.successHint}</p>
         <Button className="mt-6" onClick={() => setSuccess(false)}>
-          إرسال رسالة أخرى
+          {t.contact.sendAnother}
         </Button>
       </div>
     );
@@ -82,26 +92,26 @@ export function ContactForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid gap-6 sm:grid-cols-2">
         <Input
-          label="الاسم *"
+          label={`${t.contact.name} *`}
           {...register("name")}
           error={errors.name?.message}
         />
         <Input
-          label="البريد الإلكتروني *"
+          label={`${t.contact.email} *`}
           type="email"
           {...register("email")}
           error={errors.email?.message}
           dir="ltr"
         />
       </div>
-      <Input label="رقم الهاتف" {...register("phone")} dir="ltr" />
+      <Input label={t.contact.phone} {...register("phone")} dir="ltr" />
       <Input
-        label="الموضوع *"
+        label={`${t.contact.subject} *`}
         {...register("subject")}
         error={errors.subject?.message}
       />
       <Textarea
-        label="الرسالة *"
+        label={`${t.contact.message} *`}
         {...register("message")}
         error={errors.message?.message}
         rows={5}
@@ -118,7 +128,7 @@ export function ContactForm() {
       ) : null}
       <Button type="submit" size="lg" loading={isSubmitting}>
         <Send className="h-4 w-4" />
-        إرسال الرسالة
+        {t.contact.submit}
       </Button>
     </form>
   );

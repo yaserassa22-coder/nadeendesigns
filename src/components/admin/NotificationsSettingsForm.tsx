@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -31,6 +33,8 @@ const TEMPLATE_STATUSES: ShopOrderStatus[] = [
 export function NotificationsSettingsForm({
   initialSettings,
 }: NotificationsSettingsFormProps) {
+  const { t } = useLocale();
+  const n = t.admin.notificationsAdmin;
   const [settings, setSettings] = useState<NotificationSettings>(initialSettings);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -59,11 +63,11 @@ export function NotificationsSettingsForm({
         body: JSON.stringify(settings),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? n.saveFailed);
       if (data.settings) setSettings(data.settings);
-      setMessage(data.warning || "تم حفظ إعدادات الإشعارات");
+      setMessage(data.warning || n.saved);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "حدث خطأ");
+      setMessage(e instanceof Error ? e.message : n.genericError);
     } finally {
       setSaving(false);
     }
@@ -72,20 +76,20 @@ export function NotificationsSettingsForm({
   return (
     <div className="space-y-8">
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-charcoal">بيانات المرسل</h2>
+        <h2 className="text-lg font-semibold text-charcoal">{n.senderTitle}</h2>
         <p className="mt-1 text-sm text-muted">
-          تظهر في رسائل الإيميل والواتساب
+          {n.senderHint}
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <Input
-            label="اسم المرسل"
+            label={n.senderName}
             value={settings.sender_name}
             onChange={(e) =>
               setSettings((p) => ({ ...p, sender_name: e.target.value }))
             }
           />
           <Input
-            label="بريد الرد"
+            label={n.replyEmail}
             type="email"
             value={settings.reply_email}
             onChange={(e) =>
@@ -94,7 +98,7 @@ export function NotificationsSettingsForm({
             dir="ltr"
           />
           <Input
-            label="هاتف العمل / واتساب"
+            label={n.businessPhone}
             value={settings.business_phone}
             onChange={(e) =>
               setSettings((p) => ({ ...p, business_phone: e.target.value }))
@@ -105,10 +109,10 @@ export function NotificationsSettingsForm({
       </section>
 
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-charcoal">طلب الدفعة</h2>
+        <h2 className="text-lg font-semibold text-charcoal">{n.paymentTitle}</h2>
         <div className="mt-4 space-y-4">
           <Textarea
-            label="تعليمات الدفع"
+            label={n.paymentInstructions}
             rows={4}
             value={settings.payment_instructions}
             onChange={(e) =>
@@ -119,7 +123,7 @@ export function NotificationsSettingsForm({
             }
           />
           <Input
-            label="رابط الدفع (اختياري — للمستقبل)"
+            label={n.paymentLink}
             value={settings.payment_link}
             onChange={(e) =>
               setSettings((p) => ({ ...p, payment_link: e.target.value }))
@@ -132,10 +136,10 @@ export function NotificationsSettingsForm({
 
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-charcoal">
-          قوالب واتساب حسب الحالة
+          {n.whatsappTemplates}
         </h2>
         <p className="mt-1 text-sm text-muted">
-          السطر الرئيسي للرسالة — اتركي فارغاً لاستخدام الافتراضي
+          {n.whatsappTemplatesHint}
         </p>
         <div className="mt-4 space-y-4">
           {TEMPLATE_STATUSES.map((status) => (
@@ -152,10 +156,10 @@ export function NotificationsSettingsForm({
 
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-charcoal">
-          عناوين إيميل حسب الحالة
+          {n.emailSubjects}
         </h2>
         <p className="mt-1 text-sm text-muted">
-          اختياري — اتركي فارغاً لاستخدام العنوان التلقائي
+          {n.emailSubjectsHint}
         </p>
         <div className="mt-4 space-y-4">
           {SHOP_ORDER_STATUSES.filter((s) =>
@@ -182,7 +186,7 @@ export function NotificationsSettingsForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button loading={saving} onClick={save}>
-          حفظ إعدادات الإشعارات
+          {n.save}
         </Button>
         {message && <p className="text-sm text-muted">{message}</p>}
       </div>

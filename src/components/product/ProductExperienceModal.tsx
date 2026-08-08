@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { PurchaseCtaGroup } from "@/components/ui/experience";
 import { useCart } from "@/components/shop/CartProvider";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage, localizedName } from "@/lib/i18n";
+import type { Dictionary } from "@/lib/i18n";
 import { ExtraServicesFields } from "@/components/product/ExtraServicesFields";
 import { ProductExperiencePriceSummary } from "@/components/product/ProductExperiencePriceSummary";
 import {
@@ -23,9 +27,13 @@ import {
   buildLineExtraServices,
   defaultSelectedServiceIds,
   enforceRequiredServiceIds,
+  excludeExperienceOwnedServices,
+  resolvePersonalizationFee,
   type ExtraServiceConfig,
 } from "@/lib/products/order-experience";
 import {
+  resolveEffectiveGiftUi,
+  resolveGiftOptionsFee,
   storefrontExperienceSections,
   type ExperienceSectionConfig,
   type ProductExperienceConfig,
@@ -48,6 +56,8 @@ type Props = {
   shopProductType: ShopProductType;
   productId: string;
   nameAr: string;
+  nameEn?: string | null;
+  nameHe?: string | null;
   unitPrice: number;
   compareAtPrice?: number | null;
   image?: string | null;
@@ -63,6 +73,24 @@ type Props = {
   onSuccess?: (intent: ProductExperienceIntent) => void;
 };
 
+function resolveExperienceSectionTitle(
+  section: ExperienceSectionConfig,
+  t: Dictionary
+): string {
+  switch (section.id) {
+    case "personalization":
+      return t.personalizationUi.formTitle;
+    case "gift_options":
+      return t.gift.sectionTitle;
+    case "extra_services":
+      return t.product.extraServices;
+    case "summary":
+      return t.checkout.orderSummary;
+    default:
+      return section.title || section.title_ar || section.id;
+  }
+}
+
 function SectionShell({
   section,
   children,
@@ -70,8 +98,10 @@ function SectionShell({
   section: ExperienceSectionConfig;
   children: React.ReactNode;
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(!section.collapsed);
   if (!children) return null;
+  const title = resolveExperienceSectionTitle(section, t);
   return (
     <div className="rounded-[var(--xp-card-radius-lg)] border border-[color:var(--xp-border)] bg-[color:var(--xp-surface)]">
       <button
@@ -79,14 +109,7 @@ function SectionShell({
         className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start"
         onClick={() => setOpen((v) => !v)}
       >
-        <div>
-          <h3 className="text-base font-semibold text-charcoal">
-            {section.title_ar || section.title || section.id}
-          </h3>
-          {section.description_ar ? (
-            <p className="mt-0.5 text-xs text-muted">{section.description_ar}</p>
-          ) : null}
-        </div>
+        <h3 className="text-base font-semibold text-charcoal">{title}</h3>
         <ChevronDown
           className={cn(
             "h-4 w-4 shrink-0 text-muted transition-transform duration-300",
@@ -94,7 +117,9 @@ function SectionShell({
           )}
         />
       </button>
-      {open ? <div className="px-5 pb-5">{children}</div> : null}
+      {open ? (
+        <div className="border-t border-beige-dark/40 px-5 py-5">{children}</div>
+      ) : null}
     </div>
   );
 }
@@ -111,6 +136,8 @@ export function ProductExperienceModal({
   shopProductType,
   productId,
   nameAr,
+  nameEn,
+  nameHe,
   unitPrice,
   compareAtPrice = null,
   image,
@@ -124,8 +151,14 @@ export function ProductExperienceModal({
   showColorSelection = true,
   onSuccess,
 }: Props) {
+  const { t, locale, dir } = useLocale();
   const router = useRouter();
   const { addItem } = useCart();
+  const displayName = localizedName(
+    { name_ar: nameAr, name_en: nameEn, name_he: nameHe },
+    locale,
+    nameAr
+  );
   const personalizationType = shopTypeToPersonalizationType(shopProductType);
   const persUi = experienceConfig?.personalization_ui;
   const personalizationRequired = Boolean(persUi?.required);
@@ -133,6 +166,37 @@ export function ProductExperienceModal({
     1,
     Math.min(200, Math.floor(persUi?.max_characters ?? 25) || 25)
   );
+
+  /** Deduped list — writing / gift catalog rows belong to their own sections. */
+  const displayExtraServices = useMemo(
+    () =>
+      excludeExperienceOwnedServices(extraServices, {
+        giftSectionActive: enableGiftWrapping,
+        hideWriting: true,
+      }),
+    [extraServices, enableGiftWrapping]
+  );
+
+  const resolvedPersonalizationFee = useMemo(() => {
+    const fromConfig = Math.max(
+      0,
+      experienceConfig?.personalization_ui?.extra_price ?? 0
+    );
+    if (fromConfig > 0) return fromConfig;
+    return resolvePersonalizationFee(
+      experienceConfig?.personalization_ui,
+      extraServices,
+      true
+    );
+  }, [experienceConfig?.personalization_ui, extraServices]);
+
+  const giftUi = useMemo(() => {
+    const base = experienceConfig?.gift_ui;
+    if (base && (base.wrap_price > 0 || base.card_price > 0)) {
+      return base;
+    }
+    return resolveEffectiveGiftUi(base, extraServices);
+  }, [experienceConfig?.gift_ui, extraServices]);
 
   const sections = useMemo(() => {
     const source = sectionsProp?.length
@@ -148,7 +212,7 @@ export function ProductExperienceModal({
 
   const [quantity, setQuantity] = useState(1);
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>(() =>
-    defaultSelectedServiceIds(extraServices)
+    defaultSelectedServiceIds(displayExtraServices)
   );
   const [personalization, setPersonalization] =
     useState<VeilRobePersonalizationState>(() =>
@@ -164,17 +228,25 @@ export function ProductExperienceModal({
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Fresh opt-in each time — never pre-select personalization / gift wrap.
+    setPersonalization(
+      defaultVeilRobePersonalizationState(personalizationType ?? "veils")
+    );
+    setGift(DEFAULT_GIFT_STATE);
+    setErrors({});
+    setQuantity(1);
+    setSelectedExtraIds(defaultSelectedServiceIds(displayExtraServices));
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [open, personalizationType, displayExtraServices]);
 
   const selectedServices = useMemo(
     () =>
-      extraServices.filter(
+      displayExtraServices.filter(
         (s) => selectedExtraIds.includes(s.id) || s.required
       ),
-    [extraServices, selectedExtraIds]
+    [displayExtraServices, selectedExtraIds]
   );
 
   const summaryEnabled = sections.some(
@@ -186,8 +258,21 @@ export function ProductExperienceModal({
   const personalizationFee =
     enablePersonalization &&
     (personalizationRequired || personalization.enabled)
-      ? Math.max(0, experienceConfig?.personalization_ui?.extra_price ?? 0)
+      ? resolvedPersonalizationFee
       : 0;
+
+  const giftWrapFee =
+    enableGiftWrapping && gift.enabled
+      ? Math.max(0, giftUi.wrap_price)
+      : 0;
+  const giftCardFee =
+    enableGiftWrapping && gift.enabled && gift.giftCard
+      ? Math.max(0, giftUi.card_price)
+      : 0;
+  const giftFee = resolveGiftOptionsFee(giftUi, {
+    enabled: enableGiftWrapping && gift.enabled,
+    gift_card: gift.giftCard,
+  });
 
   /** Legacy fallback only when no designer config was provided at all. */
   const allowLegacyFallback =
@@ -209,7 +294,9 @@ export function ProductExperienceModal({
       textEn.length > personalizationMaxChars
     ) {
       setErrors({
-        form: `نص التخصيص يجب ألا يتجاوز ${personalizationMaxChars} حرفاً`,
+        form: formatMessage(t.product.personalizationMaxChars, {
+          max: personalizationMaxChars,
+        }),
       });
       return undefined;
     }
@@ -272,15 +359,20 @@ export function ProductExperienceModal({
     }
 
     const selected = enforceRequiredServiceIds(
-      extraServices,
+      displayExtraServices,
       selectedExtraIds
     );
-    const lineExtraServices = buildLineExtraServices(extraServices, selected);
+    const lineExtraServices = buildLineExtraServices(
+      displayExtraServices,
+      selected
+    );
 
     addItem({
       product_type: shopProductType,
       product_id: productId,
       name_ar: nameAr,
+      name_en: nameEn ?? null,
+      name_he: nameHe ?? null,
       unit_price: unitPrice,
       compare_at_price: compareAtPrice,
       quantity,
@@ -292,6 +384,7 @@ export function ProductExperienceModal({
       extra_services: lineExtraServices.length ? lineExtraServices : null,
       personalization_fee:
         pers && personalizationFee > 0 ? personalizationFee : null,
+      gift_fee: giftOptions && giftFee > 0 ? giftFee : null,
       requires_shipping: requiresShipping,
     });
 
@@ -317,8 +410,10 @@ export function ProductExperienceModal({
               errors={errors}
               maxCharacters={personalizationMaxChars}
               required={personalizationRequired}
+              extraPrice={Math.max(0, resolvedPersonalizationFee)}
               showFontSelection={showFontSelection}
               showColorSelection={showColorSelection}
+              hideTitle
             />
           </SectionShell>
         );
@@ -330,15 +425,17 @@ export function ProductExperienceModal({
               value={gift}
               onChange={setGift}
               errors={errors}
+              wrapPrice={Math.max(0, giftUi.wrap_price)}
+              cardPrice={Math.max(0, giftUi.card_price)}
             />
           </SectionShell>
         );
       case "extra_services":
-        if (!extraServices.length) return null;
+        if (!displayExtraServices.length) return null;
         return (
           <SectionShell key={section.id} section={section}>
             <ExtraServicesFields
-              services={extraServices}
+              services={displayExtraServices}
               selectedIds={selectedExtraIds}
               onChange={setSelectedExtraIds}
               title=""
@@ -360,14 +457,16 @@ export function ProductExperienceModal({
   const contentSections = sections.filter((s) => s.id !== "summary");
   const hasDesignerContent = contentSections.some((s) => s.enabled);
 
-  return (
+  // Portal to body — modal must escape the PDP sticky column stacking context
+  // so gallery nav arrows cannot paint over the dialog.
+  const dialog = (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4"
-      dir="rtl"
+      className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4"
+      dir={dir}
     >
       <button
         type="button"
-        aria-label="إغلاق"
+        aria-label={t.common.close}
         className="absolute inset-0 bg-charcoal/45 backdrop-blur-[2px]"
         onClick={onClose}
       />
@@ -382,13 +481,13 @@ export function ProductExperienceModal({
             id="product-experience-title"
             className="font-[family-name:var(--font-cormorant)] text-2xl tracking-wide text-charcoal"
           >
-            {nameAr}
+            {displayName}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded-full p-2 text-muted hover:bg-beige hover:text-charcoal"
-            aria-label="إغلاق"
+            aria-label={t.common.close}
           >
             <X className="h-5 w-5" />
           </button>
@@ -410,6 +509,7 @@ export function ProductExperienceModal({
                   errors={errors}
                   maxCharacters={personalizationMaxChars}
                   required={personalizationRequired}
+                  extraPrice={Math.max(0, resolvedPersonalizationFee)}
                   showFontSelection={showFontSelection}
                   showColorSelection={showColorSelection}
                 />
@@ -419,11 +519,13 @@ export function ProductExperienceModal({
                   value={gift}
                   onChange={setGift}
                   errors={errors}
+                  wrapPrice={Math.max(0, giftUi.wrap_price)}
+                  cardPrice={Math.max(0, giftUi.card_price)}
                 />
               ) : null}
-              {extraServices.length > 0 ? (
+              {displayExtraServices.length > 0 ? (
                 <ExtraServicesFields
-                  services={extraServices}
+                  services={displayExtraServices}
                   selectedIds={selectedExtraIds}
                   onChange={setSelectedExtraIds}
                 />
@@ -434,7 +536,7 @@ export function ProductExperienceModal({
           <div className="max-w-[8rem]">
             {showQuantity ? (
               <Input
-                label="الكمية"
+                label={t.common.quantity}
                 type="number"
                 min={1}
                 max={20}
@@ -465,6 +567,8 @@ export function ProductExperienceModal({
               quantity={quantity}
               selectedServices={selectedServices}
               personalizationFee={personalizationFee}
+              giftWrapFee={giftWrapFee}
+              giftCardFee={giftCardFee}
             />
           ) : null}
           <PurchaseCtaGroup
@@ -479,7 +583,7 @@ export function ProductExperienceModal({
                 disabled={submitting}
                 className="text-sm text-muted underline-offset-4 hover:text-charcoal hover:underline disabled:opacity-50"
               >
-                إلغاء
+                {t.common.cancel}
               </button>
             }
           />
@@ -487,4 +591,7 @@ export function ProductExperienceModal({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return dialog;
+  return createPortal(dialog, document.body);
 }

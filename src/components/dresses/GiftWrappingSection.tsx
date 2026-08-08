@@ -1,12 +1,14 @@
 "use client";
 
 import { Gift } from "lucide-react";
-import { Input, Select, Textarea } from "@/components/ui/Input";
-import { GIFT_BOX_OPTIONS, type GiftBoxType } from "@/lib/gift";
-import { cn } from "@/lib/utils";
+import { Input, Textarea } from "@/components/ui/Input";
+import type { GiftBoxType } from "@/lib/gift";
+import { cn, formatPrice } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export interface GiftWrappingState {
   enabled: boolean;
+  /** Fixed default — wrapping-type picker removed from storefront. */
   giftBox: GiftBoxType;
   giftCard: boolean;
   giftMessage: string;
@@ -19,6 +21,10 @@ interface GiftWrappingSectionProps {
   value: GiftWrappingState;
   onChange: (next: GiftWrappingState) => void;
   errors?: Record<string, string>;
+  /** Admin-entered wrap fee (shown when > 0). */
+  wrapPrice?: number;
+  /** Admin-entered gift-card fee (shown when > 0). */
+  cardPrice?: number;
 }
 
 function CheckboxRow({
@@ -26,11 +32,13 @@ function CheckboxRow({
   onChange,
   label,
   id,
+  feeLabel,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
   id: string;
+  feeLabel?: string | null;
 }) {
   return (
     <label
@@ -49,8 +57,13 @@ function CheckboxRow({
         onChange={(e) => onChange(e.target.checked)}
         className="mt-1 h-4 w-4 accent-[var(--gold)]"
       />
-      <span className="text-sm font-medium text-charcoal md:text-base">
-        {label}
+      <span className="flex flex-1 flex-wrap items-baseline justify-between gap-2 text-sm font-medium text-charcoal md:text-base">
+        <span>{label}</span>
+        {feeLabel ? (
+          <span className="text-xs font-normal text-gold" dir="ltr">
+            {feeLabel}
+          </span>
+        ) : null}
       </span>
     </label>
   );
@@ -60,11 +73,19 @@ export function GiftWrappingSection({
   value,
   onChange,
   errors = {},
+  wrapPrice = 0,
+  cardPrice = 0,
 }: GiftWrappingSectionProps) {
+  const { t } = useLocale();
   const update = <K extends keyof GiftWrappingState>(
     key: K,
     next: GiftWrappingState[K]
   ) => onChange({ ...value, [key]: next });
+
+  const wrapFee =
+    wrapPrice > 0 ? `+${formatPrice(wrapPrice)}` : null;
+  const cardFee =
+    cardPrice > 0 ? `+${formatPrice(cardPrice)}` : null;
 
   return (
     <div className="space-y-5 rounded-3xl border border-beige-dark bg-ivory/80 p-5 md:p-7">
@@ -72,52 +93,41 @@ export function GiftWrappingSection({
         <div className="mb-2 inline-flex items-center gap-2 text-gold">
           <Gift className="h-5 w-5" />
           <h3 className="text-xl font-bold text-charcoal md:text-2xl">
-            🎁 تغليف وإهداء
+            {t.gift.sectionTitle}
           </h3>
         </div>
-        <p className="text-sm text-muted">
-          أضيفي لمسة فاخرة لطلبكِ — تغليف هدية وبطاقة إهداء اختياريان.
-        </p>
+        <p className="text-sm text-muted">{t.gift.sectionHint}</p>
       </div>
 
       <CheckboxRow
         id="gift-enabled"
         checked={value.enabled}
         onChange={(enabled) => update("enabled", enabled)}
-        label="أرغب بإضافة تغليف هدية فاخر"
+        label={t.gift.enableWrapping}
+        feeLabel={wrapFee}
       />
 
       {value.enabled && (
         <div className="space-y-5 border-t border-beige-dark/80 pt-5">
-          <Select
-            label="نوع التغليف *"
-            value={value.giftBox}
-            onChange={(e) => update("giftBox", e.target.value as GiftBoxType)}
-            options={GIFT_BOX_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
-            error={errors.gift_box}
-          />
-
           <CheckboxRow
             id="gift-card"
             checked={value.giftCard}
             onChange={(giftCard) => update("giftCard", giftCard)}
-            label="أريد إضافة بطاقة إهداء"
+            label={t.gift.enableGiftCard}
+            feeLabel={cardFee}
           />
 
           {value.giftCard && (
             <div>
               <Textarea
-                label="رسالة الإهداء *"
+                label={t.gift.giftMessage}
                 rows={4}
                 maxLength={250}
                 value={value.giftMessage}
                 onChange={(e) =>
                   update("giftMessage", e.target.value.slice(0, 250))
                 }
-                placeholder="اكتبي رسالة الإهداء التي ترغبين بإرفاقها مع الطلب..."
+                placeholder={t.gift.giftMessagePlaceholder}
                 error={errors.gift_message}
               />
               <p className="mt-1 text-xs text-muted">
@@ -128,17 +138,17 @@ export function GiftWrappingSection({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="من:"
+              label={`${t.gift.from}:`}
               value={value.senderName}
               onChange={(e) => update("senderName", e.target.value)}
-              placeholder="اسم المرسل"
+              placeholder={t.gift.fromPlaceholder}
               error={errors.sender_name}
             />
             <Input
-              label="إلى:"
+              label={`${t.gift.to}:`}
               value={value.recipientName}
               onChange={(e) => update("recipientName", e.target.value)}
-              placeholder="اسم المستلم"
+              placeholder={t.gift.toPlaceholder}
               error={errors.recipient_name}
             />
           </div>
@@ -147,7 +157,7 @@ export function GiftWrappingSection({
             id="hide-price"
             checked={value.hidePrice}
             onChange={(hidePrice) => update("hidePrice", hidePrice)}
-            label="لا تعرض الأسعار داخل الهدية"
+            label={t.gift.hidePricesInside}
           />
         </div>
       )}

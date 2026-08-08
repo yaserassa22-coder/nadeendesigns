@@ -171,6 +171,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         product_type: input.product_type,
         product_id: input.product_id,
         name_ar: input.name_ar,
+        name_en: input.name_en ?? null,
+        name_he: input.name_he ?? null,
         unit_price: input.unit_price,
         compare_at_price: input.compare_at_price ?? null,
         quantity,
@@ -187,6 +189,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           input.personalization_fee != null &&
           Number(input.personalization_fee) > 0
             ? Number(input.personalization_fee)
+            : null,
+        gift_fee:
+          input.gift_fee != null && Number(input.gift_fee) > 0
+            ? Number(input.gift_fee)
             : null,
         requires_shipping:
           input.requires_shipping ??

@@ -3,8 +3,14 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
-import { BOOKING_SERVICE_OPTIONS, type BookingSource, type Consultant } from "@/types";
+import { type BookingSource, type Consultant } from "@/types";
 import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import {
+  bookingServiceOptions,
+  getServiceTypeLabelLocalized,
+} from "@/lib/i18n/service-labels";
+import { localizedName } from "@/lib/i18n/localize";
 
 type ManualBookingModalProps = {
   open: boolean;
@@ -23,6 +29,7 @@ export function ManualBookingModal({
   defaultDate = "",
   defaultTime = "",
 }: ManualBookingModalProps) {
+  const { t, locale, dir } = useLocale();
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -57,6 +64,21 @@ export function ManualBookingModal({
 
   if (!open) return null;
 
+  const serviceOptions = [
+    ...bookingServiceOptions(locale).map((o) => ({
+      value: o.value,
+      label: o.label,
+    })),
+    {
+      value: "consultation",
+      label: getServiceTypeLabelLocalized("consultation", locale),
+    },
+    {
+      value: "fitting",
+      label: getServiceTypeLabelLocalized("fitting", locale),
+    },
+  ];
+
   const submit = async (force: boolean) => {
     setLoading(true);
     setError("");
@@ -89,7 +111,7 @@ export function ManualBookingModal({
         return;
       }
       if (!res.ok) {
-        throw new Error(data.message || data.error || "فشل الحفظ");
+        throw new Error(data.message || data.error || t.common.errorGeneric);
       }
       onCreated();
       onClose();
@@ -99,7 +121,7 @@ export function ManualBookingModal({
       setNotes("");
       setIsVip(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(e instanceof Error ? e.message : t.common.errorGeneric);
     } finally {
       setLoading(false);
     }
@@ -110,9 +132,11 @@ export function ManualBookingModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/40 p-4">
         <div
           className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-beige-dark bg-white p-6 shadow-xl"
-          dir="rtl"
+          dir={dir}
         >
-          <h2 className="text-xl font-bold text-charcoal">إضافة حجز يدوي</h2>
+          <h2 className="text-xl font-bold text-charcoal">
+            {t.admin.bookingsUi.addManual}
+          </h2>
           <p className="mt-1 text-sm text-muted">
             هاتف / حضور مباشر / إدارة — يحجز الموعد كالأونلاين
           </p>
@@ -167,21 +191,17 @@ export function ManualBookingModal({
                 { value: "", label: "بدون تعيين" },
                 ...consultants
                   .filter((c) => c.active)
-                  .map((c) => ({ value: c.id, label: c.name_ar })),
+                  .map((c) => ({
+                    value: c.id,
+                    label: localizedName(c, locale, c.name_ar),
+                  })),
               ]}
             />
             <Select
-              label="الخدمة"
+              label={t.admin.bookingsUi.serviceType}
               value={serviceType}
               onChange={(e) => setServiceType(e.target.value)}
-              options={[
-                ...BOOKING_SERVICE_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-                { value: "consultation", label: "استشارة (60 د)" },
-                { value: "fitting", label: "قياس (45 د)" },
-              ]}
+              options={serviceOptions}
             />
             <Select
               label="المدة (دقائق)"
@@ -202,7 +222,7 @@ export function ManualBookingModal({
               عميلة VIP
             </label>
             <Textarea
-              label="ملاحظات"
+              label={t.admin.bookingsUi.notes}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
@@ -216,14 +236,14 @@ export function ManualBookingModal({
 
           <div className="mt-6 flex flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={onClose} disabled={loading}>
-              إلغاء
+              {t.common.cancel}
             </Button>
             <Button
               loading={loading}
               onClick={() => void submit(false)}
               disabled={!name.trim() || !phone.trim() || !date || !time}
             >
-              حفظ الحجز
+              {t.common.save}
             </Button>
           </div>
         </div>

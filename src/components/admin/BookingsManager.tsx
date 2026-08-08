@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import {
   Fragment,
   Suspense,
@@ -31,8 +33,8 @@ import {
   BOOKING_STATUS_BADGE_CLASS,
   BOOKING_STATUS_LABELS,
   DELIVERY_STATUS_LABELS,
-  getServiceTypeLabel,
 } from "@/types";
+import { getServiceTypeLabelLocalized } from "@/lib/i18n/service-labels";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
 import { cn, formatDate, formatDateTimeWestern } from "@/lib/utils";
@@ -49,7 +51,7 @@ import { WaitingListPanel } from "@/components/admin/appointments/WaitingListPan
 import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 import { notifyAdminInboxChanged } from "@/lib/admin/inbox-events";
 import {
-  BOOKING_ACTION_LABELS_AR,
+  bookingActionForStatus,
   buildBookingQuickReply,
   type BookingAdminAction,
 } from "@/lib/bookings/status-actions";
@@ -103,11 +105,33 @@ type ReplyTarget = {
   action: BookingAdminAction;
 };
 
+function bookingActionLabel(
+  bu: ReturnType<typeof useLocale>["t"]["admin"]["bookingsUi"],
+  action: BookingAdminAction | string
+) {
+  switch (action) {
+    case "confirm":
+      return bu.actionConfirm;
+    case "reschedule":
+      return bu.actionReschedule;
+    case "cancel":
+      return bu.actionCancel;
+    case "complete":
+      return bu.actionComplete;
+    case "reply":
+      return bu.actionReply;
+    default:
+      return action;
+  }
+}
+
 function BookingsManagerInner({
   initialBookings,
   initialError = null,
   initialServiceFilter = null,
 }: BookingsManagerProps) {
+  const { t, locale } = useLocale();
+  const bu = t.admin.bookingsUi;
   const searchParams = useSearchParams();
   const serviceFromUrl = searchParams.get("service") ?? initialServiceFilter;
 
@@ -162,16 +186,16 @@ function BookingsManagerInner({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(
-          data.error || data.message || `فشل جلب الحجوزات (${res.status})`
+          data.error || data.message || bu.loadFailedStatus.replace('{status}', String(res.status))
         );
       }
       if (!Array.isArray(data)) {
-        throw new Error("استجابة غير صالحة من واجهة الحجوزات");
+        throw new Error(bu.invalidResponse);
       }
       setBookings(data.map((b: Booking) => normalizeBooking(b)));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل جلب الحجوزات");
+      setError(e instanceof Error ? e.message : bu.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -194,9 +218,9 @@ function BookingsManagerInner({
       .sort()
       .map((value) => ({
         value,
-        label: getServiceTypeLabel(value) || value,
+        label: getServiceTypeLabelLocalized(value, locale) || value,
       }));
-  }, [bookings, serviceFilter]);
+  }, [bookings, serviceFilter, locale]);
 
   const filtered = useMemo(() => {
     const byVis = filterLifecycleRows(
@@ -229,11 +253,72 @@ function BookingsManagerInner({
         body: JSON.stringify({ id, ...payload }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل التحديث");
+      if (!res.ok) throw new Error(data.error ?? bu.updateFailed);
       await loadBookings();
       notifyAdminInboxChanged();
+      if (data.warning) {
+        setSnack(String(data.warning));
+      } else if (data.notify?.customerNotified) {
+        setSnack(`${bu.bookingUpdated}${bu.notifiedHint}`);
+      }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "حدث خطأ");
+      alert(e instanceof Error ? e.message : bu.genericError);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  /** Status change that should email/WhatsApp the customer — use action API. */
+  const changeStatusWithNotify = async (
+    booking: Booking,
+    status: BookingStatus
+  ) => {
+    const action = bookingActionForStatus(status);
+    if (!action) {
+      await patchBooking(booking.id, { status });
+      return;
+    }
+
+    const preset = buildBookingQuickReply(action, booking);
+    setUpdating(booking.id);
+    try {
+      const res = await fetch("/api/admin/bookings/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          action,
+          subject: preset.subject,
+          body: preset.body,
+          sendEmail: true,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        warning?: string | null;
+        message?: string;
+        customerNotified?: boolean;
+        email?: { sent?: boolean; local?: boolean };
+        whatsapp?: { sent?: boolean; skippedReason?: string };
+      };
+      if (!res.ok) throw new Error(data.error || bu.actionFailed);
+
+      await loadBookings();
+      notifyAdminInboxChanged();
+
+      const parts: string[] = [data.message || bu.bookingUpdated];
+      if (data.customerNotified) parts.push(bu.notifiedHint.trim());
+      if (data.warning) parts.push(data.warning);
+      if (
+        !data.customerNotified &&
+        !data.email?.sent &&
+        !data.whatsapp?.sent
+      ) {
+        parts.push(bu.notifyFailedHint);
+      }
+      setSnack(parts.filter(Boolean).join(" — "));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : bu.genericError);
     } finally {
       setUpdating(null);
     }
@@ -247,7 +332,7 @@ function BookingsManagerInner({
     setReplyError("");
     setReplyWarning(
       !booking.email
-        ? "لا يوجد بريد للعميلة — يمكن تحديث الحالة دون إرسال رسالة."
+        ? bu.noEmailHint
         : ""
     );
     setReplySuccess("");
@@ -293,7 +378,7 @@ function BookingsManagerInner({
         status_history?: Booking["status_history"];
       };
       if (!res.ok) {
-        setReplyError(data.error || "تعذّر تنفيذ الإجراء");
+        setReplyError(data.error || bu.actionFailed);
         return;
       }
 
@@ -316,20 +401,20 @@ function BookingsManagerInner({
       );
       notifyAdminInboxChanged();
       const notifiedHint = data.customerNotified
-        ? " — وصل إشعار للعميلة"
+        ? bu.notifiedHint
         : "";
       setReplySuccess(
         data.warning
-          ? `✓ ${data.message || "تم التحديث"}${notifiedHint}. ${data.warning}`
-          : `✓ ${data.message || "تم بنجاح"}${notifiedHint}`
+          ? `✓ ${data.message || bu.updated}${notifiedHint}. ${data.warning}`
+          : `✓ ${data.message || bu.success}${notifiedHint}`
       );
-      setSnack(data.message || "تم تحديث الحجز");
+      setSnack(data.message || bu.bookingUpdated);
       window.setTimeout(() => {
         setReplyTarget(null);
         setReplySuccess("");
       }, 1400);
     } catch {
-      setReplyError("تعذّر الاتصال بالخادم. تحققي من الشبكة.");
+      setReplyError(bu.networkError);
     } finally {
       setReplySending(false);
     }
@@ -340,29 +425,29 @@ function BookingsManagerInner({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-end gap-4">
           <Select
-            label="تصفية حسب الحالة"
+            label={bu.filterStatus}
             value={filter}
             onChange={(e) => setFilter(e.target.value as BookingStatus | "all")}
-            options={[{ value: "all", label: "الكل" }, ...STATUS_OPTIONS]}
+            options={[{ value: "all", label: bu.all }, ...STATUS_OPTIONS]}
           />
           <Select
-            label="نوع الخدمة"
+            label={bu.serviceType}
             value={serviceFilter}
             onChange={(e) => setServiceFilter(e.target.value)}
-            options={[{ value: "all", label: "الكل" }, ...serviceOptions]}
+            options={[{ value: "all", label: bu.all }, ...serviceOptions]}
           />
           <div>
-            <p className="mb-1.5 text-sm text-muted">العرض</p>
+            <p className="mb-1.5 text-sm text-muted">{bu.visibility}</p>
             <VisibilityFilter value={visibility} onChange={setVisibility} />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setManualOpen(true)}>إضافة حجز يدوي</Button>
+          <Button onClick={() => setManualOpen(true)}>{bu.addManual}</Button>
           <Link
             href="/admin/calendar"
             className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
           >
-            التقويم
+            {bu.calendar}
           </Link>
           <Button
             variant="outline"
@@ -371,14 +456,14 @@ function BookingsManagerInner({
             onClick={() => void loadBookings()}
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            تحديث
+            {bu.refresh}
           </Button>
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/admin/export?module=bookings"
             className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
           >
-            تصدير CSV
+            {bu.exportCsv}
           </a>
         </div>
       </div>
@@ -392,19 +477,19 @@ function BookingsManagerInner({
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">العميلة</th>
-                <th className="px-4 py-3 text-right font-medium">الموعد</th>
-                <th className="px-4 py-3 text-right font-medium">الخدمة</th>
-                <th className="px-4 py-3 text-right font-medium">المصدر</th>
-                <th className="px-4 py-3 text-right font-medium">الحالة</th>
-                <th className="px-4 py-3 text-right font-medium">إجراءات</th>
+                <th className="px-4 py-3 text-right font-medium">{bu.colCustomer}</th>
+                <th className="px-4 py-3 text-right font-medium">{bu.colAppointment}</th>
+                <th className="px-4 py-3 text-right font-medium">{bu.colService}</th>
+                <th className="px-4 py-3 text-right font-medium">{bu.colSource}</th>
+                <th className="px-4 py-3 text-right font-medium">{bu.colStatus}</th>
+                <th className="px-4 py-3 text-right font-medium">{bu.colActions}</th>
               </tr>
             </thead>
             <tbody>
               {!error && filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted">
-                    {loading ? "جاري التحميل..." : "لا توجد حجوزات"}
+                    {loading ? bu.loading : bu.empty}
                   </td>
                 </tr>
               ) : (
@@ -426,11 +511,11 @@ function BookingsManagerInner({
                           {booking.personalization ? (
                             <p className="mt-1 inline-flex items-center gap-1 text-xs text-gold">
                               <Sparkles className="h-3 w-3" />
-                              تخصيص كتابة
+                              {bu.personalizationWriting}
                             </p>
                           ) : null}
                           {booking.gift_options?.enabled ? (
-                            <p className="mt-1 text-xs text-gold">🎁 تغليف هدية</p>
+                            <p className="mt-1 text-xs text-gold">{bu.giftWrap}</p>
                           ) : null}
                           {booking.is_vip ? (
                             <p className="mt-1 text-xs text-amber-700">VIP ★</p>
@@ -442,7 +527,7 @@ function BookingsManagerInner({
                           ) : null}
                           {booking.last_reply_at ? (
                             <p className="mt-1 text-[11px] text-muted">
-                              آخر رد:{" "}
+                              {bu.lastReply}{" "}
                               <span dir="ltr">
                                 {formatDateTimeWestern(booking.last_reply_at)}
                               </span>
@@ -456,12 +541,15 @@ function BookingsManagerInner({
                           </p>
                           {booking.created_at ? (
                             <p className="text-xs text-muted">
-                              أُنشئ: {formatDate(booking.created_at)}
+                              {bu.createdAt} {formatDate(booking.created_at)}
                             </p>
                           ) : null}
                         </td>
                         <td className="px-4 py-3">
-                          {getServiceTypeLabel(booking.service_type)}
+                          {getServiceTypeLabelLocalized(
+                            booking.service_type,
+                            locale
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           {
@@ -478,12 +566,13 @@ function BookingsManagerInner({
                               value={booking.status}
                               disabled={updating === booking.id}
                               onChange={(e) =>
-                                void patchBooking(booking.id, {
-                                  status: e.target.value as BookingStatus,
-                                })
+                                void changeStatusWithNotify(
+                                  booking,
+                                  e.target.value as BookingStatus
+                                )
                               }
                               className="w-full rounded-lg border border-beige-dark bg-white px-2 py-1.5 text-xs"
-                              aria-label="تغيير الحالة"
+                              aria-label={bu.changeStatusAria}
                             >
                               {STATUS_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value}>
@@ -507,7 +596,7 @@ function BookingsManagerInner({
                                 {action === "reply" ? (
                                   <Mail className="h-3 w-3" />
                                 ) : null}
-                                {BOOKING_ACTION_LABELS_AR[action]}
+                                {bookingActionLabel(bu, action)}
                               </Button>
                             ))}
                             <button
@@ -517,7 +606,7 @@ function BookingsManagerInner({
                               }
                               className="inline-flex items-center gap-1 text-xs text-gold"
                             >
-                              تفاصيل
+                              {bu.details}
                               {isOpen ? (
                                 <ChevronUp className="h-3.5 w-3.5" />
                               ) : (
@@ -543,7 +632,9 @@ function BookingsManagerInner({
                                   setBookings((prev) =>
                                     prev.filter((b) => b.id !== booking.id)
                                   );
-                                  setSnack("تم نقل الحجز إلى سلة المحذوفات");
+                                  setSnack(
+                                    `${bu.movedToTrash} — تم إلغاء الموعد وإشعار العميلة`
+                                  );
                                   notifyAdminInboxChanged();
                                   return;
                                 }
@@ -562,8 +653,8 @@ function BookingsManagerInner({
                                 );
                                 setSnack(
                                   kind === "archive"
-                                    ? "تمت الأرشفة"
-                                    : "تم إلغاء الأرشفة"
+                                    ? bu.archived
+                                    : bu.unarchived
                                 );
                               }}
                               onError={(msg) => alert(msg)}
@@ -578,14 +669,14 @@ function BookingsManagerInner({
                               {booking.personalization ? (
                                 <PersonalizationSummary
                                   personalization={booking.personalization}
-                                  title="تفاصيل التخصيص / الطلب"
+                                  title={bu.personalizationTitle}
                                   compact
                                 />
                               ) : null}
                               {booking.gift_options?.enabled ? (
                                 <GiftOptionsSummary
                                   giftOptions={booking.gift_options}
-                                  title="تفاصيل التغليف والإهداء"
+                                  title={bu.giftTitle}
                                 />
                               ) : null}
                               {(booking.city ||
@@ -595,7 +686,7 @@ function BookingsManagerInner({
                                   {booking.city ? (
                                     <div>
                                       <p className="text-xs text-muted">
-                                        المدينة
+                                        {bu.city}
                                       </p>
                                       <p className="font-medium">
                                         {booking.city}
@@ -606,7 +697,7 @@ function BookingsManagerInner({
                                     <>
                                       <div>
                                         <p className="text-xs text-muted">
-                                          المنطقة
+                                          {bu.region}
                                         </p>
                                         <p className="font-medium">
                                           {booking.region ||
@@ -616,7 +707,7 @@ function BookingsManagerInner({
                                       </div>
                                       <div className="md:col-span-2">
                                         <p className="text-xs text-muted">
-                                          عنوان التوصيل
+                                          {bu.deliveryAddress}
                                         </p>
                                         <p className="font-medium">
                                           {booking.delivery_address || "—"}
@@ -626,7 +717,7 @@ function BookingsManagerInner({
                                       undefined ? (
                                         <div>
                                           <p className="mb-1 text-xs text-muted">
-                                            حالة التوصيل
+                                            {bu.deliveryStatus}
                                           </p>
                                           <select
                                             value={
@@ -659,7 +750,7 @@ function BookingsManagerInner({
                               )}
                               {booking.notes ? (
                                 <div>
-                                  <p className="text-xs text-muted">ملاحظات</p>
+                                  <p className="text-xs text-muted">{bu.notes}</p>
                                   <p className="mt-1 whitespace-pre-wrap">
                                     {booking.notes}
                                   </p>
@@ -669,7 +760,7 @@ function BookingsManagerInner({
                               booking.status_history.length > 0 ? (
                                 <div>
                                   <p className="mb-2 text-xs text-muted">
-                                    سجل الحالات
+                                    {bu.statusLog}
                                   </p>
                                   <ul className="space-y-1.5 text-xs text-charcoal">
                                     {[...booking.status_history]
@@ -695,9 +786,10 @@ function BookingsManagerInner({
                                           {h.action ? (
                                             <span className="text-muted">
                                               ·{" "}
-                                              {BOOKING_ACTION_LABELS_AR[
+                                              {bookingActionLabel(
+                                                bu,
                                                 h.action as BookingAdminAction
-                                              ] ?? h.action}
+                                              ) ?? h.action}
                                             </span>
                                           ) : null}
                                         </li>
@@ -708,10 +800,10 @@ function BookingsManagerInner({
                               <div className="flex flex-wrap gap-2">
                                 {(
                                   [
-                                    ["arrived", "وصلت العميلة"],
-                                    ["started", "بدأ الموعد"],
-                                    ["completed", "انتهى الموعد"],
-                                    ["no_show", "لم تحضر"],
+                                    ["arrived", bu.lifecycleArrived],
+                                    ["started", bu.lifecycleStarted],
+                                    ["completed", bu.lifecycleCompleted],
+                                    ["no_show", bu.lifecycleNoShow],
                                   ] as const
                                 ).map(([action, label]) => (
                                   <Button
@@ -753,7 +845,7 @@ function BookingsManagerInner({
         >
           <button
             type="button"
-            aria-label="إغلاق"
+            aria-label={bu.close}
             className="absolute inset-0"
             onClick={closeReply}
             disabled={replySending}
@@ -764,7 +856,7 @@ function BookingsManagerInner({
                 id="booking-reply-title"
                 className="text-lg font-semibold text-charcoal"
               >
-                {BOOKING_ACTION_LABELS_AR[replyTarget.action]}
+                {bookingActionLabel(bu, replyTarget.action)}
               </h2>
               <button
                 type="button"
@@ -777,7 +869,7 @@ function BookingsManagerInner({
             </div>
             <div className="space-y-4 overflow-y-auto px-5 py-5">
               <div>
-                <p className="mb-1.5 text-sm text-muted">إلى</p>
+                <p className="mb-1.5 text-sm text-muted">{bu.to}</p>
                 <p
                   className="rounded-xl border border-beige-dark/60 bg-beige/30 px-3 py-2.5 text-sm text-charcoal"
                   dir="ltr"
@@ -785,17 +877,17 @@ function BookingsManagerInner({
                   {replyTarget.booking.name}
                   {replyTarget.booking.email
                     ? ` <${replyTarget.booking.email}>`
-                    : " — بدون بريد"}
+                    : bu.noEmail}
                 </p>
               </div>
               <Input
-                label="الموضوع"
+                label={bu.subject}
                 value={replySubject}
                 onChange={(e) => setReplySubject(e.target.value)}
                 disabled={replySending}
               />
               <Textarea
-                label="الرسالة"
+                label={bu.message}
                 rows={10}
                 value={replyBody}
                 onChange={(e) => setReplyBody(e.target.value)}
@@ -824,7 +916,7 @@ function BookingsManagerInner({
                 onClick={closeReply}
                 disabled={replySending}
               >
-                إلغاء
+                {bu.cancel}
               </Button>
               <Button
                 loading={replySending}
@@ -835,7 +927,7 @@ function BookingsManagerInner({
                 }
                 onClick={() => void sendAction()}
               >
-                إرسال وتحديث
+                {bu.sendAndUpdate}
               </Button>
             </div>
           </div>
@@ -880,8 +972,9 @@ function BookingsManagerInner({
 }
 
 export function BookingsManager(props: BookingsManagerProps) {
+  const { t } = useLocale();
   return (
-    <Suspense fallback={<p className="text-sm text-muted">جاري التحميل…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted">{t.admin.bookingsUi.loading}</p>}>
       <BookingsManagerInner {...props} />
     </Suspense>
   );

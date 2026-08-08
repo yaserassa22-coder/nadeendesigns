@@ -1,6 +1,7 @@
 "use client";
 
 import { formatPrice } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   effectiveServiceUnitPrice,
   type LineExtraService,
@@ -16,10 +17,12 @@ type Props = {
 
 export function ExtraServicesSummary({
   services,
-  title = "خدمات إضافية",
+  title,
   compact = false,
   hidePrice = false,
 }: Props) {
+  const { t } = useLocale();
+  const heading = title ?? t.product.extraServices;
   if (!services?.length) return null;
 
   return (
@@ -37,7 +40,7 @@ export function ExtraServicesSummary({
             : "mb-3 font-semibold text-charcoal"
         }
       >
-        {title}
+        {heading}
       </h3>
       <ul className="space-y-2">
         {services.map((svc) => {
@@ -50,7 +53,7 @@ export function ExtraServicesSummary({
               <span>{svc.name_ar || svc.name}</span>
               {!hidePrice && (
                 <span className="shrink-0 text-gold" dir="ltr">
-                  {amount > 0 ? formatPrice(amount) : "مجاني"}
+                  {amount > 0 ? formatPrice(amount) : t.common.free}
                 </span>
               )}
             </li>

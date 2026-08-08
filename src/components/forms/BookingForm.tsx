@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Calendar, CheckCircle } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/ui/Input";
@@ -16,60 +16,63 @@ import {
 import { CUSTOM_DESIGN_BRIEF_KEY } from "@/lib/constants";
 import { BOOKING_SERVICE_OPTIONS } from "@/types";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+import { bookingServiceOptions } from "@/lib/i18n/service-labels";
 
-const bookingSchema = z
-  .object({
-    name: z.string().trim().min(2, "الاسم الكامل مطلوب"),
-    phone: z
-      .string()
-      .trim()
-      .min(9, "رقم الهاتف غير صالح")
-      .regex(/^[\d+\s()-]+$/, "رقم الهاتف غير صالح"),
-    email: z
-      .string()
-      .trim()
-      .min(1, "البريد الإلكتروني مطلوب")
-      .email("البريد الإلكتروني غير صالح"),
-    date: z.string().min(1, "تاريخ الحجز مطلوب"),
-    time: z.string().min(1, "وقت الحجز مطلوب"),
-    service_type: z.enum(
-      [
-        "wedding_dress",
-        "rental_dress",
-        "custom_design",
-        "nouf_dresses",
-        "veil",
-        "bridal_cape",
-      ],
-      { message: "نوع الخدمة مطلوب" }
-    ),
-    notes: z.string().optional(),
-    notify_whatsapp: z.boolean(),
-    notify_email: z.boolean(),
-  })
-  .superRefine((data, ctx) => {
-    if (!data.notify_whatsapp && !data.notify_email) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["notify_whatsapp"],
-        message:
-          "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
-      });
-    }
-    if (data.notify_email) {
-      const email = data.email.trim();
-      if (!email || !z.string().email().safeParse(email).success) {
+function createBookingSchema(t: ReturnType<typeof useLocale>["t"]) {
+  return z
+    .object({
+      name: z.string().trim().min(2, t.booking.validation.nameRequired),
+      phone: z
+        .string()
+        .trim()
+        .min(9, t.booking.validation.phoneInvalid)
+        .regex(/^[\d+\s()-]+$/, t.booking.validation.phoneInvalid),
+      email: z
+        .string()
+        .trim()
+        .min(1, t.booking.validation.emailRequired)
+        .email(t.booking.validation.emailInvalid),
+      date: z.string().min(1, t.booking.validation.dateRequired),
+      time: z.string().min(1, t.booking.validation.timeRequired),
+      service_type: z.enum(
+        [
+          "wedding_dress",
+          "rental_dress",
+          "custom_design",
+          "nouf_dresses",
+          "veil",
+          "bridal_cape",
+        ],
+        { message: t.booking.validation.serviceRequired }
+      ),
+      notes: z.string().optional(),
+      notify_whatsapp: z.boolean(),
+      notify_email: z.boolean(),
+    })
+    .superRefine((data, ctx) => {
+      if (!data.notify_whatsapp && !data.notify_email) {
         ctx.addIssue({
           code: "custom",
-          path: ["email"],
-          message:
-            "البريد الإلكتروني مطلوب وصالح عند اختيار التحديثات عبر Email",
+          path: ["notify_whatsapp"],
+          message: t.booking.validation.notifyChannelRequired,
         });
       }
-    }
-  });
+      if (data.notify_email) {
+        const email = data.email.trim();
+        if (!email || !z.string().email().safeParse(email).success) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["email"],
+            message: t.booking.validation.emailRequiredForEmailNotify,
+          });
+        }
+      }
+    });
+}
 
-type BookingFormData = z.infer<typeof bookingSchema>;
+type BookingFormData = z.infer<ReturnType<typeof createBookingSchema>>;
 
 type ApiFieldError = { field: string; message: string };
 
@@ -89,6 +92,8 @@ const API_FIELD_TO_FORM: Record<string, keyof BookingFormData | "form"> = {
 };
 
 export function BookingForm() {
+  const { t, locale } = useLocale();
+  const bookingSchema = useMemo(() => createBookingSchema(t), [t]);
   const searchParams = useSearchParams();
   const serviceParam = searchParams.get("service");
   const dressParam = searchParams.get("dress");
@@ -148,7 +153,7 @@ export function BookingForm() {
     }
 
     if (dressParam?.trim()) {
-      noteParts.push(`منتج مرتبط (معرّف): ${dressParam.trim()}`);
+      noteParts.push(formatMessage(t.booking.linkedProductNote, { id: dressParam.trim() }));
     }
 
     if (noteParts.length) {
@@ -196,7 +201,7 @@ export function BookingForm() {
   const applyApiFieldErrors = (fields?: ApiFieldError[], fallback?: string) => {
     clearErrors();
     if (!fields?.length) {
-      setError(fallback || "حدث خطأ أثناء إرسال الحجز");
+      setError(fallback || t.booking.submitError);
       return;
     }
 
@@ -230,7 +235,7 @@ export function BookingForm() {
   const joinWaitlist = async () => {
     const v = getValues();
     if (!v.name?.trim() || !v.phone?.trim()) {
-      setError("أدخلي الاسم والهاتف للانضمام لقائمة الانتظار");
+      setError(t.booking.waitlistNeedContact);
       return;
     }
     setWaitlistLoading(true);
@@ -251,10 +256,10 @@ export function BookingForm() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل الانضمام");
+      if (!res.ok) throw new Error(data.error || t.booking.waitlistJoinFailed);
       setWaitlistDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل الانضمام");
+      setError(e instanceof Error ? e.message : t.booking.waitlistJoinFailed);
     } finally {
       setWaitlistLoading(false);
     }
@@ -268,7 +273,8 @@ export function BookingForm() {
         notify_whatsapp: data.notify_whatsapp,
         notify_email: data.notify_email,
       },
-      { phone: data.phone, email: data.email }
+      { phone: data.phone, email: data.email },
+      locale
     );
     if (notifyError) {
       setError(notifyError);
@@ -302,13 +308,31 @@ export function BookingForm() {
         }
         applyApiFieldErrors(
           errBody.fields as ApiFieldError[] | undefined,
-          errBody.message || errBody.error || "حدث خطأ"
+          errBody.message || errBody.error || t.common.errorGeneric
         );
         return;
       }
 
       try {
         sessionStorage.removeItem(CUSTOM_DESIGN_BRIEF_KEY);
+      } catch {
+        /* ignore */
+      }
+      try {
+        const phone = data.phone?.trim() || "";
+        const email = data.email?.trim() || "";
+        const meta = JSON.stringify({
+          id: errBody.id ?? null,
+          phone: data.phone,
+          email: data.email,
+          customerKey: phone
+            ? `p:${phone}`
+            : email
+              ? `e:${email.toLowerCase()}`
+              : null,
+        });
+        sessionStorage.setItem("nadeen_last_booking", meta);
+        localStorage.setItem("nadeen_last_booking", meta);
       } catch {
         /* ignore */
       }
@@ -321,7 +345,7 @@ export function BookingForm() {
         notify_email: true,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+      setError(e instanceof Error ? e.message : t.booking.unexpectedError);
     }
   };
 
@@ -330,11 +354,11 @@ export function BookingForm() {
       <div className="rounded-2xl border border-gold/30 bg-gold/5 p-8 text-center">
         <CheckCircle className="mx-auto h-12 w-12 text-gold" />
         <h3 className="mt-4 text-xl font-semibold text-charcoal">
-          تم إرسال طلب الحجز بنجاح!
+          {t.booking.success}
         </h3>
-        <p className="mt-2 text-muted">سنتواصل معكِ قريبًا لتأكيد الموعد</p>
+        <p className="mt-2 text-muted">{t.booking.successHint}</p>
         <Button className="mt-6" onClick={() => setSuccess(false)}>
-          حجز موعد آخر
+          {t.booking.bookAnother}
         </Button>
       </div>
     );
@@ -345,11 +369,11 @@ export function BookingForm() {
       <div className="rounded-2xl border border-gold/30 bg-gold/5 p-8 text-center">
         <CheckCircle className="mx-auto h-12 w-12 text-gold" />
         <h3 className="mt-4 text-xl font-semibold text-charcoal">
-          تم إضافتكِ إلى قائمة الانتظار
+          {t.booking.waitlistSuccess}
         </h3>
-        <p className="mt-2 text-muted">سنتواصل عند توفّر موعد مناسب</p>
+        <p className="mt-2 text-muted">{t.booking.waitlistHint}</p>
         <Button className="mt-6" onClick={() => setWaitlistDone(false)}>
-          العودة للنموذج
+          {t.booking.backToForm}
         </Button>
       </div>
     );
@@ -359,13 +383,13 @@ export function BookingForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       <div className="grid gap-6 sm:grid-cols-2">
         <Input
-          label="الاسم الكامل *"
+          label={`${t.booking.name} *`}
           {...register("name")}
           error={errors.name?.message}
-          placeholder="اسمك الكامل"
+          placeholder={t.booking.name}
         />
         <Input
-          label="رقم الهاتف *"
+          label={`${t.booking.phone} *`}
           {...register("phone")}
           error={errors.phone?.message}
           placeholder="05xxxxxxxx"
@@ -374,7 +398,7 @@ export function BookingForm() {
       </div>
 
       <Input
-        label="البريد الإلكتروني *"
+        label={`${t.booking.email} *`}
         type="email"
         {...register("email")}
         error={errors.email?.message}
@@ -383,31 +407,33 @@ export function BookingForm() {
       />
 
       <Select
-        label="الخدمة المطلوبة *"
+        label={`${t.booking.service} *`}
         {...register("service_type")}
         error={errors.service_type?.message}
-        options={BOOKING_SERVICE_OPTIONS.map(({ value, label }) => ({
+        options={bookingServiceOptions(locale).map(({ value, label }) => ({
           value,
           label,
         }))}
       />
 
       <Input
-        label="التاريخ *"
+        label={`${t.booking.date} *`}
         type="date"
         {...register("date")}
         error={errors.date?.message}
       />
 
       <div>
-        <p className="mb-2 text-sm font-medium text-charcoal">الوقت *</p>
+        <p className="mb-2 text-sm font-medium text-charcoal">
+          {t.booking.time} *
+        </p>
         {!selectedDate ? (
-          <p className="text-sm text-muted">اختاري التاريخ أولًا لعرض المواعيد</p>
+          <p className="text-sm text-muted">{t.booking.pickDateFirst}</p>
         ) : slotsLoading ? (
-          <p className="text-sm text-muted">جاري تحميل المواعيد...</p>
+          <p className="text-sm text-muted">{t.booking.loadingSlots}</p>
         ) : slots.length === 0 ? (
           <p className="text-sm text-muted">
-            لا توجد مواعيد لهذا اليوم (عطلة أو خارج أيام العمل)
+            {t.booking.noSlots}
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -434,7 +460,7 @@ export function BookingForm() {
                 <span dir="ltr">{slot.time}</span>
                 {!slot.available && (
                   <span className="mt-0.5 block text-[10px] no-underline">
-                    {slot.label || "غير متاح"}
+                    {slot.label || t.booking.unavailable}
                   </span>
                 )}
               </button>
@@ -450,7 +476,7 @@ export function BookingForm() {
       {(showWaitlist || (slots.length > 0 && !slots.some((s) => s.available))) && (
         <div className="rounded-xl border border-beige-dark bg-beige/30 p-4 text-sm">
           <p className="text-charcoal">
-            الموعد غير متاح؟ انضمّي إلى قائمة الانتظار وسنبلغكِ عند التوفّر.
+            {t.booking.waitlistCta}
           </p>
           <Button
             type="button"
@@ -459,17 +485,17 @@ export function BookingForm() {
             loading={waitlistLoading}
             onClick={() => void joinWaitlist()}
           >
-            الانضمام لقائمة الانتظار
+            {t.booking.joinWaitlist}
           </Button>
         </div>
       )}
 
       <Textarea
-        label="ملاحظات إضافية"
+        label={t.booking.notes}
         {...register("notes")}
         error={errors.notes?.message}
         rows={4}
-        placeholder="أخبرينا عن أي تفاصيل أو طلبات خاصة..."
+        placeholder={t.booking.notes}
       />
 
       <NotificationPreferences
@@ -499,7 +525,7 @@ export function BookingForm() {
         className="w-full sm:w-auto"
       >
         <Calendar className="h-4 w-4" />
-        تأكيد الحجز
+        {t.booking.submit}
       </Button>
     </form>
   );

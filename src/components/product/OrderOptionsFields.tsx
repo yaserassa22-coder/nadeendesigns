@@ -5,6 +5,7 @@ import type {
   OrderOptionConfig,
   OrderOptionKey,
 } from "@/lib/products/order-experience";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export type OrderOptionValues = Partial<Record<OrderOptionKey, string>>;
 
@@ -25,6 +26,7 @@ export function OrderOptionsFields({
   onChange,
   errors = {},
 }: Props) {
+  const { t } = useLocale();
   if (!options.length) return null;
 
   const update = (key: OrderOptionKey, value: string) => {
@@ -34,9 +36,11 @@ export function OrderOptionsFields({
   return (
     <div className="space-y-4 rounded-3xl border border-beige-dark bg-ivory/70 p-5 md:p-6">
       <div>
-        <h3 className="text-lg font-semibold text-charcoal">خيارات الطلب</h3>
+        <h3 className="text-lg font-semibold text-charcoal">
+          {t.productExtras.orderOptions}
+        </h3>
         <p className="mt-1 text-sm text-muted">
-          أكملي التفاصيل المطلوبة لهذا المنتج.
+          {t.productExtras.orderOptionsHint}
         </p>
       </div>
       <div className="space-y-4">

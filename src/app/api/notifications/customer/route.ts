@@ -4,28 +4,53 @@ import {
   markAllInAppReadForOrder,
   markInAppNotificationRead,
 } from "@/lib/notifications/in-app";
+import { bookingNotificationKeys } from "@/lib/notifications/customer-keys";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const orderId = searchParams.get("orderId");
   const customerKey = searchParams.get("customerKey");
+  const phone = searchParams.get("phone");
+  const email = searchParams.get("email");
+  const keysParam = searchParams.get("keys");
 
-  if (!orderId && !customerKey) {
+  const keys = bookingNotificationKeys({
+    phone,
+    email,
+    customerKey,
+  });
+  if (keysParam) {
+    for (const k of keysParam.split(",")) {
+      const t = k.trim();
+      if (t && !keys.includes(t)) keys.push(t);
+    }
+  }
+
+  if (!orderId && keys.length === 0) {
     return NextResponse.json(
-      { error: "orderId أو customerKey مطلوب" },
+      { error: "orderId أو customerKey أو phone مطلوب" },
       { status: 400 }
     );
   }
 
   const notifications = await listInAppNotifications({
     orderId,
-    customerKey,
+    customerKeys: keys,
     limit: 40,
   });
 
+  // Deduplicate by title+body+status within 1 minute window → keep newest id set
+  const seen = new Set<string>();
+  const deduped = notifications.filter((n) => {
+    const sig = `${n.title_ar}|${n.order_status}|${n.href ?? ""}`;
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  });
+
   return NextResponse.json({
-    notifications,
-    unread: notifications.filter((n) => !n.is_read).length,
+    notifications: deduped,
+    unread: deduped.filter((n) => !n.is_read).length,
   });
 }
 

@@ -2,14 +2,12 @@
 
 import { useMemo } from "react";
 import { Sparkles } from "lucide-react";
-import { Input, Select } from "@/components/ui/Input";
+import { Select, Textarea } from "@/components/ui/Input";
 import { PersonalizationPreview } from "@/components/dresses/PersonalizationPreview";
 import {
-  ARABIC_FONT_OPTIONS,
-  ENGLISH_FONT_OPTIONS,
-  getPersonalizationPositionOptions,
-  WRITING_COLOR_OPTIONS,
-  WRITING_LANGUAGE_OPTIONS,
+  arabicFontSelectOptions,
+  englishFontFromPrimary,
+  writingColorSelectOptions,
   type ArabicFont,
   type EnglishFont,
   type PersonalizationProductType,
@@ -17,16 +15,20 @@ import {
   type WritingLanguage,
   type WritingPosition,
 } from "@/lib/products/personalization";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export type VeilRobePersonalizationState = {
   enabled: boolean;
+  /** Stored for payload compatibility — UI no longer asks the customer. */
   writingLanguage: WritingLanguage;
+  /** Free trilingual text (AR / HE / EN). Stored as text_ar in the payload. */
   textAr: string;
   textEn: string;
   fontAr: ArabicFont;
   fontEn: EnglishFont;
   color: WritingColor;
+  /** Stored default — position picker removed from storefront. */
   position: WritingPosition;
 };
 
@@ -37,16 +39,21 @@ type Props = {
   errors?: Record<string, string>;
   /** From experience_config.personalization_ui (Admin). */
   maxCharacters?: number;
+  /** Admin personalization fee — shown when > 0. */
+  extraPrice?: number;
   /** When true, personalization cannot be skipped. */
   required?: boolean;
   /** Feature library gates. */
   showFontSelection?: boolean;
   showColorSelection?: boolean;
+  /** Hide sparkles title when parent accordion already shows it. */
+  hideTitle?: boolean;
 };
 
 /**
  * Existing veil/robe personalization UI atoms — used inside ProductExperienceModal.
- * Does not rewrite validation/business logic (validate via validatePersonalization).
+ * Storefront: one free-text field (trilingual). Language + position pickers removed;
+ * payload still carries compatible defaults for cart / orders / admin.
  */
 export function VeilRobePersonalizationFields({
   personalizationType,
@@ -54,154 +61,117 @@ export function VeilRobePersonalizationFields({
   onChange,
   errors = {},
   maxCharacters = 25,
+  extraPrice = 0,
   required = false,
   showFontSelection = true,
   showColorSelection = true,
+  hideTitle = false,
 }: Props) {
+  const { t, locale } = useLocale();
   const maxLen = Math.max(1, Math.min(200, Math.floor(maxCharacters) || 25));
-  const positionOptions = useMemo(
-    () => getPersonalizationPositionOptions(personalizationType),
-    [personalizationType]
-  );
-  const showArabic =
-    value.writingLanguage === "ar" || value.writingLanguage === "both";
-  const showEnglish =
-    value.writingLanguage === "en" || value.writingLanguage === "both";
+  const arFontOptions = useMemo(() => arabicFontSelectOptions(locale), [locale]);
+  const colorOptions = useMemo(() => writingColorSelectOptions(locale), [locale]);
   const enabled = required ? true : value.enabled;
 
   const patch = (partial: Partial<VeilRobePersonalizationState>) =>
     onChange({
       ...value,
       ...partial,
+      // Free-text mode: always persist as writing_language "ar" + text_ar.
+      writingLanguage: "ar",
+      textEn: "",
       ...(required ? { enabled: true } : {}),
     });
 
+  const feeLabel =
+    extraPrice > 0 ? `+${formatPrice(extraPrice)}` : null;
+
   return (
     <div className="space-y-5 rounded-3xl border border-beige-dark bg-ivory/70 p-5 md:p-6">
-      <div>
-        <div className="mb-1 inline-flex items-center gap-2 text-gold">
-          <Sparkles className="h-4 w-4" />
-          <h3 className="text-lg font-semibold text-charcoal">تخصيص الكتابة</h3>
-        </div>
+      {hideTitle ? (
         <p className="text-sm text-muted">
-          {required
-            ? "التخصيص مطلوب لهذا المنتج."
-            : "خصّصي النص على المنتج إن رغبتِ — أو أكملي الشراء بدون تخصيص."}
+          {required ? t.personalizationUi.requiredHint : t.personalizationUi.optionalHint}
         </p>
-      </div>
+      ) : (
+        <div>
+          <div className="mb-1 inline-flex items-center gap-2 text-gold">
+            <Sparkles className="h-4 w-4" />
+            <h3 className="text-lg font-semibold text-charcoal">
+              {t.personalizationUi.formTitle}
+            </h3>
+          </div>
+          <p className="text-sm text-muted">
+            {required
+              ? t.personalizationUi.requiredHint
+              : t.personalizationUi.optionalHint}
+          </p>
+        </div>
+      )}
 
       {!required ? (
-        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-beige-dark bg-white px-4 py-3">
+        <label
+          className={cn(
+            "flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-colors",
+            value.enabled
+              ? "border-gold/40 bg-gold/5"
+              : "border-beige-dark bg-white hover:border-gold/30"
+          )}
+        >
           <input
             type="checkbox"
             checked={value.enabled}
             onChange={(e) => patch({ enabled: e.target.checked })}
-            className="accent-[var(--gold)]"
+            className="mt-1 h-4 w-4 accent-[var(--gold)]"
           />
-          <span className="text-sm font-medium">
-            أريد تخصيص الكتابة على المنتج
+          <span className="flex flex-1 flex-wrap items-baseline justify-between gap-2 text-sm font-medium text-charcoal md:text-base">
+            <span>{t.personalizationUi.enableToggle}</span>
+            {feeLabel ? (
+              <span className="shrink-0 text-sm font-semibold text-gold" dir="ltr">
+                {feeLabel}
+              </span>
+            ) : null}
           </span>
         </label>
+      ) : feeLabel ? (
+        <p className="rounded-2xl border border-gold/30 bg-gold/5 px-4 py-3 text-sm font-semibold text-gold" dir="ltr">
+          {feeLabel}
+        </p>
       ) : null}
 
       {enabled ? (
         <div className="space-y-5">
-          <Select
-            label="لغة الكتابة *"
-            value={value.writingLanguage}
-            onChange={(e) =>
-              patch({ writingLanguage: e.target.value as WritingLanguage })
-            }
-            options={WRITING_LANGUAGE_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
+          <Textarea
+            label={`${t.personalizationUi.textRequired} (${maxLen})`}
+            value={value.textAr}
+            maxLength={maxLen}
+            rows={4}
+            dir="auto"
+            placeholder={t.personalizationUi.textPlaceholder}
+            onChange={(e) => patch({ textAr: e.target.value.slice(0, maxLen) })}
+            error={errors.text_ar}
           />
-
-          {value.writingLanguage === "both" ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label={`الاسم أو النص بالعربية (حتى ${maxLen})`}
-                value={value.textAr}
-                maxLength={maxLen}
-                dir="rtl"
-                onChange={(e) =>
-                  patch({ textAr: e.target.value.slice(0, maxLen) })
-                }
-                error={errors.text_ar}
-              />
-              <Input
-                label={`Name or Text in English (max ${maxLen})`}
-                value={value.textEn}
-                maxLength={maxLen}
-                dir="ltr"
-                onChange={(e) =>
-                  patch({ textEn: e.target.value.slice(0, maxLen) })
-                }
-                error={errors.text_en}
-              />
-            </div>
-          ) : value.writingLanguage === "ar" ? (
-            <Input
-              label={`الاسم أو النص بالعربية * (حتى ${maxLen})`}
-              value={value.textAr}
-              maxLength={maxLen}
-              dir="rtl"
-              onChange={(e) =>
-                patch({ textAr: e.target.value.slice(0, maxLen) })
-              }
-              error={errors.text_ar}
-            />
-          ) : (
-            <Input
-              label={`Name or Text in English * (max ${maxLen})`}
-              value={value.textEn}
-              maxLength={maxLen}
-              dir="ltr"
-              onChange={(e) =>
-                patch({ textEn: e.target.value.slice(0, maxLen) })
-              }
-              error={errors.text_en}
-            />
-          )}
+          <p className="text-xs text-muted">{t.personalizationUi.freeTextHint}</p>
 
           {showFontSelection ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {showArabic ? (
-                <Select
-                  label="خط العربية"
-                  value={value.fontAr}
-                  onChange={(e) =>
-                    patch({ fontAr: e.target.value as ArabicFont })
-                  }
-                  options={ARABIC_FONT_OPTIONS.map((o) => ({
-                    value: o.value,
-                    label: o.label,
-                  }))}
-                />
-              ) : null}
-              {showEnglish ? (
-                <Select
-                  label="English Font"
-                  value={value.fontEn}
-                  dir="ltr"
-                  onChange={(e) =>
-                    patch({ fontEn: e.target.value as EnglishFont })
-                  }
-                  options={ENGLISH_FONT_OPTIONS.map((o) => ({
-                    value: o.value,
-                    label: o.label,
-                  }))}
-                />
-              ) : null}
-            </div>
+            <Select
+              label={t.personalizationUi.font}
+              value={value.fontAr}
+              onChange={(e) => {
+                const fontAr = e.target.value as ArabicFont;
+                patch({
+                  fontAr,
+                  fontEn: englishFontFromPrimary(fontAr),
+                });
+              }}
+              options={arFontOptions}
+            />
           ) : null}
 
           {showColorSelection ? (
             <div>
-              <p className="mb-3 text-sm font-medium">لون الكتابة</p>
+              <p className="mb-3 text-sm font-medium">{t.personalizationUi.writingColor}</p>
               <div className="flex flex-wrap gap-2">
-                {WRITING_COLOR_OPTIONS.map((opt) => (
+                {colorOptions.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
@@ -224,23 +194,10 @@ export function VeilRobePersonalizationFields({
             </div>
           ) : null}
 
-          <Select
-            label="موضع الكتابة"
-            value={value.position}
-            dir="ltr"
-            onChange={(e) =>
-              patch({ position: e.target.value as WritingPosition })
-            }
-            options={positionOptions.map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
-          />
-
           <PersonalizationPreview
-            writingLanguage={value.writingLanguage}
+            writingLanguage="ar"
             textAr={value.textAr}
-            textEn={value.textEn}
+            textEn=""
             fontAr={value.fontAr}
             fontEn={value.fontEn}
             color={value.color}
@@ -255,7 +212,7 @@ export function defaultVeilRobePersonalizationState(
   personalizationType: PersonalizationProductType
 ): VeilRobePersonalizationState {
   return {
-    enabled: true,
+    enabled: false,
     writingLanguage: "ar",
     textAr: "",
     textEn: "",

@@ -117,6 +117,12 @@ export async function POST(request: Request) {
     } else if (action === "unarchive") {
       result = await unarchiveRecord(supabase, body.module, id, actor);
     } else if (action === "soft_delete") {
+      if (body.module === "bookings") {
+        const { prepareBookingSoftDelete } = await import(
+          "@/lib/admin/booking-soft-delete"
+        );
+        await prepareBookingSoftDelete(supabase, id);
+      }
       result = await softDeleteRecord(
         supabase,
         body.module,

@@ -14,6 +14,8 @@ import { Input, Select } from "@/components/ui/Input";
 import { ManualBookingModal } from "@/components/admin/appointments/ManualBookingModal";
 import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage, localeHtmlLang, localizedName } from "@/lib/i18n";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -54,6 +56,9 @@ export function AppointmentCalendar({
 }: {
   canForceOverride?: boolean;
 }) {
+  const { locale, dir, t } = useLocale();
+  const bu = t.admin.bookingsUi;
+  const dateLocale = localeHtmlLang(locale);
   const [view, setView] = useState<ViewMode>("week");
   const [anchor, setAnchor] = useState(() => new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -80,16 +85,16 @@ export function AppointmentCalendar({
       ]);
       const bData = await bRes.json();
       const cData = await cRes.json();
-      if (!bRes.ok) throw new Error(bData.error || "فشل جلب الحجوزات");
+      if (!bRes.ok) throw new Error(bData.error || bu.loadFailed);
       setBookings(Array.isArray(bData) ? bData : []);
       setConsultants(Array.isArray(cData.consultants) ? cData.consultants : []);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "خطأ");
+      setError(e instanceof Error ? e.message : bu.genericError);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bu.loadFailed, bu.genericError]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -100,8 +105,12 @@ export function AppointmentCalendar({
 
   const consultantName = useCallback(
     (id?: string | null) =>
-      consultants.find((c) => c.id === id)?.name_ar || "—",
-    [consultants]
+      localizedName(
+        consultants.find((c) => c.id === id),
+        locale,
+        "—"
+      ) || "—",
+    [consultants, locale]
   );
 
   const days = useMemo(() => {
@@ -155,14 +164,14 @@ export function AppointmentCalendar({
       const data = await res.json();
       if (res.status === 409 && canForceOverride && !force) {
         setForceConfirm(true);
-        throw new Error(data.message || "تعارض");
+        throw new Error(data.message || bu.conflict);
       }
-      if (!res.ok) throw new Error(data.message || data.error || "فشل التحديث");
+      if (!res.ok) throw new Error(data.message || data.error || bu.updateFailed);
       await load();
       setSelected(null);
       setForceConfirm(false);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "خطأ");
+      alert(e instanceof Error ? e.message : bu.genericError);
     } finally {
       setSaving(false);
     }
@@ -181,13 +190,16 @@ export function AppointmentCalendar({
 
   const title =
     view === "day"
-      ? anchor.toLocaleDateString("ar")
+      ? anchor.toLocaleDateString(dateLocale)
       : view === "week"
-        ? `أسبوع ${dayKey(startOfWeek(anchor))}`
-        : anchor.toLocaleDateString("ar", { month: "long", year: "numeric" });
+        ? formatMessage(bu.weekOf, { date: dayKey(startOfWeek(anchor)) })
+        : anchor.toLocaleDateString(dateLocale, {
+            month: "long",
+            year: "numeric",
+          });
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={dir}>
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <div className="flex flex-wrap gap-2">
           {(["day", "week", "month"] as ViewMode[]).map((v) => (
@@ -202,7 +214,11 @@ export function AppointmentCalendar({
                   : "border border-beige-dark hover:bg-beige"
               )}
             >
-              {v === "day" ? "يوم" : v === "week" ? "أسبوع" : "شهر"}
+              {v === "day"
+                ? bu.viewDay
+                : v === "week"
+                  ? bu.viewWeek
+                  : bu.viewMonth}
             </button>
           ))}
         </div>
@@ -218,10 +234,10 @@ export function AppointmentCalendar({
               )
             }
           >
-            السابق
+            {t.common.previous}
           </Button>
           <Button variant="outline" onClick={() => setAnchor(new Date())}>
-            اليوم
+            {bu.today}
           </Button>
           <Button
             variant="outline"
@@ -234,7 +250,7 @@ export function AppointmentCalendar({
               )
             }
           >
-            التالي
+            {t.common.next}
           </Button>
           <span className="px-2 text-sm font-medium text-charcoal">{title}</span>
           <Button
@@ -243,19 +259,19 @@ export function AppointmentCalendar({
               setManualOpen(true);
             }}
           >
-            إضافة حجز يدوي
+            {bu.addManual}
           </Button>
           <Button variant="outline" onClick={() => window.print()}>
-            طباعة الجدول
+            {bu.printSchedule}
           </Button>
           <Button variant="outline" loading={loading} onClick={() => void load()}>
-            تحديث
+            {bu.refresh}
           </Button>
         </div>
       </div>
 
       <div className="print:block hidden print:mb-4">
-        <h1 className="text-2xl font-bold">جدول مواعيد NadEEN Designs</h1>
+        <h1 className="text-2xl font-bold">{bu.schedulePrintTitle}</h1>
         <p>{title}</p>
       </div>
 
@@ -266,12 +282,20 @@ export function AppointmentCalendar({
       )}
 
       <div className="flex flex-wrap gap-3 text-xs text-muted print:hidden">
-        <span className="rounded-lg bg-emerald-100 px-2 py-1">أونلاين</span>
-        <span className="rounded-lg bg-sky-100 px-2 py-1">هاتف</span>
-        <span className="rounded-lg bg-orange-100 px-2 py-1">حضور</span>
-        <span className="rounded-lg bg-amber-100 px-2 py-1">VIP</span>
-        <span className="rounded-lg bg-stone-100 px-2 py-1">مكتمل</span>
-        <span className="rounded-lg bg-red-100 px-2 py-1">ملغي</span>
+        <span className="rounded-lg bg-emerald-100 px-2 py-1">
+          {bu.legendOnline}
+        </span>
+        <span className="rounded-lg bg-sky-100 px-2 py-1">{bu.legendPhone}</span>
+        <span className="rounded-lg bg-orange-100 px-2 py-1">
+          {bu.legendWalkIn}
+        </span>
+        <span className="rounded-lg bg-amber-100 px-2 py-1">{bu.legendVip}</span>
+        <span className="rounded-lg bg-stone-100 px-2 py-1">
+          {bu.legendCompleted}
+        </span>
+        <span className="rounded-lg bg-red-100 px-2 py-1">
+          {bu.legendCancelled}
+        </span>
       </div>
 
       <div
@@ -304,7 +328,7 @@ export function AppointmentCalendar({
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold text-charcoal">
-                  {d.toLocaleDateString("ar", {
+                  {d.toLocaleDateString(dateLocale, {
                     weekday: "short",
                     day: "numeric",
                     month: view === "month" ? "short" : undefined,
@@ -323,7 +347,7 @@ export function AppointmentCalendar({
               </div>
               <div className="space-y-1.5">
                 {list.length === 0 ? (
-                  <p className="text-xs text-muted">لا مواعيد</p>
+                  <p className="text-xs text-muted">{bu.noAppointmentsDay}</p>
                 ) : (
                   list.map((b) => (
                     <button
@@ -334,7 +358,7 @@ export function AppointmentCalendar({
                       onDragEnd={() => setDragId(null)}
                       onClick={() => openEdit(b)}
                       className={cn(
-                        "w-full rounded-lg border px-2 py-1.5 text-right text-xs transition hover:opacity-90",
+                        "w-full rounded-lg border px-2 py-1.5 text-start text-xs transition hover:opacity-90",
                         sourceColor(b)
                       )}
                     >
@@ -370,36 +394,36 @@ export function AppointmentCalendar({
             </p>
             <div className="mt-4 space-y-3">
               <Input
-                label="التاريخ"
+                label={bu.dateLabel}
                 type="date"
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
               />
               <Input
-                label="الوقت"
+                label={bu.timeLabel}
                 type="time"
                 value={editTime}
                 onChange={(e) => setEditTime(e.target.value)}
               />
               <Select
-                label="المدة"
+                label={bu.durationLabel}
                 value={String(editDuration)}
                 onChange={(e) => setEditDuration(Number(e.target.value))}
                 options={[
-                  { value: "45", label: "45 دقيقة" },
-                  { value: "60", label: "60 دقيقة" },
-                  { value: "90", label: "90 دقيقة" },
+                  { value: "45", label: bu.duration45 },
+                  { value: "60", label: bu.duration60 },
+                  { value: "90", label: bu.duration90 },
                 ]}
               />
               <Select
-                label="المستشارة"
+                label={bu.consultantLabel}
                 value={editConsultant}
                 onChange={(e) => setEditConsultant(e.target.value)}
                 options={[
-                  { value: "", label: "بدون تعيين" },
+                  { value: "", label: bu.unassigned },
                   ...consultants.map((c) => ({
                     value: c.id,
-                    label: c.name_ar,
+                    label: localizedName(c, locale, c.name_ar),
                   })),
                 ]}
               />
@@ -410,33 +434,33 @@ export function AppointmentCalendar({
                 variant="outline"
                 onClick={() => lifecycle("arrived")}
               >
-                وصلت العميلة
+                {bu.lifecycleArrived}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => lifecycle("started")}
               >
-                بدأ الموعد
+                {bu.lifecycleStarted}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => lifecycle("completed")}
               >
-                انتهى الموعد
+                {bu.lifecycleCompleted}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => lifecycle("no_show")}
               >
-                لم تحضر
+                {bu.lifecycleNoShow}
               </Button>
             </div>
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <Button variant="outline" onClick={() => setSelected(null)}>
-                إغلاق
+                {bu.close}
               </Button>
               <Button
                 loading={saving}
@@ -449,7 +473,7 @@ export function AppointmentCalendar({
                   })
                 }
               >
-                حفظ التعديل
+                {bu.saveEdit}
               </Button>
             </div>
           </div>
@@ -467,9 +491,9 @@ export function AppointmentCalendar({
 
       <ConfirmDialog
         open={forceConfirm}
-        title="تجاوز التعارض؟"
-        description="الموعد متعارض. التجاوز للمالك فقط ويُسجَّل في سجل النشاط."
-        confirmLabel="تجاوز وحفظ"
+        title={bu.forceOverrideTitle}
+        description={bu.forceOverrideDesc}
+        confirmLabel={bu.forceOverrideConfirm}
         onCancel={() => setForceConfirm(false)}
         onConfirm={() => {
           if (!selected) return;

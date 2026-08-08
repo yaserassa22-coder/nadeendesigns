@@ -1,8 +1,26 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { Palette, Ruler } from "lucide-react";
 import { ProductDescription } from "@/components/product/ProductDescription";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { ProductPrice } from "@/components/product/ProductPrice";
 import { ProductCardBadges } from "@/components/product/ProductCardBadges";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import {
+  localizeArabicProductText,
+  resolveDressColorLabel,
+  resolveDressMaterialLabel,
+  resolveDressStyleLabel,
+} from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n/types";
+
+export type ProductDetailMetaItem = {
+  key: string;
+  /** Raw DB value (preferred) or pre-resolved label — localized with live locale. */
+  label: string;
+  icon?: "palette" | "ruler";
+};
 
 interface ProductDetailLayoutProps {
   images: string[];
@@ -24,11 +42,35 @@ interface ProductDetailLayoutProps {
   tags?: string[] | null;
   /** Wishlist control for gallery overlay (TR). */
   galleryWishlist?: ReactNode;
-  meta?: ReactNode;
+  /** Attribute chips — serializable data so list keys stay in this component. */
+  metaItems?: ProductDetailMetaItem[];
   /** Purchase CTAs only — immediately below price. */
   actions?: ReactNode;
   below?: ReactNode;
   related?: ReactNode;
+}
+
+function MetaIcon({
+  name,
+}: {
+  name: NonNullable<ProductDetailMetaItem["icon"]>;
+}) {
+  if (name === "palette") {
+    return <Palette className="h-4 w-4 text-gold" aria-hidden />;
+  }
+  return <Ruler className="h-4 w-4 text-gold" aria-hidden />;
+}
+
+function resolveMetaLabel(key: string, raw: string, locale: Locale): string {
+  const value = raw.trim();
+  if (!value) return "";
+  if (key === "color") return resolveDressColorLabel(value, locale);
+  if (key === "material") return resolveDressMaterialLabel(value, locale);
+  if (key === "style") return resolveDressStyleLabel(value, locale);
+  if (/[\u0600-\u06FF]/.test(value) && locale !== "ar") {
+    return localizeArabicProductText(value, locale);
+  }
+  return value;
 }
 
 /**
@@ -46,19 +88,32 @@ export function ProductDetailLayout({
   priceSuffix,
   description,
   available = true,
-  unavailableMessage = "نفد المخزون",
+  unavailableMessage,
   availabilityLabel,
   isFeatured,
   tags,
   galleryWishlist,
-  meta,
+  metaItems,
   actions,
   below,
   related,
 }: ProductDetailLayoutProps) {
+  const { t, locale } = useLocale();
+  const unavailable = unavailableMessage ?? t.productExtras.outOfStock;
   const showAvailability =
     availabilityLabel ??
-    (available ? "✓ متوفر" : unavailableMessage);
+    (available ? t.productExtras.inStock : unavailable);
+  const chips = (metaItems ?? [])
+    .map((item) => ({
+      ...item,
+      label: resolveMetaLabel(item.key, item.label, locale),
+    }))
+    .filter((item) => item.label.trim());
+
+  const resolvedDescription =
+    description && /[\u0600-\u06FF]/.test(description) && locale !== "ar"
+      ? localizeArabicProductText(description, locale)
+      : description;
 
   return (
     <section className="pt-28 pb-16 md:pt-36 md:pb-24">
@@ -79,11 +134,11 @@ export function ProductDetailLayout({
           />
 
           <div className="min-w-0 lg:sticky lg:top-32">
-            {categoryLabel && (
+            {categoryLabel ? (
               <p className="text-xs tracking-[0.22em] text-gold uppercase md:text-sm">
                 {categoryLabel}
               </p>
-            )}
+            ) : null}
             <h1 className="mt-3 font-[family-name:var(--font-cormorant)] text-4xl font-semibold leading-tight tracking-wide text-charcoal md:text-5xl">
               {name}
             </h1>
@@ -108,24 +163,34 @@ export function ProductDetailLayout({
               </p>
             </div>
 
-            {actions && (
-              <div className="mt-7 w-full">{actions}</div>
-            )}
+            {actions ? <div className="mt-7 w-full">{actions}</div> : null}
 
-            {meta && (
-              <div className="mt-8 flex flex-wrap gap-2">{meta}</div>
-            )}
+            {chips.length > 0 ? (
+              <div className="mt-8 flex flex-wrap gap-2">
+                {chips.map((item) => (
+                  <span
+                    key={item.key}
+                    className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm"
+                  >
+                    {item.icon ? <MetaIcon name={item.icon} /> : null}
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
-            {description ? (
+            {resolvedDescription ? (
               <div className="mt-10 border-t border-beige-dark/60 pt-8">
-                <ProductDescription text={description} className="mt-0" />
+                <ProductDescription text={resolvedDescription} className="mt-0" />
               </div>
             ) : null}
           </div>
         </div>
 
-        {below}
-        {related}
+        {[
+          below != null ? <div key="pdp-below">{below}</div> : null,
+          related != null ? <div key="pdp-related">{related}</div> : null,
+        ]}
       </div>
     </section>
   );

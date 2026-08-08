@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
 import { ExperienceEngineShell } from "@/components/admin/experience/ExperienceEngineShell";
 import { listExperienceTemplates } from "@/lib/products/experience-templates";
+import { getLocale } from "@/lib/i18n/server";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "قوالب التجربة",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return { title: getDictionary(locale).admin.experienceUi.templates };
+}
 
 export default async function ExperienceTemplatesPage() {
   const templates = await listExperienceTemplates();
+  const locale = await getLocale();
+  const eu = getDictionary(locale).admin.experienceUi;
 
   return (
-    <ExperienceEngineShell
-      title="القوالب"
-      description="قوالب تجربة المنتج من Sprint 2A. يمكن تطبيقها من تبويب «تجربة المنتج» في محرر المنتج — دون محرك موازٍ."
-    >
+    <ExperienceEngineShell page="templates">
       {templates.length === 0 ? (
-        <p className="text-sm text-muted">
-          لا توجد قوالب بعد. طبّقي ترحيل 038 أو أنشئي قالبًا من محرر المنتج.
-        </p>
+        <p className="text-sm text-muted">{eu.templatesDesc}</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((t) => (
@@ -31,7 +31,7 @@ export default async function ExperienceTemplatesPage() {
                 </h2>
                 {t.is_system ? (
                   <span className="rounded-full bg-beige px-2 py-0.5 text-[10px] text-muted">
-                    نظام
+                    system
                   </span>
                 ) : null}
               </div>

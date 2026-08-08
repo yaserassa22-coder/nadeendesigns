@@ -12,6 +12,13 @@ import { featuredImage } from "@/lib/products/featured-image";
 import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { shopStockAvailability } from "@/lib/products/storefront-availability";
 import { resolveStorefrontProductExperience } from "@/lib/products/resolve-storefront-experience";
+import { getStorefrontLocale } from "@/lib/i18n/server";
+import {
+  getDictionary,
+  localizedDescription,
+  localizedName,
+  resolveCatalogLabel,
+} from "@/lib/i18n";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,11 +27,15 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const veil = await getVeilById(id);
-  if (!veil) return { title: "غير موجود" };
+  if (!veil) {
+    const locale = await getStorefrontLocale();
+    return { title: getDictionary(locale).common.notFound };
+  }
+  const locale = await getStorefrontLocale();
   const og = featuredImage(veil.images);
   return {
-    title: veil.name_ar,
-    description: veil.description_ar,
+    title: localizedName(veil, locale, veil.name_ar),
+    description: localizedDescription(veil, locale, veil.description_ar ?? ""),
     openGraph: { images: og ? [og] : [] },
   };
 }
@@ -33,6 +44,9 @@ export default async function VeilDetailPage({ params }: Props) {
   const { id } = await params;
   const veil = await getVeilById(id);
   if (!veil) notFound();
+  const locale = await getStorefrontLocale();
+  const t = getDictionary(locale);
+  const displayName = localizedName(veil, locale, veil.name_ar);
 
   const related = (await getVeils())
     .filter((v) => v.id !== veil.id)
@@ -52,6 +66,7 @@ export default async function VeilDetailPage({ params }: Props) {
   const stock = shopStockAvailability({
     isAvailable: veil.is_available,
     stockQuantity: veil.stock_quantity,
+    locale,
   });
   const experience = await resolveStorefrontProductExperience({
     productId: veil.id,
@@ -71,15 +86,13 @@ export default async function VeilDetailPage({ params }: Props) {
     productKind: "veil" as const,
     productId: veil.id,
     productSlug: veil.id,
-    productTitle: veil.name_ar,
+    productTitle: displayName,
     productImageUrl: featuredImage(veil.images),
   };
-  const wishlistControl = isFeatureEnabled(
+  const wishlistEnabled = isFeatureEnabled(
     experience.enabledFeatureIds,
     "wishlist"
-  ) ? (
-    <WishlistButton {...wishlistProps} />
-  ) : null;
+  );
 
   return (
     <>
@@ -87,34 +100,28 @@ export default async function VeilDetailPage({ params }: Props) {
         productKind="veil"
         productId={veil.id}
         productSlug={veil.id}
-        productTitle={veil.name_ar}
+        productTitle={displayName}
         productImageUrl={featuredImage(veil.images)}
       />
       <ProductDetailLayout
         images={veil.images}
-        name={veil.name_ar}
-        categoryLabel={`طرحة العروس · ${veil.category}`}
+        name={displayName}
+        categoryLabel={`${t.nav.veils} · ${resolveCatalogLabel(veil.category, locale)}`}
         price={veil.price}
         salePrice={veil.sale_price}
-        description={veil.description_ar}
+        description={localizedDescription(veil, locale, veil.description_ar ?? "")}
         available={stock.available}
         availabilityLabel={stock.label}
         isFeatured={veil.is_featured}
-        galleryWishlist={wishlistControl}
-        meta={
-          <>
-            {veil.color && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                {veil.color}
-              </span>
-            )}
-            {veil.material && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-beige px-4 py-2 text-sm">
-                {veil.material}
-              </span>
-            )}
-          </>
+        galleryWishlist={
+          wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
         }
+        metaItems={[
+          ...(veil.color ? [{ key: "color", label: veil.color }] : []),
+          ...(veil.material
+            ? [{ key: "material", label: veil.material }]
+            : []),
+        ]}
         actions={
           stock.available ? (
             <ProductPrimaryCta
@@ -125,6 +132,8 @@ export default async function VeilDetailPage({ params }: Props) {
               shopProductType="veil"
               productId={veil.id}
               nameAr={veil.name_ar}
+              nameEn={veil.name_en}
+              nameHe={veil.name_he}
               price={veil.price}
               salePrice={veil.sale_price}
               image={featuredImage(veil.images)}
@@ -132,17 +141,19 @@ export default async function VeilDetailPage({ params }: Props) {
               experienceConfig={experience.experienceConfig}
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
-              wishlist={wishlistControl}
+              wishlist={
+                wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+              }
             />
-          ) : (
-            wishlistControl
-          )
+          ) : wishlistEnabled ? (
+            <WishlistButton {...wishlistProps} />
+          ) : null
         }
         below={
           <div className="mt-6">
             <Link href="/veils" className="inline-block">
               <Button variant="ghost" size="md">
-                العودة لطرحة العروس
+                {t.product.backToVeils}
               </Button>
             </Link>
           </div>

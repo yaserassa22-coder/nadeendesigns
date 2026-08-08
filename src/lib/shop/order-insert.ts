@@ -34,6 +34,7 @@ export type CheckoutOrderBody = {
     order_options?: ShopOrderItem["order_options"];
     extra_services?: ShopOrderItem["extra_services"];
     personalization_fee?: number | null;
+    gift_fee?: number | null;
     requires_shipping?: boolean | null;
   }>;
   gift_options?: ShopOrder["gift_options"];
@@ -47,6 +48,7 @@ export type CheckoutOrderBody = {
   shipping_fee?: number;
   notify_whatsapp?: boolean;
   notify_email?: boolean;
+  payment_provider_id?: string | null;
 };
 
 export type RegionMatch = {
@@ -188,7 +190,9 @@ export function resolveDeliveryShipping(input: {
       : 0;
     const pers = Number(i.personalization_fee ?? 0);
     const persSafe = Number.isFinite(pers) && pers > 0 ? pers : 0;
-    return sum + (base + extras + persSafe) * qty;
+    const gift = Number(i.gift_fee ?? 0);
+    const giftSafe = Number.isFinite(gift) && gift > 0 ? gift : 0;
+    return sum + (base + extras + persSafe + giftSafe) * qty;
   }, 0);
 
   let regionId: string | null = null;
@@ -297,6 +301,10 @@ export function buildShopOrderRow(
         i.personalization_fee != null && Number(i.personalization_fee) > 0
           ? Number(i.personalization_fee)
           : null,
+      gift_fee:
+        i.gift_fee != null && Number(i.gift_fee) > 0
+          ? Number(i.gift_fee)
+          : null,
       requires_shipping:
         i.requires_shipping === true
           ? true
@@ -333,6 +341,8 @@ export function buildShopOrderRow(
     carrier_code: null,
     notify_whatsapp: body.notify_whatsapp ?? true,
     notify_email: body.notify_email ?? true,
+    payment_provider_id: body.payment_provider_id?.trim() || "cod",
+    payment_status: "unpaid",
   };
 }
 
@@ -387,6 +397,12 @@ export function buildProgressiveInsertPayloads(row: ShopOrder): InsertPayload[] 
     notify_email: row.notify_email ?? true,
     ...(row.customer_id ? { customer_id: row.customer_id } : {}),
     ...(row.guest_id ? { guest_id: row.guest_id } : {}),
+    ...(row.payment_provider_id
+      ? {
+          payment_provider_id: row.payment_provider_id,
+          payment_status: row.payment_status ?? "unpaid",
+        }
+      : {}),
   };
 
   const customerPatch = {

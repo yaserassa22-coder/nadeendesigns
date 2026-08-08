@@ -1,5 +1,9 @@
 import { Resend } from "resend";
 import { getEmailRuntime } from "@/lib/notifications/email-provider";
+import {
+  pushLocalOutbox,
+  shouldUseLocalNotificationOutbox,
+} from "@/lib/notifications/local-outbox";
 
 /** Map Resend API errors to actionable Arabic copy. */
 function mapResendError(message: string): string {
@@ -51,6 +55,23 @@ export async function sendEmail(params: {
   }
 
   if (!runtime.enabled) {
+    // Local/dev: still capture so appointment confirm can be tested
+    if (shouldUseLocalNotificationOutbox() && !params.requireDelivery) {
+      const row = pushLocalOutbox({
+        channel: "email",
+        to,
+        subject: params.subject,
+        body: params.text || params.subject,
+        html: params.html,
+        meta: { reason: "email_disabled_local_capture" },
+      });
+      console.info("[email] local outbox (provider disabled)", {
+        id: row.id,
+        to,
+        subject: params.subject,
+      });
+      return { ok: true, id: row.id, local: true };
+    }
     return {
       ok: false,
       error: "إرسال البريد متوقف من إعدادات الإدارة",
@@ -60,7 +81,11 @@ export async function sendEmail(params: {
   const useLocal =
     runtime.mode === "local" ||
     !runtime.apiKey ||
-    !runtime.fromEmail;
+    !runtime.fromEmail ||
+    // Sandbox Resend only reaches the Resend account inbox — capture locally in dev
+    (shouldUseLocalNotificationOutbox() &&
+      runtime.fromIsSandbox &&
+      !params.requireDelivery);
 
   if (useLocal) {
     if (params.requireDelivery) {
@@ -70,16 +95,21 @@ export async function sendEmail(params: {
           "البريد غير جاهز للإرسال الخارجي. من الإشعارات: وصّلي Resend بوضع Resend + FROM من نطاق موثّق.",
       };
     }
-    const localId = `local_${Date.now()}`;
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[email] local outbox (not sent externally)", {
-        to,
-        subject: params.subject,
-        id: localId,
-        from: runtime.fromEmail || "(none)",
-      });
-    }
-    return { ok: true, id: localId, local: true };
+    const row = pushLocalOutbox({
+      channel: "email",
+      to,
+      subject: params.subject,
+      body: params.text || params.subject,
+      html: params.html,
+      meta: { from: runtime.fromEmail || null, mode: runtime.mode },
+    });
+    console.info("[email] local outbox (not sent externally)", {
+      to,
+      subject: params.subject,
+      id: row.id,
+      from: runtime.fromEmail || "(none)",
+    });
+    return { ok: true, id: row.id, local: true };
   }
 
   try {
@@ -111,10 +141,30 @@ export async function sendEmail(params: {
 
     if (error) {
       console.error("[email] Resend error", error);
-      return {
-        ok: false,
-        error: mapResendError(error.message || "فشل إرسال البريد عبر Resend"),
-      };
+      const mapped = mapResendError(
+        error.message || "فشل إرسال البريد عبر Resend"
+      );
+      // Dev / pre-domain: keep appointment flow testable when Resend rejects
+      if (shouldUseLocalNotificationOutbox() && !params.requireDelivery) {
+        const row = pushLocalOutbox({
+          channel: "email",
+          to,
+          subject: params.subject,
+          body: params.text || params.subject,
+          html: params.html,
+          meta: {
+            reason: "resend_failed_local_fallback",
+            resend_error: mapped,
+          },
+        });
+        console.info("[email] local outbox (Resend failed)", {
+          id: row.id,
+          to,
+          error: mapped,
+        });
+        return { ok: true, id: row.id, local: true };
+      }
+      return { ok: false, error: mapped };
     }
 
     if (process.env.NODE_ENV !== "production") {
@@ -123,10 +173,19 @@ export async function sendEmail(params: {
     return { ok: true, id: data?.id };
   } catch (e) {
     console.error("[email] unexpected", e);
-    return {
-      ok: false,
-      error:
-        e instanceof Error ? e.message : "خطأ غير متوقع أثناء إرسال البريد",
-    };
+    const message =
+      e instanceof Error ? e.message : "خطأ غير متوقع أثناء إرسال البريد";
+    if (shouldUseLocalNotificationOutbox() && !params.requireDelivery) {
+      const row = pushLocalOutbox({
+        channel: "email",
+        to,
+        subject: params.subject,
+        body: params.text || params.subject,
+        html: params.html,
+        meta: { reason: "resend_exception_local_fallback", error: message },
+      });
+      return { ok: true, id: row.id, local: true };
+    }
+    return { ok: false, error: message };
   }
 }

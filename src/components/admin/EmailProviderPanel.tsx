@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -17,6 +18,8 @@ const STATUS_STYLES: Record<
 };
 
 export function EmailProviderPanel() {
+  const { t } = useLocale();
+  const ep = t.admin.emailProvider;
   const [status, setStatus] = useState<EmailProviderPublicStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,11 +57,11 @@ export function EmailProviderPanel() {
         const data = (await res.json()) as EmailProviderPublicStatus & {
           error?: string;
         };
-        if (!res.ok) throw new Error(data.error || "تعذّر تحميل إعدادات البريد");
+        if (!res.ok) throw new Error(data.error || ep.loadFailed);
         if (!cancelled) applyStatus(data);
       } catch (e) {
         if (!cancelled) {
-          setMessage(e instanceof Error ? e.message : "حدث خطأ");
+          setMessage(e instanceof Error ? e.message : ep.genericError);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -92,19 +95,19 @@ export function EmailProviderPanel() {
         error?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.error || "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error || ep.saveFailed);
       applyStatus(data);
       setApiKeyInput("");
-      setMessage(data.message || "تم حفظ إعدادات البريد");
+      setMessage(data.message || ep.saved);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "حدث خطأ");
+      setMessage(e instanceof Error ? e.message : ep.genericError);
     } finally {
       setSaving(false);
     }
   };
 
   const clearKey = async () => {
-    if (!confirm("إزالة مفتاح Resend المحفوظ في الإدارة؟ (يبقى مفتاح البيئة إن وُجد)")) {
+    if (!confirm(ep.clearConfirm)) {
       return;
     }
     setSaving(true);
@@ -118,12 +121,12 @@ export function EmailProviderPanel() {
       const data = (await res.json()) as EmailProviderPublicStatus & {
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || "فشل المسح");
+      if (!res.ok) throw new Error(data.error || ep.clearFailed);
       applyStatus(data);
       setApiKeyInput("");
-      setMessage("تم مسح مفتاح Resend من إعدادات الإدارة");
+      setMessage(ep.cleared);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "حدث خطأ");
+      setMessage(e instanceof Error ? e.message : ep.genericError);
     } finally {
       setSaving(false);
     }
@@ -144,14 +147,14 @@ export function EmailProviderPanel() {
         emailId?: string | null;
         local?: boolean;
       };
-      if (!res.ok) throw new Error(data.error || "فشل إرسال بريد الاختبار");
+      if (!res.ok) throw new Error(data.error || ep.testFailed);
       setTestMessage(
-        `${data.local ? "○ محلي: " : "✓ "}${data.message || "تم"}${
+        `${data.local ? ep.localPrefix : "✓ "}${data.message || ep.done}${
           data.emailId ? ` — ${data.emailId}` : ""
         }`
       );
     } catch (e) {
-      setTestMessage(e instanceof Error ? e.message : "حدث خطأ");
+      setTestMessage(e instanceof Error ? e.message : ep.genericError);
     } finally {
       setTestSending(false);
     }
@@ -160,7 +163,7 @@ export function EmailProviderPanel() {
   if (loading && !status) {
     return (
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
-        <p className="text-sm text-muted">جاري تحميل إعدادات البريد…</p>
+        <p className="text-sm text-muted">{ep.loading}</p>
       </section>
     );
   }
@@ -172,7 +175,7 @@ export function EmailProviderPanel() {
           className={`rounded-2xl border px-5 py-4 text-sm ${STATUS_STYLES[status.status]}`}
           role="status"
         >
-          <p className="font-semibold">حالة البريد</p>
+          <p className="font-semibold">{ep.statusTitle}</p>
           <p className="mt-1 leading-relaxed">{status.status_message_ar}</p>
           <p className="mt-2 text-xs opacity-80" dir="ltr">
             key: {status.api_key_preview || "—"} ({status.api_key_source})
@@ -184,12 +187,9 @@ export function EmailProviderPanel() {
 
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-charcoal">
-          اتصال Resend (بدون تعديل كود)
+          {ep.connectionTitle}
         </h2>
-        <p className="mt-1 text-sm text-muted">
-          محلياً: اختاري «محلي». بعد شراء Resend وتوثيق النطاق: الصقي المفتاح،
-          ضعي FROM من نطاقك، واختاري «Resend».
-        </p>
+        <p className="mt-1 text-sm text-muted">{ep.connectionHint}</p>
 
         <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark/60 px-4 py-3 text-sm">
           <input
@@ -199,15 +199,15 @@ export function EmailProviderPanel() {
             onChange={(e) => setEnabled(e.target.checked)}
           />
           <span>
-            <span className="font-medium text-charcoal">تفعيل إرسال البريد</span>
+            <span className="font-medium text-charcoal">{ep.enableSending}</span>
             <span className="mt-0.5 block text-xs text-muted">
-              يتوافق أيضاً مع إعدادات المتجر → قنوات الإشعارات
+              {ep.enableSendingHint}
             </span>
           </span>
         </label>
 
         <fieldset className="mt-4 space-y-2">
-          <legend className="text-sm font-medium text-charcoal">وضع التسليم</legend>
+          <legend className="text-sm font-medium text-charcoal">{ep.deliveryMode}</legend>
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark/60 px-4 py-3 text-sm">
             <input
               type="radio"
@@ -217,10 +217,9 @@ export function EmailProviderPanel() {
               onChange={() => setMode("local")}
             />
             <span>
-              <span className="font-medium">محلي (الآن)</span>
+              <span className="font-medium">{ep.localMode}</span>
               <span className="mt-0.5 block text-xs text-muted">
-                الرسائل والردود تُحفظ وتعمل في الموقع دون إرسال خارجي — مثالي قبل
-                النطاق وResend
+                {ep.localModeHint}
               </span>
             </span>
           </label>
@@ -233,9 +232,9 @@ export function EmailProviderPanel() {
               onChange={() => setMode("resend")}
             />
             <span>
-              <span className="font-medium">Resend (إنتاج)</span>
+              <span className="font-medium">{ep.resendMode}</span>
               <span className="mt-0.5 block text-xs text-muted">
-                إرسال حقيقي عبر Resend — يحتاج مفتاح API و FROM من نطاق موثّق
+                {ep.resendModeHint}
               </span>
             </span>
           </label>
@@ -243,14 +242,14 @@ export function EmailProviderPanel() {
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Input
-            label="مفتاح Resend API"
+            label={ep.apiKey}
             type="password"
             value={apiKeyInput}
             onChange={(e) => setApiKeyInput(e.target.value)}
             dir="ltr"
             placeholder={
               status?.has_api_key
-                ? "اتركي فارغاً للإبقاء على المفتاح الحالي"
+                ? ep.apiKeyKeep
                 : "re_xxxxxxxx"
             }
             autoComplete="off"
@@ -263,19 +262,18 @@ export function EmailProviderPanel() {
                 onClick={() => void clearKey()}
                 disabled={saving}
               >
-                مسح المفتاح المحفوظ
+                {ep.clearKey}
               </Button>
             ) : null}
             {status?.env_fallback_available &&
             status.api_key_source === "env" ? (
               <p className="text-xs text-muted">
-                يُستخدم حالياً مفتاح من ملف البيئة — يمكنك لصق مفتاح جديد هنا
-                ليُحفظ في الإدارة بدل ذلك.
+                {ep.envKeyHint}
               </p>
             ) : null}
           </div>
           <Input
-            label="عنوان المرسل (FROM)"
+            label={ep.fromAddress}
             type="email"
             value={fromEmail}
             onChange={(e) => setFromEmail(e.target.value)}
@@ -283,19 +281,19 @@ export function EmailProviderPanel() {
             placeholder="hello@yourdomain.com"
           />
           <Input
-            label="اسم المرسل"
+            label={ep.senderName}
             value={fromName}
             onChange={(e) => setFromName(e.target.value)}
           />
           <Input
-            label="بريد الرد (Reply-To)"
+            label={ep.replyTo}
             type="email"
             value={replyTo}
             onChange={(e) => setReplyTo(e.target.value)}
             dir="ltr"
           />
           <Input
-            label="بريد إشعارات الإدارة"
+            label={ep.adminNotifyEmail}
             type="email"
             value={adminEmail}
             onChange={(e) => setAdminEmail(e.target.value)}
@@ -306,7 +304,7 @@ export function EmailProviderPanel() {
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <Button loading={saving} onClick={() => void save()}>
-            حفظ اتصال البريد
+            {ep.saveConnection}
           </Button>
           {message ? (
             <p className="text-sm text-muted" role="status">
@@ -317,15 +315,12 @@ export function EmailProviderPanel() {
       </section>
 
       <section className="rounded-2xl border border-beige-dark bg-white/90 p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-charcoal">اختبار الإرسال</h2>
-        <p className="mt-1 text-sm text-muted">
-          في الوضع المحلي يُسجَّل الاختبار دون إرسال خارجي. في وضع Resend تُرسل
-          رسالة حقيقية (مع sandbox فقط لبريد حساب Resend).
-        </p>
+        <h2 className="text-lg font-semibold text-charcoal">{ep.testTitle}</h2>
+        <p className="mt-1 text-sm text-muted">{ep.testHint}</p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex-1">
             <Input
-              label="إلى"
+              label={ep.testTo}
               type="email"
               value={testTo}
               onChange={(e) => setTestTo(e.target.value)}
@@ -338,7 +333,7 @@ export function EmailProviderPanel() {
             onClick={() => void sendTest()}
             disabled={!testTo.trim()}
           >
-            إرسال اختبار
+            {ep.sendTest}
           </Button>
         </div>
         {testMessage ? (

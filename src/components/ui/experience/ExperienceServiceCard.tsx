@@ -2,6 +2,7 @@
 
 import { Check, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type Props = {
   name: string;
@@ -28,6 +29,7 @@ export function ExperienceServiceCard({
   onToggle,
   className,
 }: Props) {
+  const { t } = useLocale();
   return (
     <button
       type="button"
@@ -69,7 +71,7 @@ export function ExperienceServiceCard({
           </span>
           {required ? (
             <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-medium tracking-wide text-gold">
-              إلزامي
+              {t.productExtras.required}
             </span>
           ) : null}
         </span>
@@ -98,10 +100,10 @@ export function ExperienceServiceCard({
           {selected ? (
             <>
               <Check className="h-3 w-3" strokeWidth={2.25} />
-              محدد
+              {t.productExtras.selected}
             </>
           ) : (
-            "اختاري"
+            t.productExtras.choose
           )}
         </span>
       </span>

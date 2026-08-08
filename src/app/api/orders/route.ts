@@ -132,14 +132,22 @@ function resolveStatusFromBody(body: {
   status?: string;
   action?: string;
 }): ShopOrderStatus | null {
-  if (body.status && isValidStatus(body.status)) return body.status;
-  if (body.action) {
+  let resolved: ShopOrderStatus | null = null;
+  if (body.status && isValidStatus(body.status)) {
+    resolved = body.status;
+  } else if (body.action) {
     const found = ORDER_WORKFLOW_ACTIONS.find(
       (a) => a.action === (body.action as OrderWorkflowAction)
     );
-    if (found) return found.status;
+    if (found) resolved = found.status;
   }
-  return null;
+  // Persist legacy "completed" as delivered so dropdown + DB stay aligned
+  if (resolved === "completed") return "delivered";
+  return resolved;
+}
+
+function normalizeStoredStatus(status: ShopOrderStatus): ShopOrderStatus {
+  return status === "completed" ? "delivered" : status;
 }
 
 function scheduleNotifications(task: () => Promise<void>) {
@@ -352,6 +360,20 @@ export async function POST(request: NextRequest) {
       memoryOrdersStore().unshift(row);
       console.info("[orders API] saved to memory (Supabase not configured)", row.id);
       scheduleNotifications(() => onOrderSubmitted(row));
+      scheduleNotifications(async () => {
+        try {
+          const { startOrderPayment } = await import("@/lib/payments/service");
+          const origin = new URL(request.url).origin;
+          await startOrderPayment({
+            order: row,
+            providerId: row.payment_provider_id || "cod",
+            returnUrl: `${origin}/orders/${row.id}`,
+            cancelUrl: `${origin}/checkout`,
+          });
+        } catch (e) {
+          console.error("[orders API] startOrderPayment failed", e);
+        }
+      });
       return NextResponse.json({ success: true, order: row });
     }
 
@@ -493,6 +515,20 @@ export async function POST(request: NextRequest) {
 
     console.info("[orders API] order saved", row.id);
     scheduleNotifications(() => onOrderSubmitted(row));
+    scheduleNotifications(async () => {
+      try {
+        const { startOrderPayment } = await import("@/lib/payments/service");
+        const origin = new URL(request.url).origin;
+        await startOrderPayment({
+          order: row,
+          providerId: row.payment_provider_id || "cod",
+          returnUrl: `${origin}/orders/${row.id}`,
+          cancelUrl: `${origin}/checkout`,
+        });
+      } catch (e) {
+        console.error("[orders API] startOrderPayment failed", e);
+      }
+    });
     return NextResponse.json({ success: true, order: row });
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -639,7 +675,7 @@ export async function PATCH(request: Request) {
       if (idx < 0) {
         return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
       }
-      const previous = store[idx].status;
+      const previous = normalizeStoredStatus(store[idx].status);
       let order = store[idx];
       if (hasShippingPatch) {
         order = { ...order, ...buildShippingUpdate(order) } as ShopOrder;
@@ -648,10 +684,17 @@ export async function PATCH(request: Request) {
       if (status && previous !== status) {
         store[idx] = { ...store[idx], status };
         order = store[idx];
-        scheduleNotifications(() =>
-          onOrderStatusChanged(order, previous, status, { paymentAmount })
-        );
-        return NextResponse.json({ success: true, status, order });
+        try {
+          await onOrderStatusChanged(order, previous, status, { paymentAmount });
+        } catch (e) {
+          console.error("[orders API] notification failed", e);
+        }
+        return NextResponse.json({
+          success: true,
+          status,
+          order,
+          notified: true,
+        });
       }
       if (status && previous === status && !hasShippingPatch) {
         return NextResponse.json({
@@ -678,7 +721,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
     }
 
-    const previous = existing.status as ShopOrderStatus;
+    const previous = normalizeStoredStatus(existing.status as ShopOrderStatus);
     const updatePayload: Record<string, unknown> = {};
     if (hasShippingPatch) {
       Object.assign(updatePayload, buildShippingUpdate(existing as ShopOrder));
@@ -711,10 +754,17 @@ export async function PATCH(request: Request) {
       ...updatePayload,
     };
     if (status && previous !== status) {
-      scheduleNotifications(() =>
-        onOrderStatusChanged(order, previous, status, { paymentAmount })
-      );
-      return NextResponse.json({ success: true, status, order });
+      try {
+        await onOrderStatusChanged(order, previous, status, { paymentAmount });
+      } catch (e) {
+        console.error("[orders API] notification failed", e);
+      }
+      return NextResponse.json({
+        success: true,
+        status,
+        order,
+        notified: true,
+      });
     }
     return NextResponse.json({ success: true, order });
   } catch (e) {

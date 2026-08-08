@@ -1,6 +1,7 @@
 "use client";
 
 import type { LineOrderOptionValue } from "@/lib/products/order-experience";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type Props = {
   options: LineOrderOptionValue[] | null | undefined;
@@ -10,9 +11,11 @@ type Props = {
 
 export function OrderOptionsSummary({
   options,
-  title = "خيارات الطلب",
+  title,
   compact = false,
 }: Props) {
+  const { t } = useLocale();
+  const heading = title ?? t.productExtras.orderOptions;
   if (!options?.length) return null;
 
   return (
@@ -30,7 +33,7 @@ export function OrderOptionsSummary({
             : "mb-3 font-semibold text-charcoal"
         }
       >
-        {title}
+        {heading}
       </h3>
       <dl className="space-y-2">
         {options.map((opt) => (

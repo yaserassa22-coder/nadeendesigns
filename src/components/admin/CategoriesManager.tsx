@@ -62,7 +62,7 @@ function coerceLeafProductKind(
 }
 
 export function CategoriesManager({ initialCategories }: CategoriesManagerProps) {
-  const { t, locale } = useLocale();
+  const { t, locale, dir } = useLocale();
   const c = t.admin.categoriesUi;
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryRow[]>(initialCategories);
@@ -349,7 +349,12 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
     ]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={dir}>
+      <div>
+        <h1 className="text-3xl font-bold text-charcoal">{c.pageTitle}</h1>
+        <p className="mt-2 text-muted">{c.pageSubtitle}</p>
+      </div>
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-1.5 text-sm text-muted">

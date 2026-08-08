@@ -111,13 +111,15 @@ export async function getBridalRobeById(id: string): Promise<BridalRobe | null> 
 export type AccessoryShopItem = {
   id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   price: number;
   sale_price?: number | null;
   images: string[];
   color: string | null;
   material: string | null;
   is_available: boolean;
-  /** Filter label: veil style or "برنص العروس" */
+  /** Filter label: veil style or bridal robe — localized on storefront via resolveCatalogLabel */
   category: string;
   size?: string | null;
   href: string;
@@ -137,6 +139,8 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
   const fromVeils: AccessoryShopItem[] = veils.map((v) => ({
     id: v.id,
     name_ar: v.name_ar,
+    name_en: v.name_en,
+    name_he: v.name_he,
     price: v.price,
     sale_price: v.sale_price ?? null,
     images: v.images ?? [],
@@ -154,6 +158,8 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
   const fromRobes: AccessoryShopItem[] = robes.map((r) => ({
     id: r.id,
     name_ar: r.name_ar,
+    name_en: r.name_en,
+    name_he: r.name_he,
     price: r.price,
     sale_price: r.sale_price ?? null,
     images: r.images ?? [],

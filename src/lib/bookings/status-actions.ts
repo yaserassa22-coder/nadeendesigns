@@ -151,3 +151,21 @@ export function resolveStatusForAction(
   if (action === "reply") return null;
   return BOOKING_ACTION_STATUS[action];
 }
+
+/** Map a customer-facing status change → admin action (for notify presets). */
+export function bookingActionForStatus(
+  status: BookingStatus | string
+): Exclude<BookingAdminAction, "reply"> | null {
+  switch (status) {
+    case "confirmed":
+      return "confirm";
+    case "rescheduled":
+      return "reschedule";
+    case "cancelled":
+      return "cancel";
+    case "completed":
+      return "complete";
+    default:
+      return null;
+  }
+}

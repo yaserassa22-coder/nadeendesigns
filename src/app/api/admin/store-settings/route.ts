@@ -21,6 +21,8 @@ const SECTIONS: StoreSettingsSection[] = [
   "notifications",
   "order_options",
   "extra_services",
+  "legal",
+  "tax",
   "seo",
   "security",
   "integrations",
@@ -93,6 +95,10 @@ export async function PUT(request: NextRequest) {
     revalidatePath("/", "layout");
     revalidatePath("/checkout");
     revalidatePath("/contact");
+    revalidatePath("/legal/terms");
+    revalidatePath("/legal/privacy");
+    revalidatePath("/legal/returns");
+    revalidatePath("/legal/shipping");
     revalidatePath("/admin/settings");
     revalidatePath("/maintenance");
 

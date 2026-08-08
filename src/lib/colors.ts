@@ -1,4 +1,6 @@
 import { COLOR_LEGACY_MAP, DRESS_COLORS } from "@/lib/constants";
+import { resolveDressColorLabel } from "@/lib/i18n/attribute-labels";
+import type { Locale } from "@/lib/i18n/types";
 
 export type DressColor = (typeof DRESS_COLORS)[number];
 
@@ -14,6 +16,10 @@ export function normalizeDressColor(
   return COLOR_LEGACY_MAP[trimmed] ?? trimmed;
 }
 
-export function getDressColorLabel(color: string | null | undefined): string {
-  return normalizeDressColor(color) ?? "";
+/** Display label for the active locale (DB value stays Arabic). */
+export function getDressColorLabel(
+  color: string | null | undefined,
+  locale: Locale = "ar"
+): string {
+  return resolveDressColorLabel(color, locale);
 }

@@ -4,20 +4,12 @@ import { Input, Textarea, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import type { StoreExtraService, StoreExtraServiceVisibility } from "@/types/store";
 import { PRODUCT_COMMERCE_TYPES } from "@/lib/products/primary-action";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type Props = {
   services: StoreExtraService[];
   onChange: (services: StoreExtraService[]) => void;
 };
-
-const SCOPE_OPTIONS: { value: StoreExtraServiceVisibility["scope"]; label: string }[] =
-  [
-    { value: "all", label: "كل المنتجات" },
-    { value: "product_types", label: "حسب نوع المنتج (product_type)" },
-    { value: "categories", label: "حسب معرفات التصنيفات" },
-    { value: "collections", label: "حسب معرفات المجموعات" },
-    { value: "products", label: "حسب معرفات المنتجات" },
-  ];
 
 function Toggle({
   checked,
@@ -80,6 +72,48 @@ function textToIds(raw: string): string[] {
  * Global Services Manager — create once, assign by ID scopes.
  */
 export function GlobalServicesManager({ services, onChange }: Props) {
+  const { t, locale } = useLocale();
+  const eu = t.admin.experienceUi;
+  const pu = t.admin.productsUi;
+  const extraLabels =
+    locale === "he"
+      ? {
+          defaultSelected: "ברירת מחדל",
+          online: "זמין אונליין",
+          inStore: "זמין בחנות",
+          free: "חינם",
+          fixed: "מחיר קבוע",
+          pricingMode: "מצב תמחור",
+        }
+      : locale === "en"
+        ? {
+            defaultSelected: "Default selected",
+            online: "Available online",
+            inStore: "Available in store",
+            free: "Free",
+            fixed: "Fixed price",
+            pricingMode: "Pricing mode",
+          }
+        : {
+            defaultSelected: "محدد افتراضياً",
+            online: "متاح أونلاين",
+            inStore: "متاح بالمتجر",
+            free: "مجاني",
+            fixed: "سعر ثابت",
+            pricingMode: "وضع التسعير",
+          };
+
+  const SCOPE_OPTIONS: {
+    value: StoreExtraServiceVisibility["scope"];
+    label: string;
+  }[] = [
+    { value: "all", label: eu.scopeAll },
+    { value: "product_types", label: eu.scopeProductTypes },
+    { value: "categories", label: eu.scopeCategories },
+    { value: "collections", label: eu.scopeCollections },
+    { value: "products", label: eu.scopeProducts },
+  ];
+
   const update = (idx: number, patch: Partial<StoreExtraService>) => {
     const next = [...services];
     next[idx] = { ...next[idx], ...patch };
@@ -97,17 +131,14 @@ export function GlobalServicesManager({ services, onChange }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          مكتبة خدمات عامة — الظهور عبر معرفات (product_type / category /
-          collection / product) بدون أسماء ثابتة.
-        </p>
+        <p className="text-sm text-muted">{eu.servicesHint}</p>
         <Button
           type="button"
           size="sm"
           variant="outline"
           onClick={() => onChange([...services, emptyService(services.length)])}
         >
-          إضافة خدمة
+          {pu.addNew}
         </Button>
       </div>
 
@@ -136,19 +167,19 @@ export function GlobalServicesManager({ services, onChange }: Props) {
                 variant="outline"
                 onClick={() => onChange(services.filter((_, i) => i !== idx))}
               >
-                حذف
+                {t.admin.lifecycleUi.softDelete}
               </Button>
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
-              label="الاسم (عربي)"
+              label={eu.nameAr}
               value={svc.name_ar}
               onChange={(e) => update(idx, { name_ar: e.target.value })}
             />
             <Input
-              label="Name (EN)"
+              label={eu.nameEn}
               dir="ltr"
               value={svc.name}
               onChange={(e) => update(idx, { name: e.target.value })}
@@ -156,7 +187,7 @@ export function GlobalServicesManager({ services, onChange }: Props) {
           </div>
 
           <Textarea
-            label="الوصف"
+            label={pu.description}
             rows={2}
             value={svc.description_ar || ""}
             onChange={(e) =>
@@ -168,7 +199,9 @@ export function GlobalServicesManager({ services, onChange }: Props) {
           />
 
           <div>
-            <p className="mb-2 text-sm font-medium text-charcoal">وضع التسعير</p>
+            <p className="mb-2 text-sm font-medium text-charcoal">
+              {extraLabels.pricingMode}
+            </p>
             <div className="flex flex-wrap gap-4">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
@@ -180,7 +213,7 @@ export function GlobalServicesManager({ services, onChange }: Props) {
                     update(idx, { pricing_mode: "FREE", price: 0 })
                   }
                 />
-                مجاني
+                {extraLabels.free}
               </label>
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
@@ -190,14 +223,14 @@ export function GlobalServicesManager({ services, onChange }: Props) {
                   checked={svc.pricing_mode === "FIXED_PRICE"}
                   onChange={() => update(idx, { pricing_mode: "FIXED_PRICE" })}
                 />
-                سعر ثابت
+                {extraLabels.fixed}
               </label>
             </div>
           </div>
 
           {svc.pricing_mode === "FIXED_PRICE" ? (
             <Input
-              label="السعر"
+              label={pu.price}
               type="number"
               min={0}
               step="0.01"
@@ -214,17 +247,17 @@ export function GlobalServicesManager({ services, onChange }: Props) {
 
           <div className="flex flex-wrap gap-4">
             <Toggle
-              label="مفعّل (Enabled)"
+              label={eu.enabled}
               checked={svc.enabled}
               onChange={(v) => update(idx, { enabled: v })}
             />
             <Toggle
-              label="ظاهر (Visible)"
+              label={eu.visible}
               checked={svc.visible !== false}
               onChange={(v) => update(idx, { visible: v })}
             />
             <Toggle
-              label="إلزامي (Required)"
+              label={eu.required}
               checked={Boolean(svc.required)}
               onChange={(v) =>
                 update(idx, {
@@ -234,17 +267,17 @@ export function GlobalServicesManager({ services, onChange }: Props) {
               }
             />
             <Toggle
-              label="محدد افتراضياً"
+              label={extraLabels.defaultSelected}
               checked={Boolean(svc.default_selected) || Boolean(svc.required)}
               onChange={(v) => update(idx, { default_selected: v })}
             />
             <Toggle
-              label="متاح أونلاين"
+              label={extraLabels.online}
               checked={svc.available_online !== false}
               onChange={(v) => update(idx, { available_online: v })}
             />
             <Toggle
-              label="متاح بالمتجر (مستقبلاً)"
+              label={extraLabels.inStore}
               checked={Boolean(svc.available_in_store)}
               onChange={(v) => update(idx, { available_in_store: v })}
             />

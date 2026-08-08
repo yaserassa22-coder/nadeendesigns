@@ -103,7 +103,8 @@ export function generateDaySlots(params: {
       isInBreak(t, duration, settings.lunch_break) ||
       isInBreak(t, duration, settings.prayer_break)
     ) {
-      slots.push({ time, available: false, label: "غير متاح" });
+      // Label comes from the client dictionary (locale-aware).
+      slots.push({ time, available: false });
       continue;
     }
 
@@ -121,9 +122,7 @@ export function generateDaySlots(params: {
     });
 
     slots.push(
-      blocked
-        ? { time, available: false, label: "غير متاح" }
-        : { time, available: true }
+      blocked ? { time, available: false } : { time, available: true }
     );
   }
 

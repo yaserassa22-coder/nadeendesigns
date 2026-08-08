@@ -50,6 +50,7 @@ export const shopOrderItemSchema = z.object({
   order_options: z.any().nullable().optional(),
   extra_services: z.any().nullable().optional(),
   personalization_fee: z.number().min(0).nullable().optional(),
+  gift_fee: z.number().min(0).nullable().optional(),
   requires_shipping: z.boolean().optional(),
 });
 
@@ -102,6 +103,8 @@ export const shopOrderCreateSchema = z
     shipping_fee: z.number().min(0).optional(),
     notify_whatsapp: z.boolean().optional(),
     notify_email: z.boolean().optional(),
+    /** Payment provider plugin id (cod, bit, credit_card, …) */
+    payment_provider_id: z.string().trim().min(1).max(64).optional(),
   })
   .superRefine((data, ctx) => {
     const needs =

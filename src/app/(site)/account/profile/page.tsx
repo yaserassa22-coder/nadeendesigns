@@ -1,10 +1,14 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
+
 import { useEffect, useState } from "react";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { Button } from "@/components/ui/Button";
 
 export default function AccountProfilePage() {
+  const { t, locale } = useLocale();
   const { customer, refresh } = useCustomerAuth();
   const [form, setForm] = useState({
     full_name: "",
@@ -54,11 +58,11 @@ export default function AccountProfilePage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error || t.account.profileSaveFailed);
       await refresh();
-      setMsg("تم حفظ الملف");
+      setMsg(t.account.profileSaved);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "فشل");
+      setMsg(e instanceof Error ? e.message : t.account.profileSaveFailed);
     } finally {
       setSaving(false);
     }
@@ -69,14 +73,14 @@ export default function AccountProfilePage() {
       <div className="grid gap-4 rounded-2xl border border-beige-dark bg-white p-5 sm:grid-cols-2">
         <div className="sm:col-span-2 flex flex-wrap gap-3 text-sm">
           <span className="rounded-full border border-beige-dark bg-beige/50 px-3 py-1 text-muted">
-            مزوّد الدخول:{" "}
+            {t.account.authProvider}{" "}
             <strong className="text-charcoal">
               {customer?.provider || "—"}
             </strong>
           </span>
           {customer?.last_login_at && (
             <span className="rounded-full border border-beige-dark bg-beige/50 px-3 py-1 text-muted">
-              آخر دخول:{" "}
+              {t.account.lastLogin}{" "}
               <strong className="text-charcoal" dir="ltr">
                 {new Date(customer.last_login_at).toLocaleString("ar")}
               </strong>
@@ -85,12 +89,12 @@ export default function AccountProfilePage() {
         </div>
         {(
           [
-            ["full_name", "الاسم"],
-            ["phone", "الهاتف"],
-            ["email", "البريد"],
-            ["photo_url", "رابط الصورة"],
-            ["birthday", "تاريخ الميلاد"],
-            ["wedding_date", "تاريخ الزفاف"],
+            ["full_name", t.account.fullName],
+            ["phone", t.account.phone],
+            ["email", t.account.email],
+            ["photo_url", t.account.photoUrl],
+            ["birthday", t.account.birthday],
+            ["wedding_date", t.account.weddingDate],
           ] as const
         ).map(([key, label]) => (
           <label key={key} className="block text-sm">
@@ -109,7 +113,7 @@ export default function AccountProfilePage() {
           </label>
         ))}
         <label className="block text-sm">
-          <span className="text-muted">اللغة</span>
+          <span className="text-muted">{t.common.language}</span>
           <select
             className="mt-1 w-full rounded-xl border border-beige-dark px-3 py-2.5"
             value={form.preferred_language}
@@ -128,14 +132,12 @@ export default function AccountProfilePage() {
         loading={saving}
         onClick={() => void save()}
         style={{ backgroundColor: "#C9A14A" }}
-      >
-        حفظ
-      </Button>
+      >{t.common.save}</Button>
 
       <div className="rounded-2xl border border-beige-dark bg-white/80 p-5">
-        <h3 className="font-medium text-charcoal">الجلسات والأجهزة</h3>
+        <h3 className="font-medium text-charcoal">{t.account.sessionsTitle}</h3>
         <p className="mt-1 text-xs text-muted">
-          {sessions.length} جلسة مسجّلة — استخدمي «الخروج من كل الأجهزة» من القائمة.
+          {formatMessage(t.account.sessionsHint, { count: sessions.length })}
         </p>
       </div>
     </div>

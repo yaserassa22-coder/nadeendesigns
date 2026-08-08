@@ -13,6 +13,9 @@ import {
   type CategoryTreeNode,
 } from "@/types/category";
 import { resolveCategoryHref } from "@/lib/categories/href";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { resolveCategoryLabel } from "@/lib/i18n/category-labels";
+import type { Locale } from "@/lib/i18n/types";
 
 export type NavLink = { href: string; label: string };
 
@@ -59,13 +62,44 @@ function shortDescription(text: string | null | undefined): string | null {
   return `${t.slice(0, 87).trimEnd()}…`;
 }
 
-function childFromNode(node: CategoryTreeNode): NavChild | null {
+function categoryLabel(node: Category | CategoryTreeNode, locale: Locale): string {
+  return resolveCategoryLabel(node, locale);
+}
+
+function categoryDescription(
+  node: Category | CategoryTreeNode,
+  locale: Locale
+): string | null {
+  const n = node as Category & {
+    description_en?: string | null;
+    description_he?: string | null;
+  };
+  const t = getDictionary(locale);
+  const legacyFb =
+    n.legacy_key && (t.home.serviceFallbacks as Record<string, string>)[n.legacy_key]
+      ? (t.home.serviceFallbacks as Record<string, string>)[n.legacy_key]
+      : "";
+  const preferred =
+    locale === "he"
+      ? (n.description_he ?? "").trim()
+      : locale === "en"
+        ? (n.description_en ?? "").trim()
+        : (n.description_ar ?? "").trim();
+  const text =
+    preferred ||
+    (locale !== "ar" ? legacyFb : "") ||
+    (n.description_ar ?? "").trim() ||
+    legacyFb;
+  return shortDescription(text);
+}
+
+function childFromNode(node: CategoryTreeNode, locale: Locale): NavChild | null {
   if (!isNavVisibleCategory(node)) return null;
   return {
     id: node.id,
     href: resolveCategoryHref(node),
-    label: node.name_ar,
-    description: shortDescription(node.description_ar),
+    label: categoryLabel(node, locale),
+    description: categoryDescription(node, locale),
     coverImageUrl: node.cover_image_url?.trim() || null,
     featured: node.featured_collection === true,
   };
@@ -74,23 +108,27 @@ function childFromNode(node: CategoryTreeNode): NavChild | null {
 /** Flatten nested category tree into nav children (one luxury mega level). */
 function collectNestedChildren(
   nodes: CategoryTreeNode[],
-  into: NavChild[]
+  into: NavChild[],
+  locale: Locale
 ): void {
   for (const node of nodes) {
-    const child = childFromNode(node);
+    const child = childFromNode(node, locale);
     if (child) into.push(child);
-    if (node.children.length) collectNestedChildren(node.children, into);
+    if (node.children.length) collectNestedChildren(node.children, into, locale);
   }
 }
 
-function navChildrenFromNode(node: CategoryTreeNode): NavChild[] {
+function navChildrenFromNode(
+  node: CategoryTreeNode,
+  locale: Locale = "ar"
+): NavChild[] {
   const children: NavChild[] = [];
   for (const childNode of node.children) {
-    const child = childFromNode(childNode);
+    const child = childFromNode(childNode, locale);
     if (!child) continue;
     if (childNode.children.length) {
       children.push(child);
-      collectNestedChildren(childNode.children, children);
+      collectNestedChildren(childNode.children, children, locale);
     } else {
       children.push(child);
     }
@@ -98,15 +136,15 @@ function navChildrenFromNode(node: CategoryTreeNode): NavChild[] {
   return children;
 }
 
-function itemFromRoot(root: CategoryTreeNode): NavItem | null {
+function itemFromRoot(root: CategoryTreeNode, locale: Locale): NavItem | null {
   if (!isNavVisibleCategory(root)) return null;
   return {
     id: root.id,
     href: resolveCategoryHref(root),
-    label: root.name_ar,
-    children: navChildrenFromNode(root),
+    label: categoryLabel(root, locale),
+    children: navChildrenFromNode(root, locale),
     kind: "category",
-    description: shortDescription(root.description_ar),
+    description: categoryDescription(root, locale),
     coverImageUrl: root.cover_image_url?.trim() || null,
     featured: root.featured_collection === true,
   };
@@ -151,12 +189,16 @@ function staticItem(id: string, href: string, label: string): NavItem {
 }
 
 /** Site pages mixed into the bar — labels are page names, not category names. */
-const STATIC_SITE_LINKS: NavItem[] = [
-  staticItem("nav-home", "/", "الرئيسية"),
-  staticItem("nav-gallery", "/gallery", "معرض الصور"),
-  staticItem("nav-about", "/about", "من نحن"),
-  staticItem("nav-contact", "/contact", "اتصل بنا"),
-];
+function staticSiteLinks(locale: Locale): NavItem[] {
+  const t = getDictionary(locale);
+  return [
+    staticItem("nav-home", "/", t.common.home),
+    staticItem("nav-booking", "/booking", t.nav.booking),
+    staticItem("nav-about", "/about", t.nav.about),
+    staticItem("nav-contact", "/contact", t.nav.contact),
+    staticItem("nav-gallery", "/gallery", t.nav.gallery),
+  ];
+}
 
 /** Offline fallback only when categories table is empty / unconfigured */
 const FALLBACK_CATEGORY_ITEMS: NavItem[] = [
@@ -201,8 +243,11 @@ function dedupeByHref(items: NavItem[]): NavItem[] {
  */
 export function capTopLevelNav(
   categoryItems: NavItem[],
-  max = MAX_TOP_LEVEL_NAV
+  max = MAX_TOP_LEVEL_NAV,
+  locale: Locale = "ar"
 ): NavItem[] {
+  const t = getDictionary(locale);
+  const STATIC_SITE_LINKS = staticSiteLinks(locale);
   const home = STATIC_SITE_LINKS[0]!;
   const staticRest = STATIC_SITE_LINKS.slice(1);
   const categoryHrefs = new Set(categoryItems.map((c) => c.href));
@@ -228,7 +273,7 @@ export function capTopLevelNav(
     bar.push({
       id: "nav-more",
       href: overflowCategories[0]!.href,
-      label: "المزيد",
+      label: t.nav.more,
       children: overflowCategories.flatMap((item) =>
         item.children.length
           ? item.children
@@ -265,8 +310,8 @@ export function capTopLevelNav(
   return bar;
 }
 
-function fallbackNav(): StorefrontNav {
-  const items = capTopLevelNav(FALLBACK_CATEGORY_ITEMS);
+function fallbackNav(locale: Locale = "ar"): StorefrontNav {
+  const items = capTopLevelNav(FALLBACK_CATEGORY_ITEMS, MAX_TOP_LEVEL_NAV, locale);
   return {
     items,
     categoryLinks: FALLBACK_CATEGORY_ITEMS.flatMap((item) =>
@@ -278,8 +323,11 @@ function fallbackNav(): StorefrontNav {
 }
 
 /** Build header/footer nav from categories; falls back to static labels if empty. */
-export function buildStorefrontNav(categories: Category[]): StorefrontNav {
-  if (!categories.length) return fallbackNav();
+export function buildStorefrontNav(
+  categories: Category[],
+  locale: Locale = "ar"
+): StorefrontNav {
+  if (!categories.length) return fallbackNav(locale);
 
   // Keep full published set for tree links; nav visibility applied when expanding.
   const published = categories.filter((c) => c.is_visible !== false);
@@ -289,7 +337,7 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
   const categoryLinks: NavLink[] = [];
 
   for (const root of roots) {
-    const item = itemFromRoot(root);
+    const item = itemFromRoot(root, locale);
     if (!item) continue;
     // Skip empty parent shells (no href leaf and no children) — never show hollow groups.
     if (!item.children.length && isRentalGroupCategory(root)) continue;
@@ -306,19 +354,23 @@ export function buildStorefrontNav(categories: Category[]): StorefrontNav {
   if (!categoryItems.length) return fallbackNav();
 
   return {
-    items: capTopLevelNav(categoryItems),
+    items: capTopLevelNav(categoryItems, MAX_TOP_LEVEL_NAV, locale),
     categoryLinks,
   };
 }
 
-export function buildFooterNavLinks(categoryLinks: NavLink[]): NavLink[] {
+export function buildFooterNavLinks(
+  categoryLinks: NavLink[],
+  locale: Locale = "ar"
+): NavLink[] {
+  const t = getDictionary(locale);
   return [
-    { href: "/", label: "الرئيسية" },
+    { href: "/", label: t.common.home },
     ...categoryLinks,
-    { href: "/cart", label: "السلة" },
-    { href: "/gallery", label: "معرض الصور" },
-    { href: "/booking", label: "احجزي موعدًا" },
-    { href: "/about", label: "من نحن" },
-    { href: "/contact", label: "اتصل بنا" },
+    { href: "/cart", label: t.nav.cart },
+    { href: "/gallery", label: t.nav.gallery },
+    { href: "/booking", label: t.nav.booking },
+    { href: "/about", label: t.nav.about },
+    { href: "/contact", label: t.nav.contact },
   ];
 }

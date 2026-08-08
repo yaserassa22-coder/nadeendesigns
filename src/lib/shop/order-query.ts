@@ -22,12 +22,18 @@ export const ORDER_SELECT_SHIPPING_M9 =
 /** Notification prefs from APPLY_NOTIFICATION_PREFERENCES.sql */
 export const ORDER_SELECT_NOTIFY = "notify_whatsapp, notify_email";
 
-export const ORDER_SELECT_FULL = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING}, ${ORDER_SELECT_NOTIFY}`;
+/** Tax document columns from APPLY_LEGAL_TAX_INVOICES.sql / 045 */
+export const ORDER_SELECT_INVOICE =
+  "invoice_number, invoice_type, invoice_issued_at, vat_rate, vat_amount, invoice_subtotal, prices_include_vat";
+
+export const ORDER_SELECT_FULL = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING}, ${ORDER_SELECT_NOTIFY}, ${ORDER_SELECT_INVOICE}`;
 export const ORDER_SELECT_FULL_M9 = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_M9}, ${ORDER_SELECT_NOTIFY}`;
 export const ORDER_SELECT_SHIPPING_LEGACY =
   "shipping_required, shipping_full_name, shipping_phone, shipping_city, shipping_region, shipping_address, shipping_postal_code, shipping_notes, shipping_cost";
 export const ORDER_SELECT_WITH_SHIPPING_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}`;
 export const ORDER_SELECT_FULL_LEGACY = `${ORDER_SELECT_CORE}, ${ORDER_SELECT_SHIPPING_LEGACY}, ${ORDER_SELECT_NOTIFY}`;
+export const ORDER_SELECT_FULL_WITH_INVOICE_LEGACY = `${ORDER_SELECT_FULL_LEGACY}, ${ORDER_SELECT_INVOICE}`;
+export const ORDER_SELECT_FULL_M9_INVOICE = `${ORDER_SELECT_FULL_M9}, ${ORDER_SELECT_INVOICE}`;
 
 /**
  * True only for missing optional order columns — not FK/check/RLS failures.
@@ -126,6 +132,22 @@ export function normalizeShopOrderRow(row: Record<string, unknown>): ShopOrder {
       row.region_configured === null || row.region_configured === undefined
         ? row.region_configured
         : Boolean(row.region_configured),
+    vat_rate:
+      row.vat_rate === null || row.vat_rate === undefined
+        ? null
+        : Number(row.vat_rate),
+    vat_amount:
+      row.vat_amount === null || row.vat_amount === undefined
+        ? null
+        : Number(row.vat_amount),
+    invoice_subtotal:
+      row.invoice_subtotal === null || row.invoice_subtotal === undefined
+        ? null
+        : Number(row.invoice_subtotal),
+    prices_include_vat:
+      row.prices_include_vat === null || row.prices_include_vat === undefined
+        ? null
+        : Boolean(row.prices_include_vat),
   };
   return hydrateOrderShippingFields(base);
 }
@@ -220,7 +242,7 @@ export function orderShowsShippingSection(order: {
   return hasCourierAddress(order);
 }
 
-/** Delivery orders that should show the shipping-slip print action. */
+/** Orders that should show the print shipping / pickup slip action. */
 export function isDeliveryOrderForSlip(order: {
   delivery_method?: string | null;
   shipping_required?: boolean | null;
@@ -232,8 +254,8 @@ export function isDeliveryOrderForSlip(order: {
   shipping_region_custom?: string | null;
   shipping_fee_pending?: boolean | null;
 }): boolean {
-  // Prefer delivery_method — never use requires_shipping-only gating.
-  if (order.delivery_method === "pickup") return false;
+  // Boutique pickup still needs a printable handover slip.
+  if (order.delivery_method === "pickup") return true;
   if (order.delivery_method === "delivery") return true;
   // Legacy rows without delivery_method column
   if (order.shipping_required === false) return false;

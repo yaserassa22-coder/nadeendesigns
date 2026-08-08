@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { GlobalServicesManager } from "@/components/admin/GlobalServicesManager";
 import { Button } from "@/components/ui/Button";
 import type { StoreExtraService, StoreSettings } from "@/types/store";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 /**
  * Reuses GlobalServicesManager — dual-writes via store-settings API
  * (same path as Store Settings → Extra Services).
  */
 export function ExperienceServicesPanel() {
+  const { t } = useLocale();
+  const eu = t.admin.experienceUi;
   const [services, setServices] = useState<StoreExtraService[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -27,17 +30,17 @@ export function ExperienceServicesPanel() {
       if (!res.ok) throw new Error(data.error || "fail");
       setServices(data.settings?.extra_services?.services ?? []);
     } catch {
-      setError("تعذّر تحميل الخدمات — تأكدي من إعدادات المتجر");
+      setError(eu.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [eu.loadFailed]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       void load();
     }, 0);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   const save = async () => {
@@ -57,29 +60,31 @@ export function ExperienceServicesPanel() {
         settings?: StoreSettings;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error || eu.saveFailed);
       setServices(data.settings?.extra_services?.services ?? services);
-      setMessage("تم حفظ الخدمات");
+      setMessage(eu.saved);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "فشل الحفظ");
+      setError(e instanceof Error ? e.message : eu.saveFailed);
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <p className="text-sm text-muted">جاري التحميل…</p>;
+    return <p className="text-sm text-muted">{eu.loading}</p>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          نفس مكتبة الخدمات العالمية (FREE / FIXED، إلزامي، افتراضي، ظهور). تُدار
-          أيضًا من إعدادات المتجر — مصدر واحد للحقيقة.
-        </p>
-        <Button type="button" size="sm" onClick={() => void save()} disabled={saving}>
-          حفظ الخدمات
+        <p className="text-sm text-muted">{eu.servicesHint}</p>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void save()}
+          disabled={saving}
+        >
+          {eu.saveServices}
         </Button>
       </div>
       {error ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Gem,
@@ -10,29 +11,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SITE_NAME } from "@/lib/constants";
-
-const steps = [
-  {
-    icon: HeartHandshake,
-    title: "استشارة شخصية",
-    description: "نتعرف على رؤيتكِ وأسلوبكِ.",
-  },
-  {
-    icon: PenLine,
-    title: "تصميم حصري",
-    description: "نحول أفكاركِ إلى تصميم فريد.",
-  },
-  {
-    icon: Gem,
-    title: "تنفيذ بإتقان",
-    description: "نختار أجود الخامات وننفذ كل التفاصيل بعناية.",
-  },
-  {
-    icon: Sparkles,
-    title: "تسليم وإطلالة لا تُنسى",
-    description: "تستلمين فستانًا صُمم خصيصًا ليومكِ المميز.",
-  },
-] as const;
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { formatMessage } from "@/lib/i18n";
 
 const fadeUp = {
   initial: { opacity: 0, y: 28 },
@@ -41,6 +21,33 @@ const fadeUp = {
 };
 
 export function CustomDesignSection() {
+  const { t } = useLocale();
+  const steps = useMemo(
+    () => [
+      {
+        icon: HeartHandshake,
+        title: t.home.customSteps.consultTitle,
+        description: t.home.customSteps.consultBody,
+      },
+      {
+        icon: PenLine,
+        title: t.home.customSteps.designTitle,
+        description: t.home.customSteps.designBody,
+      },
+      {
+        icon: Gem,
+        title: t.home.customSteps.craftTitle,
+        description: t.home.customSteps.craftBody,
+      },
+      {
+        icon: Sparkles,
+        title: t.home.customSteps.deliverTitle,
+        description: t.home.customSteps.deliverBody,
+      },
+    ],
+    [t]
+  );
+
   return (
     <section className="relative overflow-hidden py-24 md:py-32 lg:py-36">
       <div className="absolute inset-0 luxury-gradient" />
@@ -51,18 +58,13 @@ export function CustomDesignSection() {
 
       <div className="relative mx-auto max-w-6xl px-4 md:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <motion.div
-            {...fadeUp}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-          >
+          <motion.div {...fadeUp} transition={{ duration: 0.7, ease: "easeOut" }}>
             <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.35em] text-gold uppercase">
               Bespoke Atelier
             </p>
-
             <h2 className="mt-5 text-3xl font-bold leading-tight text-charcoal md:text-4xl lg:text-5xl">
-              ✨ تصميم فستان خاص
+              {t.home.customEyebrow}
             </h2>
-
             <div className="decorative-line mx-auto mt-7 w-28" />
           </motion.div>
 
@@ -78,7 +80,7 @@ export function CustomDesignSection() {
               “
             </span>
             <p className="relative text-2xl font-medium leading-[1.9] text-charcoal md:text-3xl md:leading-[2]">
-              ليس كل فستان يُصنع ليُرتدى... بعض الفساتين تُصنع لتُخلّد ذكرى.
+              {t.home.customLead}
             </p>
           </motion.blockquote>
 
@@ -97,8 +99,7 @@ export function CustomDesignSection() {
             transition={{ duration: 0.7, delay: 0.22, ease: "easeOut" }}
             className="mx-auto mt-10 max-w-2xl text-lg leading-[2] text-muted md:text-xl md:leading-[2.1]"
           >
-            في {SITE_NAME} نصمم لكِ فستانًا حصريًا يعكس شخصيتكِ، ويُنفذ بعناية
-            فائقة ليكون قطعةً لا تشبه سواها.
+            {formatMessage(t.home.customBody, { name: SITE_NAME })}
           </motion.p>
 
           <motion.div
@@ -108,12 +109,12 @@ export function CustomDesignSection() {
           >
             <Link href="/custom-design">
               <Button size="lg" className="shadow-lg shadow-gold/20">
-                ابدئي رحلة تصميم فستانكِ
+                {t.home.customStartCta}
               </Button>
             </Link>
             <Link href="/booking?service=custom_design">
               <Button variant="outline" size="lg">
-                احجزي استشارة
+                {t.home.customBookCta}
               </Button>
             </Link>
           </motion.div>
@@ -126,7 +127,7 @@ export function CustomDesignSection() {
         >
           <div className="decorative-line w-full" />
           <p className="mt-6 text-center font-[family-name:var(--font-cormorant)] text-sm tracking-[0.3em] text-gold uppercase">
-            رحلة التصميم
+            {t.home.customJourney}
           </p>
         </motion.div>
 
@@ -135,39 +136,22 @@ export function CustomDesignSection() {
             aria-hidden
             className="pointer-events-none absolute top-10 right-0 left-0 hidden h-px bg-gradient-to-l from-transparent via-gold/50 to-transparent lg:block"
           />
-
           <ol className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {steps.map((step, index) => (
-              <motion.li
-                key={step.title}
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{
-                  duration: 0.65,
-                  delay: 0.12 + index * 0.1,
-                  ease: "easeOut",
-                }}
-                className="relative flex flex-col items-center text-center"
-              >
-                <div className="relative z-10 mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-gold/35 bg-ivory text-gold shadow-[0_0_0_8px_rgba(250,248,245,0.9)]">
-                  <step.icon className="h-6 w-6" strokeWidth={1.5} />
-                  <span
-                    className="absolute -top-2 -left-2 flex h-6 w-6 items-center justify-center rounded-full bg-gold font-[family-name:var(--font-cormorant)] text-xs text-white"
-                    dir="ltr"
-                  >
-                    {index + 1}
-                  </span>
+              <li key={step.title} className="relative text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-gold/30 bg-white text-gold shadow-sm">
+                  <step.icon className="h-6 w-6" />
                 </div>
-
-                <h3 className="text-lg font-semibold text-charcoal md:text-xl">
+                <p className="mt-2 text-xs tracking-[0.2em] text-gold">
+                  {String(index + 1).padStart(2, "0")}
+                </p>
+                <h3 className="mt-3 text-lg font-semibold text-charcoal">
                   {step.title}
                 </h3>
-                <div className="mx-auto mt-3 h-px w-10 bg-gold/50" />
-                <p className="mt-4 max-w-[16rem] text-sm leading-relaxed text-muted md:text-base">
+                <p className="mt-2 text-sm leading-relaxed text-muted">
                   {step.description}
                 </p>
-              </motion.li>
+              </li>
             ))}
           </ol>
         </div>

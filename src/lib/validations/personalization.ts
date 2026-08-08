@@ -6,6 +6,21 @@ export const arabicFontSchema = z.enum([
   "diwani",
   "naskh",
   "signature_ar",
+  "kufi",
+  "el_messiri",
+  "cairo",
+  "lateef",
+  "elegant_script",
+  "modern_script",
+  "luxury_serif",
+  "classic_serif",
+  "parisienne",
+  "dancing_script",
+  "cinzel",
+  "pinyon",
+  "frank_ruhl",
+  "heebo",
+  "rubik",
 ]);
 export const englishFontSchema = z.enum([
   "elegant_script",
@@ -51,7 +66,7 @@ export const productPersonalizationSchema = z
     if (data.writing_language === "ar" && !ar) {
       ctx.addIssue({
         code: "custom",
-        message: "النص بالعربية مطلوب",
+        message: "Text is required",
         path: ["text_ar"],
       });
     }

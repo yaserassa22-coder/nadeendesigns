@@ -3,15 +3,18 @@ import Link from "next/link";
 import { ExperienceEngineShell } from "@/components/admin/experience/ExperienceEngineShell";
 import {
   PRODUCT_COMMERCE_TYPES,
-  PRODUCT_COMMERCE_TYPE_LABELS,
   applyPurchaseFlowOverride,
+  getProductCommerceTypeLabel,
   getProductPrimaryAction,
 } from "@/lib/products/primary-action";
 import { listPurchaseFlows } from "@/lib/products/purchase-flows";
+import { getLocale } from "@/lib/i18n/server";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "أنواع المنتجات",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return { title: getDictionary(locale).admin.experienceUi.productTypes };
+}
 
 const NOTES: Record<string, string> = {
   rental_dress:
@@ -25,18 +28,16 @@ const NOTES: Record<string, string> = {
 };
 
 export default async function ProductTypesPage() {
+  const locale = await getLocale();
   const flows = await listPurchaseFlows();
 
   return (
-    <ExperienceEngineShell
-      title="أنواع المنتجات"
-      description="أنواع التجارة (product_type) تحدد سلوك الواجهة — وليست تصنيفات. التصنيفات للتنظيم فقط."
-    >
+    <ExperienceEngineShell page="productTypes">
       <div className="space-y-4">
         {PRODUCT_COMMERCE_TYPES.map((type) => {
           const flow = flows.find((f) => f.product_type === type);
           const action = applyPurchaseFlowOverride(
-            getProductPrimaryAction(type),
+            getProductPrimaryAction(type, "ready_to_buy", locale),
             flow
           );
           return (
@@ -47,7 +48,7 @@ export default async function ProductTypesPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-charcoal">
-                    {PRODUCT_COMMERCE_TYPE_LABELS[type]}
+                    {getProductCommerceTypeLabel(type, locale)}
                   </h2>
                   <p className="mt-0.5 text-xs text-muted" dir="ltr">
                     {type}
@@ -60,7 +61,7 @@ export default async function ProductTypesPage() {
               <p className="mt-3 text-sm text-muted">{NOTES[type]}</p>
               {flow ? (
                 <p className="mt-2 text-xs text-muted">
-                  المسار: {flow.name_ar} · خطوات:{" "}
+                  {flow.name_ar} ·{" "}
                   <span dir="ltr">{flow.steps.join(" → ")}</span>
                 </p>
               ) : null}
@@ -70,14 +71,12 @@ export default async function ProductTypesPage() {
       </div>
 
       <p className="text-sm text-muted">
-        لتعديل الأزرار، انتقلي إلى{" "}
         <Link
           href="/admin/experience/purchase-flows"
           className="text-gold hover:underline"
         >
-          مسارات الشراء
+          → purchase flows
         </Link>
-        .
       </p>
     </ExperienceEngineShell>
   );

@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { SiteSettings } from "@/types";
 import { SITE_NAME } from "@/lib/constants";
 import { splitTitleEmphasis } from "@/lib/cms/locale-text";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
@@ -13,13 +14,25 @@ import { CmsLivePreview } from "@/components/admin/cms/CmsLivePreview";
 type HeroCmsFields = Pick<
   SiteSettings,
   | "hero_title_ar"
+  | "hero_title_he"
+  | "hero_title_en"
   | "hero_title_emphasis_ar"
+  | "hero_title_emphasis_he"
+  | "hero_title_emphasis_en"
   | "hero_subtitle_ar"
+  | "hero_subtitle_he"
+  | "hero_subtitle_en"
   | "hero_image_url"
   | "hero_image_alt_ar"
+  | "hero_image_alt_he"
+  | "hero_image_alt_en"
   | "hero_cta_primary_label_ar"
+  | "hero_cta_primary_label_he"
+  | "hero_cta_primary_label_en"
   | "hero_cta_primary_href"
   | "hero_cta_secondary_label_ar"
+  | "hero_cta_secondary_label_he"
+  | "hero_cta_secondary_label_en"
   | "hero_cta_secondary_href"
 >;
 
@@ -27,18 +40,36 @@ interface HomeHeroCmsFormProps {
   initialSettings: SiteSettings;
 }
 
+function fromSettings(s: SiteSettings): HeroCmsFields {
+  return {
+    hero_title_ar: s.hero_title_ar ?? "",
+    hero_title_he: s.hero_title_he ?? "",
+    hero_title_en: s.hero_title_en ?? "",
+    hero_title_emphasis_ar: s.hero_title_emphasis_ar ?? "",
+    hero_title_emphasis_he: s.hero_title_emphasis_he ?? "",
+    hero_title_emphasis_en: s.hero_title_emphasis_en ?? "",
+    hero_subtitle_ar: s.hero_subtitle_ar ?? "",
+    hero_subtitle_he: s.hero_subtitle_he ?? "",
+    hero_subtitle_en: s.hero_subtitle_en ?? "",
+    hero_image_url: s.hero_image_url ?? "",
+    hero_image_alt_ar: s.hero_image_alt_ar ?? "",
+    hero_image_alt_he: s.hero_image_alt_he ?? "",
+    hero_image_alt_en: s.hero_image_alt_en ?? "",
+    hero_cta_primary_label_ar: s.hero_cta_primary_label_ar ?? "",
+    hero_cta_primary_label_he: s.hero_cta_primary_label_he ?? "",
+    hero_cta_primary_label_en: s.hero_cta_primary_label_en ?? "",
+    hero_cta_primary_href: s.hero_cta_primary_href ?? "",
+    hero_cta_secondary_label_ar: s.hero_cta_secondary_label_ar ?? "",
+    hero_cta_secondary_label_he: s.hero_cta_secondary_label_he ?? "",
+    hero_cta_secondary_label_en: s.hero_cta_secondary_label_en ?? "",
+    hero_cta_secondary_href: s.hero_cta_secondary_href ?? "",
+  };
+}
+
 export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
-  const [form, setForm] = useState<HeroCmsFields>({
-    hero_title_ar: initialSettings.hero_title_ar,
-    hero_title_emphasis_ar: initialSettings.hero_title_emphasis_ar,
-    hero_subtitle_ar: initialSettings.hero_subtitle_ar,
-    hero_image_url: initialSettings.hero_image_url,
-    hero_image_alt_ar: initialSettings.hero_image_alt_ar,
-    hero_cta_primary_label_ar: initialSettings.hero_cta_primary_label_ar,
-    hero_cta_primary_href: initialSettings.hero_cta_primary_href,
-    hero_cta_secondary_label_ar: initialSettings.hero_cta_secondary_label_ar,
-    hero_cta_secondary_href: initialSettings.hero_cta_secondary_href,
-  });
+  const { t } = useLocale();
+  const cu = t.admin.cmsUi;
+  const [form, setForm] = useState<HeroCmsFields>(fromSettings(initialSettings));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -53,7 +84,7 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
 
   const save = async () => {
     if (!form.hero_title_ar.trim()) {
-      setError("عنوان الهيرو مطلوب");
+      setError(cu.heroTitleRequired);
       return;
     }
     setSaving(true);
@@ -66,24 +97,13 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? cu.saveFailed);
       if (data.settings) {
-        const s = data.settings as SiteSettings;
-        setForm({
-          hero_title_ar: s.hero_title_ar,
-          hero_title_emphasis_ar: s.hero_title_emphasis_ar,
-          hero_subtitle_ar: s.hero_subtitle_ar,
-          hero_image_url: s.hero_image_url,
-          hero_image_alt_ar: s.hero_image_alt_ar,
-          hero_cta_primary_label_ar: s.hero_cta_primary_label_ar,
-          hero_cta_primary_href: s.hero_cta_primary_href,
-          hero_cta_secondary_label_ar: s.hero_cta_secondary_label_ar,
-          hero_cta_secondary_href: s.hero_cta_secondary_href,
-        });
+        setForm(fromSettings(data.settings as SiteSettings));
       }
-      setMessage("تم الحفظ بنجاح");
+      setMessage(cu.saved);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(e instanceof Error ? e.message : cu.genericError);
     } finally {
       setSaving(false);
     }
@@ -99,70 +119,154 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
       <div className="space-y-6 rounded-2xl border border-beige-dark bg-white p-6 md:p-8">
         <div>
-          <h2 className="text-lg font-semibold text-charcoal">قسم الهيرو</h2>
-          <p className="mt-1 text-sm text-muted">
-            يظهر في أعلى الصفحة الرئيسية. العنوان مطلوب؛ الصورة اختيارية.
-          </p>
+          <h2 className="text-lg font-semibold text-charcoal">
+            {cu.heroSectionTitle}
+          </h2>
+          <p className="mt-1 text-sm text-muted">{cu.heroSectionDesc}</p>
         </div>
 
-        <Input
-          label="العنوان *"
-          value={form.hero_title_ar}
-          onChange={(e) => update("hero_title_ar", e.target.value)}
-          error={!form.hero_title_ar.trim() && error ? error : undefined}
-        />
-        <Input
-          label="الكلمة المميزة (تُعرض بخط عريض وخط ذهبي)"
-          value={form.hero_title_emphasis_ar}
-          onChange={(e) => update("hero_title_emphasis_ar", e.target.value)}
-          placeholder="تفاصيل"
-        />
-        <Textarea
-          label="الوصف"
-          rows={4}
-          value={form.hero_subtitle_ar}
-          onChange={(e) => update("hero_subtitle_ar", e.target.value)}
-        />
+        <div className="space-y-4 rounded-xl border border-beige-dark/70 bg-beige/20 p-4">
+          <p className="text-sm font-semibold text-charcoal">عربي</p>
+          <Input
+            label="العنوان *"
+            value={form.hero_title_ar}
+            onChange={(e) => update("hero_title_ar", e.target.value)}
+            error={!form.hero_title_ar.trim() && error ? error : undefined}
+          />
+          <Input
+            label="الكلمة المميزة"
+            value={form.hero_title_emphasis_ar}
+            onChange={(e) => update("hero_title_emphasis_ar", e.target.value)}
+          />
+          <Textarea
+            label="الوصف"
+            rows={3}
+            value={form.hero_subtitle_ar}
+            onChange={(e) => update("hero_subtitle_ar", e.target.value)}
+          />
+          <Input
+            label="النص البديل للصورة"
+            value={form.hero_image_alt_ar}
+            onChange={(e) => update("hero_image_alt_ar", e.target.value)}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input
+              label="زر أساسي"
+              value={form.hero_cta_primary_label_ar}
+              onChange={(e) =>
+                update("hero_cta_primary_label_ar", e.target.value)
+              }
+            />
+            <Input
+              label="زر ثانوي"
+              value={form.hero_cta_secondary_label_ar}
+              onChange={(e) =>
+                update("hero_cta_secondary_label_ar", e.target.value)
+              }
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-xl border border-beige-dark/70 bg-beige/20 p-4" dir="rtl">
+          <p className="text-sm font-semibold text-charcoal">עברית</p>
+          <Input
+            label="כותרת"
+            value={form.hero_title_he ?? ""}
+            onChange={(e) => update("hero_title_he", e.target.value)}
+          />
+          <Input
+            label="מילת הדגשה"
+            value={form.hero_title_emphasis_he ?? ""}
+            onChange={(e) => update("hero_title_emphasis_he", e.target.value)}
+          />
+          <Textarea
+            label="תיאור"
+            rows={3}
+            value={form.hero_subtitle_he ?? ""}
+            onChange={(e) => update("hero_subtitle_he", e.target.value)}
+          />
+          <Input
+            label="טקסט חלופי לתמונה"
+            value={form.hero_image_alt_he ?? ""}
+            onChange={(e) => update("hero_image_alt_he", e.target.value)}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input
+              label="כפתור ראשי"
+              value={form.hero_cta_primary_label_he ?? ""}
+              onChange={(e) =>
+                update("hero_cta_primary_label_he", e.target.value)
+              }
+            />
+            <Input
+              label="כפתור משני"
+              value={form.hero_cta_secondary_label_he ?? ""}
+              onChange={(e) =>
+                update("hero_cta_secondary_label_he", e.target.value)
+              }
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-xl border border-beige-dark/70 bg-beige/20 p-4" dir="ltr">
+          <p className="text-sm font-semibold text-charcoal">English</p>
+          <Input
+            label="Title"
+            value={form.hero_title_en ?? ""}
+            onChange={(e) => update("hero_title_en", e.target.value)}
+          />
+          <Input
+            label="Emphasis word"
+            value={form.hero_title_emphasis_en ?? ""}
+            onChange={(e) => update("hero_title_emphasis_en", e.target.value)}
+          />
+          <Textarea
+            label="Subtitle"
+            rows={3}
+            value={form.hero_subtitle_en ?? ""}
+            onChange={(e) => update("hero_subtitle_en", e.target.value)}
+          />
+          <Input
+            label="Image alt"
+            value={form.hero_image_alt_en ?? ""}
+            onChange={(e) => update("hero_image_alt_en", e.target.value)}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input
+              label="Primary CTA"
+              value={form.hero_cta_primary_label_en ?? ""}
+              onChange={(e) =>
+                update("hero_cta_primary_label_en", e.target.value)
+              }
+            />
+            <Input
+              label="Secondary CTA"
+              value={form.hero_cta_secondary_label_en ?? ""}
+              onChange={(e) =>
+                update("hero_cta_secondary_label_en", e.target.value)
+              }
+            />
+          </div>
+        </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-charcoal">صورة الهيرو</p>
+          <p className="text-sm font-medium text-charcoal">{cu.heroImage}</p>
           <ImageUpload
             multiple={false}
             value={form.hero_image_url ? [form.hero_image_url] : []}
             onChange={(urls) => update("hero_image_url", urls[0] ?? "")}
           />
-          <p className="text-xs text-muted">
-            استبدلي أو احذفي الصورة. المعاينة تظهر فورًا قبل الحفظ.
-          </p>
         </div>
-
-        <Input
-          label="النص البديل للصورة"
-          value={form.hero_image_alt_ar}
-          onChange={(e) => update("hero_image_alt_ar", e.target.value)}
-        />
 
         <div className="grid gap-4 md:grid-cols-2">
           <Input
-            label="زر أساسي — النص"
-            value={form.hero_cta_primary_label_ar}
-            onChange={(e) => update("hero_cta_primary_label_ar", e.target.value)}
-          />
-          <Input
-            label="زر أساسي — الرابط"
+            label={cu.primaryCtaHref}
             value={form.hero_cta_primary_href}
             onChange={(e) => update("hero_cta_primary_href", e.target.value)}
             dir="ltr"
           />
           <Input
-            label="زر ثانوي — النص"
-            value={form.hero_cta_secondary_label_ar}
-            onChange={(e) =>
-              update("hero_cta_secondary_label_ar", e.target.value)
-            }
-          />
-          <Input
-            label="زر ثانوي — الرابط"
+            label={cu.secondaryCtaHref}
             value={form.hero_cta_secondary_href}
             onChange={(e) => update("hero_cta_secondary_href", e.target.value)}
             dir="ltr"
@@ -181,11 +285,11 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
         )}
 
         <Button loading={saving} onClick={save}>
-          {saving ? "جاري الحفظ..." : "حفظ المحتوى"}
+          {saving ? cu.saving : cu.saveContent}
         </Button>
       </div>
 
-      <CmsLivePreview title="معاينة الهيرو">
+      <CmsLivePreview title={cu.heroPreviewTitle}>
         <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-beige">
           <Image
             src={previewImage}

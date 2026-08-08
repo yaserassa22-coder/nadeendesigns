@@ -8,6 +8,7 @@ import {
   ABOUT_ICON_OPTIONS,
   resolveAboutIcon,
 } from "@/lib/cms/about-icons";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
@@ -39,6 +40,8 @@ const emptyValue = (): AboutValueItem => ({
 });
 
 export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
+  const { t } = useLocale();
+  const cu = t.admin.cmsUi;
   const [form, setForm] = useState<AboutCmsFields>({
     about_page_title_ar: initialSettings.about_page_title_ar,
     about_page_subtitle_ar: initialSettings.about_page_subtitle_ar,
@@ -96,7 +99,7 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
 
   const save = async () => {
     if (!form.about_page_title_ar.trim()) {
-      setError("عنوان صفحة من نحن مطلوب");
+      setError(cu.aboutTitleRequired);
       return;
     }
     setSaving(true);
@@ -109,7 +112,7 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "فشل الحفظ");
+      if (!res.ok) throw new Error(data.error ?? cu.saveFailed);
       if (data.settings) {
         const s = data.settings as SiteSettings;
         setForm({
@@ -126,9 +129,9 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
           about_values: s.about_values.map((v) => ({ ...v })),
         });
       }
-      setMessage("تم الحفظ بنجاح");
+      setMessage(cu.saved);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(e instanceof Error ? e.message : cu.genericError);
     } finally {
       setSaving(false);
     }
@@ -142,15 +145,15 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
       <div className="space-y-6 rounded-2xl border border-beige-dark bg-white p-6 md:p-8">
         <div>
-          <h2 className="text-lg font-semibold text-charcoal">صفحة من نحن</h2>
-          <p className="mt-1 text-sm text-muted">
-            العنوان مطلوب؛ الصورة اختيارية. الفقرات تدعم الأسطر المتعددة.
-          </p>
+          <h2 className="text-lg font-semibold text-charcoal">
+            {cu.aboutSectionTitle}
+          </h2>
+          <p className="mt-1 text-sm text-muted">{cu.aboutSectionDesc}</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <Input
-            label="عنوان الصفحة *"
+            label={cu.aboutPageTitle}
             value={form.about_page_title_ar}
             onChange={(e) => update("about_page_title_ar", e.target.value)}
             error={
@@ -158,37 +161,37 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
             }
           />
           <Input
-            label="وصف أعلى الصفحة"
+            label={cu.aboutPageSubtitle}
             value={form.about_page_subtitle_ar}
             onChange={(e) => update("about_page_subtitle_ar", e.target.value)}
           />
           <Input
-            label="عنوان القصة (صغير)"
+            label={cu.aboutStoryEyebrow}
             value={form.about_story_eyebrow_ar}
             onChange={(e) => update("about_story_eyebrow_ar", e.target.value)}
           />
           <Input
-            label="عنوان القصة الرئيسي"
+            label={cu.aboutStoryHeading}
             value={form.about_story_heading_ar}
             onChange={(e) => update("about_story_heading_ar", e.target.value)}
           />
         </div>
 
         <Textarea
-          label="الفقرة الأولى"
+          label={cu.aboutParagraph1}
           rows={5}
           value={form.about_ar}
           onChange={(e) => update("about_ar", e.target.value)}
         />
         <Textarea
-          label="الفقرة الثانية"
+          label={cu.aboutParagraph2}
           rows={4}
           value={form.about_secondary_ar}
           onChange={(e) => update("about_secondary_ar", e.target.value)}
         />
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-charcoal">صورة الصفحة</p>
+          <p className="text-sm font-medium text-charcoal">{cu.aboutPageImage}</p>
           <ImageUpload
             multiple={false}
             value={form.about_image_url ? [form.about_image_url] : []}
@@ -196,19 +199,19 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
           />
         </div>
         <Input
-          label="النص البديل للصورة"
+          label={cu.aboutImageAlt}
           value={form.about_image_alt_ar}
           onChange={(e) => update("about_image_alt_ar", e.target.value)}
         />
 
         <div className="grid gap-4 md:grid-cols-2">
           <Input
-            label="زر الدعوة — النص"
+            label={cu.aboutCtaLabel}
             value={form.about_cta_label_ar}
             onChange={(e) => update("about_cta_label_ar", e.target.value)}
           />
           <Input
-            label="زر الدعوة — الرابط"
+            label={cu.aboutCtaHref}
             value={form.about_cta_href}
             onChange={(e) => update("about_cta_href", e.target.value)}
             dir="ltr"
@@ -217,10 +220,10 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
 
         <div className="space-y-4 border-t border-beige-dark pt-6">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-semibold text-charcoal">قيمنا</h3>
+            <h3 className="font-semibold text-charcoal">{cu.aboutValues}</h3>
             <Button type="button" variant="outline" size="sm" onClick={addValue}>
               <Plus className="h-4 w-4" />
-              إضافة
+              {cu.aboutAddValue}
             </Button>
           </div>
           {form.about_values.map((item, index) => (
@@ -230,7 +233,7 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
             >
               <div className="flex items-start justify-between gap-2">
                 <Select
-                  label="الأيقونة"
+                  label={cu.aboutIcon}
                   value={item.icon}
                   options={ABOUT_ICON_OPTIONS}
                   onChange={(e) =>
@@ -241,18 +244,18 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
                   type="button"
                   onClick={() => removeValue(index)}
                   className="mt-7 rounded-lg p-2 text-red-500 hover:bg-red-50"
-                  aria-label="حذف القيمة"
+                  aria-label={cu.aboutDeleteValue}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
               <Input
-                label="العنوان"
+                label={cu.aboutValueTitle}
                 value={item.title_ar}
                 onChange={(e) => updateValue(index, "title_ar", e.target.value)}
               />
               <Textarea
-                label="الوصف"
+                label={cu.aboutValueDescription}
                 rows={2}
                 value={item.description_ar}
                 onChange={(e) =>
@@ -275,11 +278,11 @@ export function AboutCmsForm({ initialSettings }: AboutCmsFormProps) {
         )}
 
         <Button loading={saving} onClick={save}>
-          {saving ? "جاري الحفظ..." : "حفظ المحتوى"}
+          {saving ? cu.saving : cu.saveContent}
         </Button>
       </div>
 
-      <CmsLivePreview title="معاينة من نحن">
+      <CmsLivePreview title={cu.aboutPreviewTitle}>
         <div className="space-y-4">
           <div>
             <p className="text-lg font-bold text-charcoal">

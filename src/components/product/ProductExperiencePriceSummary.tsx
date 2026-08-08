@@ -7,11 +7,16 @@ import {
   type ExtraServiceConfig,
   type LineExtraService,
 } from "@/lib/products/order-experience";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type Props = {
   baseUnitPrice: number;
   quantity: number;
   personalizationFee?: number;
+  /** Gift wrap fee (when wrapping enabled). */
+  giftWrapFee?: number;
+  /** Gift card fee (when card enabled). */
+  giftCardFee?: number;
   selectedServices: ExtraServiceConfig[];
   className?: string;
 };
@@ -23,9 +28,13 @@ export function ProductExperiencePriceSummary({
   baseUnitPrice,
   quantity,
   personalizationFee = 0,
+  giftWrapFee = 0,
+  giftCardFee = 0,
   selectedServices,
   className,
 }: Props) {
+  const { t } = useLocale();
+  const giftFee = Math.max(0, giftWrapFee) + Math.max(0, giftCardFee);
   const extras: LineExtraService[] = selectedServices.map((s) => ({
     id: s.id,
     name: s.name,
@@ -36,6 +45,7 @@ export function ProductExperiencePriceSummary({
   const unit = chargedUnitPrice({
     baseUnitPrice,
     personalizationFee,
+    giftFee,
     extraServices: extras,
   });
   const qty = Math.max(1, quantity);
@@ -51,7 +61,7 @@ export function ProductExperiencePriceSummary({
     >
       <ul className="space-y-3 text-sm text-charcoal">
         <li className="flex justify-between gap-3">
-          <span className="text-muted">المنتج</span>
+          <span className="text-muted">{t.productExtras.product}</span>
           <span
             key={`base-${baseUnitPrice}`}
             className="tabular-nums xp-fade-in"
@@ -62,13 +72,37 @@ export function ProductExperiencePriceSummary({
         </li>
         {personalizationFee > 0 ? (
           <li className="flex justify-between gap-3">
-            <span className="text-muted">التخصيص</span>
+            <span className="text-muted">{t.productExtras.personalization}</span>
             <span
               key={`pers-${personalizationFee}`}
               className="tabular-nums xp-fade-in text-gold"
               dir="ltr"
             >
               +{formatPrice(personalizationFee)}
+            </span>
+          </li>
+        ) : null}
+        {giftWrapFee > 0 ? (
+          <li className="flex justify-between gap-3">
+            <span className="text-muted">{t.productExtras.giftWrap}</span>
+            <span
+              key={`wrap-${giftWrapFee}`}
+              className="tabular-nums xp-fade-in text-gold"
+              dir="ltr"
+            >
+              +{formatPrice(giftWrapFee)}
+            </span>
+          </li>
+        ) : null}
+        {giftCardFee > 0 ? (
+          <li className="flex justify-between gap-3">
+            <span className="text-muted">{t.productExtras.giftCard}</span>
+            <span
+              key={`card-${giftCardFee}`}
+              className="tabular-nums xp-fade-in text-gold"
+              dir="ltr"
+            >
+              +{formatPrice(giftCardFee)}
             </span>
           </li>
         ) : null}
@@ -83,13 +117,13 @@ export function ProductExperiencePriceSummary({
               )}
               dir="ltr"
             >
-              {s.price > 0 ? `+${formatPrice(s.price)}` : "مجاني"}
+              {s.price > 0 ? `+${formatPrice(s.price)}` : t.productExtras.free}
             </span>
           </li>
         ))}
         {qty > 1 ? (
           <li className="flex justify-between gap-3">
-            <span className="text-muted">الكمية</span>
+            <span className="text-muted">{t.productExtras.quantity}</span>
             <span
               key={`qty-${qty}`}
               className="tabular-nums xp-fade-in"
@@ -100,7 +134,7 @@ export function ProductExperiencePriceSummary({
           </li>
         ) : null}
         <li className="flex items-baseline justify-between gap-3 border-t border-gold/20 pt-3">
-          <span className="text-base font-semibold">الإجمالي</span>
+          <span className="text-base font-semibold">{t.productExtras.total}</span>
           <span
             key={lineTotal}
             className="xp-price-pulse font-[family-name:var(--font-cormorant)] text-2xl text-gold tabular-nums"

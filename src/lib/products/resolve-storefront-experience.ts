@@ -1,5 +1,7 @@
 import {
   enabledOrderOptions,
+  normalizeExtraServices,
+  resolvePersonalizationFee,
   resolveProductExtraServices,
   type ExtraServiceConfig,
   type OrderOptionConfig,
@@ -10,6 +12,7 @@ import {
 import {
   defaultProductExperienceConfig,
   normalizeProductExperienceConfig,
+  resolveEffectiveGiftUi,
   storefrontExperienceSections,
   type ExperienceSectionConfig,
   type ProductExperienceConfig,
@@ -81,9 +84,35 @@ export async function resolveStorefrontProductExperience(input?: {
       }
     : null;
 
-  const experienceConfig = input?.experience_config
+  const baseExperience = input?.experience_config
     ? normalizeProductExperienceConfig(input.experience_config)
     : defaultProductExperienceConfig();
+
+  /** Full library — fee lookup must not depend on product extra-service pick lists. */
+  const libraryServices = normalizeExtraServices(store.extra_services).services;
+
+  const giftUi = resolveEffectiveGiftUi(baseExperience.gift_ui, libraryServices);
+  const persUi = baseExperience.personalization_ui;
+  const libraryPersFee = resolvePersonalizationFee(
+    persUi,
+    libraryServices,
+    true
+  );
+  const experienceConfig: ProductExperienceConfig = {
+    ...baseExperience,
+    gift_ui: giftUi,
+    personalization_ui: {
+      ...(persUi ?? {
+        required: false,
+        max_characters: 40,
+        extra_price: 0,
+      }),
+      extra_price:
+        (persUi?.extra_price ?? 0) > 0
+          ? (persUi?.extra_price ?? 0)
+          : libraryPersFee,
+    },
+  };
 
   const featuresConfig = normalizeProductFeaturesConfig(
     input?.features_config

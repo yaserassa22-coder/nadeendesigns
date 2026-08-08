@@ -1,3 +1,11 @@
+import type { Locale } from "@/lib/i18n/types";
+import {
+  getShopOrderStatusLabel,
+  getDeliveryMethodLabel,
+  shopOrderStatusLabels,
+  deliveryMethodLabels,
+} from "@/lib/i18n/order-labels";
+
 import type { GiftOptions, ProductPersonalization } from "@/types/customization";
 import type {
   LineExtraService,
@@ -7,6 +15,8 @@ import type {
 export interface Veil {
   id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   description_ar: string;
   price: number;
   /** Optional sale price — when lower than price, storefront shows sale UI. */
@@ -31,6 +41,8 @@ export interface Veil {
 export interface BridalRobe {
   id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   description_ar: string;
   price: number;
   /** Optional sale price — when lower than price, storefront shows sale UI. */
@@ -59,6 +71,8 @@ export interface CartItem {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   /**
    * Base product unit price (sale-aware). Extra services are separate —
    * use chargedUnitPrice / lineChargedTotal for display totals.
@@ -77,8 +91,10 @@ export interface CartItem {
   order_options?: LineOrderOptionValue[] | null;
   /** Sprint 2A — paid extra services selected on PDP */
   extra_services?: LineExtraService[] | null;
-  /** Reserved for future personalization fees (currently 0 / omitted). */
+  /** Charged when writing personalization is enabled (from Admin). */
   personalization_fee?: number | null;
+  /** Charged when gift wrap / card is enabled (from Admin gift_ui). */
+  gift_fee?: number | null;
   /**
    * Explicit shipping flag for future accessory products.
    * Defaults via product_type when omitted (veil/bridal_robe → ship).
@@ -114,39 +130,27 @@ export const SHOP_ORDER_STATUSES: ShopOrderStatus[] = [
   "cancelled",
 ];
 
-export const SHOP_ORDER_STATUS_LABELS: Record<ShopOrderStatus, string> = {
-  pending: "تم استلام الطلب",
-  under_review: "قيد المراجعة",
-  confirmed: "تم تأكيد الطلب",
-  awaiting_payment: "بانتظار الدفعة",
-  payment_received: "تم استلام الدفعة",
-  in_production: "قيد التجهيز",
-  ready_for_pickup: "جاهز للاستلام",
-  shipped: "تم التسليم لشركة الشحن",
-  delivered: "تم التوصيل",
-  cancelled: "تم الإلغاء",
-  completed: "مكتمل",
-};
+/** Prefer shopOrderStatusLabels(locale). Arabic default for server emails. */
+export const SHOP_ORDER_STATUS_LABELS: Record<ShopOrderStatus, string> =
+  shopOrderStatusLabels("ar");
 
 /** Boutique pickup vs courier delivery for accessory orders */
 export type DeliveryMethod = "pickup" | "delivery";
 
-export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
-  pickup: "استلام من البوتيك",
-  delivery: "توصيل",
-};
+/** Prefer deliveryMethodLabels(locale). Arabic default for server emails. */
+export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> =
+  deliveryMethodLabels("ar");
 
 /** Status label adjusted for pickup vs delivery (backward-compatible defaults). */
 export function getOrderStatusLabel(
   status: ShopOrderStatus,
-  deliveryMethod?: DeliveryMethod | null
+  deliveryMethod?: DeliveryMethod | null,
+  locale: Locale = "ar"
 ): string {
-  if (status === "delivered" && deliveryMethod === "pickup") {
-    return "تم الاستلام";
-  }
-  if (status === "in_production") return "قيد التجهيز";
-  return SHOP_ORDER_STATUS_LABELS[status] ?? String(status);
+  return getShopOrderStatusLabel(status, locale, deliveryMethod);
 }
+
+export { getDeliveryMethodLabel, shopOrderStatusLabels, deliveryMethodLabels };
 
 /** Statuses that trigger a dedicated customer email template */
 export const CUSTOMER_EMAIL_STATUSES: ShopOrderStatus[] = [
@@ -171,6 +175,7 @@ export type OrderWorkflowAction =
   | "deliver"
   | "cancel";
 
+/** @deprecated Prefer getOrderWorkflowActions(locale, method) for UI. */
 export const ORDER_WORKFLOW_ACTIONS: {
   action: OrderWorkflowAction;
   label: string;
@@ -205,7 +210,7 @@ export const ORDER_WORKFLOW_ACTIONS: {
   { action: "cancel", label: "إلغاء", status: "cancelled", tone: "danger" },
 ];
 
-/** Workflow actions relevant to an order's delivery method (legacy = all). */
+/** Workflow actions relevant to an order's delivery method (legacy = all). Arabic labels — UI should use getOrderWorkflowActions. */
 export function workflowActionsForDeliveryMethod(
   method?: DeliveryMethod | null
 ): typeof ORDER_WORKFLOW_ACTIONS {
@@ -218,10 +223,12 @@ export function workflowActionsForDeliveryMethod(
   return ORDER_WORKFLOW_ACTIONS;
 }
 
+
 export interface ShippingRegion {
   id: string;
   name_ar: string;
   name_en: string;
+  name_he?: string | null;
   shipping_fee: number;
   is_active: boolean;
   sort_order: number;
@@ -231,6 +238,8 @@ export interface ShippingRegion {
   estimated_days_max?: number | null;
   /** Free-text Arabic estimate; preferred over min/max when set */
   estimated_delivery_ar?: string | null;
+  estimated_delivery_he?: string | null;
+  estimated_delivery_en?: string | null;
   carrier_code?: string | null;
   free_shipping_override?: number | null;
   discount?: number | null;
@@ -243,6 +252,8 @@ export interface ShopOrderItem {
   product_type: ShopProductType;
   product_id: string;
   name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
   /** Base product unit price (server-recalculated; extras stored separately). */
   unit_price: number;
   quantity: number;
@@ -252,6 +263,7 @@ export interface ShopOrderItem {
   order_options?: LineOrderOptionValue[] | null;
   extra_services?: LineExtraService[] | null;
   personalization_fee?: number | null;
+  gift_fee?: number | null;
   requires_shipping?: boolean;
 }
 
@@ -309,6 +321,23 @@ export interface ShopOrder {
   notify_whatsapp?: boolean;
   /** Customer opted in to email updates (default true for legacy rows) */
   notify_email?: boolean;
+  /** Sequential tax document number, e.g. ND-000001 */
+  invoice_number?: string | null;
+  /** Israeli document type: receipt / tax_invoice / tax_invoice_receipt */
+  invoice_type?: "receipt" | "tax_invoice" | "tax_invoice_receipt" | null;
+  invoice_issued_at?: string | null;
+  /** VAT rate percent snapshot at issue time */
+  vat_rate?: number | null;
+  vat_amount?: number | null;
+  /** Subtotal before VAT (when prices exclude VAT) or net of VAT (when inclusive) */
+  invoice_subtotal?: number | null;
+  prices_include_vat?: boolean | null;
+  /** Selected payment provider plugin id (cod, bit, …) */
+  payment_provider_id?: string | null;
+  /** unpaid | pending | paid | failed | refunded */
+  payment_status?: string | null;
+  payment_transaction_id?: string | null;
+  payment_paid_at?: string | null;
 }
 
 export const VEIL_CATEGORY_OPTIONS = [

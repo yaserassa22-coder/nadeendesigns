@@ -8,11 +8,11 @@ import {
 
 describe("getProductPrimaryAction", () => {
   it("maps commerce types to correct Arabic CTAs", () => {
-    expect(getProductPrimaryAction("ready_to_buy").label).toBe("أضف إلى السلة");
+    expect(getProductPrimaryAction("ready_to_buy").label).toBe("أضيفي للسلة");
     expect(getProductPrimaryAction("bridal_accessory").label).toBe(
-      "أضف إلى السلة"
+      "أضيفي للسلة"
     );
-    expect(getProductPrimaryAction("rental_dress").label).toBe("احجزي موعد");
+    expect(getProductPrimaryAction("rental_dress").label).toBe("احجزي موعدًا");
     expect(getProductPrimaryAction("custom_design").label).toBe("اطلبي تصميم");
     expect(getProductPrimaryAction("custom_design").kind).toBe(
       "request_design"

@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
 import { formatDate } from "@/lib/utils";
 import type { AdministratorRow } from "@/lib/admin/administrators";
 import { canAssignOwnerRole } from "@/lib/admin/permissions";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type Candidate = {
   auth_user_id: string;
@@ -16,35 +17,47 @@ type Candidate = {
   already_admin: boolean;
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "مالك (super_admin)",
-  admin: "مسؤول",
-  manager: "مدير",
-  staff: "موظف",
-};
-
-const ROLE_FILTER_OPTIONS = [
-  { value: "", label: "كل الأدوار" },
-  { value: "owner", label: "مالك" },
-  { value: "admin", label: "مسؤول" },
-  { value: "manager", label: "مدير" },
-  { value: "staff", label: "موظف" },
-];
-
 const STATUS_OPTIONS = [
   { value: "all", label: "الكل" },
   { value: "active", label: "نشط" },
   { value: "disabled", label: "معطّل" },
 ];
 
-const PROMOTE_ROLE_OPTIONS = [
-  { value: "admin", label: "مسؤول (admin)" },
-  { value: "manager", label: "مدير (manager)" },
-  { value: "staff", label: "موظف (staff)" },
-  { value: "owner", label: "مالك (owner / super_admin)" },
-];
-
 export function AdministratorsManager() {
+  const { t, dir } = useLocale();
+  const au = t.admin.administratorsUi;
+
+  const ROLE_LABELS = useMemo(
+    (): Record<string, string> => ({
+      owner: au.roleOwner,
+      admin: au.roleAdmin,
+      manager: au.roleManager,
+      staff: au.roleStaff,
+    }),
+    [au]
+  );
+
+  const ROLE_FILTER_OPTIONS = useMemo(
+    () => [
+      { value: "", label: au.roleFilterAll },
+      { value: "owner", label: au.roleOwnerShort },
+      { value: "admin", label: au.roleAdmin },
+      { value: "manager", label: au.roleManager },
+      { value: "staff", label: au.roleStaff },
+    ],
+    [au]
+  );
+
+  const PROMOTE_ROLE_OPTIONS = useMemo(
+    () => [
+      { value: "admin", label: au.rolePromoteAdmin },
+      { value: "manager", label: au.rolePromoteManager },
+      { value: "staff", label: au.rolePromoteStaff },
+      { value: "owner", label: au.rolePromoteOwner },
+    ],
+    [au]
+  );
+
   const [rows, setRows] = useState<AdministratorRow[]>([]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
@@ -230,7 +243,7 @@ export function AdministratorsManager() {
     : PROMOTE_ROLE_OPTIONS.filter((o) => o.value !== "owner");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={dir}>
       <div className="flex flex-wrap items-end gap-3">
         <Input
           label="بحث (الاسم / البريد)"
