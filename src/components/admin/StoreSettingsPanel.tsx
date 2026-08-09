@@ -1021,7 +1021,9 @@ export function StoreSettingsPanel({
                   ["hero", sf.hero],
                   ["featured_categories", sf.featuredCategories],
                   ["featured_products", sf.featuredProducts],
+                  ["accessories_editorial", sf.accessoriesEditorial],
                   ["collections", sf.collectionsSection],
+                  ["worn_by_you", sf.wornByYou],
                   ["instagram", sf.instagram],
                 ] as const
               ).map(([key, label]) => (

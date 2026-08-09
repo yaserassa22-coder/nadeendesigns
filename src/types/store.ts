@@ -114,8 +114,12 @@ export type StoreHomepageSettings = {
   hero: boolean;
   featured_categories: boolean;
   featured_products: boolean;
+  /** Mid-page Accessories editorial slideshow (veils + bridal robes). */
+  accessories_editorial: boolean;
   collections: boolean;
   testimonials: boolean;
+  /** Customer visual gallery — Worn by You */
+  worn_by_you: boolean;
   instagram: boolean;
   newsletter: boolean;
 };
@@ -618,8 +622,10 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     hero: true,
     featured_categories: true,
     featured_products: true,
+    accessories_editorial: true,
     collections: true,
     testimonials: false,
+    worn_by_you: true,
     instagram: true,
     newsletter: false,
   },

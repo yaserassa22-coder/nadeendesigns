@@ -23,6 +23,7 @@ type HeroCmsFields = Pick<
   | "hero_subtitle_he"
   | "hero_subtitle_en"
   | "hero_image_url"
+  | "hero_image_urls"
   | "hero_image_alt_ar"
   | "hero_image_alt_he"
   | "hero_image_alt_en"
@@ -40,7 +41,24 @@ interface HomeHeroCmsFormProps {
   initialSettings: SiteSettings;
 }
 
+function heroUploadValue(s: Pick<SiteSettings, "hero_image_url" | "hero_image_urls">): string[] {
+  const primary = s.hero_image_url?.trim() || "";
+  const extras = Array.isArray(s.hero_image_urls)
+    ? s.hero_image_urls.map((u) => u.trim()).filter(Boolean)
+    : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const url of [primary, ...extras]) {
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
 function fromSettings(s: SiteSettings): HeroCmsFields {
+  const slides = heroUploadValue(s);
   return {
     hero_title_ar: s.hero_title_ar ?? "",
     hero_title_he: s.hero_title_he ?? "",
@@ -51,7 +69,8 @@ function fromSettings(s: SiteSettings): HeroCmsFields {
     hero_subtitle_ar: s.hero_subtitle_ar ?? "",
     hero_subtitle_he: s.hero_subtitle_he ?? "",
     hero_subtitle_en: s.hero_subtitle_en ?? "",
-    hero_image_url: s.hero_image_url ?? "",
+    hero_image_url: slides[0] ?? "",
+    hero_image_urls: slides.slice(1),
     hero_image_alt_ar: s.hero_image_alt_ar ?? "",
     hero_image_alt_he: s.hero_image_alt_he ?? "",
     hero_image_alt_en: s.hero_image_alt_en ?? "",
@@ -113,7 +132,7 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
     form.hero_title_ar,
     form.hero_title_emphasis_ar
   );
-  const previewImage = form.hero_image_url?.trim() || "/hero.webp";
+  const previewImage = heroUploadValue(form)[0] || "/hero.webp";
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
@@ -250,11 +269,23 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-charcoal">{cu.heroImage}</p>
+          <p className="text-sm font-medium text-charcoal">{cu.heroImages}</p>
+          <p className="text-xs text-muted">{cu.heroImagesHint}</p>
           <ImageUpload
-            multiple={false}
-            value={form.hero_image_url ? [form.hero_image_url] : []}
-            onChange={(urls) => update("hero_image_url", urls[0] ?? "")}
+            multiple
+            value={heroUploadValue(form)}
+            onChange={(urls) => {
+              const unique = [...new Set(urls.map((u) => u.trim()).filter(Boolean))].slice(
+                0,
+                4
+              );
+              setForm((s) => ({
+                ...s,
+                hero_image_url: unique[0] ?? "",
+                hero_image_urls: unique.slice(1),
+              }));
+              setMessage("");
+            }}
           />
         </div>
 

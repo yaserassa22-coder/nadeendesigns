@@ -40,7 +40,6 @@ import { cn } from "@/lib/utils";
 import { useCart } from "@/components/shop/CartProvider";
 import { useWishlist } from "@/components/shop/WishlistProvider";
 import { NotificationCenter } from "@/components/layout/NotificationCenter";
-import { LuxuryNavPanel } from "@/components/layout/LuxuryNavPanel";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
@@ -117,16 +116,17 @@ function collectSearchHits(items: NavItem[]): SearchHit[] {
   return hits;
 }
 
+/**
+ * Clean luxury header — centered wordmark, quiet utilities, MENU on the physical right.
+ * MENU opens a right-edge sidebar drawer (not a full-page takeover).
+ */
 export function Header({
   items = FALLBACK_ITEMS,
   storeName = SITE_NAME,
   logoUrl,
 }: HeaderProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  const [mobileExpandedId, setMobileExpandedId] = useState<string | null>(null);
-  const [panelVariant, setPanelVariant] = useState<"mega" | "compact">("mega");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const { count } = useCart();
   const { count: wishlistCount } = useWishlist();
@@ -135,192 +135,106 @@ export function Header({
   const baseId = useId();
   const searchHits = useMemo(() => collectSearchHits(items), [items]);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
-  /** Content reading direction inside the physical LTR header shell. */
   const contentDir = dir;
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    setExpandedId(null);
+  }, []);
+
+  const openMenu = useCallback(() => {
+    setMenuOpen(true);
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = mobileOpen || searchOpen ? "hidden" : "";
+    document.body.style.overflow = menuOpen || searchOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [mobileOpen, searchOpen]);
+  }, [menuOpen, searchOpen]);
 
   useEffect(() => {
-    if (!openDropdownId) return;
+    if (!menuOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenDropdownId(null);
+      if (e.key === "Escape") closeMenu();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [openDropdownId]);
+  }, [menuOpen, closeMenu]);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
-    const apply = () => setPanelVariant(mq.matches ? "mega" : "compact");
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  const closeDropdown = () => setOpenDropdownId(null);
+  const utilities = (
+    <>
+      <LanguageSwitcher variant="storefront" compact />
+      <UtilityIconButton
+        label={t.nav.search}
+        onClick={() => setSearchOpen(true)}
+      >
+        <Search className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+      </UtilityIconButton>
+      <UtilityLink
+        href="/wishlist"
+        label={t.nav.wishlist}
+        badge={wishlistCount > 0 ? wishlistCount : undefined}
+      >
+        <Heart className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+      </UtilityLink>
+      {customer || user ? (
+        <UtilityLink href="/account" label={t.nav.account}>
+          <User className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+        </UtilityLink>
+      ) : (
+        <UtilityIconButton label={t.nav.login} onClick={() => openLogin()}>
+          <User className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+        </UtilityIconButton>
+      )}
+      <NotificationCenter />
+      <UtilityLink
+        href="/cart"
+        label={t.nav.cart}
+        badge={count > 0 ? count : undefined}
+      >
+        <ShoppingBag className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+      </UtilityLink>
+    </>
+  );
 
   return (
     <header
       data-storefront-chrome
-      className={cn(
-        "fixed top-0 z-50 w-full transition-[background-color,box-shadow,padding,backdrop-filter] duration-500 ease-out",
-        scrolled
-          ? "border-b border-beige-dark/80 bg-ivory/95 py-2.5 shadow-[0_1px_0_rgba(201,169,110,0.18)] backdrop-blur-md md:py-3"
-          : "bg-gradient-to-b from-ivory/90 via-ivory/55 to-transparent py-4 md:py-6"
-      )}
+      className="fixed top-0 z-50 w-full border-b border-beige-dark/70 bg-ivory"
     >
       {/*
-        Desktop / tablet (≥lg): physical 3-column grid (dir=ltr shell) so the
-        logo stays dead-center regardless of RTL document direction.
-          [ utilities ] | [ logo ] | [ primary nav ]
-        Inner clusters keep dir=rtl for Arabic reading order.
-        Mobile: hamburger | centered logo | utility icons — separate composition.
+        Physical LTR shell: wordmark stays centered in RTL and LTR.
+        MENU is always on the physical right — language never moves it.
+        [ utilities ] | [ logo ] | [ MENU ]
       */}
       <div
         dir="ltr"
-        className="mx-auto hidden max-w-[90rem] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-6 px-6 lg:grid xl:gap-x-10 xl:px-10 2xl:gap-x-14"
+        className="mx-auto grid max-w-[96rem] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-3 px-4 py-3.5 sm:gap-x-6 sm:px-6 sm:py-4 md:px-8 lg:px-10"
       >
-        {/* Column 1 — utilities (physical start / left) */}
         <div
           dir={contentDir}
-          className="flex min-w-0 items-center justify-self-start gap-x-3 xl:gap-x-5"
+          className="flex min-w-0 flex-wrap items-center justify-self-start gap-x-0.5 sm:gap-x-1"
         >
-          <LanguageSwitcher variant="storefront" compact />
-
-          <UtilityIconButton
-            label={t.nav.search}
-            onClick={() => setSearchOpen(true)}
-          >
-            <Search className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
-          </UtilityIconButton>
-
-          <UtilityLink
-            href="/wishlist"
-            label={t.nav.wishlist}
-            badge={wishlistCount > 0 ? wishlistCount : undefined}
-          >
-            <Heart className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
-          </UtilityLink>
-
-          {customer || user ? (
-            <UtilityLink href="/account" label={t.nav.account}>
-              <User className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
-            </UtilityLink>
-          ) : (
-            <UtilityIconButton label={t.nav.login} onClick={() => openLogin()}>
-              <User className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
-            </UtilityIconButton>
-          )}
-
-          <UtilityLink href="/cart" label={t.nav.cart} badge={count > 0 ? count : undefined}>
-            <ShoppingBag className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
-          </UtilityLink>
-
-          <NotificationCenter className="hidden xl:block" />
-
-          <Link
-            href="/booking"
-            className="ms-1 hidden whitespace-nowrap border-b border-gold/50 pb-0.5 text-[11px] font-medium tracking-[0.14em] text-gold transition-colors hover:border-gold hover:text-gold-dark xl:inline"
-          >
-            {t.nav.bookAppointment}
-          </Link>
+          {utilities}
         </div>
 
-        {/* Column 2 — logo (never shrinks, never overlapped) */}
-        <BrandLogo scrolled={scrolled} name={storeName} logoUrl={logoUrl} />
+        <BrandLogo name={storeName} logoUrl={logoUrl} />
 
-        {/* Column 3 — primary nav (physical end / right) */}
-        <nav
-          dir={contentDir}
-          className="flex min-w-0 flex-wrap items-center justify-self-end gap-x-0.5 xl:gap-x-1"
-          aria-label={t.nav.mainAria}
-        >
-          {items.map((item) => (
-            <DesktopNavItem
-              key={item.id}
-              item={item}
-              baseId={baseId}
-              open={openDropdownId === item.id}
-              panelVariant={panelVariant}
-              onOpen={() => setOpenDropdownId(item.id)}
-              onToggle={() =>
-                setOpenDropdownId((id) => (id === item.id ? null : item.id))
-              }
-              onClose={closeDropdown}
-            />
-          ))}
-        </nav>
-      </div>
-
-      {/* Mobile / small tablet bar */}
-      <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 sm:px-6 lg:hidden">
-        <button
-          type="button"
-          className="justify-self-start rounded-full p-1.5 text-charcoal transition-colors hover:text-gold"
-          onClick={() => setMobileOpen(true)}
-          aria-label={t.nav.openMenu}
-        >
-          <Menu className="h-6 w-6" strokeWidth={1.5} />
-        </button>
-
-        <BrandLogo
-          scrolled={scrolled}
-          name={storeName}
-          logoUrl={logoUrl}
-          className="justify-self-center"
-        />
-
-        <div className="flex shrink-0 items-center justify-self-end gap-0.5 sm:gap-1">
-          <LanguageSwitcher variant="storefront" compact />
-          <UtilityIconButton
-            label={t.nav.search}
-            onClick={() => setSearchOpen(true)}
-            className="p-1.5 sm:p-2"
+        <div className="justify-self-end">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-sm px-1.5 py-1.5 text-charcoal transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+            aria-label={t.nav.openMenu}
+            aria-expanded={menuOpen}
+            aria-controls={`${baseId}-menu`}
+            onClick={() => openMenu()}
           >
-            <Search className="h-5 w-5" strokeWidth={1.5} />
-          </UtilityIconButton>
-          <UtilityLink
-            href="/wishlist"
-            label={t.nav.wishlist}
-            badge={wishlistCount > 0 ? wishlistCount : undefined}
-            className="p-1.5 sm:p-2"
-          >
-            <Heart className="h-5 w-5" strokeWidth={1.5} />
-          </UtilityLink>
-          {customer || user ? (
-            <UtilityLink href="/account" label={t.nav.account} className="p-1.5 sm:p-2">
-              <User className="h-5 w-5" strokeWidth={1.5} />
-            </UtilityLink>
-          ) : (
-            <UtilityIconButton
-              label={t.nav.login}
-              onClick={() => openLogin()}
-              className="p-1.5 sm:p-2"
-            >
-              <User className="h-5 w-5" strokeWidth={1.5} />
-            </UtilityIconButton>
-          )}
-          <NotificationCenter />
-          <UtilityLink
-            href="/cart"
-            label={t.nav.cart}
-            badge={count > 0 ? count : undefined}
-            className="p-1.5 sm:p-2"
-          >
-            <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
-          </UtilityLink>
+            <span className="hidden text-[11px] font-medium tracking-[0.22em] uppercase sm:inline">
+              {t.nav.menuLabel}
+            </span>
+            <Menu className="h-5 w-5 sm:h-[1.15rem] sm:w-[1.15rem]" strokeWidth={1.5} />
+          </button>
         </div>
       </div>
 
@@ -331,167 +245,188 @@ export function Header({
       </AnimatePresence>
 
       <AnimatePresence>
-        {mobileOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[60] bg-ivory lg:hidden"
-          >
-            <div className="flex items-center justify-between border-b border-beige-dark/60 px-4 py-5">
-              <span className="font-[family-name:var(--font-cormorant)] text-2xl tracking-[0.2em] text-gold">
-                {storeName}
-              </span>
-              <button
-                type="button"
-                onClick={() => setMobileOpen(false)}
-                aria-label={t.common.close}
-                className="rounded-full p-1.5 text-charcoal transition-colors hover:text-gold"
-              >
-                <X className="h-6 w-6" strokeWidth={1.5} />
-              </button>
-            </div>
-            <nav
-              className="flex max-h-[calc(100vh-5.5rem)] flex-col gap-0.5 overflow-y-auto px-5 py-5"
+        {menuOpen ? (
+          <div className="fixed inset-0 z-[60]" role="presentation">
+            <motion.button
+              type="button"
+              aria-label={t.nav.closeMenu}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-charcoal/35 backdrop-blur-[2px]"
+              onClick={closeMenu}
+            />
+
+            <motion.aside
+              id={`${baseId}-menu`}
+              role="dialog"
+              aria-modal="true"
               aria-label={t.nav.mainAria}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "tween", duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute inset-y-0 right-0 flex w-[min(100vw,22.5rem)] flex-col border-s border-beige-dark/70 bg-ivory shadow-[-12px_0_40px_rgba(0,0,0,0.08)] sm:w-[min(100vw,26rem)]"
             >
-              {items.map((item) => {
-                const hasPanel = itemHasPanel(item);
-                if (!hasPanel) {
+              <div
+                dir="ltr"
+                className="flex shrink-0 items-center justify-between gap-3 border-b border-beige-dark/70 px-5 py-4"
+              >
+                <p className="font-[family-name:var(--font-cormorant)] text-lg tracking-[0.14em] text-charcoal uppercase">
+                  {t.nav.menuLabel}
+                </p>
+                <button
+                  type="button"
+                  onClick={closeMenu}
+                  aria-label={t.nav.closeMenu}
+                  className="inline-flex items-center gap-2 rounded-sm px-1.5 py-1.5 text-charcoal transition-colors hover:text-gold"
+                >
+                  <X className="h-5 w-5" strokeWidth={1.5} />
+                </button>
+              </div>
+
+              <nav
+                dir={contentDir}
+                className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4 sm:px-4"
+                aria-label={t.nav.mainAria}
+              >
+                {items.map((item) => {
+                  const hasPanel = itemHasPanel(item);
+                  if (!hasPanel) {
+                    return (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        onClick={closeMenu}
+                        className="rounded-sm px-3 py-3 font-[family-name:var(--font-cormorant)] text-xl tracking-[0.06em] text-charcoal transition-colors hover:bg-beige/60 hover:text-gold"
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  }
+
+                  const expanded = expandedId === item.id;
+                  const panelId = `${baseId}-side-${item.id}`;
+                  const overflow = item.overflowItems;
+
                   return (
-                    <Link
+                    <div
                       key={item.id}
-                      href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      className="rounded-xl px-4 py-3.5 text-lg font-medium tracking-wide text-charcoal transition-colors hover:bg-beige"
+                      className="border-b border-beige-dark/40 last:border-0"
                     >
-                      {item.label}
-                    </Link>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between rounded-sm px-3 py-3 text-start font-[family-name:var(--font-cormorant)] text-xl tracking-[0.06em] text-charcoal transition-colors hover:bg-beige/60 hover:text-gold"
+                        aria-expanded={expanded}
+                        aria-controls={panelId}
+                        onClick={() =>
+                          setExpandedId((id) =>
+                            id === item.id ? null : item.id
+                          )
+                        }
+                      >
+                        <span>{item.label}</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 text-gold transition-transform duration-300",
+                            expanded && "rotate-180"
+                          )}
+                          aria-hidden
+                        />
+                      </button>
+                      {expanded ? (
+                        <motion.div
+                          id={panelId}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="overflow-hidden pb-2"
+                        >
+                          {overflow?.length ? (
+                            <div className="ms-2 flex flex-col gap-1 border-s border-gold/25 ps-3">
+                              {overflow.map((parent) => (
+                                <MobileAccordionBranch
+                                  key={parent.id}
+                                  item={parent}
+                                  onNavigate={closeMenu}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="ms-2 flex flex-col border-s border-gold/25 ps-3">
+                              <Link
+                                href={item.href}
+                                onClick={closeMenu}
+                                className="rounded-sm px-3 py-2.5 text-sm font-medium tracking-wide text-gold hover:bg-beige/60"
+                              >
+                                {t.nav.viewAll}
+                              </Link>
+                              {item.children.map((link) => (
+                                <MobileChildLink
+                                  key={link.id}
+                                  link={link}
+                                  onNavigate={closeMenu}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
+                      ) : null}
+                    </div>
                   );
-                }
+                })}
 
-                const expanded = mobileExpandedId === item.id;
-                const panelId = `${baseId}-m-${item.id}`;
-                const overflow = item.overflowItems;
-
-                return (
-                  <div
-                    key={item.id}
-                    className="rounded-xl border-b border-beige-dark/40 last:border-0"
+                <div className="mt-5 space-y-1 border-t border-beige-dark/60 pt-4">
+                  <div className="mb-3 px-1">
+                    <LanguageSwitcher variant="storefront" compact={false} />
+                  </div>
+                  <Link
+                    href="/booking"
+                    onClick={closeMenu}
+                    className="mb-1 block rounded-sm bg-gold/10 px-3 py-3 text-center text-sm font-medium tracking-[0.14em] text-gold uppercase"
                   >
+                    {t.nav.bookAppointment}
+                  </Link>
+                  <Link
+                    href="/wishlist"
+                    onClick={closeMenu}
+                    className="block rounded-sm px-3 py-2.5 text-sm text-charcoal/85 hover:bg-beige/60 hover:text-gold"
+                  >
+                    {t.nav.wishlist}
+                    {wishlistCount > 0 ? ` (${wishlistCount})` : ""}
+                  </Link>
+                  <Link
+                    href="/cart"
+                    onClick={closeMenu}
+                    className="block rounded-sm px-3 py-2.5 text-sm text-charcoal/85 hover:bg-beige/60 hover:text-gold"
+                  >
+                    {t.nav.cart}
+                    {count > 0 ? ` (${count})` : ""}
+                  </Link>
+                  {customer || user ? (
+                    <Link
+                      href="/account"
+                      onClick={closeMenu}
+                      className="block rounded-sm px-3 py-2.5 text-sm text-charcoal/85 hover:bg-beige/60 hover:text-gold"
+                    >
+                      {t.nav.account}
+                    </Link>
+                  ) : (
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-lg font-medium tracking-wide text-charcoal transition-colors hover:bg-beige"
-                      aria-expanded={expanded}
-                      aria-controls={panelId}
-                      onClick={() =>
-                        setMobileExpandedId((id) =>
-                          id === item.id ? null : item.id
-                        )
-                      }
+                      onClick={() => {
+                        closeMenu();
+                        window.setTimeout(() => openLogin(), 0);
+                      }}
+                      className="w-full rounded-sm px-3 py-2.5 text-start text-sm text-charcoal/85 hover:bg-beige/60 hover:text-gold"
                     >
-                      <span>{item.label}</span>
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 text-gold transition-transform duration-300",
-                          expanded && "rotate-180"
-                        )}
-                        aria-hidden
-                      />
+                      {t.nav.login}
                     </button>
-                    {expanded && (
-                      <motion.div
-                        id={panelId}
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        className="overflow-hidden pb-3"
-                      >
-                        {overflow?.length ? (
-                          <div className="ms-2 flex flex-col gap-1 border-s border-gold/25 ps-3">
-                            {overflow.map((parent) => (
-                              <MobileAccordionBranch
-                                key={parent.id}
-                                item={parent}
-                                onNavigate={() => setMobileOpen(false)}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="ms-2 flex flex-col border-s border-gold/25 ps-3">
-                            <Link
-                              href={item.href}
-                              onClick={() => setMobileOpen(false)}
-                              className="rounded-xl px-4 py-2.5 text-base font-medium text-gold hover:bg-beige"
-                            >
-                              {t.nav.viewAll}
-                            </Link>
-                            {item.children.map((link) => (
-                              <MobileChildLink
-                                key={link.id}
-                                link={link}
-                                onNavigate={() => setMobileOpen(false)}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </div>
-                );
-              })}
-
-              <div className="mt-4 space-y-1 border-t border-beige-dark/60 pt-3">
-                <div className="mb-3 px-1">
-                  <LanguageSwitcher variant="storefront" compact={false} />
+                  )}
                 </div>
-                <Link
-                  href="/booking"
-                  onClick={() => setMobileOpen(false)}
-                  className="mb-2 block rounded-xl bg-gold/10 px-4 py-3.5 text-center text-lg font-medium tracking-wide text-gold"
-                >
-                  {t.nav.bookAppointment}
-                </Link>
-                <Link
-                  href="/wishlist"
-                  onClick={() => setMobileOpen(false)}
-                  className="block rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
-                >
-                  {t.nav.wishlist}
-                  {wishlistCount > 0 ? ` (${wishlistCount})` : ""}
-                </Link>
-                <Link
-                  href="/cart"
-                  onClick={() => setMobileOpen(false)}
-                  className="block rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
-                >
-                  {t.nav.cart}{count > 0 ? ` (${count})` : ""}
-                </Link>
-                {customer || user ? (
-                  <Link
-                    href="/account"
-                    onClick={() => setMobileOpen(false)}
-                    className="block rounded-xl px-4 py-3 text-lg font-medium text-charcoal hover:bg-beige"
-                  >
-                    {t.nav.account}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      // Defer so the closing mobile sheet doesn't deliver its
-                      // click onto the login modal backdrop.
-                      window.setTimeout(() => openLogin(), 0);
-                    }}
-                    className="w-full rounded-xl px-4 py-3 text-start text-lg font-medium text-charcoal hover:bg-beige"
-                  >
-                    {t.nav.login}
-                  </button>
-                )}
-              </div>
-            </nav>
-          </motion.div>
+              </nav>
+            </motion.aside>
+          </div>
         ) : null}
       </AnimatePresence>
     </header>
@@ -499,12 +434,10 @@ export function Header({
 }
 
 function BrandLogo({
-  scrolled,
   className,
   name = SITE_NAME,
   logoUrl,
 }: {
-  scrolled: boolean;
   className?: string;
   name?: string;
   logoUrl?: string;
@@ -522,24 +455,13 @@ function BrandLogo({
         <img
           src={logoUrl}
           alt={name}
-          className={cn(
-            "object-contain transition-[height,width] duration-500",
-            scrolled ? "h-8 sm:h-9" : "h-10 sm:h-12"
-          )}
+          className="h-9 object-contain sm:h-10 md:h-11"
         />
       ) : (
-        <span
-          className={cn(
-            "text-center font-[family-name:var(--font-cormorant)] font-semibold tracking-[0.22em] text-charcoal transition-[font-size,color,letter-spacing] duration-500 group-hover:text-gold",
-            scrolled
-              ? "text-xl sm:text-2xl md:text-[1.65rem]"
-              : "text-2xl sm:text-3xl md:text-[2rem]"
-          )}
-        >
+        <span className="text-center font-[family-name:var(--font-cormorant)] text-xl font-semibold tracking-[0.22em] text-charcoal transition-colors group-hover:text-gold sm:text-2xl md:text-[1.75rem]">
           {name}
         </span>
       )}
-      <span className="mt-1 h-px w-0 bg-gold transition-all duration-500 group-hover:w-full" />
     </Link>
   );
 }
@@ -561,7 +483,7 @@ function UtilityIconButton({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "rounded-full p-2 text-charcoal/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2",
+        "rounded-full p-2 text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2",
         className
       )}
     >
@@ -588,7 +510,7 @@ function UtilityLink({
       href={href}
       aria-label={label}
       className={cn(
-        "relative rounded-full p-2 text-charcoal/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2",
+        "relative rounded-full p-2 text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2",
         className
       )}
     >
@@ -599,78 +521,6 @@ function UtilityLink({
         </span>
       ) : null}
     </Link>
-  );
-}
-
-function DesktopNavItem({
-  item,
-  baseId,
-  open,
-  panelVariant,
-  onOpen,
-  onToggle,
-  onClose,
-}: {
-  item: NavItem;
-  baseId: string;
-  open: boolean;
-  panelVariant: "mega" | "compact";
-  onOpen: () => void;
-  onToggle: () => void;
-  onClose: () => void;
-}) {
-  const hasPanel = itemHasPanel(item);
-
-  if (!hasPanel) {
-    return (
-      <Link
-        href={item.href}
-        className="shrink-0 whitespace-nowrap px-2.5 py-2 text-[11px] font-medium tracking-[0.12em] text-charcoal/75 transition-colors hover:text-gold xl:px-3 xl:text-xs"
-      >
-        {item.label}
-      </Link>
-    );
-  }
-
-  const menuId = `${baseId}-${item.id}`;
-
-  return (
-    <div
-      className="relative shrink-0"
-      onMouseEnter={onOpen}
-      onMouseLeave={onClose}
-    >
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm px-2.5 py-2 text-[11px] font-medium tracking-[0.12em] text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2 xl:px-3 xl:text-xs"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-controls={menuId}
-        onClick={onToggle}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onOpen();
-          }
-        }}
-      >
-        <span>{item.label}</span>
-        <ChevronDown
-          className={cn(
-            "h-3 w-3 shrink-0 transition-transform duration-300",
-            open && "rotate-180"
-          )}
-          aria-hidden
-        />
-      </button>
-      <LuxuryNavPanel
-        id={menuId}
-        item={item}
-        open={open}
-        variant={panelVariant}
-        onNavigate={onClose}
-      />
-    </div>
   );
 }
 

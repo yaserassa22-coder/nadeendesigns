@@ -11,7 +11,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Copy, Pencil, Plus } from "lucide-react";
 import type { Dress } from "@/types";
 import type { Category } from "@/types/category";
 import {
@@ -20,6 +20,8 @@ import {
 } from "@/lib/admin/fetch-admin-categories";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
+import { postLifecycle } from "@/lib/admin/lifecycle-client";
+import { formatMessage } from "@/lib/i18n";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { getDressStyleLabel } from "@/lib/styles";
@@ -29,6 +31,7 @@ import {
 } from "@/lib/products/status";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 import {
@@ -68,6 +71,7 @@ function DressesManagerInner({
 }: DressesManagerProps) {
   const { t, locale } = useLocale();
   const p = t.admin.productsUi;
+  const { caps } = useAdminCapabilities();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -159,6 +163,9 @@ function DressesManagerInner({
     emptyDressForm(resolvedLockId ?? dressCategories[0]?.id ?? "")
   );
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [visibility, setVisibility] = useState<ListVisibility>("active");
 
   const refetchCategories = useCallback(async (): Promise<Category[]> => {
@@ -261,6 +268,7 @@ function DressesManagerInner({
   const openCreate = async () => {
     setEditing(null);
     setError("");
+    setNotice("");
     // Same query as Edit / ProductEditorModal — GET /api/categories
     const fresh = dressAssignableFrom(await refetchCategories());
     const defaultCategory =
@@ -274,6 +282,7 @@ function DressesManagerInner({
   const openEdit = async (dress: Dress) => {
     setEditing(dress);
     setError("");
+    setNotice("");
     // Same query as Create / ProductEditorModal — GET /api/categories
     const fresh = dressAssignableFrom(await refetchCategories());
     const base = dressToForm(dress, fresh);
@@ -281,10 +290,82 @@ function DressesManagerInner({
     setOpen(true);
   };
 
+  const duplicateProduct = useCallback(
+    async (dress: Dress) => {
+      setDuplicatingId(dress.id);
+      setError("");
+      try {
+        const res = await fetch("/api/dresses/duplicate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: dress.id }),
+        });
+        const data = (await res.json()) as {
+          product?: Dress;
+          message?: string;
+          error?: string;
+        };
+        if (!res.ok || !data.product) {
+          throw new Error(data.error ?? p.duplicateFailed);
+        }
+        const product = data.product;
+        const fresh = dressAssignableFrom(await refetchCategories());
+        setDresses((prev) => [product, ...prev.filter((d) => d.id !== product.id)]);
+        setEditing(product);
+        setForm(dressToForm(product, fresh));
+        setNotice(data.message || p.duplicateSuccess);
+        setOpen(true);
+      } catch (e) {
+        const msg =
+          e instanceof Error ? e.message : p.duplicateFailed;
+        setError(msg);
+        if (!open) alert(msg);
+      } finally {
+        setDuplicatingId(null);
+      }
+    },
+    [open, p.duplicateFailed, p.duplicateSuccess, refetchCategories]
+  );
+
+  const deleteProduct = useCallback(
+    async (dress: Dress) => {
+      const confirmed = window.confirm(
+        formatMessage(p.deleteConfirm, { name: dress.name_ar })
+      );
+      if (!confirmed) return;
+      setDeleting(true);
+      setError("");
+      try {
+        const result = await postLifecycle({
+          action: "soft_delete",
+          module: "dresses",
+          id: dress.id,
+        });
+        if (!result.ok) {
+          throw new Error(result.error || p.deleteFailed);
+        }
+        setDresses((prev) => prev.filter((d) => d.id !== dress.id));
+        if (editing?.id === dress.id) {
+          setOpen(false);
+          setEditing(null);
+          setNotice("");
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : p.deleteFailed;
+        setError(msg);
+        alert(msg);
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [editing?.id, p.deleteConfirm, p.deleteFailed]
+  );
+
   const close = () => {
     setOpen(false);
     setEditing(null);
     setError("");
+    setNotice("");
   };
 
   const handleSaved = useCallback((dress: Dress) => {
@@ -498,6 +579,16 @@ function DressesManagerInner({
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => void duplicateProduct(dress)}
+                            disabled={duplicatingId === dress.id}
+                            className="rounded-lg p-2 text-gold hover:bg-gold/10 disabled:opacity-50"
+                            aria-label={`${p.duplicateProduct} ${dress.name_ar}`}
+                            title={p.duplicateProduct}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
                           <RowLifecycleActions
                             module="dresses"
                             id={dress.id}
@@ -505,6 +596,12 @@ function DressesManagerInner({
                               (dress as Dress & { archived_at?: string | null })
                                 .archived_at
                             )}
+                            allowArchive={caps.canArchive}
+                            allowRestore={caps.canRestore}
+                            allowSoftDelete={caps.canSoftDelete}
+                            confirmSoftDelete={formatMessage(p.deleteConfirm, {
+                              name: dress.name_ar,
+                            })}
                             onChanged={(kind) => {
                               if (kind === "soft_delete") {
                                 setDresses((prev) =>
@@ -554,6 +651,24 @@ function DressesManagerInner({
           onClose={close}
           onSaved={handleSaved}
           onCreated={handleCreated}
+          notice={notice}
+          duplicating={Boolean(editing && duplicatingId === editing.id)}
+          deleting={deleting}
+          canDelete={caps.canSoftDelete}
+          onDuplicate={
+            editing
+              ? () => {
+                  void duplicateProduct(editing);
+                }
+              : undefined
+          }
+          onDelete={
+            editing
+              ? () => {
+                  void deleteProduct(editing);
+                }
+              : undefined
+          }
         />
       ) : null}
     </div>

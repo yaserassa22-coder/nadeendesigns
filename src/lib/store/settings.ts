@@ -256,8 +256,13 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     hero: bool(s.hero, d.hero),
     featured_categories: bool(s.featured_categories, d.featured_categories),
     featured_products: bool(s.featured_products, d.featured_products),
+    accessories_editorial: bool(
+      s.accessories_editorial,
+      d.accessories_editorial
+    ),
     collections: bool(s.collections, d.collections),
     testimonials: bool(s.testimonials, d.testimonials),
+    worn_by_you: bool(s.worn_by_you, d.worn_by_you),
     instagram: bool(s.instagram, d.instagram),
     newsletter: bool(s.newsletter, d.newsletter),
   };

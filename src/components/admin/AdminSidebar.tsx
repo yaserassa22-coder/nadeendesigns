@@ -77,6 +77,7 @@ const MODULE_LINK_DEFS = [
   { href: "/admin/activity", labelKey: "activity" as const },
   { href: "/admin/trash", labelKey: "trash" as const },
   { href: "/admin/content/home", labelKey: "homeContent" as const },
+  { href: "/admin/content/worn-by-you", labelKey: "wornByYou" as const },
   { href: "/admin/content/about", labelKey: "aboutContent" as const },
   { href: "/admin/reports", labelKey: "reports" as const },
   { href: "/admin/settings", labelKey: "storeSettings" as const },
