@@ -221,6 +221,11 @@ select:focus {
   ring-color: var(--gold);
 }
 
+/* Lift WhatsApp FAB while the cookie banner is open */
+body[data-cookie-banner="open"] [data-whatsapp-fab] {
+  bottom: 7.5rem;
+}
+
 @media print {
   aside,
   nav,

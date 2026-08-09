@@ -782,6 +782,18 @@ const ar: Dictionary = {
     navContact: "اتصل بنا",
     englishVersion: "English version",
   },
+  cookieConsent: {
+    message:
+      "نستخدم ملفات تعريف الارتباط الأساسية لتشغيل المتجر (الجلسة، السلة، وتفضيل اللغة).",
+    messageWithAnalytics:
+      "نستخدم ملفات أساسية لتشغيل المتجر، ويمكن استخدام ملفات تحليلات/إعلانات عند موافقتكِ.",
+    necessaryNote: "ملفات أساسية فقط — لا تُستخدم للإعلانات في هذا الإصدار.",
+    analyticsNote:
+      "عند الموافقة قد تُحمَّل أدوات التحليلات/الإعلانات التي فعّلتها الإدارة.",
+    accept: "موافق",
+    decline: "رفض",
+    privacyLink: "سياسة الخصوصية",
+  },
   shippingUi: {
     addressTitle: "عنوان التوصيل",
     deliveryMethod: "طريقة الاستلام:",
@@ -1164,6 +1176,17 @@ const ar: Dictionary = {
       legalBannerHint: "راجعي النصوص مع محامٍ مختص قبل الاعتماد عليها. يمكنكِ إخفاء شارة «نموذج» بعد المراجعة.",
       showTemplateBanner: "إظهار تنبيه «نموذج أولي» على الصفحات",
       requireCheckoutAcceptance: "طلب موافقة على الشروط والخصوصية عند الدفع",
+      cookieBannerEnabled: "إظهار شريط موافقة ملفات الارتباط",
+      cookieBannerHint:
+        "يُعلم الزائرات باستخدام ملفات أساسية (الجلسة، السلة، اللغة). يمكن إيقافه من هنا.",
+      cookiesAnalyticsTitle: "ملفات الارتباط والتحليلات",
+      cookiesAnalyticsHint:
+        "اربطي معرّف Google Analytics أو Meta Pixel ثم فعّلي التحميل. عند تفعيل الشريط تُحمَّل فقط بعد موافقة الزائرة.",
+      googleAnalyticsId: "معرّف Google Analytics (G-…)",
+      googleAnalyticsActive: "تفعيل Google Analytics في المتجر",
+      metaPixelId: "معرّف Meta Pixel",
+      metaPixelActive: "تفعيل Meta Pixel في المتجر",
+      analyticsNeedsId: "أدخلي المعرّف أولاً قبل التفعيل.",
       previewTerms: "معاينة الشروط",
       previewPrivacy: "الخصوصية",
       previewReturns: "الإرجاع",
@@ -3159,6 +3182,18 @@ const he: Dictionary = {
     navContact: "צור קשר",
     englishVersion: "English version",
   },
+  cookieConsent: {
+    message:
+      "אנחנו משתמשים בעוגיות הכרחיות להפעלת החנות (סשן, עגלה והעדפת שפה).",
+    messageWithAnalytics:
+      "אנחנו משתמשים בעוגיות הכרחיות להפעלת החנות, ובעוגיות אנליטיקה/פרסום רק אם תאשרי.",
+    necessaryNote: "עוגיות הכרחיות בלבד — ללא פרסום בגרסה זו.",
+    analyticsNote:
+      "באישור, ייתכן שייטענו כלי אנליטיקה/פרסום שהופעלו במערכת הניהול.",
+    accept: "מאשרת",
+    decline: "סירוב",
+    privacyLink: "מדיניות פרטיות",
+  },
   shippingUi: {
     addressTitle: "כתובת משלוח",
     deliveryMethod: "אופן קבלה:",
@@ -3541,6 +3576,17 @@ const he: Dictionary = {
       legalBannerHint: "בדקו את הטקסטים עם עורך דין לפני הסתמכות. ניתן להסתיר תג «תבנית» אחרי הבדיקה.",
       showTemplateBanner: "הצגת התראת «טיוטה» בעמודים",
       requireCheckoutAcceptance: "דרישת הסכמה לתנאים ולפרטיות בתשלום",
+      cookieBannerEnabled: "הצגת באנר הסכמה לעוגיות",
+      cookieBannerHint:
+        "מיידע מבקרות על עוגיות הכרחיות (סשן, עגלה, שפה). ניתן לכבות כאן.",
+      cookiesAnalyticsTitle: "עוגיות ואנליטיקה",
+      cookiesAnalyticsHint:
+        "חברו מזהה Google Analytics או Meta Pixel והפעילו טעינה. כשהבאנר פעיל — נטען רק אחרי אישור המבקרת.",
+      googleAnalyticsId: "מזהה Google Analytics (G-…)",
+      googleAnalyticsActive: "הפעלת Google Analytics בחנות",
+      metaPixelId: "מזהה Meta Pixel",
+      metaPixelActive: "הפעלת Meta Pixel בחנות",
+      analyticsNeedsId: "יש להזין מזהה לפני ההפעלה.",
       previewTerms: "תצוגת תנאים",
       previewPrivacy: "פרטיות",
       previewReturns: "החזרות",
@@ -5536,6 +5582,18 @@ const en: Dictionary = {
     navContact: "Contact us",
     englishVersion: "English version",
   },
+  cookieConsent: {
+    message:
+      "We use essential cookies to run the boutique (session, cart, and language preference).",
+    messageWithAnalytics:
+      "We use essential cookies to run the boutique, and analytics/ads cookies only if you accept.",
+    necessaryNote: "Essential cookies only — no advertising cookies in this version.",
+    analyticsNote:
+      "If you accept, analytics/ads tools activated in Admin may load.",
+    accept: "Accept",
+    decline: "Decline",
+    privacyLink: "Privacy policy",
+  },
   shippingUi: {
     addressTitle: "Delivery address",
     deliveryMethod: "Fulfillment method:",
@@ -5918,6 +5976,17 @@ const en: Dictionary = {
       legalBannerHint: "Review texts with a qualified lawyer before relying on them. You can hide the «template» badge after review.",
       showTemplateBanner: "Show «draft template» banner on pages",
       requireCheckoutAcceptance: "Require terms & privacy acceptance at checkout",
+      cookieBannerEnabled: "Show cookie consent banner",
+      cookieBannerHint:
+        "Informs visitors about essential cookies (session, cart, language). Can be turned off here.",
+      cookiesAnalyticsTitle: "Cookies & analytics",
+      cookiesAnalyticsHint:
+        "Connect a Google Analytics or Meta Pixel ID, then activate loading. When the banner is on, scripts load only after the visitor accepts.",
+      googleAnalyticsId: "Google Analytics ID (G-…)",
+      googleAnalyticsActive: "Activate Google Analytics on the storefront",
+      metaPixelId: "Meta Pixel ID",
+      metaPixelActive: "Activate Meta Pixel on the storefront",
+      analyticsNeedsId: "Enter an ID before activating.",
       previewTerms: "Preview terms",
       previewPrivacy: "Privacy",
       previewReturns: "Returns",

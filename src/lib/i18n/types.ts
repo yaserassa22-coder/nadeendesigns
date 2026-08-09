@@ -943,6 +943,15 @@ export type Dictionary = {
     navContact: string;
     englishVersion: string;
   };
+  cookieConsent: {
+    message: string;
+    messageWithAnalytics: string;
+    necessaryNote: string;
+    analyticsNote: string;
+    accept: string;
+    decline: string;
+    privacyLink: string;
+  };
   shippingUi: {
     addressTitle: string;
     deliveryMethod: string;
@@ -1145,6 +1154,15 @@ export type Dictionary = {
       legalBannerHint: string;
       showTemplateBanner: string;
       requireCheckoutAcceptance: string;
+      cookieBannerEnabled: string;
+      cookieBannerHint: string;
+      cookiesAnalyticsTitle: string;
+      cookiesAnalyticsHint: string;
+      googleAnalyticsId: string;
+      googleAnalyticsActive: string;
+      metaPixelId: string;
+      metaPixelActive: string;
+      analyticsNeedsId: string;
       previewTerms: string;
       previewPrivacy: string;
       previewReturns: string;

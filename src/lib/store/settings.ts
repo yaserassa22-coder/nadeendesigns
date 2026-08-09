@@ -306,7 +306,12 @@ function normalizeSeo(raw: unknown): StoreSeoSettings {
     robots_index: bool(s.robots_index, d.robots_index),
     robots_follow: bool(s.robots_follow, d.robots_follow),
     google_analytics_id: str(s.google_analytics_id, d.google_analytics_id),
+    google_analytics_enabled: bool(
+      s.google_analytics_enabled,
+      d.google_analytics_enabled
+    ),
     meta_pixel_id: str(s.meta_pixel_id, d.meta_pixel_id),
+    meta_pixel_enabled: bool(s.meta_pixel_enabled, d.meta_pixel_enabled),
   };
 }
 
@@ -368,6 +373,10 @@ function normalizeLegal(raw: unknown): StoreLegalSettings {
     require_checkout_acceptance: bool(
       s.require_checkout_acceptance,
       d.require_checkout_acceptance
+    ),
+    cookie_banner_enabled: bool(
+      s.cookie_banner_enabled,
+      d.cookie_banner_enabled
     ),
     updated_at:
       s.updated_at === null ? null : str(s.updated_at, d.updated_at ?? ""),
