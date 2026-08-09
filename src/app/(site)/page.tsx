@@ -4,6 +4,7 @@ import { ServicesSection } from "@/components/home/ServicesSection";
 import { WornByYouSection } from "@/components/home/WornByYouSection";
 import { InstagramSection } from "@/components/home/InstagramSection";
 import { CTASection } from "@/components/home/CTASection";
+import { AddToHomeScreenPrompt } from "@/components/home/AddToHomeScreenPrompt";
 import { getHomepageCategories } from "@/lib/data/categories";
 import {
   getFeaturedDresses,
@@ -109,6 +110,7 @@ export default async function HomePage() {
         {hp.instagram ? <InstagramSection images={instagramTiles} /> : null}
       </div>
       <CTASection />
+      <AddToHomeScreenPrompt />
     </>
   );
 }

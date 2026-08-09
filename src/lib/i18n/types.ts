@@ -808,6 +808,12 @@ export type Dictionary = {
     wornByYouPlay: string;
     wornByYouSocial: string;
     featuredCollection: string;
+    pwaAddTitle: string;
+    pwaAddBody: string;
+    pwaInstall: string;
+    pwaIosHint: string;
+    pwaIosShare: string;
+    pwaDismiss: string;
     /** Homepage hero — UI defaults when CMS HE/EN empty */
     heroTitle: string;
     heroEmphasis: string;
