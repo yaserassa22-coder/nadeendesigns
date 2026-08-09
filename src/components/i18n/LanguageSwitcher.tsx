@@ -73,7 +73,7 @@ export function LanguageSwitcher({
           isAdmin
             ? "w-full justify-start rounded-xl px-4 py-3 text-sm font-medium text-charcoal hover:bg-beige"
             : compact
-              ? "rounded-full p-2 text-charcoal/80 hover:text-gold"
+              ? "inline-flex size-9 items-center justify-center rounded-full text-charcoal/80 hover:text-gold sm:size-10 md:size-auto md:p-2"
               : "border border-gold/30 bg-ivory/70 px-3 py-1.5 text-charcoal/85 backdrop-blur-sm hover:border-gold/60 hover:text-gold"
         )}
       >

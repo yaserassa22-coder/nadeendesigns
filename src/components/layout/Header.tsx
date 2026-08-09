@@ -162,40 +162,61 @@ export function Header({
     return () => document.removeEventListener("keydown", onKey);
   }, [menuOpen, closeMenu]);
 
-  const utilities = (
-    <>
-      <LanguageSwitcher variant="storefront" compact />
-      <UtilityIconButton
-        label={t.nav.search}
-        onClick={() => setSearchOpen(true)}
-      >
-        <Search className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+  const languageControl = (
+    <LanguageSwitcher variant="storefront" compact className="shrink-0" />
+  );
+  const searchControl = (
+    <UtilityIconButton
+      label={t.nav.search}
+      onClick={() => setSearchOpen(true)}
+    >
+      <Search className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+    </UtilityIconButton>
+  );
+  const wishlistControl = (
+    <UtilityLink
+      href="/wishlist"
+      label={t.nav.wishlist}
+      badge={wishlistCount > 0 ? wishlistCount : undefined}
+    >
+      <Heart className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+    </UtilityLink>
+  );
+  const renderCart = () => (
+    <UtilityLink
+      href="/cart"
+      label={t.nav.cart}
+      badge={count > 0 ? count : undefined}
+    >
+      <ShoppingBag className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+    </UtilityLink>
+  );
+
+  const accountControl =
+    customer || user ? (
+      <UtilityLink href="/account" label={t.nav.account}>
+        <User className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
+      </UtilityLink>
+    ) : (
+      <UtilityIconButton label={t.nav.login} onClick={() => openLogin()}>
+        <User className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
       </UtilityIconButton>
-      <UtilityLink
-        href="/wishlist"
-        label={t.nav.wishlist}
-        badge={wishlistCount > 0 ? wishlistCount : undefined}
-      >
-        <Heart className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
-      </UtilityLink>
-      {customer || user ? (
-        <UtilityLink href="/account" label={t.nav.account}>
-          <User className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
-        </UtilityLink>
-      ) : (
-        <UtilityIconButton label={t.nav.login} onClick={() => openLogin()}>
-          <User className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
-        </UtilityIconButton>
-      )}
-      <NotificationCenter />
-      <UtilityLink
-        href="/cart"
-        label={t.nav.cart}
-        badge={count > 0 ? count : undefined}
-      >
-        <ShoppingBag className="h-[1.05rem] w-[1.05rem]" strokeWidth={1.5} />
-      </UtilityLink>
-    </>
+    );
+
+  const menuButton = (
+    <button
+      type="button"
+      className="inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-sm text-charcoal transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 sm:size-10 sm:px-1.5 md:size-auto md:px-1.5 md:py-1.5"
+      aria-label={t.nav.openMenu}
+      aria-expanded={menuOpen}
+      aria-controls={`${baseId}-menu`}
+      onClick={() => openMenu()}
+    >
+      <span className="hidden text-[11px] font-medium tracking-[0.22em] uppercase sm:inline">
+        {t.nav.menuLabel}
+      </span>
+      <Menu className="h-5 w-5 sm:h-[1.15rem] sm:w-[1.15rem]" strokeWidth={1.5} />
+    </button>
   );
 
   return (
@@ -204,37 +225,39 @@ export function Header({
       className="fixed top-0 z-50 w-full border-b border-beige-dark/70 bg-ivory"
     >
       {/*
-        Physical LTR shell: wordmark stays centered in RTL and LTR.
-        MENU is always on the physical right — language never moves it.
-        [ utilities ] | [ logo ] | [ MENU ]
+        Physical LTR shell: MENU stays on the physical right in every language.
+        Mobile: compact single row with optically centered wordmark.
+        Desktop: equal side columns with the full utility set on the start side.
       */}
       <div
         dir="ltr"
-        className="mx-auto grid max-w-[96rem] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-3 px-4 py-3.5 sm:gap-x-6 sm:px-6 sm:py-4 md:px-8 lg:px-10"
+        className="relative mx-auto flex h-16 max-w-[96rem] items-center px-3 sm:h-[4.25rem] sm:px-5 md:px-8 lg:grid lg:h-auto lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-6 lg:px-10 lg:py-4"
       >
         <div
           dir={contentDir}
-          className="flex min-w-0 flex-wrap items-center justify-self-start gap-x-0.5 sm:gap-x-1"
+          className="z-10 flex flex-nowrap items-center gap-0 lg:justify-self-start lg:gap-x-1"
         >
-          {utilities}
+          {languageControl}
+          {searchControl}
+          {wishlistControl}
+          <div className="hidden md:contents">
+            {accountControl}
+            <NotificationCenter className="shrink-0" />
+          </div>
+          <div className="hidden lg:contents">{renderCart()}</div>
         </div>
 
-        <BrandLogo name={storeName} logoUrl={logoUrl} />
+        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-[7.25rem] sm:px-32 lg:pointer-events-auto lg:static lg:inset-auto lg:z-auto lg:justify-self-center lg:px-0">
+          <BrandLogo
+            name={storeName}
+            logoUrl={logoUrl}
+            className="pointer-events-auto bg-ivory px-1 lg:bg-transparent lg:px-2"
+          />
+        </div>
 
-        <div className="justify-self-end">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-sm px-1.5 py-1.5 text-charcoal transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
-            aria-label={t.nav.openMenu}
-            aria-expanded={menuOpen}
-            aria-controls={`${baseId}-menu`}
-            onClick={() => openMenu()}
-          >
-            <span className="hidden text-[11px] font-medium tracking-[0.22em] uppercase sm:inline">
-              {t.nav.menuLabel}
-            </span>
-            <Menu className="h-5 w-5 sm:h-[1.15rem] sm:w-[1.15rem]" strokeWidth={1.5} />
-          </button>
+        <div className="z-10 ms-auto flex flex-nowrap items-center gap-0 lg:ms-0 lg:justify-self-end">
+          <div className="contents lg:hidden">{renderCart()}</div>
+          {menuButton}
         </div>
       </div>
 
@@ -380,6 +403,12 @@ export function Header({
                   <div className="mb-3 px-1">
                     <LanguageSwitcher variant="storefront" compact={false} />
                   </div>
+                  <div className="mb-2 flex items-center justify-between rounded-sm px-3 py-1 md:hidden">
+                    <span className="text-sm text-charcoal/85">
+                      {t.notificationsUi.title}
+                    </span>
+                    <NotificationCenter />
+                  </div>
                   <Link
                     href="/booking"
                     onClick={closeMenu}
@@ -446,7 +475,7 @@ function BrandLogo({
     <Link
       href="/"
       className={cn(
-        "group flex shrink-0 flex-col items-center px-2",
+        "group flex min-w-0 flex-col items-center",
         className
       )}
     >
@@ -455,10 +484,10 @@ function BrandLogo({
         <img
           src={logoUrl}
           alt={name}
-          className="h-9 object-contain sm:h-10 md:h-11"
+          className="h-8 max-w-full object-contain sm:h-10 md:h-11"
         />
       ) : (
-        <span className="text-center font-[family-name:var(--font-cormorant)] text-xl font-semibold tracking-[0.22em] text-charcoal transition-colors group-hover:text-gold sm:text-2xl md:text-[1.75rem]">
+        <span className="max-w-full truncate text-center font-[family-name:var(--font-cormorant)] text-[0.95rem] font-semibold tracking-[0.14em] text-charcoal transition-colors group-hover:text-gold sm:text-2xl sm:tracking-[0.22em] md:text-[1.75rem]">
           {name}
         </span>
       )}
@@ -483,7 +512,7 @@ function UtilityIconButton({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "rounded-full p-2 text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2",
+        "inline-flex size-9 shrink-0 items-center justify-center rounded-full text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2 sm:size-10 md:size-auto md:p-2",
         className
       )}
     >
@@ -510,7 +539,7 @@ function UtilityLink({
       href={href}
       aria-label={label}
       className={cn(
-        "relative rounded-full p-2 text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2",
+        "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2 sm:size-10 md:size-auto md:p-2",
         className
       )}
     >

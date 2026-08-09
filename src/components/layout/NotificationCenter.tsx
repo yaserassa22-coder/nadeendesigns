@@ -253,7 +253,7 @@ export function NotificationCenter({ className }: { className?: string }) {
           setOpen((o) => !o);
           void load();
         }}
-        className="relative rounded-full p-2 text-charcoal/80 transition-colors hover:text-gold"
+        className="relative inline-flex size-9 items-center justify-center rounded-full text-charcoal/80 transition-colors hover:text-gold sm:size-10 md:size-auto md:p-2"
         aria-label={t.notificationsUi.aria}
         aria-expanded={open}
       >
