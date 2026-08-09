@@ -14,6 +14,7 @@ import type { LifecycleCapabilities } from "@/lib/admin/permissions";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { VideoUpload } from "@/components/admin/VideoUpload";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
@@ -151,7 +152,7 @@ export function WornByYouManager({ initialItems }: WornByYouManagerProps) {
 
   const save = async () => {
     const image_url = images[0] || imageUrl.trim();
-    if (!image_url) {
+    if (mediaType === "image" && !image_url) {
       setError(w.imageRequiredError);
       return;
     }
@@ -165,7 +166,7 @@ export function WornByYouManager({ initialItems }: WornByYouManagerProps) {
     try {
       const body = {
         media_type: mediaType,
-        image_url,
+        image_url: image_url || "",
         video_url: mediaType === "video" ? videoUrl.trim() : null,
         customer_name: customerName.trim() || null,
         caption: caption.trim() || null,
@@ -235,6 +236,14 @@ export function WornByYouManager({ initialItems }: WornByYouManagerProps) {
                     fill
                     className="object-cover"
                     sizes="(max-width:768px) 50vw, 25vw"
+                  />
+                ) : item.media_type === "video" && item.video_url ? (
+                  <video
+                    src={item.video_url}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    muted
+                    playsInline
+                    preload="metadata"
                   />
                 ) : null}
                 {!item.is_active ? (
@@ -330,44 +339,53 @@ export function WornByYouManager({ initialItems }: WornByYouManagerProps) {
               <Select
                 label={w.mediaType}
                 value={mediaType}
-                onChange={(e) =>
-                  setMediaType(
-                    e.target.value === "video" ? "video" : "image"
-                  )
-                }
+                onChange={(e) => {
+                  const next =
+                    e.target.value === "video" ? "video" : "image";
+                  setMediaType(next);
+                  if (next === "video") {
+                    setImages([]);
+                    setImageUrl("");
+                  } else {
+                    setVideoUrl("");
+                  }
+                }}
                 options={[
                   { value: "image", label: w.image },
                   { value: "video", label: w.video },
                 ]}
               />
 
-              <div>
-                <p className="mb-2 text-sm font-medium">
-                  {mediaType === "video" ? w.posterRequired : w.imageRequired}
-                </p>
-                <ImageUpload
-                  value={images}
-                  onChange={setImages}
-                  multiple={false}
-                />
-                <Input
-                  className="mt-3"
-                  placeholder={w.imageUrlPlaceholder}
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  dir="ltr"
-                />
-              </div>
-
               {mediaType === "video" ? (
-                <Input
-                  label={w.videoUrl}
-                  placeholder={w.videoUrlPlaceholder}
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  dir="ltr"
-                />
-              ) : null}
+                <div>
+                  <p className="mb-2 text-sm font-medium">{w.videoUrl} *</p>
+                  <VideoUpload
+                    value={videoUrl}
+                    onChange={setVideoUrl}
+                    uploadLabel={w.uploadVideo}
+                    uploadingLabel={w.uploadingVideo}
+                    pastePlaceholder={w.videoUrlPlaceholder}
+                    pasteAddLabel={w.addVideoUrl}
+                    removeLabel={w.removeVideo}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <p className="mb-2 text-sm font-medium">{w.imageRequired}</p>
+                  <ImageUpload
+                    value={images}
+                    onChange={setImages}
+                    multiple={false}
+                  />
+                  <Input
+                    className="mt-3"
+                    placeholder={w.imageUrlPlaceholder}
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    dir="ltr"
+                  />
+                </div>
+              )}
 
               <Input
                 label={w.customerName}

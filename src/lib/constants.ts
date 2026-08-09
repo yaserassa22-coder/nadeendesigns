@@ -255,6 +255,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     },
   ],
 
+  custom_design_image_url: "",
+
   homepage_extra: {},
   cms: { homepage: {}, about: {} },
 

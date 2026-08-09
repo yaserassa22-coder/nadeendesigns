@@ -208,6 +208,11 @@ export function normalizeSiteSettings(
       DEFAULT_SETTINGS.about_cta_href
     ),
     about_values: normalizeAboutValues(source.about_values),
+    custom_design_image_url: String(
+      source.custom_design_image_url ??
+        DEFAULT_SETTINGS.custom_design_image_url ??
+        ""
+    ).trim(),
     homepage_extra:
       source.homepage_extra &&
       typeof source.homepage_extra === "object" &&

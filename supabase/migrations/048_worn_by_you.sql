@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS worn_by_you_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   media_type TEXT NOT NULL DEFAULT 'image'
     CHECK (media_type IN ('image', 'video')),
-  -- Required poster / still (also used as video poster)
-  image_url TEXT NOT NULL,
+  -- Poster / still (optional for video-only items)
+  image_url TEXT,
   video_url TEXT,
   customer_name TEXT,
   caption TEXT,
@@ -27,7 +27,19 @@ CREATE TABLE IF NOT EXISTS worn_by_you_items (
   deleted_at TIMESTAMPTZ,
   deleted_by UUID,
   archived_at TIMESTAMPTZ,
-  archived_by UUID
+  archived_by UUID,
+  CONSTRAINT worn_by_you_items_media_check CHECK (
+    (
+      media_type = 'image'
+      AND image_url IS NOT NULL
+      AND btrim(image_url) <> ''
+    )
+    OR (
+      media_type = 'video'
+      AND video_url IS NOT NULL
+      AND btrim(video_url) <> ''
+    )
+  )
 );
 
 CREATE INDEX IF NOT EXISTS idx_worn_by_you_sort

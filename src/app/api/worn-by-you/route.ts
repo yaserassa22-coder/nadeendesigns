@@ -32,10 +32,11 @@ function normalizePayload(body: WornByYouBody) {
   const media_type: WornByYouMediaType =
     body.media_type === "video" ? "video" : "image";
   const image_url = (body.image_url ?? "").trim();
-  if (!image_url) {
-    throw new Error("Image / poster is required");
-  }
   const video_url = emptyToNull(body.video_url);
+
+  if (media_type === "image" && !image_url) {
+    throw new Error("Image is required");
+  }
   if (media_type === "video" && !video_url) {
     throw new Error("Video URL is required for video items");
   }
@@ -54,7 +55,8 @@ function normalizePayload(body: WornByYouBody) {
 
   return {
     media_type,
-    image_url,
+    // Poster optional for video — empty when absent.
+    image_url: image_url || "",
     video_url: media_type === "video" ? video_url : null,
     customer_name: emptyToNull(body.customer_name),
     caption: emptyToNull(body.caption),

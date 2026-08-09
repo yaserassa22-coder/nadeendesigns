@@ -1,7 +1,5 @@
 import { Hero } from "@/components/home/Hero";
-import { FeaturedDresses } from "@/components/home/FeaturedDresses";
 import { AccessoriesEditorialSlideshow } from "@/components/home/AccessoriesEditorialSlideshow";
-import { CustomDesignSection } from "@/components/home/CustomDesignSection";
 import { ServicesSection } from "@/components/home/ServicesSection";
 import { WornByYouSection } from "@/components/home/WornByYouSection";
 import { InstagramSection } from "@/components/home/InstagramSection";
@@ -17,7 +15,6 @@ import { getAccessoriesEditorialSlides } from "@/lib/home/accessories-editorial"
 import { getHomepageEditorialTiles } from "@/lib/home/homepage-editorial-gallery";
 import { featuredImage } from "@/lib/products/featured-image";
 import { getStoreSettings } from "@/lib/store/settings";
-import { pickCmsOrUi } from "@/lib/cms/locale-text";
 import { getStorefrontLocale } from "@/lib/i18n/server";
 import { getDictionary } from "@/lib/i18n";
 import { resolveCategoryLabel } from "@/lib/i18n/category-labels";
@@ -45,9 +42,34 @@ export default async function HomePage() {
   ]);
 
   const hp = store.homepage;
-  const editorialTiles = hp.featured_categories
-    ? await getHomepageEditorialTiles(categories, locale)
-    : [];
+
+  const customCategoryCover =
+    categories.find((c) => c.legacy_key === "custom_design")?.cover_image_url ??
+    null;
+  const aboutImage = settings.about_image_url?.trim() || "";
+  const featuredDressImage = featuredImage(featuredDresses[0]?.images);
+  const dedicatedCustomImage = settings.custom_design_image_url?.trim() || "";
+  const customImageUrl =
+    dedicatedCustomImage ||
+    customCategoryCover ||
+    aboutImage ||
+    featuredDressImage ||
+    null;
+
+  // Featured dresses + custom design fold into the post-hero grid (no separate blocks).
+  const editorialTiles =
+    hp.featured_categories || hp.featured_products || hp.collections
+      ? await getHomepageEditorialTiles(
+          hp.featured_categories ? categories : [],
+          locale,
+          {
+            featuredDresses: hp.featured_products ? featuredDresses : [],
+            customDesign: hp.collections
+              ? { imageUrl: customImageUrl }
+              : null,
+          }
+        )
+      : [];
 
   const accessoriesCategory = categories.find((c) =>
     isAccessoriesGroupCategory(c)
@@ -56,68 +78,34 @@ export default async function HomePage() {
     ? resolveCategoryLabel(accessoriesCategory, locale)
     : getDictionary(locale).catalog.bridalAccessories;
 
-  const customCategoryCover =
-    categories.find((c) => c.legacy_key === "custom_design")?.cover_image_url ??
-    null;
-  const aboutImage = settings.about_image_url?.trim() || "";
-  const featuredDressImage = featuredImage(featuredDresses[0]?.images);
-  const customImageUrl =
-    aboutImage || customCategoryCover || featuredDressImage || null;
-  const customImageAlt = pickCmsOrUi(
-    {
-      ar: settings.about_image_alt_ar,
-      he: settings.about_image_alt_he,
-      en: settings.about_image_alt_en,
-    },
-    locale,
-    { ar: SITE_NAME, he: SITE_NAME, en: SITE_NAME }
-  );
-
-  const instagramTiles: { src: string; alt: string; href?: string }[] = gallery
-    .filter((item) => Boolean(item.image_url?.trim()))
-    .slice(0, 9)
-    .map((item) => ({
-      src: item.image_url,
+  const instagramTiles: { src: string; alt: string; href?: string }[] = [];
+  const usedIgUrls = new Set<string>();
+  for (const item of gallery) {
+    const src = item.image_url?.trim();
+    if (!src || usedIgUrls.has(src)) continue;
+    usedIgUrls.add(src);
+    instagramTiles.push({
+      src,
       alt: item.title_ar || SITE_NAME,
       href: "/gallery",
-    }));
-
-  if (instagramTiles.length === 0) {
-    for (const dress of featuredDresses) {
-      const src = featuredImage(dress.images);
-      if (!src) continue;
-      instagramTiles.push({
-        src,
-        alt: dress.name_ar || SITE_NAME,
-        href: `/dresses/${dress.id}`,
-      });
-      if (instagramTiles.length >= 9) break;
-    }
+    });
+    if (instagramTiles.length >= 9) break;
   }
 
   return (
     <>
       {hp.hero ? <Hero settings={settings} /> : null}
       <div className="bg-ivory">
-        {hp.featured_categories ? (
+        {editorialTiles.length > 0 ? (
           <ServicesSection tiles={editorialTiles} />
         ) : null}
-        {hp.featured_products ? (
-          <FeaturedDresses dresses={featuredDresses} />
-        ) : null}
+        {hp.worn_by_you ? <WornByYouSection items={wornByYou} /> : null}
         {hp.accessories_editorial ? (
           <AccessoriesEditorialSlideshow
             slides={accessoriesSlides}
             categoryLabel={accessoriesLabel}
           />
         ) : null}
-        {hp.collections ? (
-          <CustomDesignSection
-            imageUrl={customImageUrl}
-            imageAlt={customImageAlt}
-          />
-        ) : null}
-        {hp.worn_by_you ? <WornByYouSection items={wornByYou} /> : null}
         {hp.instagram ? <InstagramSection images={instagramTiles} /> : null}
       </div>
       <CTASection />

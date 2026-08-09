@@ -155,6 +155,7 @@ export type WornByYouProductKind = "dress" | "veil" | "bridal_robe";
 export interface WornByYouItem {
   id: string;
   media_type: WornByYouMediaType;
+  /** Optional for video items; required for image items. */
   image_url: string;
   video_url: string | null;
   customer_name: string | null;
@@ -395,6 +396,12 @@ export interface SiteSettings {
   about_cta_label_en?: string;
   about_cta_href: string;
   about_values: AboutValueItem[];
+
+  /**
+   * Homepage post-hero “تصميم فستان خاص” editorial tile image (CMS).
+   * When empty, storefront falls back to category cover / about / featured.
+   */
+  custom_design_image_url: string;
 
   /**
    * Optional bag for future homepage section payloads (Featured / Services /

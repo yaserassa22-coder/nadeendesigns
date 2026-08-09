@@ -2150,6 +2150,10 @@ export type Dictionary = {
       imageUrlPlaceholder: string;
       videoUrl: string;
       videoUrlPlaceholder: string;
+      uploadVideo: string;
+      uploadingVideo: string;
+      addVideoUrl: string;
+      removeVideo: string;
       customerName: string;
       caption: string;
       altText: string;
@@ -2330,6 +2334,9 @@ export type Dictionary = {
       aboutValueDescription: string;
       aboutTitleRequired: string;
       aboutPreviewTitle: string;
+      customDesignTileTitle: string;
+      customDesignTileDesc: string;
+      customDesignTileImage: string;
     };
     shippingRegionsUi: {
       pickupMethodsTitle: string;

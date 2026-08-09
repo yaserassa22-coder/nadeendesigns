@@ -11,7 +11,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { WornByYouItem } from "@/types";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
@@ -25,6 +25,66 @@ type WornByYouSectionProps = {
   items: WornByYouItem[];
 };
 
+function AutoLoopVideo({
+  src,
+  poster,
+  alt,
+  reduceMotion,
+}: {
+  src: string;
+  poster?: string;
+  alt: string;
+  reduceMotion: boolean | null;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    if (reduceMotion) {
+      el.pause();
+      return;
+    }
+
+    const tryPlay = () => {
+      void el.play().catch(() => {
+        /* Browser may block until muted + playsInline — already set. */
+      });
+    };
+
+    tryPlay();
+
+    const onIntersect: IntersectionObserverCallback = (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) tryPlay();
+        else el.pause();
+      }
+    };
+
+    const io = new IntersectionObserver(onIntersect, {
+      threshold: 0.35,
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [src, reduceMotion]);
+
+  return (
+    <video
+      ref={ref}
+      className="absolute inset-0 h-full w-full object-cover"
+      src={src}
+      poster={poster || undefined}
+      aria-label={alt}
+      muted
+      loop
+      playsInline
+      autoPlay={!reduceMotion}
+      preload="metadata"
+    />
+  );
+}
+
 export function WornByYouSection({ items }: WornByYouSectionProps) {
   const { t, dir } = useLocale();
   const reduceMotion = useReducedMotion();
@@ -32,9 +92,11 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
   const baseId = useId();
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
-  const [playingId, setPlayingId] = useState<string | null>(null);
 
-  const list = items.filter((item) => Boolean(item.image_url?.trim()));
+  const list = items.filter((item) => {
+    if (item.media_type === "video") return Boolean(item.video_url?.trim());
+    return Boolean(item.image_url?.trim());
+  });
   const scrollable = list.length > 1;
 
   const updateArrows = useCallback(() => {
@@ -174,8 +236,8 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
                 item.product_label?.trim() || t.home.wornByYouViewPiece;
               const social = item.social_url?.trim() || null;
               const isVideo =
-                item.media_type === "video" && Boolean(item.video_url);
-              const isPlaying = playingId === item.id;
+                item.media_type === "video" && Boolean(item.video_url?.trim());
+              const poster = item.image_url?.trim() || undefined;
 
               return (
                 <article
@@ -199,43 +261,24 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
                     className="group relative"
                   >
                     <div className="relative aspect-[3/4] overflow-hidden bg-beige">
-                      {isPlaying && item.video_url ? (
-                        <video
-                          className="absolute inset-0 h-full w-full object-cover"
+                      {isVideo && item.video_url ? (
+                        <AutoLoopVideo
                           src={item.video_url}
-                          poster={item.image_url}
-                          controls
-                          playsInline
-                          autoPlay={!reduceMotion}
-                          muted
-                          onEnded={() => setPlayingId(null)}
+                          poster={poster}
+                          alt={alt}
+                          reduceMotion={reduceMotion}
                         />
-                      ) : (
+                      ) : poster ? (
                         <>
                           <Image
-                            src={item.image_url}
+                            src={poster}
                             alt={alt}
                             fill
                             className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                             sizes="(max-width: 640px) 85vw, (max-width: 1024px) 50vw, 33vw"
                             loading={index < 3 ? "eager" : "lazy"}
                           />
-                          {isVideo ? (
-                            <button
-                              type="button"
-                              onClick={() => setPlayingId(item.id)}
-                              className="absolute inset-0 flex items-center justify-center bg-charcoal/10 transition-colors hover:bg-charcoal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold/50"
-                              aria-label={t.home.wornByYouPlay}
-                            >
-                              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-ivory/70 bg-charcoal/45 text-ivory backdrop-blur-[1px]">
-                                <Play
-                                  className="ms-0.5 h-4 w-4"
-                                  fill="currentColor"
-                                  strokeWidth={0}
-                                />
-                              </span>
-                            </button>
-                          ) : social ? (
+                          {social ? (
                             <a
                               href={social}
                               target="_blank"
@@ -245,17 +288,6 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
                             />
                           ) : null}
                         </>
-                      )}
-
-                      {isPlaying ? (
-                        <button
-                          type="button"
-                          onClick={() => setPlayingId(null)}
-                          className="absolute end-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/55 text-ivory hover:bg-charcoal/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
-                          aria-label={t.common.close}
-                        >
-                          <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        </button>
                       ) : null}
                     </div>
 

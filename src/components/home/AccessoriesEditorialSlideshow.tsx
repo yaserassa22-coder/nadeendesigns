@@ -15,8 +15,8 @@ import type { AccessoriesEditorialSlide } from "@/lib/home/accessories-editorial
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
 
-const SLIDE_MS = 3000;
-const FADE_MS = 1200;
+const SLIDE_MS = 2200;
+const FADE_MS = 900;
 const SWIPE_PX = 48;
 
 type AccessoriesEditorialSlideshowProps = {
@@ -91,7 +91,7 @@ export function AccessoriesEditorialSlideshow({
 
   return (
     <section
-      className="bg-ivory pt-1 sm:pt-1.5"
+      className="bg-ivory pt-8 sm:pt-10 md:pt-12"
       aria-roledescription={multi ? "carousel" : undefined}
       aria-label={categoryLabel}
       onMouseEnter={() => setPaused(true)}
