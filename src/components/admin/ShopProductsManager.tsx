@@ -8,17 +8,19 @@ import { localizedName } from "@/lib/i18n/localize";
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { Pencil, Plus, X } from "lucide-react";
+import { Copy, Pencil, Plus, X } from "lucide-react";
 import type { BridalRobe, Veil } from "@/types/shop";
 import { VEIL_CATEGORY_OPTIONS } from "@/types/shop";
 import { DRESS_COLORS, DRESS_SIZES } from "@/lib/constants";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
+import { postLifecycle } from "@/lib/admin/lifecycle-client";
 import { formatPrice } from "@/lib/utils";
 import { featuredImage } from "@/lib/products/featured-image";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
 
@@ -69,6 +71,7 @@ export function ShopProductsManager({
 }: ShopProductsManagerProps) {
   const { t, locale } = useLocale();
   const p = t.admin.productsUi;
+  const { caps } = useAdminCapabilities();
   const apiPath = kind === "veils" ? "/api/veils" : "/api/bridal-robes";
   const [items, setItems] = useState(initialItems);
   const [search, setSearch] = useState("");
@@ -78,9 +81,13 @@ export function ShopProductsManager({
   const [editing, setEditing] = useState<Veil | BridalRobe | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm(kind));
   const [saving, setSaving] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [visibility, setVisibility] = useState<ListVisibility>("active");
   const lifecycleModule = kind === "veils" ? "veils" : "bridal_robes";
+  const duplicateApiPath = `${apiPath}/duplicate`;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -118,6 +125,7 @@ export function ShopProductsManager({
     setEditing(null);
     setForm(emptyForm(kind));
     setError("");
+    setNotice("");
     setOpen(true);
   };
 
@@ -141,7 +149,91 @@ export function ShopProductsManager({
       images: item.images ?? [],
     });
     setError("");
+    setNotice("");
     setOpen(true);
+  };
+
+  const applyItemToForm = (item: Veil | BridalRobe) => {
+    setForm({
+      name_ar: item.name_ar,
+      description_ar: item.description_ar,
+      price: String(item.price ?? ""),
+      sale_price:
+        item.sale_price != null && item.sale_price !== undefined
+          ? String(item.sale_price)
+          : "",
+      category: "category" in item ? String(item.category) : "",
+      color: item.color ?? "",
+      size: "size" in item ? (item.size ?? "") : "",
+      material: item.material ?? "",
+      stock_quantity: String(item.stock_quantity ?? 0),
+      is_featured: item.is_featured,
+      is_available: item.is_available,
+      images: [...(item.images ?? [])],
+    });
+  };
+
+  const duplicateProduct = async (item: Veil | BridalRobe) => {
+    setDuplicatingId(item.id);
+    setError("");
+    try {
+      const res = await fetch(duplicateApiPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id }),
+      });
+      const data = (await res.json()) as {
+        product?: Veil | BridalRobe;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.product) {
+        throw new Error(data.error ?? p.duplicateFailed);
+      }
+      const product = data.product;
+      setItems((prev) => [product, ...prev.filter((i) => i.id !== product.id)]);
+      setEditing(product);
+      applyItemToForm(product);
+      setNotice(data.message || p.duplicateSuccess);
+      setOpen(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : p.duplicateFailed;
+      setError(msg);
+      if (!open) alert(msg);
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
+
+  const deleteProduct = async (item: Veil | BridalRobe) => {
+    const confirmed = window.confirm(
+      formatMessage(p.deleteConfirm, { name: item.name_ar })
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    setError("");
+    try {
+      const result = await postLifecycle({
+        action: "soft_delete",
+        module: lifecycleModule,
+        id: item.id,
+      });
+      if (!result.ok) {
+        throw new Error(result.error || p.deleteFailed);
+      }
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      if (editing?.id === item.id) {
+        setOpen(false);
+        setEditing(null);
+        setNotice("");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : p.deleteFailed;
+      setError(msg);
+      alert(msg);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const payload = () => {
@@ -339,6 +431,16 @@ export function ShopProductsManager({
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => void duplicateProduct(item)}
+                          disabled={duplicatingId === item.id}
+                          className="rounded-lg p-2 text-gold hover:bg-gold/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+                          aria-label={`${p.duplicateProduct} ${item.name_ar}`}
+                          title={p.duplicateProduct}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
                         <RowLifecycleActions
                           module={lifecycleModule}
                           id={item.id}
@@ -349,6 +451,12 @@ export function ShopProductsManager({
                               }
                             ).archived_at
                           )}
+                          allowArchive={caps.canArchive}
+                          allowRestore={caps.canRestore}
+                          allowSoftDelete={caps.canSoftDelete}
+                          confirmSoftDelete={formatMessage(p.deleteConfirm, {
+                            name: item.name_ar,
+                          })}
                           onChanged={(kind) => {
                             if (kind === "soft_delete") {
                               setItems((prev) =>
@@ -414,19 +522,69 @@ export function ShopProductsManager({
           aria-label={editing ? p.editProduct : p.addProductTitle}
         >
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">
                 {editing ? p.editProduct : p.addProductTitle}
               </h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label={p.close}
-                className="rounded-lg p-1 text-charcoal hover:bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {editing ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={duplicatingId === editing.id}
+                    disabled={
+                      saving ||
+                      deleting ||
+                      duplicatingId === editing.id
+                    }
+                    onClick={() => void duplicateProduct(editing)}
+                  >
+                    {duplicatingId === editing.id
+                      ? p.duplicating
+                      : p.duplicateProduct}
+                  </Button>
+                ) : null}
+                {editing && caps.canSoftDelete ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={deleting}
+                    disabled={
+                      saving ||
+                      deleting ||
+                      duplicatingId === editing.id
+                    }
+                    onClick={() => void deleteProduct(editing)}
+                    className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                  >
+                    {deleting ? p.deleting : p.deleteProduct}
+                  </Button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setNotice("");
+                    setError("");
+                  }}
+                  aria-label={p.close}
+                  className="rounded-lg p-1 text-charcoal hover:bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
+
+            {notice ? (
+              <p
+                className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+                role="status"
+              >
+                {notice}
+              </p>
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">

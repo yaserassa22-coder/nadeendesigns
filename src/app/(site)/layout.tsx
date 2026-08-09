@@ -1,6 +1,8 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
+import { CookieConsentBanner } from "@/components/legal/CookieConsentBanner";
+import { StorefrontAnalytics } from "@/components/legal/StorefrontAnalytics";
 import { StorefrontProviders } from "@/components/providers/StorefrontProviders";
 import {
   buildFooterNavLinks,
@@ -36,9 +38,20 @@ export default async function SiteLayout({
   const whatsapp = store.contact.whatsapp || settings.whatsapp;
   const phone = store.contact.phone || settings.phone;
   const email = store.contact.email || settings.email;
+  const analyticsConfigured =
+    (Boolean(store.seo.google_analytics_id.trim()) &&
+      store.seo.google_analytics_enabled) ||
+    (Boolean(store.seo.meta_pixel_id.trim()) && store.seo.meta_pixel_enabled);
 
   return (
     <StorefrontProviders>
+      <StorefrontAnalytics
+        bannerEnabled={store.legal.cookie_banner_enabled}
+        googleAnalyticsId={store.seo.google_analytics_id}
+        googleAnalyticsEnabled={store.seo.google_analytics_enabled}
+        metaPixelId={store.seo.meta_pixel_id}
+        metaPixelEnabled={store.seo.meta_pixel_enabled}
+      />
       <Header
         items={nav.items}
         storeName={storeName}
@@ -79,6 +92,10 @@ export default async function SiteLayout({
         }}
       />
       <WhatsAppButton whatsapp={whatsapp} />
+      <CookieConsentBanner
+        enabled={store.legal.cookie_banner_enabled}
+        analyticsConfigured={analyticsConfigured}
+      />
     </StorefrontProviders>
   );
 }

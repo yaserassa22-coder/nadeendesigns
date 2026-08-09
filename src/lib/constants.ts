@@ -211,6 +211,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   hero_subtitle_ar:
     "فساتين زفاف فاخرة، تصاميم حصرية، وخدمة راقية لتكوني الأجمل في يومك المميز.",
   hero_image_url: "/hero.webp",
+  hero_image_urls: [],
   hero_image_alt_ar: "فستان زفاف ملكي بالدانتيل الفاخر — Nadeen Designs",
   hero_cta_primary_label_ar: "اكتشفي المجموعة",
   hero_cta_primary_href: "/wedding-dresses",
@@ -253,6 +254,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       description_ar: "أقمشة فاخرة من أرقى الموردين العالميين",
     },
   ],
+
+  custom_design_image_url: "",
 
   homepage_extra: {},
   cms: { homepage: {}, about: {} },

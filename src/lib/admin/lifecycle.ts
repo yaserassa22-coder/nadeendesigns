@@ -26,6 +26,7 @@ export const CLEANUP_ELIGIBLE_MODULES: LifecycleModule[] = [
   "customer_notifications",
   "shipping_regions",
   "gallery",
+  "worn_by_you",
   "customers",
 ];
 
@@ -519,9 +520,12 @@ function titleFromRow(module: LifecycleModule, row: Record<string, unknown>): st
     module === "bridal_robes" ||
     module === "categories" ||
     module === "gallery" ||
+    module === "worn_by_you" ||
     module === "shipping_regions"
   ) {
-    return String(row.name_ar || row.name || row.id || module);
+    return String(
+      row.customer_name || row.name_ar || row.name || row.caption || row.id || module
+    );
   }
   return String(row.id ?? module);
 }

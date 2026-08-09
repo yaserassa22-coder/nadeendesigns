@@ -15,6 +15,8 @@ interface LuxuryNavPanelProps {
   variant: PanelVariant;
   onNavigate: () => void;
   id: string;
+  /** dropdown = absolute under trigger; embedded = in-flow (MENU overlay). */
+  placement?: "dropdown" | "embedded";
 }
 
 function hasPromo(item: NavItem): boolean {
@@ -299,7 +301,10 @@ export function LuxuryNavPanel({
   variant,
   onNavigate,
   id,
+  placement = "dropdown",
 }: LuxuryNavPanelProps) {
+  const embedded = placement === "embedded";
+
   return (
     <AnimatePresence>
       {open ? (
@@ -307,15 +312,20 @@ export function LuxuryNavPanel({
           id={id}
           role="menu"
           aria-label={item.label}
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: embedded ? 0 : 8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 6 }}
+          exit={{ opacity: 0, y: embedded ? 0 : 6 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className={cn(
-            "absolute z-50 overflow-hidden border border-beige-dark/80 bg-ivory shadow-[0_18px_50px_-20px_rgba(44,36,25,0.35)]",
-            variant === "mega"
-              ? "start-0 top-full mt-3 w-[min(920px,calc(100vw-3rem))] rounded-2xl"
-              : "start-0 top-full mt-2 rounded-xl"
+            "overflow-hidden border border-beige-dark/80 bg-ivory",
+            embedded
+              ? "relative w-full rounded-2xl shadow-none"
+              : cn(
+                  "absolute z-50 shadow-[0_18px_50px_-20px_rgba(44,36,25,0.35)]",
+                  variant === "mega"
+                    ? "start-0 top-full mt-3 w-[min(920px,calc(100vw-3rem))] rounded-2xl"
+                    : "start-0 top-full mt-2 rounded-xl"
+                )
           )}
         >
           {variant === "mega" ? (

@@ -289,6 +289,8 @@ export function StoreSettingsPanel({
                 ...settings.legal,
                 updated_at: new Date().toISOString(),
               },
+              // Banner + GA/Pixel controls live on Legal; persist SEO analytics too.
+              seo: settings.seo,
             };
           case "tax":
             return { tax: settings.tax };
@@ -304,7 +306,11 @@ export function StoreSettingsPanel({
       const res = await fetch("/api/admin/store-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings: patch, sections: [section] }),
+        body: JSON.stringify({
+          settings: patch,
+          sections:
+            section === "legal" ? ["legal", "seo"] : [section],
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.admin.ordersUi.saveFailed);
@@ -1015,7 +1021,9 @@ export function StoreSettingsPanel({
                   ["hero", sf.hero],
                   ["featured_categories", sf.featuredCategories],
                   ["featured_products", sf.featuredProducts],
+                  ["accessories_editorial", sf.accessoriesEditorial],
                   ["collections", sf.collectionsSection],
+                  ["worn_by_you", sf.wornByYou],
                   ["instagram", sf.instagram],
                 ] as const
               ).map(([key, label]) => (
@@ -1291,29 +1299,77 @@ export function StoreSettingsPanel({
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Google Analytics ID"
-                value={settings.seo.google_analytics_id}
-                onChange={(e) =>
-                  setSettings((s) => ({
-                    ...s,
-                    seo: { ...s.seo, google_analytics_id: e.target.value },
-                  }))
-                }
-                dir="ltr"
-                placeholder="G-XXXXXXXX"
-              />
-              <Input
-                label="Meta Pixel ID"
-                value={settings.seo.meta_pixel_id}
-                onChange={(e) =>
-                  setSettings((s) => ({
-                    ...s,
-                    seo: { ...s.seo, meta_pixel_id: e.target.value },
-                  }))
-                }
-                dir="ltr"
-              />
+              <div className="space-y-3">
+                <Input
+                  label={sf.googleAnalyticsId}
+                  value={settings.seo.google_analytics_id}
+                  onChange={(e) =>
+                    setSettings((s) => ({
+                      ...s,
+                      seo: {
+                        ...s.seo,
+                        google_analytics_id: e.target.value,
+                        google_analytics_enabled: e.target.value.trim()
+                          ? s.seo.google_analytics_enabled
+                          : false,
+                      },
+                    }))
+                  }
+                  dir="ltr"
+                  placeholder="G-XXXXXXXX"
+                />
+                <Toggle
+                  label={sf.googleAnalyticsActive}
+                  checked={settings.seo.google_analytics_enabled}
+                  disabled={!settings.seo.google_analytics_id.trim()}
+                  onChange={(v) =>
+                    setSettings((s) => ({
+                      ...s,
+                      seo: { ...s.seo, google_analytics_enabled: v },
+                    }))
+                  }
+                  hint={
+                    settings.seo.google_analytics_id.trim()
+                      ? undefined
+                      : sf.analyticsNeedsId
+                  }
+                />
+              </div>
+              <div className="space-y-3">
+                <Input
+                  label={sf.metaPixelId}
+                  value={settings.seo.meta_pixel_id}
+                  onChange={(e) =>
+                    setSettings((s) => ({
+                      ...s,
+                      seo: {
+                        ...s.seo,
+                        meta_pixel_id: e.target.value,
+                        meta_pixel_enabled: e.target.value.trim()
+                          ? s.seo.meta_pixel_enabled
+                          : false,
+                      },
+                    }))
+                  }
+                  dir="ltr"
+                />
+                <Toggle
+                  label={sf.metaPixelActive}
+                  checked={settings.seo.meta_pixel_enabled}
+                  disabled={!settings.seo.meta_pixel_id.trim()}
+                  onChange={(v) =>
+                    setSettings((s) => ({
+                      ...s,
+                      seo: { ...s.seo, meta_pixel_enabled: v },
+                    }))
+                  }
+                  hint={
+                    settings.seo.meta_pixel_id.trim()
+                      ? undefined
+                      : sf.analyticsNeedsId
+                  }
+                />
+              </div>
             </div>
           </Section>
         )}
@@ -1504,6 +1560,102 @@ export function StoreSettingsPanel({
                 label={sf.requireCheckoutAcceptance}
               />
             </div>
+
+            <div className="rounded-xl border border-beige-dark/70 bg-beige/20 px-4 py-4 space-y-4">
+              <div>
+                <p className="font-medium text-charcoal">
+                  {sf.cookiesAnalyticsTitle}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  {sf.cookiesAnalyticsHint}
+                </p>
+              </div>
+              <Toggle
+                checked={settings.legal.cookie_banner_enabled}
+                onChange={(v) =>
+                  setSettings((s) => ({
+                    ...s,
+                    legal: { ...s.legal, cookie_banner_enabled: v },
+                  }))
+                }
+                label={sf.cookieBannerEnabled}
+                hint={sf.cookieBannerHint}
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-3">
+                  <Input
+                    label={sf.googleAnalyticsId}
+                    value={settings.seo.google_analytics_id}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        seo: {
+                          ...s.seo,
+                          google_analytics_id: e.target.value,
+                          google_analytics_enabled: e.target.value.trim()
+                            ? s.seo.google_analytics_enabled
+                            : false,
+                        },
+                      }))
+                    }
+                    dir="ltr"
+                    placeholder="G-XXXXXXXX"
+                  />
+                  <Toggle
+                    label={sf.googleAnalyticsActive}
+                    checked={settings.seo.google_analytics_enabled}
+                    disabled={!settings.seo.google_analytics_id.trim()}
+                    onChange={(v) =>
+                      setSettings((s) => ({
+                        ...s,
+                        seo: { ...s.seo, google_analytics_enabled: v },
+                      }))
+                    }
+                    hint={
+                      settings.seo.google_analytics_id.trim()
+                        ? undefined
+                        : sf.analyticsNeedsId
+                    }
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Input
+                    label={sf.metaPixelId}
+                    value={settings.seo.meta_pixel_id}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        seo: {
+                          ...s.seo,
+                          meta_pixel_id: e.target.value,
+                          meta_pixel_enabled: e.target.value.trim()
+                            ? s.seo.meta_pixel_enabled
+                            : false,
+                        },
+                      }))
+                    }
+                    dir="ltr"
+                  />
+                  <Toggle
+                    label={sf.metaPixelActive}
+                    checked={settings.seo.meta_pixel_enabled}
+                    disabled={!settings.seo.meta_pixel_id.trim()}
+                    onChange={(v) =>
+                      setSettings((s) => ({
+                        ...s,
+                        seo: { ...s.seo, meta_pixel_enabled: v },
+                      }))
+                    }
+                    hint={
+                      settings.seo.meta_pixel_id.trim()
+                        ? undefined
+                        : sf.analyticsNeedsId
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-wrap gap-3 text-sm">
               <Link
                 href="/legal/terms"

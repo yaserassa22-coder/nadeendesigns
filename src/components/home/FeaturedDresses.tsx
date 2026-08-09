@@ -1,59 +1,92 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import type { Dress } from "@/types";
-import { SectionHeading } from "@/components/ui/SectionHeading";
-import { DressCard } from "@/components/dresses/DressCard";
-import { Button } from "@/components/ui/Button";
+import { HomeQuietLink } from "@/components/home/HomeQuietLink";
+import { HomeProductTile } from "@/components/home/HomeProductTile";
+import { featuredImage } from "@/lib/products/featured-image";
+import { resolveProductPricing } from "@/lib/products/pricing";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { localizedName } from "@/lib/i18n";
+import { cn, formatPrice } from "@/lib/utils";
 
 interface FeaturedDressesProps {
   dresses: Dress[];
 }
 
 export function FeaturedDresses({ dresses }: FeaturedDressesProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+
   if (dresses.length === 0) {
     return (
-      <section className="py-20 md:py-28">
-        <div className="mx-auto max-w-7xl px-4 text-center md:px-8">
-          <SectionHeading
-            subtitle={t.home.featuredSubtitle}
-            title={t.home.featuredTitle}
-            description={t.home.featuredEmpty}
-          />
-          <Link href="/wedding-dresses">
-            <Button variant="outline" size="lg">
-              <ArrowLeft className="h-4 w-4" />
+      <section className="bg-ivory pt-8 pb-2 md:pt-10">
+        <div className="mx-auto max-w-[100rem] px-3 text-center md:px-5">
+          <p className="font-[family-name:var(--font-cormorant)] text-[10px] tracking-[0.32em] text-gold uppercase md:text-xs">
+            {t.home.featuredSubtitle}
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-cormorant)] text-xl tracking-[0.1em] text-charcoal uppercase md:text-2xl">
+            {t.home.featuredTitle}
+          </h2>
+          <p className="mt-3 text-sm text-muted">{t.home.featuredEmpty}</p>
+          <div className="mt-6">
+            <HomeQuietLink href="/wedding-dresses">
               {t.home.browseWedding}
-            </Button>
-          </Link>
+            </HomeQuietLink>
+          </div>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="py-20 md:py-28">
-      <div className="mx-auto max-w-7xl px-4 md:px-8">
-        <SectionHeading
-          subtitle={t.home.featuredSubtitle}
-          title={t.home.featuredTitle}
-          description={t.home.featuredDescription}
-        />
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {dresses.map((dress, i) => (
-            <DressCard key={dress.id} dress={dress} index={i} />
-          ))}
+    <section className="bg-ivory pt-8 md:pt-10">
+      <div className="w-full px-1 sm:px-1.5">
+        <div className="mb-4 px-2 text-center md:mb-5">
+          <p className="font-[family-name:var(--font-cormorant)] text-[10px] tracking-[0.32em] text-gold uppercase md:text-xs">
+            {t.home.featuredSubtitle}
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-cormorant)] text-lg tracking-[0.12em] text-charcoal uppercase md:text-xl">
+            {t.home.featuredTitle}
+          </h2>
         </div>
-        <div className="mt-12 text-center">
-          <Link href="/wedding-dresses">
-            <Button variant="outline" size="lg">
-              <ArrowLeft className="h-4 w-4" />
-              {t.home.viewAllDresses}
-            </Button>
-          </Link>
+        <div
+          className={cn(
+            "grid grid-cols-2 gap-1 sm:gap-1.5 lg:gap-1.5",
+            dresses.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"
+          )}
+        >
+          {dresses.map((dress, i) => {
+            const title = localizedName(dress, locale, dress.name_ar);
+            const cover = featuredImage(dress.images);
+            const pricing = resolveProductPricing({
+              price: dress.price,
+              salePrice: dress.sale_price,
+              rentalPrice: dress.rental_price,
+            });
+            const priceLabel =
+              pricing.currentPrice != null
+                ? formatPrice(pricing.currentPrice)
+                : null;
+            return (
+              <HomeProductTile
+                key={dress.id}
+                href={`/dresses/${dress.id}`}
+                imageUrl={cover}
+                title={title}
+                priceLabel={priceLabel}
+                priority={i < 4}
+                wishlist={{
+                  productKind: "dress",
+                  productId: dress.id,
+                  productSlug: dress.id,
+                }}
+              />
+            );
+          })}
+        </div>
+        <div className="mt-5 flex justify-center pb-1 md:mt-6">
+          <HomeQuietLink href="/wedding-dresses">
+            {t.nav.viewCollection}
+          </HomeQuietLink>
         </div>
       </div>
     </section>

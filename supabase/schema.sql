@@ -168,6 +168,35 @@ CREATE TABLE IF NOT EXISTS gallery_items (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Worn by You (homepage customer visual gallery)
+CREATE TABLE IF NOT EXISTS worn_by_you_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  media_type TEXT NOT NULL DEFAULT 'image'
+    CHECK (media_type IN ('image', 'video')),
+  image_url TEXT NOT NULL,
+  video_url TEXT,
+  customer_name TEXT,
+  caption TEXT,
+  alt_text TEXT,
+  product_kind TEXT
+    CHECK (
+      product_kind IS NULL
+      OR product_kind IN ('dress', 'veil', 'bridal_robe')
+    ),
+  product_id TEXT,
+  product_label TEXT,
+  social_url TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  is_deleted BOOLEAN NOT NULL DEFAULT false,
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID,
+  archived_at TIMESTAMPTZ,
+  archived_by UUID
+);
+
 -- Bookings
 CREATE TABLE IF NOT EXISTS bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -230,6 +259,7 @@ ALTER TABLE bridal_robes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shop_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gallery_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE worn_by_you_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
@@ -246,6 +276,8 @@ DROP POLICY IF EXISTS "Public read categories" ON categories;
 CREATE POLICY "Public read categories" ON categories FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Public read gallery" ON gallery_items;
 CREATE POLICY "Public read gallery" ON gallery_items FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read worn_by_you" ON worn_by_you_items;
+CREATE POLICY "Public read worn_by_you" ON worn_by_you_items FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Public read settings" ON settings;
 CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 
@@ -285,6 +317,10 @@ CREATE POLICY "Admin all shop_orders" ON shop_orders FOR ALL USING (
 );
 DROP POLICY IF EXISTS "Admin all gallery" ON gallery_items;
 CREATE POLICY "Admin all gallery" ON gallery_items FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+DROP POLICY IF EXISTS "Admin all worn_by_you" ON worn_by_you_items;
+CREATE POLICY "Admin all worn_by_you" ON worn_by_you_items FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
 DROP POLICY IF EXISTS "Admin all bookings" ON bookings;

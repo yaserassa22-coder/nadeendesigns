@@ -1,73 +1,81 @@
 "use client";
 
-import { useLocale } from "@/components/i18n/LocaleProvider";
-import { formatMessage } from "@/lib/i18n";
-
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Camera, ExternalLink, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   OFFICIAL_INSTAGRAM_HANDLE,
   OFFICIAL_INSTAGRAM_URL,
   SITE_NAME,
 } from "@/lib/constants";
+import { HomeQuietLink } from "@/components/home/HomeQuietLink";
 
-export function InstagramSection() {
+type InstagramSectionProps = {
+  /** Admin gallery (معرض الصور) images only — never invent / never pad with products. */
+  images?: { src: string; alt: string; href?: string }[];
+};
+
+/**
+ * End-of-homepage gallery mosaic + Instagram visit band (no gallery title).
+ */
+export function InstagramSection({ images = [] }: InstagramSectionProps) {
   const { t } = useLocale();
+  const tiles = images.filter((img) => Boolean(img.src.trim())).slice(0, 9);
+  if (tiles.length === 0) return null;
+
   return (
-    <section className="relative overflow-hidden py-20 md:py-28">
-      <div className="absolute inset-0 luxury-gradient" />
-      <div className="absolute top-16 left-1/4 h-64 w-64 rounded-full bg-gold/10 blur-3xl" />
-      <div className="absolute bottom-10 right-1/4 h-72 w-72 rounded-full bg-gold/5 blur-3xl" />
+    <section className="bg-white pb-12 pt-8 md:pb-16 md:pt-10">
+      <div className="w-full px-2 sm:px-3 md:px-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-3 lg:gap-3">
+          {tiles.map((tile, i) => {
+            const inner = (
+              <div className="group relative aspect-square overflow-hidden bg-beige">
+                <Image
+                  src={tile.src}
+                  alt={tile.alt || SITE_NAME}
+                  fill
+                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                  sizes="(max-width: 640px) 50vw, 33vw"
+                />
+              </div>
+            );
+            return (
+              <motion.div
+                key={`${tile.src}-${i}`}
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: Math.min(i, 6) * 0.03, duration: 0.4 }}
+              >
+                <Link href={tile.href || "/gallery"} className="block">
+                  {inner}
+                </Link>
+              </motion.div>
+            );
+          })}
+        </div>
 
-      <div className="relative mx-auto max-w-3xl px-4 text-center md:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-40px" }}
-          transition={{ duration: 0.7 }}
-        >
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-gold/30 bg-white/80 text-gold shadow-sm backdrop-blur">
-            <Camera className="h-7 w-7" />
-          </div>
+        <div className="mt-5 flex justify-center md:mt-6">
+          <HomeQuietLink href="/gallery">{t.nav.gallery}</HomeQuietLink>
+        </div>
 
-          <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.3em] text-gold uppercase">
+        <div className="mt-10 flex flex-col items-center gap-2 px-2 text-center md:mt-12">
+          <p className="font-[family-name:var(--font-cormorant)] text-[10px] tracking-[0.32em] text-gold uppercase md:text-xs">
             Instagram
           </p>
-
-          <h2 className="mt-4 text-3xl font-bold text-charcoal md:text-4xl lg:text-5xl">
-            {formatMessage(t.home.igTitle, { name: SITE_NAME })}
+          <h2
+            className="font-[family-name:var(--font-cormorant)] text-lg tracking-[0.12em] text-charcoal uppercase md:text-xl"
+            dir="ltr"
+          >
+            {OFFICIAL_INSTAGRAM_HANDLE}
           </h2>
-          <div className="decorative-line mx-auto mt-5 w-24" />
-
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-            {formatMessage(t.home.igBody, { name: SITE_NAME })}
-          </p>
-
-          <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gold/25 bg-white/70 px-5 py-2.5 backdrop-blur">
-            <Sparkles className="h-4 w-4 text-gold" />
-            <span
-              className="font-[family-name:var(--font-cormorant)] text-xl tracking-wide text-charcoal"
-              dir="ltr"
-            >
-              {OFFICIAL_INSTAGRAM_HANDLE}
-            </span>
+          <div className="mt-2">
+            <HomeQuietLink href={OFFICIAL_INSTAGRAM_URL} external>
+              {t.home.igVisit}
+            </HomeQuietLink>
           </div>
-
-          <div className="mt-10">
-            <Link
-              href={OFFICIAL_INSTAGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button size="lg" className="shadow-lg shadow-gold/20">
-                {t.home.igVisit}
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

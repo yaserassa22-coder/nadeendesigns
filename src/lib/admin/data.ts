@@ -9,7 +9,7 @@ import { normalizeSiteSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
-import type { Booking, Dress, GalleryItem, SiteSettings } from "@/types";
+import type { Booking, Dress, GalleryItem, SiteSettings, WornByYouItem } from "@/types";
 import { getAdminCategories } from "@/lib/admin/categories-data";
 import { isDressProductCategory } from "@/types/category";
 
@@ -53,6 +53,33 @@ export async function getAdminGallery(): Promise<GalleryItem[]> {
   }
   if (error || !data) return SEED_GALLERY;
   return filterLifecycleRows(data as GalleryItem[], "all");
+}
+
+export async function getAdminWornByYouItems(): Promise<WornByYouItem[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("worn_by_you_items")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (error) {
+    if (/worn_by_you_items|PGRST205|42P01/i.test(error.message ?? "")) {
+      return [];
+    }
+    if (isLifecycleSchemaError(error)) {
+      const retry = await supabase
+        .from("worn_by_you_items")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (retry.error || !retry.data) return [];
+      return retry.data as WornByYouItem[];
+    }
+    return [];
+  }
+  if (!data) return [];
+  return filterLifecycleRows(data as WornByYouItem[], "all");
 }
 
 function mapBookingRow(b: Booking): Booking {

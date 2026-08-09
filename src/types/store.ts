@@ -114,8 +114,12 @@ export type StoreHomepageSettings = {
   hero: boolean;
   featured_categories: boolean;
   featured_products: boolean;
+  /** Mid-page Accessories editorial slideshow (veils + bridal robes). */
+  accessories_editorial: boolean;
   collections: boolean;
   testimonials: boolean;
+  /** Customer visual gallery — Worn by You */
+  worn_by_you: boolean;
   instagram: boolean;
   newsletter: boolean;
 };
@@ -144,7 +148,11 @@ export type StoreSeoSettings = {
   robots_index: boolean;
   robots_follow: boolean;
   google_analytics_id: string;
+  /** Merchant must activate after connecting an ID */
+  google_analytics_enabled: boolean;
   meta_pixel_id: string;
+  /** Merchant must activate after connecting an ID */
+  meta_pixel_enabled: boolean;
 };
 
 export type StoreSecuritySettings = {
@@ -241,6 +249,8 @@ export type StoreLegalSettings = {
   show_template_banner: boolean;
   /** Require checkout checkbox accepting terms + privacy */
   require_checkout_acceptance: boolean;
+  /** Show storefront cookie consent banner */
+  cookie_banner_enabled: boolean;
   updated_at: string | null;
 };
 
@@ -612,8 +622,10 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     hero: true,
     featured_categories: true,
     featured_products: true,
+    accessories_editorial: true,
     collections: true,
     testimonials: false,
+    worn_by_you: true,
     instagram: true,
     newsletter: false,
   },
@@ -641,7 +653,9 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     robots_index: true,
     robots_follow: true,
     google_analytics_id: "",
+    google_analytics_enabled: false,
     meta_pixel_id: "",
+    meta_pixel_enabled: false,
   },
   security: {
     session_timeout_minutes: 60,
@@ -807,6 +821,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     shipping_policy_en: DEFAULT_SHIPPING_POLICY_EN,
     show_template_banner: true,
     require_checkout_acceptance: true,
+    cookie_banner_enabled: true,
     updated_at: null,
   },
   tax: {

@@ -148,6 +148,31 @@ export interface GalleryItem {
   created_at: string;
 }
 
+/** Admin-managed homepage “Worn by You” customer visual gallery item. */
+export type WornByYouMediaType = "image" | "video";
+export type WornByYouProductKind = "dress" | "veil" | "bridal_robe";
+
+export interface WornByYouItem {
+  id: string;
+  media_type: WornByYouMediaType;
+  /** Optional for video items; required for image items. */
+  image_url: string;
+  video_url: string | null;
+  customer_name: string | null;
+  caption: string | null;
+  alt_text: string | null;
+  product_kind: WornByYouProductKind | null;
+  product_id: string | null;
+  product_label: string | null;
+  social_url: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at?: string;
+  is_deleted?: boolean | null;
+  archived_at?: string | null;
+}
+
 export type {
   ProductPersonalization,
   GiftOptions,
@@ -327,6 +352,11 @@ export interface SiteSettings {
   hero_subtitle_he?: string;
   hero_subtitle_en?: string;
   hero_image_url: string;
+  /**
+   * Optional additional hero slideshow images (CMS).
+   * Combined with `hero_image_url` (primary / first slide), max 4 unique URLs.
+   */
+  hero_image_urls?: string[];
   hero_image_alt_ar: string;
   hero_image_alt_he?: string;
   hero_image_alt_en?: string;
@@ -366,6 +396,12 @@ export interface SiteSettings {
   about_cta_label_en?: string;
   about_cta_href: string;
   about_values: AboutValueItem[];
+
+  /**
+   * Homepage post-hero “تصميم فستان خاص” editorial tile image (CMS).
+   * When empty, storefront falls back to category cover / about / featured.
+   */
+  custom_design_image_url: string;
 
   /**
    * Optional bag for future homepage section payloads (Featured / Services /

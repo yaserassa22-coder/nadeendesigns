@@ -2,13 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { SITE_NAME } from "@/lib/constants";
+import { resolveHeroSlideUrls } from "@/lib/cms/hero-slides";
 import { pickCmsOrUi, splitTitleEmphasis } from "@/lib/cms/locale-text";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { getDictionary } from "@/lib/i18n";
-import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 import type { SiteSettings } from "@/types";
+
+const SLIDE_MS = 6000;
+const FADE_MS = 1200;
 
 interface HeroProps {
   settings: Pick<
@@ -23,6 +28,7 @@ interface HeroProps {
     | "hero_subtitle_he"
     | "hero_subtitle_en"
     | "hero_image_url"
+    | "hero_image_urls"
     | "hero_image_alt_ar"
     | "hero_image_alt_he"
     | "hero_image_alt_en"
@@ -103,76 +109,122 @@ export function Hero({ settings }: HeroProps) {
   );
 
   const split = splitTitleEmphasis(title, emphasis);
-  const imageUrl = settings.hero_image_url?.trim() || "/hero.webp";
+  const slides = resolveHeroSlideUrls(settings);
+  const multi = slides.length > 1;
   const displayFont =
     locale === "en"
       ? "font-[family-name:var(--font-cormorant)]"
       : "font-display-ar";
 
+  const [active, setActive] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReduceMotion(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (!multi || reduceMotion) return;
+    const id = window.setInterval(() => {
+      setActive((i) => (i + 1) % slides.length);
+    }, SLIDE_MS);
+    return () => window.clearInterval(id);
+  }, [multi, reduceMotion, slides.length]);
+
+  const fadeMs = reduceMotion ? 0 : FADE_MS;
+  const isRtl = dir === "rtl";
+
   return (
-    <section className="relative flex min-h-[100svh] items-end overflow-hidden md:items-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 1.04 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute inset-0"
+    <section className="relative min-h-[100svh] overflow-hidden">
+      <div className="absolute inset-0" aria-hidden={multi ? true : undefined}>
+        {slides.map((src, i) => {
+          const isActive = reduceMotion ? i === 0 : i === active;
+          return (
+            <div
+              key={src}
+              className="absolute inset-0"
+              style={{
+                opacity: isActive ? 1 : 0,
+                transition: fadeMs
+                  ? `opacity ${fadeMs}ms ease-in-out`
+                  : undefined,
+                zIndex: isActive ? 1 : 0,
+              }}
+            >
+              <Image
+                src={src}
+                alt={isActive ? imageAlt : ""}
+                fill
+                priority={i === 0}
+                quality={85}
+                sizes="100vw"
+                className="object-cover object-[center_20%] md:object-[center_25%]"
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Gradient strongest only behind the text corner (RTL → right, LTR → left) */}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute z-[2] bottom-0 h-[min(44vh,24rem)] w-[min(92vw,22rem)]",
+          "start-0",
+          isRtl
+            ? "bg-[radial-gradient(ellipse_at_95%_95%,rgba(44,36,25,0.55)_0%,rgba(44,36,25,0.24)_38%,transparent_68%)]"
+            : "bg-[radial-gradient(ellipse_at_5%_95%,rgba(44,36,25,0.55)_0%,rgba(44,36,25,0.24)_38%,transparent_68%)]"
+        )}
+      />
+
+      {/*
+        Copy tucked into the corner: RTL → bottom-right, LTR → bottom-left.
+      */}
+      <div
+        className={cn(
+          "absolute z-10 w-[min(88vw,22.5rem)] max-w-[380px]",
+          "bottom-[3.5%] start-[1.5%] sm:bottom-[4%] sm:start-[2%] md:bottom-[4.5%] md:start-[2.5%]"
+        )}
       >
-        <Image
-          src={imageUrl}
-          alt={imageAlt}
-          fill
-          priority
-          quality={85}
-          sizes="100vw"
-          className="object-cover object-[center_20%] md:object-[center_25%]"
-        />
-      </motion.div>
-
-      <div className="absolute inset-0 bg-gradient-to-t from-[#2c2419]/55 via-[#f0ebe3]/35 to-[#faf8f5]/45" />
-      <div className="absolute inset-0 bg-gradient-to-l from-transparent via-[#faf8f5]/15 to-[#faf8f5]/55" />
-      <div className="absolute inset-0 bg-[#f0ebe3]/20 mix-blend-soft-light" />
-
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-16 pt-28 md:px-8 md:pb-24 md:pt-32">
         <motion.div
-          initial={{ opacity: 0, y: 28 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="max-w-2xl"
+          transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
           <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold tracking-[0.22em] text-gold md:text-4xl lg:text-[2.75rem]"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.28 }}
+            className="font-[family-name:var(--font-cormorant)] text-[9px] font-medium tracking-[0.34em] text-gold/80 uppercase md:text-[10px]"
           >
             {SITE_NAME}
           </motion.p>
 
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.8, delay: 0.55 }}
-            className={`mt-5 h-px w-24 bg-gold md:w-28 ${
-              dir === "rtl" ? "origin-right" : "origin-left"
-            }`}
-          />
-
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.5 }}
-            className={`${displayFont} mt-7 max-w-xl text-[2.125rem] font-normal leading-[1.55] tracking-[0.02em] text-charcoal sm:text-[2.5rem] sm:leading-[1.5] md:text-[3.15rem] md:leading-[1.45] lg:text-[3.75rem] lg:leading-[1.4]`}
+            transition={{ duration: 0.65, delay: 0.35 }}
+            className={cn(
+              displayFont,
+              "mt-3 text-[1.65rem] font-normal leading-[1.35] tracking-[0.03em] text-ivory sm:text-[1.85rem] md:text-[2.15rem] md:leading-[1.3]"
+            )}
           >
             {split ? (
               <>
                 {split.before.trim() ? (
-                  <span className="block">{split.before.trimEnd()}</span>
+                  <span className="block font-normal opacity-95">
+                    {split.before.trimEnd()}
+                  </span>
                 ) : null}
-                <span className="relative inline-block font-bold">
+                <span className="relative inline-block font-medium">
                   {split.emphasis}
                   <span
                     aria-hidden
-                    className="absolute -bottom-1 start-0 h-[2px] w-full bg-gold/70"
+                    className="absolute -bottom-0.5 start-0 h-px w-full bg-gold/45"
                   />
                 </span>
                 {split.after}
@@ -183,37 +235,60 @@ export function Hero({ settings }: HeroProps) {
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.65 }}
-            className="mt-7 max-w-lg whitespace-pre-line text-base leading-relaxed text-charcoal/75 md:text-lg"
+            transition={{ duration: 0.55, delay: 0.42 }}
+            className="mt-2.5 line-clamp-3 whitespace-pre-line text-[11px] leading-relaxed text-ivory/68 md:text-xs md:leading-relaxed"
           >
             {subtitle}
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.8 }}
-            className="mt-10 flex flex-wrap gap-4"
+            transition={{ duration: 0.55, delay: 0.5 }}
+            className="mt-4 flex flex-wrap gap-x-5 gap-y-2"
           >
-            <Link href={settings.hero_cta_primary_href || "/wedding-dresses"}>
-              <Button size="lg" className="min-w-[10rem] shadow-lg shadow-gold/25">
-                {ctaPrimary}
-              </Button>
+            <Link
+              href={settings.hero_cta_primary_href || "/wedding-dresses"}
+              className="border-b border-ivory/45 pb-0.5 text-[10px] tracking-[0.2em] text-ivory/90 uppercase transition-colors hover:border-ivory hover:text-ivory md:text-[11px]"
+            >
+              {ctaPrimary}
             </Link>
-            <Link href={settings.hero_cta_secondary_href || "/booking"}>
-              <Button
-                variant="outline"
-                size="lg"
-                className="min-w-[10rem] border-gold bg-ivory/70 text-gold backdrop-blur-sm hover:bg-gold hover:text-white"
-              >
-                {ctaSecondary}
-              </Button>
+            <Link
+              href={settings.hero_cta_secondary_href || "/booking"}
+              className="border-b border-ivory/25 pb-0.5 text-[10px] tracking-[0.2em] text-ivory/65 uppercase transition-colors hover:border-ivory/55 hover:text-ivory md:text-[11px]"
+            >
+              {ctaSecondary}
             </Link>
           </motion.div>
         </motion.div>
       </div>
+
+      {multi && !reduceMotion ? (
+        <div
+          className="absolute inset-x-0 bottom-4 z-20 flex justify-center gap-2 md:bottom-5"
+          role="tablist"
+          aria-label="Hero slides"
+        >
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              aria-label={`Slide ${i + 1}`}
+              className={cn(
+                "h-1 rounded-full transition-all duration-500",
+                i === active
+                  ? "w-5 bg-ivory/80"
+                  : "w-1 bg-ivory/35 hover:bg-ivory/55"
+              )}
+              onClick={() => setActive(i)}
+            />
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }

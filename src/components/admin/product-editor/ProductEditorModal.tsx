@@ -388,6 +388,15 @@ interface ProductEditorModalProps {
   onSaved: (dress: Dress) => void;
   /** Promote create → edit after first server draft save */
   onCreated: (dress: Dress) => void;
+  /** Success banner after Duplicate Product */
+  notice?: string;
+  /** Duplicate the product currently being edited */
+  onDuplicate?: () => void;
+  duplicating?: boolean;
+  /** Soft-delete the product currently being edited */
+  onDelete?: () => void;
+  deleting?: boolean;
+  canDelete?: boolean;
 }
 
 export function ProductEditorModal({
@@ -403,6 +412,12 @@ export function ProductEditorModal({
   onClose,
   onSaved,
   onCreated,
+  notice = "",
+  onDuplicate,
+  duplicating = false,
+  onDelete,
+  deleting = false,
+  canDelete = false,
 }: ProductEditorModalProps) {
   const { t, locale, dir } = useLocale();
   const pe = t.admin.productEditor;
@@ -640,15 +655,51 @@ export function ProductEditorModal({
           <h2 className="text-xl font-semibold text-charcoal">
             {editing ? pe.editTitle : pe.addTitle}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={pe.closeAria}
-            className="rounded-lg p-2 text-muted hover:bg-beige/60"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {editing && onDuplicate ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                loading={duplicating}
+                disabled={saving || duplicating || deleting}
+                onClick={onDuplicate}
+              >
+                {duplicating ? pe.duplicating : pe.duplicateProduct}
+              </Button>
+            ) : null}
+            {editing && canDelete && onDelete ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                loading={deleting}
+                disabled={saving || duplicating || deleting}
+                onClick={onDelete}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              >
+                {deleting ? pe.deleting : pe.deleteProduct}
+              </Button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={pe.closeAria}
+              className="rounded-lg p-2 text-muted hover:bg-beige/60"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
+
+        {notice ? (
+          <div
+            className="shrink-0 border-b border-emerald-100 bg-emerald-50 px-5 py-3 text-sm text-emerald-800 sm:px-6"
+            role="status"
+          >
+            {notice}
+          </div>
+        ) : null}
 
         {/* Tabs */}
         <div className="shrink-0 overflow-x-auto border-b border-beige-dark px-3 sm:px-4">

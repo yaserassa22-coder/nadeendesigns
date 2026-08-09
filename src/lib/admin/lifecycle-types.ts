@@ -10,6 +10,7 @@ export type LifecycleModule =
   | "customer_notifications"
   | "shipping_regions"
   | "gallery"
+  | "worn_by_you"
   | "customers"
   | "reports"
   | "administrators";
@@ -47,6 +48,7 @@ export const MODULE_TABLE: Record<LifecycleModule, string> = {
   customer_notifications: "customer_notifications",
   shipping_regions: "shipping_regions",
   gallery: "gallery_items",
+  worn_by_you: "worn_by_you_items",
   customers: "customer_admin_state",
   reports: "report_schedules",
   administrators: "profiles",
@@ -64,6 +66,7 @@ export const MODULE_LABEL_AR: Record<LifecycleModule, string> = {
   customer_notifications: "إشعارات العملاء",
   shipping_regions: "مناطق الشحن",
   gallery: "المعرض",
+  worn_by_you: "Worn by You",
   customers: "العملاء",
   reports: "التقارير",
   administrators: "المسؤولون",

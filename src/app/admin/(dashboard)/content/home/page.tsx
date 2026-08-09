@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HomeHeroCmsForm } from "@/components/admin/cms/HomeHeroCmsForm";
+import { HomeCustomDesignCmsForm } from "@/components/admin/cms/HomeCustomDesignCmsForm";
 import { getAdminSettings } from "@/lib/admin/data";
 import { isCloudinaryConfigured } from "@/lib/supabase/env";
 
@@ -26,8 +27,7 @@ export default async function AdminHomeContentPage() {
           محتوى الصفحة الرئيسية
         </h1>
         <p className="mt-2 text-muted">
-          تعديل قسم الهيرو. أقسام أخرى (المميز، الخدمات، إنستغرام، الدعوة)
-          تُضاف لاحقًا دون تغيير قاعدة البيانات.
+          تعديل قسم الهيرو وبلاطة تصميم فستان خاص على الرئيسية.
         </p>
       </div>
 
@@ -38,6 +38,7 @@ export default async function AdminHomeContentPage() {
       )}
 
       <HomeHeroCmsForm initialSettings={settings} />
+      <HomeCustomDesignCmsForm initialSettings={settings} />
     </div>
   );
 }

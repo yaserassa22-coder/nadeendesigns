@@ -46,13 +46,16 @@ export type NavItem = {
 };
 
 export type StorefrontNav = {
-  /** Capped header bar items (≤ MAX_TOP_LEVEL), including optional المزيد. */
+  /** Full top-level nav items for the MENU sidebar (no "More" bucket). */
   items: NavItem[];
   /** Flat list of shop category links for footer */
   categoryLinks: NavLink[];
 };
 
-/** Max top-level slots in the desktop bar (including Home / static / المزيد). */
+/**
+ * Legacy bar slot limit — kept for API compatibility.
+ * MENU is a sidebar now, so all parents are shown (no المزيد collapse).
+ */
 export const MAX_TOP_LEVEL_NAV = 7;
 
 function shortDescription(text: string | null | undefined): string | null {
@@ -237,77 +240,22 @@ function dedupeByHref(items: NavItem[]): NavItem[] {
 }
 
 /**
- * Cap the top bar at MAX_TOP_LEVEL_NAV.
- * Priority: Home → category parents (sort_order) → other static pages.
- * Overflow category parents collapse into an elegant "المزيد" item.
+ * Build the storefront MENU list: Home → category parents → other static pages.
+ * Every category parent is a top-level item (no "المزيد" overflow bucket).
+ * `max` is ignored — kept so existing call sites keep compiling.
  */
 export function capTopLevelNav(
   categoryItems: NavItem[],
-  max = MAX_TOP_LEVEL_NAV,
+  _max = MAX_TOP_LEVEL_NAV,
   locale: Locale = "ar"
 ): NavItem[] {
-  const t = getDictionary(locale);
   const STATIC_SITE_LINKS = staticSiteLinks(locale);
   const home = STATIC_SITE_LINKS[0]!;
   const staticRest = STATIC_SITE_LINKS.slice(1);
   const categoryHrefs = new Set(categoryItems.map((c) => c.href));
   const staticExtras = staticRest.filter((s) => !categoryHrefs.has(s.href));
 
-  const unlimited = dedupeByHref([home, ...categoryItems, ...staticExtras]);
-  if (unlimited.length <= max) return unlimited;
-
-  // Reserve Home + optional المزيد; prefer keeping categories in the bar.
-  const reserveMore = 1;
-  const preferredStaticCount = Math.min(2, staticExtras.length);
-  const categoryBudget = Math.max(
-    1,
-    max - 1 - reserveMore - preferredStaticCount
-  );
-
-  const primaryCategories = categoryItems.slice(0, categoryBudget);
-  const overflowCategories = categoryItems.slice(categoryBudget);
-
-  let bar = dedupeByHref([home, ...primaryCategories]);
-
-  if (overflowCategories.length) {
-    bar.push({
-      id: "nav-more",
-      href: overflowCategories[0]!.href,
-      label: t.nav.more,
-      children: overflowCategories.flatMap((item) =>
-        item.children.length
-          ? item.children
-          : [
-              {
-                id: item.id,
-                href: item.href,
-                label: item.label,
-                description: item.description,
-                coverImageUrl: item.coverImageUrl,
-                featured: item.featured,
-              },
-            ]
-      ),
-      kind: "more",
-      description: null,
-      coverImageUrl: null,
-      featured: false,
-      overflowItems: overflowCategories,
-    });
-  }
-
-  for (const s of staticExtras) {
-    if (bar.length >= max) break;
-    if (bar.some((b) => b.href === s.href)) continue;
-    bar.push(s);
-  }
-
-  // If still over (edge case), trim trailing statics only.
-  if (bar.length > max) {
-    bar = bar.slice(0, max);
-  }
-
-  return bar;
+  return dedupeByHref([home, ...categoryItems, ...staticExtras]);
 }
 
 function fallbackNav(locale: Locale = "ar"): StorefrontNav {

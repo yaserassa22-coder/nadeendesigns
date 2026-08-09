@@ -119,6 +119,7 @@ export type AccessoryShopItem = {
   color: string | null;
   material: string | null;
   is_available: boolean;
+  is_featured: boolean;
   /** Filter label: veil style or bridal robe — localized on storefront via resolveCatalogLabel */
   category: string;
   size?: string | null;
@@ -132,6 +133,7 @@ export type AccessoryShopItem = {
 /**
  * All published accessory products for the Bridal Accessories collection.
  * Veils and robes live in separate tables — this is the storefront union.
+ * Ordering: featured first, then newest (existing product flags / timestamps).
  */
 export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[]> {
   const [veils, robes] = await Promise.all([getVeils(), getBridalRobes()]);
@@ -147,6 +149,7 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     color: v.color,
     material: v.material,
     is_available: v.is_available,
+    is_featured: Boolean(v.is_featured),
     category: v.category?.trim() || "طرحة العروس",
     href: `/veils/${v.id}`,
     kind: "veil",
@@ -166,6 +169,7 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     color: r.color,
     material: r.material,
     is_available: r.is_available,
+    is_featured: Boolean(r.is_featured),
     category: "برنص العروس",
     size: r.size,
     href: `/robes/${r.id}`,
@@ -174,7 +178,8 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     created_at: r.created_at,
   }));
 
-  return [...fromVeils, ...fromRobes].sort((a, b) =>
-    b.created_at.localeCompare(a.created_at)
-  );
+  return [...fromVeils, ...fromRobes].sort((a, b) => {
+    if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1;
+    return b.created_at.localeCompare(a.created_at);
+  });
 }

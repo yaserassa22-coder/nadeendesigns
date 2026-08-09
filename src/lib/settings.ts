@@ -100,6 +100,28 @@ export function normalizeSiteSettings(
       source.hero_image_url,
       DEFAULT_SETTINGS.hero_image_url
     ),
+    hero_image_urls: (() => {
+      const raw = source.hero_image_urls;
+      const list = Array.isArray(raw)
+        ? raw
+            .map((u) => (typeof u === "string" ? u.trim() : ""))
+            .filter(Boolean)
+        : [];
+      const primary = stringOrDefault(
+        source.hero_image_url,
+        DEFAULT_SETTINGS.hero_image_url
+      );
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const url of [primary, ...list]) {
+        if (!url || seen.has(url)) continue;
+        seen.add(url);
+        out.push(url);
+        if (out.length >= 4) break;
+      }
+      // Store extras only (primary stays in hero_image_url).
+      return out.slice(1);
+    })(),
     hero_image_alt_ar: stringOrDefault(
       source.hero_image_alt_ar,
       DEFAULT_SETTINGS.hero_image_alt_ar
@@ -186,6 +208,11 @@ export function normalizeSiteSettings(
       DEFAULT_SETTINGS.about_cta_href
     ),
     about_values: normalizeAboutValues(source.about_values),
+    custom_design_image_url: String(
+      source.custom_design_image_url ??
+        DEFAULT_SETTINGS.custom_design_image_url ??
+        ""
+    ).trim(),
     homepage_extra:
       source.homepage_extra &&
       typeof source.homepage_extra === "object" &&
@@ -273,6 +300,10 @@ export function mergeSiteSettingsPatch(
 
   if (patch.about_values !== undefined) {
     next.about_values = patch.about_values;
+  }
+
+  if (patch.hero_image_urls !== undefined) {
+    next.hero_image_urls = patch.hero_image_urls;
   }
 
   if (patch.homepage_extra !== undefined) {

@@ -60,6 +60,8 @@ export type Dictionary = {
   nav: {
     mainAria: string;
     openMenu: string;
+    /** Visible MENU control label (e.g. MENU / القائمة) */
+    menuLabel: string;
     closeMenu: string;
     bookAppointment: string;
     wishlist: string;
@@ -798,7 +800,20 @@ export type Dictionary = {
     igTitle: string;
     igBody: string;
     igVisit: string;
+    wornByYouEyebrow: string;
+    wornByYouTitle: string;
+    wornByYouViewPiece: string;
+    wornByYouPrev: string;
+    wornByYouNext: string;
+    wornByYouPlay: string;
+    wornByYouSocial: string;
     featuredCollection: string;
+    pwaAddTitle: string;
+    pwaAddBody: string;
+    pwaInstall: string;
+    pwaIosHint: string;
+    pwaIosShare: string;
+    pwaDismiss: string;
     /** Homepage hero — UI defaults when CMS HE/EN empty */
     heroTitle: string;
     heroEmphasis: string;
@@ -943,6 +958,15 @@ export type Dictionary = {
     navContact: string;
     englishVersion: string;
   };
+  cookieConsent: {
+    message: string;
+    messageWithAnalytics: string;
+    necessaryNote: string;
+    analyticsNote: string;
+    accept: string;
+    decline: string;
+    privacyLink: string;
+  };
   shippingUi: {
     addressTitle: string;
     deliveryMethod: string;
@@ -1018,6 +1042,7 @@ export type Dictionary = {
     activity: string;
     trash: string;
     homeContent: string;
+    wornByYou: string;
     aboutContent: string;
     reports: string;
     storeSettings: string;
@@ -1101,7 +1126,9 @@ export type Dictionary = {
       hero: string;
       featuredCategories: string;
       featuredProducts: string;
+      accessoriesEditorial: string;
       collectionsSection: string;
+      wornByYou: string;
       editHeroHint: string;
       homeContentLink: string;
       authDesc: string;
@@ -1145,6 +1172,15 @@ export type Dictionary = {
       legalBannerHint: string;
       showTemplateBanner: string;
       requireCheckoutAcceptance: string;
+      cookieBannerEnabled: string;
+      cookieBannerHint: string;
+      cookiesAnalyticsTitle: string;
+      cookiesAnalyticsHint: string;
+      googleAnalyticsId: string;
+      googleAnalyticsActive: string;
+      metaPixelId: string;
+      metaPixelActive: string;
+      analyticsNeedsId: string;
       previewTerms: string;
       previewPrivacy: string;
       previewReturns: string;
@@ -1540,6 +1576,15 @@ export type Dictionary = {
       emptyFiltered: string;
       emptyYet: string;
       edit: string;
+      duplicate: string;
+      duplicateProduct: string;
+      duplicating: string;
+      duplicateSuccess: string;
+      duplicateFailed: string;
+      deleteProduct: string;
+      deleting: string;
+      deleteConfirm: string;
+      deleteFailed: string;
       lockedCategory: string;
       loading: string;
       rentalSuffix: string;
@@ -1919,6 +1964,14 @@ export type Dictionary = {
       tabAdvanced: string;
       editTitle: string;
       addTitle: string;
+      duplicateProduct: string;
+      duplicating: string;
+      duplicateSuccess: string;
+      duplicateFailed: string;
+      deleteProduct: string;
+      deleting: string;
+      deleteConfirm: string;
+      deleteFailed: string;
       closeAria: string;
       nameAr: string;
       nameEn: string;
@@ -2087,6 +2140,46 @@ export type Dictionary = {
       deleteConfirm: string;
       deleteFailed: string;
     };
+    wornByYouAdmin: {
+      addItem: string;
+      addItemTitle: string;
+      editItem: string;
+      empty: string;
+      untitled: string;
+      itemFallback: string;
+      inactive: string;
+      mediaType: string;
+      image: string;
+      video: string;
+      imageRequired: string;
+      posterRequired: string;
+      imageUrlPlaceholder: string;
+      videoUrl: string;
+      videoUrlPlaceholder: string;
+      uploadVideo: string;
+      uploadingVideo: string;
+      addVideoUrl: string;
+      removeVideo: string;
+      customerName: string;
+      caption: string;
+      altText: string;
+      productKind: string;
+      noProduct: string;
+      kindDress: string;
+      kindVeil: string;
+      kindRobe: string;
+      selectProduct: string;
+      loadingProducts: string;
+      productLabel: string;
+      socialUrl: string;
+      socialUrlPlaceholder: string;
+      sortOrder: string;
+      enabled: string;
+      imageRequiredError: string;
+      videoRequiredError: string;
+      saveFailed: string;
+      genericError: string;
+    };
     guestsUi: {
       title: string;
       subtitle: string;
@@ -2157,6 +2250,7 @@ export type Dictionary = {
         messages: string;
         shipping_regions: string;
         gallery: string;
+        worn_by_you: string;
         customers: string;
         notification_logs: string;
         customer_notifications: string;
@@ -2220,6 +2314,8 @@ export type Dictionary = {
       heroSectionTitle: string;
       heroSectionDesc: string;
       heroImage: string;
+      heroImages: string;
+      heroImagesHint: string;
       primaryCtaHref: string;
       secondaryCtaHref: string;
       heroTitleRequired: string;
@@ -2244,6 +2340,9 @@ export type Dictionary = {
       aboutValueDescription: string;
       aboutTitleRequired: string;
       aboutPreviewTitle: string;
+      customDesignTileTitle: string;
+      customDesignTileDesc: string;
+      customDesignTileImage: string;
     };
     shippingRegionsUi: {
       pickupMethodsTitle: string;

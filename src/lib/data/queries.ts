@@ -1,4 +1,4 @@
-import type { Dress, DressFilters, GalleryItem, SiteSettings } from "@/types";
+import type { Dress, DressFilters, GalleryItem, SiteSettings, WornByYouItem } from "@/types";
 import {
   DEFAULT_SETTINGS,
 } from "@/lib/constants";
@@ -14,6 +14,7 @@ import {
   deriveProductStatus,
   isAvailableFromStatus,
 } from "@/lib/products/status";
+import { isMissingWornByYouTableError } from "@/lib/home/worn-by-you";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -279,6 +280,33 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
     if (!error && data) return data as GalleryItem[];
   }
   return SEED_GALLERY;
+}
+
+/** Active Worn by You items for the storefront (empty if table missing / no content). */
+export async function getWornByYouItems(): Promise<WornByYouItem[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+  let query = supabase
+    .from("worn_by_you_items")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+  let { data, error } = await query;
+  if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+    const retry = await supabase
+      .from("worn_by_you_items")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    data = retry.data;
+    error = retry.error;
+  }
+  if (error) {
+    if (isMissingWornByYouTableError(error.message)) return [];
+    return [];
+  }
+  return (data ?? []) as WornByYouItem[];
 }
 
 export async function getSettings(): Promise<SiteSettings> {
