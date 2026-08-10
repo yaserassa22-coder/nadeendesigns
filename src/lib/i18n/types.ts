@@ -1072,6 +1072,34 @@ export type Dictionary = {
     languageHint: string;
     settingsFields: {
       generalDesc: string;
+      announcementDesc: string;
+      announcementEnabled: string;
+      announcementRotationEnabled: string;
+      announcementRotationHint: string;
+      announcementRotationInterval: string;
+      announcementSeconds: string;
+      announcementMarqueeEnabled: string;
+      announcementMarqueeHint: string;
+      announcementMarqueeSpeed: string;
+      announcementMarqueeSpeedHint: string;
+      announcementItemsTitle: string;
+      announcementAdd: string;
+      announcementEmpty: string;
+      announcementItemLabel: string;
+      announcementItemEnabled: string;
+      announcementMoveUp: string;
+      announcementMoveDown: string;
+      announcementDelete: string;
+      announcementTextAr: string;
+      announcementTextHe: string;
+      announcementTextEn: string;
+      announcementTextPlaceholder: string;
+      announcementLink: string;
+      announcementLinkHint: string;
+      announcementDesktop: string;
+      announcementMobile: string;
+      announcementBackgroundColor: string;
+      announcementTextColor: string;
       storeName: string;
       currency: string;
       language: string;
@@ -1751,6 +1779,7 @@ export type Dictionary = {
     };
     settingsSections: {
       general: string;
+      announcement: string;
       payments: string;
       shipping: string;
       contact: string;
@@ -1769,6 +1798,7 @@ export type Dictionary = {
     };
     settingsTabs: {
       general: string;
+      announcement: string;
       payments: string;
       shipping: string;
       contact: string;

@@ -913,6 +913,7 @@ const ar: Dictionary = {
     languageHint: "واجهة الإدارة تتبع لغة الموقع المختارة.",
     settingsTabs: {
       general: "عام",
+      announcement: "شريط الإعلان",
       payments: "المدفوعات",
       shipping: "الشحن",
       contact: "التواصل",
@@ -1089,6 +1090,40 @@ const ar: Dictionary = {
     },
     settingsFields: {
       generalDesc: "اسم المتجر، الشعار، والعملة — تظهر فوراً في الهيدر والفوتر.",
+      announcementDesc:
+        "رسالة رفيعة أعلى الموقع — للمجموعات الجديدة، المواعيد الخاصة، أو إعلانات المتجر. يمكن إضافة عدة رسائل مع تدوير هادئ.",
+      announcementEnabled: "تفعيل شريط الإعلان",
+      announcementRotationEnabled: "التدوير التلقائي",
+      announcementRotationHint:
+        "يعمل فقط عند وجود رسالتين مفعّلتين أو أكثر.",
+      announcementRotationInterval: "مدة العرض",
+      announcementSeconds: "{count} ثوانٍ",
+      announcementMarqueeEnabled: "نص متحرك",
+      announcementMarqueeHint:
+        "يعرض كل الإعلانات معاً ويحرّكها أفقياً عبر عرض الشريط بالكامل.",
+      announcementMarqueeSpeed: "سرعة الحركة (ثوانٍ للدورة)",
+      announcementMarqueeSpeedHint:
+        "رقم أصغر = أسرع. من 5 إلى 180 ثانية. مثال: 15 سريع، 30 عادي، 60 بطيء.",
+      announcementItemsTitle: "الرسائل",
+      announcementAdd: "+ إضافة إعلان",
+      announcementEmpty: "لا توجد رسائل بعد — أضيفي إعلاناً ليظهر في الشريط.",
+      announcementItemLabel: "إعلان {n}",
+      announcementItemEnabled: "مفعّل",
+      announcementMoveUp: "تحريك لأعلى",
+      announcementMoveDown: "تحريك لأسفل",
+      announcementDelete: "حذف",
+      announcementTextAr: "نص الإعلان (عربي)",
+      announcementTextHe: "نص الإعلان (عبري)",
+      announcementTextEn: "نص الإعلان (EN)",
+      announcementTextPlaceholder:
+        "NEW COLLECTION · Discover the latest Nadeen Designs",
+      announcementLink: "رابط اختياري",
+      announcementLinkHint:
+        "مسار داخلي مثل /new-collection أو رابط كامل. عند تركه فارغاً يظهر النص فقط.",
+      announcementDesktop: "إظهار على سطح المكتب",
+      announcementMobile: "إظهار على الجوال",
+      announcementBackgroundColor: "لون الخلفية",
+      announcementTextColor: "لون النص",
       storeName: "اسم المتجر *",
       currency: "العملة",
       language: "اللغة الافتراضية",
@@ -1779,6 +1814,7 @@ const ar: Dictionary = {
     },
     settingsSections: {
       general: "الإعدادات العامة",
+      announcement: "شريط الإعلان",
       payments: "طرق الدفع",
       shipping: "الشحن",
       contact: "التواصل",
@@ -3440,6 +3476,7 @@ const he: Dictionary = {
     languageHint: "ממשק הניהול עוקב אחר שפת האתר שנבחרה.",
     settingsTabs: {
       general: "כללי",
+      announcement: "שורת הודעה",
       payments: "תשלומים",
       shipping: "משלוח",
       contact: "יצירת קשר",
@@ -3616,6 +3653,39 @@ const he: Dictionary = {
     },
     settingsFields: {
       generalDesc: "שם החנות, הלוגו והמטבע — מופיעים מיד בכותרת ובתחתית.",
+      announcementDesc:
+        "הודעה דקה בראש האתר — קולקציות חדשות, פגישות פרטיות או הודעות חנות. ניתן להוסיף כמה הודעות עם רוטציה עדינה.",
+      announcementEnabled: "הפעלת שורת ההודעה",
+      announcementRotationEnabled: "רוטציה אוטומטית",
+      announcementRotationHint: "פועל רק כשיש לפחות שתי הודעות פעילות.",
+      announcementRotationInterval: "משך הצגה",
+      announcementSeconds: "{count} שניות",
+      announcementMarqueeEnabled: "טקסט נע",
+      announcementMarqueeHint:
+        "מציג את כל ההודעות יחד ומזיז אותן אופקית על פני כל רוחב השורה.",
+      announcementMarqueeSpeed: "מהירות תנועה (שניות למחזור)",
+      announcementMarqueeSpeedHint:
+        "מספר קטן יותר = מהיר יותר. מ־5 עד 180 שניות. לדוגמה: 15 מהיר, 30 רגיל, 60 איטי.",
+      announcementItemsTitle: "הודעות",
+      announcementAdd: "+ הוספת הודעה",
+      announcementEmpty: "אין הודעות עדיין — הוסיפו הודעה שתוצג בשורה.",
+      announcementItemLabel: "הודעה {n}",
+      announcementItemEnabled: "פעיל",
+      announcementMoveUp: "העלאה למעלה",
+      announcementMoveDown: "הורדה למטה",
+      announcementDelete: "מחיקה",
+      announcementTextAr: "טקסט ההודעה (ערבית)",
+      announcementTextHe: "טקסט ההודעה (עברית)",
+      announcementTextEn: "טקסט ההודעה (EN)",
+      announcementTextPlaceholder:
+        "NEW COLLECTION · Discover the latest Nadeen Designs",
+      announcementLink: "קישור אופציונלי",
+      announcementLinkHint:
+        "נתיב פנימי כמו /new-collection או כתובת מלאה. אם ריק — מוצג טקסט בלבד.",
+      announcementDesktop: "הצגה במחשב",
+      announcementMobile: "הצגה במובייל",
+      announcementBackgroundColor: "צבע רקע",
+      announcementTextColor: "צבע טקסט",
       storeName: "שם החנות *",
       currency: "מטבע",
       language: "שפת ברירת מחדל",
@@ -4306,6 +4376,7 @@ const he: Dictionary = {
     },
     settingsSections: {
       general: "הגדרות כלליות",
+      announcement: "שורת הודעה",
       payments: "אמצעי תשלום",
       shipping: "משלוח",
       contact: "יצירת קשר",
@@ -5967,6 +6038,7 @@ const en: Dictionary = {
     languageHint: "The admin UI follows the selected website language.",
     settingsTabs: {
       general: "General",
+      announcement: "Announcement bar",
       payments: "Payments",
       shipping: "Shipping",
       contact: "Contact",
@@ -6143,6 +6215,41 @@ const en: Dictionary = {
     },
     settingsFields: {
       generalDesc: "Store name, logo, and currency — shown immediately in the header and footer.",
+      announcementDesc:
+        "A thin message at the top of the site — new collections, private appointments, or store notices. Add multiple messages with subtle editorial rotation.",
+      announcementEnabled: "Enable announcement bar",
+      announcementRotationEnabled: "Automatic rotation",
+      announcementRotationHint:
+        "Runs only when two or more announcements are enabled.",
+      announcementRotationInterval: "Display duration",
+      announcementSeconds: "{count} seconds",
+      announcementMarqueeEnabled: "Moving text",
+      announcementMarqueeHint:
+        "Shows every announcement together and scrolls them across the full bar width.",
+      announcementMarqueeSpeed: "Motion speed (seconds per loop)",
+      announcementMarqueeSpeedHint:
+        "Smaller number = faster. Range 5–180 seconds. Example: 15 fast, 30 normal, 60 slow.",
+      announcementItemsTitle: "Announcements",
+      announcementAdd: "+ Add announcement",
+      announcementEmpty:
+        "No announcements yet — add one to show in the bar.",
+      announcementItemLabel: "Announcement {n}",
+      announcementItemEnabled: "Enabled",
+      announcementMoveUp: "Move up",
+      announcementMoveDown: "Move down",
+      announcementDelete: "Delete",
+      announcementTextAr: "Announcement text (Arabic)",
+      announcementTextHe: "Announcement text (Hebrew)",
+      announcementTextEn: "Announcement text (English)",
+      announcementTextPlaceholder:
+        "NEW COLLECTION · Discover the latest Nadeen Designs",
+      announcementLink: "Optional link",
+      announcementLinkHint:
+        "Internal path like /new-collection or a full URL. Leave empty for text only.",
+      announcementDesktop: "Show on desktop",
+      announcementMobile: "Show on mobile",
+      announcementBackgroundColor: "Background color",
+      announcementTextColor: "Text color",
       storeName: "Store name *",
       currency: "Currency",
       language: "Default language",
@@ -6833,6 +6940,7 @@ const en: Dictionary = {
     },
     settingsSections: {
       general: "General settings",
+      announcement: "Announcement bar",
       payments: "Payment methods",
       shipping: "Shipping",
       contact: "Contact",

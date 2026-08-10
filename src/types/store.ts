@@ -110,6 +110,55 @@ export type StoreSocialSettings = {
   youtube_url: string;
 };
 
+/** Single announcement message inside the storefront bar. */
+export type StoreAnnouncementItem = {
+  id: string;
+  enabled: boolean;
+  /** Explicit display order (0-based). */
+  order: number;
+  text_ar: string;
+  text_he: string;
+  text_en: string;
+  /** Optional internal path (/booking) or absolute URL */
+  link: string;
+};
+
+export type StoreAnnouncementRotationInterval = 4 | 5 | 6 | 8 | 10;
+
+/**
+ * Thin storefront announcement bar — admin-managed multi-message strip
+ * with optional editorial fade rotation and optional moving text.
+ */
+export type StoreAnnouncementSettings = {
+  /** Master switch */
+  enabled: boolean;
+  /** Rotate when 2+ enabled items exist (default on). Ignored while marquee is on. */
+  rotation_enabled: boolean;
+  /** Seconds between fades — 4 | 5 | 6 | 8 | 10 (default 6). */
+  rotation_interval: StoreAnnouncementRotationInterval;
+  /** Continuous horizontal moving text inside the bar. */
+  marquee_enabled: boolean;
+  /**
+   * Seconds for one full marquee loop across the bar.
+   * Lower = faster. Range 5–180. Default 30.
+   */
+  marquee_duration_seconds: number;
+  desktop_enabled: boolean;
+  mobile_enabled: boolean;
+  /** CSS color; defaults match ivory / charcoal site tokens */
+  background_color: string;
+  text_color: string;
+  items: StoreAnnouncementItem[];
+  /**
+   * Legacy single-message fields (pre-rotation). Kept for backwards
+   * compatibility; normalized from / into `items[0]` when needed.
+   */
+  text_ar: string;
+  text_he: string;
+  text_en: string;
+  link: string;
+};
+
 export type StoreHomepageSettings = {
   hero: boolean;
   featured_categories: boolean;
@@ -295,6 +344,7 @@ export type StoreTaxSettings = {
 
 export type StoreSettings = {
   general: StoreGeneralSettings;
+  announcement: StoreAnnouncementSettings;
   payments: {
     providers: StorePaymentProvider[];
   };
@@ -318,6 +368,7 @@ export type StoreSettings = {
 
 export type StoreSettingsSection =
   | "general"
+  | "announcement"
   | "payments"
   | "shipping"
   | "contact"
@@ -589,6 +640,22 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     language: "ar",
     enabled_locales: ["ar", "he", "en"],
     timezone: "Asia/Jerusalem",
+  },
+  announcement: {
+    enabled: false,
+    rotation_enabled: true,
+    rotation_interval: 6,
+    marquee_enabled: false,
+    marquee_duration_seconds: 30,
+    desktop_enabled: true,
+    mobile_enabled: true,
+    background_color: "#f0ebe3",
+    text_color: "#2c2419",
+    items: [],
+    text_ar: "",
+    text_he: "",
+    text_en: "",
+    link: "",
   },
   payments: {
     providers: DEFAULT_PAYMENT_PROVIDERS,

@@ -226,6 +226,122 @@ body[data-cookie-banner="open"] [data-whatsapp-fab] {
   bottom: 7.5rem;
 }
 
+/*
+ * Announcement bar is normal document flow (scrolls away).
+ * Fixed header is offset only while the bar still occupies the top —
+ * scroll-driven animation keeps them edge-aligned (no permanent gap).
+ * Fallback: body[data-announcement-at-top] from IntersectionObserver.
+ */
+@keyframes nd-header-follow-announcement-mobile {
+  from {
+    top: 2rem;
+  }
+  to {
+    top: 0;
+  }
+}
+
+@keyframes nd-header-follow-announcement-desktop {
+  from {
+    top: 2.125rem;
+  }
+  to {
+    top: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  @supports (animation-timeline: scroll()) {
+    body:has([data-announcement-bar-mobile]) header[data-storefront-chrome] {
+      top: 2rem;
+      animation: nd-header-follow-announcement-mobile linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 2rem;
+    }
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    body[data-announcement-at-top]:has(
+        [data-announcement-bar-mobile]
+      )
+      header[data-storefront-chrome] {
+      top: 2rem;
+    }
+  }
+}
+
+@media (min-width: 768px) {
+  @supports (animation-timeline: scroll()) {
+    body:has([data-announcement-bar-desktop]) header[data-storefront-chrome] {
+      top: 2.125rem;
+      animation: nd-header-follow-announcement-desktop linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 2.125rem;
+    }
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    body[data-announcement-at-top]:has(
+        [data-announcement-bar-desktop]
+      )
+      header[data-storefront-chrome] {
+      top: 2.125rem;
+    }
+  }
+}
+
+/* Editorial announcement marquee — full-bar continuous text motion */
+@keyframes nd-announcement-marquee-ltr {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes nd-announcement-marquee-rtl {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(50%, 0, 0);
+  }
+}
+
+.nd-announcement-marquee-shell {
+  container-type: inline-size;
+  width: 100%;
+}
+
+.nd-announcement-marquee-track {
+  will-change: transform;
+}
+
+.nd-announcement-marquee-group {
+  /* Each copy is at least as wide as the bar so text travels the full width */
+  min-width: 100cqi;
+  box-sizing: border-box;
+}
+
+.nd-announcement-marquee-ltr {
+  animation: nd-announcement-marquee-ltr var(--nd-marquee-duration, 30s) linear
+    infinite;
+}
+
+.nd-announcement-marquee-rtl {
+  animation: nd-announcement-marquee-rtl var(--nd-marquee-duration, 30s) linear
+    infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nd-announcement-marquee-ltr,
+  .nd-announcement-marquee-rtl {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
 @media print {
   aside,
   nav,

@@ -12,6 +12,7 @@ import type { StoreSettings, StoreSettingsSection } from "@/types/store";
 
 const SECTIONS: StoreSettingsSection[] = [
   "general",
+  "announcement",
   "payments",
   "shipping",
   "contact",

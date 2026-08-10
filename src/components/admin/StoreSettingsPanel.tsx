@@ -8,6 +8,8 @@ import { ImageUpload } from "@/components/admin/ImageUpload";
 import { formatPrice } from "@/lib/utils";
 import {
   DEFAULT_STORE_SETTINGS,
+  type StoreAnnouncementItem,
+  type StoreAnnouncementRotationInterval,
   type StorePaymentProvider,
   type StoreSettings,
   type StoreSettingsSection,
@@ -31,6 +33,7 @@ function settingsSections(t: Dictionary): { id: StoreSettingsSection | "health";
   const tabs = t.admin.settingsTabs;
   return [
     { id: "general", label: tabs.general },
+    { id: "announcement", label: tabs.announcement },
     { id: "payments", label: tabs.payments },
     { id: "shipping", label: tabs.shipping },
     { id: "contact", label: tabs.contact },
@@ -263,6 +266,8 @@ export function StoreSettingsPanel({
         switch (section) {
           case "general":
             return { general: settings.general };
+          case "announcement":
+            return { announcement: settings.announcement };
           case "payments":
             return { payments: settings.payments };
           case "shipping":
@@ -654,6 +659,451 @@ export function StoreSettingsPanel({
                   }
                 />
               </div>
+            </div>
+          </Section>
+        )}
+
+        {active === "announcement" && (
+          <Section
+            title={t.admin.settingsSections.announcement}
+            description={sf.announcementDesc}
+            onSave={() => saveSection("announcement")}
+            saving={saving}
+          >
+            <Toggle
+              checked={settings.announcement.enabled}
+              onChange={(v) =>
+                setSettings((s) => ({
+                  ...s,
+                  announcement: { ...s.announcement, enabled: v },
+                }))
+              }
+              label={sf.announcementEnabled}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Toggle
+                checked={settings.announcement.rotation_enabled}
+                onChange={(v) =>
+                  setSettings((s) => ({
+                    ...s,
+                    announcement: { ...s.announcement, rotation_enabled: v },
+                  }))
+                }
+                label={sf.announcementRotationEnabled}
+                hint={sf.announcementRotationHint}
+              />
+              <Select
+                label={sf.announcementRotationInterval}
+                value={String(settings.announcement.rotation_interval)}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    announcement: {
+                      ...s.announcement,
+                      rotation_interval: Number(
+                        e.target.value
+                      ) as StoreAnnouncementRotationInterval,
+                    },
+                  }))
+                }
+                options={[4, 5, 6, 8, 10].map((n) => ({
+                  value: String(n),
+                  label: formatMessage(sf.announcementSeconds, {
+                    count: String(n),
+                  }),
+                }))}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Toggle
+                checked={settings.announcement.marquee_enabled}
+                onChange={(v) =>
+                  setSettings((s) => ({
+                    ...s,
+                    announcement: { ...s.announcement, marquee_enabled: v },
+                  }))
+                }
+                label={sf.announcementMarqueeEnabled}
+                hint={sf.announcementMarqueeHint}
+              />
+              <div className="space-y-1">
+                <Input
+                  label={sf.announcementMarqueeSpeed}
+                  type="number"
+                  min={5}
+                  max={180}
+                  step={1}
+                  disabled={!settings.announcement.marquee_enabled}
+                  value={settings.announcement.marquee_duration_seconds}
+                  onChange={(e) =>
+                    setSettings((s) => ({
+                      ...s,
+                      announcement: {
+                        ...s.announcement,
+                        marquee_duration_seconds: Math.min(
+                          180,
+                          Math.max(5, Number(e.target.value) || 30)
+                        ),
+                      },
+                    }))
+                  }
+                  dir="ltr"
+                />
+                <p className="text-xs text-muted">
+                  {sf.announcementMarqueeSpeedHint}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Toggle
+                checked={settings.announcement.desktop_enabled}
+                onChange={(v) =>
+                  setSettings((s) => ({
+                    ...s,
+                    announcement: { ...s.announcement, desktop_enabled: v },
+                  }))
+                }
+                label={sf.announcementDesktop}
+              />
+              <Toggle
+                checked={settings.announcement.mobile_enabled}
+                onChange={(v) =>
+                  setSettings((s) => ({
+                    ...s,
+                    announcement: { ...s.announcement, mobile_enabled: v },
+                  }))
+                }
+                label={sf.announcementMobile}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-charcoal">
+                  {sf.announcementBackgroundColor}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    aria-label={sf.announcementBackgroundColor}
+                    className="h-11 w-14 cursor-pointer rounded-xl border border-beige-dark bg-white p-1"
+                    value={
+                      /^#[0-9a-fA-F]{6}$/.test(
+                        settings.announcement.background_color.trim()
+                      )
+                        ? settings.announcement.background_color.trim()
+                        : "#f0ebe3"
+                    }
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        announcement: {
+                          ...s.announcement,
+                          background_color: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                  <Input
+                    value={settings.announcement.background_color}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        announcement: {
+                          ...s.announcement,
+                          background_color: e.target.value,
+                        },
+                      }))
+                    }
+                    dir="ltr"
+                    placeholder="#f0ebe3"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-charcoal">
+                  {sf.announcementTextColor}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    aria-label={sf.announcementTextColor}
+                    className="h-11 w-14 cursor-pointer rounded-xl border border-beige-dark bg-white p-1"
+                    value={
+                      /^#[0-9a-fA-F]{6}$/.test(
+                        settings.announcement.text_color.trim()
+                      )
+                        ? settings.announcement.text_color.trim()
+                        : "#2c2419"
+                    }
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        announcement: {
+                          ...s.announcement,
+                          text_color: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                  <Input
+                    value={settings.announcement.text_color}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        announcement: {
+                          ...s.announcement,
+                          text_color: e.target.value,
+                        },
+                      }))
+                    }
+                    dir="ltr"
+                    placeholder="#2c2419"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-medium text-charcoal">
+                  {sf.announcementItemsTitle}
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="!px-3 !py-2 text-xs"
+                  onClick={() =>
+                    setSettings((s) => {
+                      const items = s.announcement.items;
+                      const next: StoreAnnouncementItem = {
+                        id:
+                          typeof crypto !== "undefined" && "randomUUID" in crypto
+                            ? `ann_${crypto.randomUUID().slice(0, 8)}`
+                            : `ann_${Date.now().toString(36)}`,
+                        enabled: true,
+                        order: items.length,
+                        text_ar: "",
+                        text_he: "",
+                        text_en: "",
+                        link: "",
+                      };
+                      return {
+                        ...s,
+                        announcement: {
+                          ...s.announcement,
+                          items: [...items, next],
+                        },
+                      };
+                    })
+                  }
+                >
+                  {sf.announcementAdd}
+                </Button>
+              </div>
+
+              {settings.announcement.items.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-beige-dark/70 px-4 py-6 text-center text-sm text-muted">
+                  {sf.announcementEmpty}
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {[...settings.announcement.items]
+                    .sort((a, b) => a.order - b.order)
+                    .map((item, index, sorted) => (
+                      <div
+                        key={item.id}
+                        className="space-y-3 rounded-xl border border-beige-dark/70 bg-beige/10 p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-charcoal">
+                            {formatMessage(sf.announcementItemLabel, {
+                              n: String(index + 1).padStart(2, "0"),
+                            })}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              className="rounded-lg border border-beige-dark px-2 py-1 text-xs disabled:opacity-40"
+                              disabled={index === 0}
+                              aria-label={sf.announcementMoveUp}
+                              onClick={() =>
+                                setSettings((s) => {
+                                  const items = [...s.announcement.items].sort(
+                                    (a, b) => a.order - b.order
+                                  );
+                                  if (index <= 0) return s;
+                                  const next = [...items];
+                                  const tmp = next[index - 1]!;
+                                  next[index - 1] = next[index]!;
+                                  next[index] = tmp;
+                                  return {
+                                    ...s,
+                                    announcement: {
+                                      ...s.announcement,
+                                      items: next.map((it, i) => ({
+                                        ...it,
+                                        order: i,
+                                      })),
+                                    },
+                                  };
+                                })
+                              }
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg border border-beige-dark px-2 py-1 text-xs disabled:opacity-40"
+                              disabled={index === sorted.length - 1}
+                              aria-label={sf.announcementMoveDown}
+                              onClick={() =>
+                                setSettings((s) => {
+                                  const items = [...s.announcement.items].sort(
+                                    (a, b) => a.order - b.order
+                                  );
+                                  if (index >= items.length - 1) return s;
+                                  const next = [...items];
+                                  const tmp = next[index + 1]!;
+                                  next[index + 1] = next[index]!;
+                                  next[index] = tmp;
+                                  return {
+                                    ...s,
+                                    announcement: {
+                                      ...s.announcement,
+                                      items: next.map((it, i) => ({
+                                        ...it,
+                                        order: i,
+                                      })),
+                                    },
+                                  };
+                                })
+                              }
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-700"
+                              onClick={() =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  announcement: {
+                                    ...s.announcement,
+                                    items: s.announcement.items
+                                      .filter((it) => it.id !== item.id)
+                                      .map((it, i) => ({ ...it, order: i })),
+                                  },
+                                }))
+                              }
+                            >
+                              {sf.announcementDelete}
+                            </button>
+                          </div>
+                        </div>
+
+                        <Toggle
+                          checked={item.enabled}
+                          onChange={(v) =>
+                            setSettings((s) => ({
+                              ...s,
+                              announcement: {
+                                ...s.announcement,
+                                items: s.announcement.items.map((it) =>
+                                  it.id === item.id
+                                    ? { ...it, enabled: v }
+                                    : it
+                                ),
+                              },
+                            }))
+                          }
+                          label={sf.announcementItemEnabled}
+                        />
+
+                        <Input
+                          label={sf.announcementTextAr}
+                          value={item.text_ar}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              announcement: {
+                                ...s.announcement,
+                                items: s.announcement.items.map((it) =>
+                                  it.id === item.id
+                                    ? { ...it, text_ar: e.target.value }
+                                    : it
+                                ),
+                              },
+                            }))
+                          }
+                          placeholder={sf.announcementTextPlaceholder}
+                        />
+                        <Input
+                          label={sf.announcementTextHe}
+                          value={item.text_he}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              announcement: {
+                                ...s.announcement,
+                                items: s.announcement.items.map((it) =>
+                                  it.id === item.id
+                                    ? { ...it, text_he: e.target.value }
+                                    : it
+                                ),
+                              },
+                            }))
+                          }
+                          placeholder={sf.announcementTextPlaceholder}
+                        />
+                        <Input
+                          label={sf.announcementTextEn}
+                          value={item.text_en}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              announcement: {
+                                ...s.announcement,
+                                items: s.announcement.items.map((it) =>
+                                  it.id === item.id
+                                    ? { ...it, text_en: e.target.value }
+                                    : it
+                                ),
+                              },
+                            }))
+                          }
+                          placeholder={sf.announcementTextPlaceholder}
+                          dir="ltr"
+                        />
+                        <div className="space-y-1">
+                          <Input
+                            label={sf.announcementLink}
+                            value={item.link}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                announcement: {
+                                  ...s.announcement,
+                                  items: s.announcement.items.map((it) =>
+                                    it.id === item.id
+                                      ? { ...it, link: e.target.value }
+                                      : it
+                                  ),
+                                },
+                              }))
+                            }
+                            dir="ltr"
+                            placeholder="/new-collection"
+                          />
+                          <p className="text-xs text-muted">
+                            {sf.announcementLinkHint}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
           </Section>
         )}

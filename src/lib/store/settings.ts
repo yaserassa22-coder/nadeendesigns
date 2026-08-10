@@ -2,6 +2,9 @@ import {
   DEFAULT_PAYMENT_PROVIDERS,
   DEFAULT_STORE_INTEGRATIONS,
   DEFAULT_STORE_SETTINGS,
+  type StoreAnnouncementItem,
+  type StoreAnnouncementRotationInterval,
+  type StoreAnnouncementSettings,
   type StoreAuthSettings,
   type StoreBusinessIdType,
   type StoreContactSettings,
@@ -358,6 +361,119 @@ function normalizeSecurity(raw: unknown): StoreSecuritySettings {
   };
 }
 
+const ANNOUNCEMENT_INTERVALS: StoreAnnouncementRotationInterval[] = [
+  4, 5, 6, 8, 10,
+];
+
+function newAnnouncementId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `ann_${crypto.randomUUID().slice(0, 8)}`;
+  }
+  return `ann_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function normalizeAnnouncementInterval(
+  value: unknown,
+  fallback: StoreAnnouncementRotationInterval
+): StoreAnnouncementRotationInterval {
+  const n = Math.round(num(value, fallback));
+  return (ANNOUNCEMENT_INTERVALS.includes(n as StoreAnnouncementRotationInterval)
+    ? n
+    : fallback) as StoreAnnouncementRotationInterval;
+}
+
+function normalizeAnnouncementMarqueeDuration(raw: unknown, bag: Record<string, unknown>): number {
+  const d = DEFAULT_STORE_SETTINGS.announcement.marquee_duration_seconds;
+  if (raw != null && raw !== "") {
+    const n = Math.round(num(raw, d));
+    return Math.min(180, Math.max(5, n));
+  }
+  // Backwards compatibility with old slow|normal|fast enum
+  const legacy = str(bag.marquee_speed, "");
+  if (legacy === "slow") return 48;
+  if (legacy === "fast") return 20;
+  if (legacy === "normal") return 32;
+  return d;
+}
+
+function normalizeAnnouncementItem(
+  raw: unknown,
+  index: number
+): StoreAnnouncementItem {
+  const s = asObject(raw);
+  const id = str(s.id, "").trim() || newAnnouncementId();
+  return {
+    id,
+    enabled: bool(s.enabled, true),
+    order: Math.max(0, Math.floor(num(s.order, index))),
+    text_ar: str(s.text_ar, ""),
+    text_he: str(s.text_he, ""),
+    text_en: str(s.text_en, ""),
+    link: str(s.link, ""),
+  };
+}
+
+function normalizeAnnouncement(raw: unknown): StoreAnnouncementSettings {
+  const d = DEFAULT_STORE_SETTINGS.announcement;
+  const s = asObject(raw);
+
+  let items: StoreAnnouncementItem[] = [];
+  if (Array.isArray(s.items)) {
+    items = s.items.map((item, i) => normalizeAnnouncementItem(item, i));
+  }
+
+  // Backwards compatibility: migrate legacy single-message fields into items.
+  if (items.length === 0) {
+    const legacyAr = str(s.text_ar, "");
+    const legacyHe = str(s.text_he, "");
+    const legacyEn = str(s.text_en, "");
+    const legacyLink = str(s.link, "");
+    if (legacyAr || legacyHe || legacyEn || legacyLink) {
+      items = [
+        {
+          id: newAnnouncementId(),
+          enabled: true,
+          order: 0,
+          text_ar: legacyAr,
+          text_he: legacyHe,
+          text_en: legacyEn,
+          link: legacyLink,
+        },
+      ];
+    }
+  }
+
+  items = [...items]
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+    .map((item, i) => ({ ...item, order: i }));
+
+  const first = items[0];
+
+  return {
+    enabled: bool(s.enabled, d.enabled),
+    rotation_enabled: bool(s.rotation_enabled, d.rotation_enabled),
+    rotation_interval: normalizeAnnouncementInterval(
+      s.rotation_interval,
+      d.rotation_interval
+    ),
+    marquee_enabled: bool(s.marquee_enabled, d.marquee_enabled),
+    marquee_duration_seconds: normalizeAnnouncementMarqueeDuration(
+      s.marquee_duration_seconds,
+      s
+    ),
+    desktop_enabled: bool(s.desktop_enabled, d.desktop_enabled),
+    mobile_enabled: bool(s.mobile_enabled, d.mobile_enabled),
+    background_color: str(s.background_color, d.background_color),
+    text_color: str(s.text_color, d.text_color),
+    items,
+    // Mirror first item so any legacy readers keep working.
+    text_ar: first?.text_ar ?? "",
+    text_he: first?.text_he ?? "",
+    text_en: first?.text_en ?? "",
+    link: first?.link ?? "",
+  };
+}
+
 function normalizeLegal(raw: unknown): StoreLegalSettings {
   const d = DEFAULT_STORE_SETTINGS.legal;
   const s = asObject(raw);
@@ -457,6 +573,7 @@ export function normalizeStoreSettings(
   const payments = asObject(src.payments);
   return {
     general: normalizeGeneral(src.general),
+    announcement: normalizeAnnouncement(src.announcement),
     payments: {
       providers: normalizeProviders(payments.providers),
     },
@@ -493,6 +610,12 @@ export function mergeStoreSettingsPatch(
     general: patch.general
       ? { ...current.general, ...patch.general }
       : current.general,
+    announcement: patch.announcement
+      ? normalizeAnnouncement({
+          ...current.announcement,
+          ...patch.announcement,
+        })
+      : current.announcement,
     payments: patch.payments
       ? {
           providers: normalizeProviders(

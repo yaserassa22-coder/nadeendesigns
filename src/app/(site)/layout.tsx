@@ -1,4 +1,5 @@
 import { Header } from "@/components/layout/Header";
+import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 import { CookieConsentBanner } from "@/components/legal/CookieConsentBanner";
@@ -51,6 +52,10 @@ export default async function SiteLayout({
         googleAnalyticsEnabled={store.seo.google_analytics_enabled}
         metaPixelId={store.seo.meta_pixel_id}
         metaPixelEnabled={store.seo.meta_pixel_enabled}
+      />
+      <AnnouncementBar
+        announcement={store.announcement}
+        locale={locale}
       />
       <Header
         items={nav.items}
