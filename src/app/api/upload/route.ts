@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth";
+import { cloudinaryVideoOriginalUrl } from "@/lib/media/cloudinary-video";
+import {
+  appendSignedCloudinaryAuth,
+  buildSignedVideoUploadParams,
+  getCloudinaryVideoUploadPreset,
+  isCloudinarySignedUploadConfigured,
+  isCloudinaryVideoUploadConfigured,
+  pickBestCloudinaryVideoUrl,
+} from "@/lib/media/cloudinary-upload-server";
 import { isCloudinaryConfigured } from "@/lib/supabase/env";
 
 type ResourceKind = "image" | "video";
+
+const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
 function mapCloudinaryError(
   payload: unknown,
@@ -25,7 +37,7 @@ function mapCloudinaryError(
     return "إعداد الرفع غير موقّع (unsigned). افتحي Cloudinary → Settings → Upload → تأكدي أن الـ preset من نوع Unsigned.";
   }
   if (/Invalid upload preset/i.test(message)) {
-    return "اسم Upload Preset غير صحيح. تحققي من NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.";
+    return "اسم Upload Preset غير صحيح. تحققي من NEXT_PUBLIC_CLOUDINARY_VIDEO_UPLOAD_PRESET.";
   }
   if (/Unknown API key|Invalid cloud_name|cloud_name is disabled/i.test(message)) {
     return "اسم حساب Cloudinary غير صحيح. تحققي من NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME.";
@@ -34,7 +46,12 @@ function mapCloudinaryError(
     return "مجلد الرفع غير مسموح في الـ preset. أزيلي قيد المجلد أو اسمحي بمجلد nadeendesigns.";
   }
   if (/resource type|video is not allowed|Unsupported video/i.test(message)) {
-    return "الـ Upload Preset لا يسمح برفع الفيديو. في Cloudinary فعّلي Video ضمن إعدادات الـ preset.";
+    return "الـ Upload Preset لا يسمح برفع الفيديو. أنشئي preset فيديو منفصل (NEXT_PUBLIC_CLOUDINARY_VIDEO_UPLOAD_PRESET) بدون Incoming transformation.";
+  }
+  if (/Parameter.*not allowed/i.test(message)) {
+    return kind === "video"
+      ? "إعداد رفع الفيديو غير متوافق. أضيفي CLOUDINARY_API_KEY و CLOUDINARY_API_SECRET في .env.local."
+      : `فشل رفع الصورة عبر Cloudinary: ${message}`;
   }
   if (message) {
     return kind === "video"
@@ -53,6 +70,47 @@ function resolveResourceKind(
   if (requested === "video" || file.type.startsWith("video/")) return "video";
   if (requested === "image" || file.type.startsWith("image/")) return "image";
   return null;
+}
+
+function buildVideoUploadForm(
+  file: File,
+  folder: string
+): { form: FormData; mode: "signed" | "unsigned"; preset?: string } {
+  const form = new FormData();
+  form.append("file", file);
+
+  if (isCloudinarySignedUploadConfigured()) {
+    appendSignedCloudinaryAuth(form, buildSignedVideoUploadParams(folder));
+    return { form, mode: "signed" };
+  }
+
+  const preset = getCloudinaryVideoUploadPreset();
+  if (!preset) {
+    throw new Error("VIDEO_UPLOAD_NOT_CONFIGURED");
+  }
+
+  form.append("upload_preset", preset);
+  form.append("folder", folder);
+  return { form, mode: "unsigned", preset };
+}
+
+function buildVideoQualityWarning(
+  width?: number,
+  height?: number,
+  sourceWidth?: number,
+  sourceHeight?: number
+): string | undefined {
+  const parts: string[] = [];
+  if (sourceHeight && height && height < sourceHeight * 0.9) {
+    parts.push(
+      `Cloudinary خفّض الدقة من ${sourceWidth}×${sourceHeight} إلى ${width}×${height}.`
+    );
+  } else if (height && height < 1080) {
+    parts.push(
+      `الدقة المخزّنة ${width}×${height} — للهيرو ارفعي 1080p (1920×1080) أو 4K.`
+    );
+  }
+  return parts.length > 0 ? parts.join(" ") : undefined;
 }
 
 export async function POST(request: Request) {
@@ -83,14 +141,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const maxBytes =
-      kind === "video" ? 80 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (kind === "video" && !isCloudinaryVideoUploadConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            "رفع الفيديو غير مُعد للجودة العالية. أضيفي CLOUDINARY_API_KEY و CLOUDINARY_API_SECRET في .env.local (مُفضّل)، أو أنشئي preset فيديو منفصل NEXT_PUBLIC_CLOUDINARY_VIDEO_UPLOAD_PRESET بدون Incoming transformation — لا تستخدمي preset الصور للفيديو.",
+        },
+        { status: 503 }
+      );
+    }
+
+    const maxBytes = kind === "video" ? VIDEO_MAX_BYTES : IMAGE_MAX_BYTES;
     if (file.size > maxBytes) {
       return NextResponse.json(
         {
           error:
             kind === "video"
-              ? "حجم الفيديو كبير جدًا (الحد الأقصى 80MB)."
+              ? "حجم الفيديو كبير جدًا (الحد الأقصى 200MB)."
               : "حجم الصورة كبير جدًا (الحد الأقصى 10MB).",
         },
         { status: 400 }
@@ -130,10 +197,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const uploadForm = new FormData();
-    uploadForm.append("file", file);
-    uploadForm.append("upload_preset", uploadPreset);
-    if (folder) uploadForm.append("folder", folder);
+    let uploadForm: FormData;
+    let uploadMode: "signed" | "unsigned" = "unsigned";
+    let effectivePreset: string | undefined = uploadPreset;
+
+    if (kind === "video") {
+      const built = buildVideoUploadForm(file, folder);
+      uploadForm = built.form;
+      uploadMode = built.mode;
+      effectivePreset = built.preset;
+    } else {
+      uploadForm = new FormData();
+      uploadForm.append("file", file);
+      uploadForm.append("upload_preset", uploadPreset);
+      if (folder) uploadForm.append("folder", folder);
+    }
 
     const endpoint =
       kind === "video"
@@ -142,7 +220,8 @@ export async function POST(request: Request) {
 
     console.info("[upload API] uploading to Cloudinary", {
       cloudName,
-      uploadPreset,
+      uploadPreset: effectivePreset,
+      uploadMode,
       folder,
       kind,
       fileName: file.name,
@@ -160,8 +239,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const url = (payload.secure_url || payload.url) as string | undefined;
-    if (!url) {
+    const rawUrl = pickBestCloudinaryVideoUrl(payload);
+    if (!rawUrl) {
       console.error("[upload API] missing URL in Cloudinary response", payload);
       return NextResponse.json(
         {
@@ -174,18 +253,63 @@ export async function POST(request: Request) {
       );
     }
 
+    const url =
+      kind === "video" ? cloudinaryVideoOriginalUrl(rawUrl) : rawUrl;
+    const width = payload.width as number | undefined;
+    const height = payload.height as number | undefined;
+    const sourceWidthRaw = formData.get("sourceWidth");
+    const sourceHeightRaw = formData.get("sourceHeight");
+    const sourceWidth =
+      typeof sourceWidthRaw === "string" && sourceWidthRaw
+        ? Number(sourceWidthRaw)
+        : undefined;
+    const sourceHeight =
+      typeof sourceHeightRaw === "string" && sourceHeightRaw
+        ? Number(sourceHeightRaw)
+        : undefined;
+
     console.info("[upload API] upload success", {
       kind,
+      uploadMode,
       url,
       publicId: payload.public_id,
+      width,
+      height,
+      sourceWidth,
+      sourceHeight,
+      bytes: payload.bytes,
+      sourceBytes: file.size,
     });
 
     return NextResponse.json({
       url,
       publicId: payload.public_id as string | undefined,
       resourceType: kind,
+      uploadMode,
+      width,
+      height,
+      sourceWidth,
+      sourceHeight,
+      qualityWarning:
+        kind === "video"
+          ? buildVideoQualityWarning(
+              width,
+              height,
+              sourceWidth,
+              sourceHeight
+            )
+          : undefined,
     });
   } catch (e) {
+    if (e instanceof Error && e.message === "VIDEO_UPLOAD_NOT_CONFIGURED") {
+      return NextResponse.json(
+        {
+          error:
+            "رفع الفيديو غير مُعد. أضيفي CLOUDINARY_API_KEY و CLOUDINARY_API_SECRET، أو NEXT_PUBLIC_CLOUDINARY_VIDEO_UPLOAD_PRESET (preset فيديو بدون ضغط).",
+        },
+        { status: 503 }
+      );
+    }
     console.error("[upload API] unexpected error", e);
     const message =
       e instanceof Error ? e.message : "حدث خطأ غير متوقع أثناء الرفع";

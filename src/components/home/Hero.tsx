@@ -5,15 +5,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { SITE_NAME } from "@/lib/constants";
-import { resolveHeroSlideUrls } from "@/lib/cms/hero-slides";
+import { resolveHeroSlides } from "@/lib/cms/hero-slides";
+import {
+  resolveSlideDurationMs,
+  resolveSlideTransitionMs,
+} from "@/lib/cms/hero-slide-timing";
 import { pickCmsOrUi, splitTitleEmphasis } from "@/lib/cms/locale-text";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { getDictionary } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { AutoLoopVideo } from "@/components/media/AutoLoopVideo";
 import type { SiteSettings } from "@/types";
-
-const SLIDE_MS = 6000;
-const FADE_MS = 1200;
 
 interface HeroProps {
   settings: Pick<
@@ -29,6 +31,7 @@ interface HeroProps {
     | "hero_subtitle_en"
     | "hero_image_url"
     | "hero_image_urls"
+    | "hero_slides"
     | "hero_image_alt_ar"
     | "hero_image_alt_he"
     | "hero_image_alt_en"
@@ -109,7 +112,7 @@ export function Hero({ settings }: HeroProps) {
   );
 
   const split = splitTitleEmphasis(title, emphasis);
-  const slides = resolveHeroSlideUrls(settings);
+  const slides = resolveHeroSlides(settings);
   const multi = slides.length > 1;
   const displayFont =
     locale === "en"
@@ -129,41 +132,72 @@ export function Hero({ settings }: HeroProps) {
 
   useEffect(() => {
     if (!multi || reduceMotion) return;
-    const id = window.setInterval(() => {
+    const holdMs = resolveSlideDurationMs(slides[active]);
+    const id = window.setTimeout(() => {
       setActive((i) => (i + 1) % slides.length);
-    }, SLIDE_MS);
-    return () => window.clearInterval(id);
-  }, [multi, reduceMotion, slides.length]);
+    }, holdMs);
+    return () => window.clearTimeout(id);
+  }, [multi, reduceMotion, active, slides]);
 
-  const fadeMs = reduceMotion ? 0 : FADE_MS;
+  useEffect(() => {
+    if (active >= slides.length) setActive(0);
+  }, [active, slides.length]);
+
   const isRtl = dir === "rtl";
 
   return (
     <section className="relative min-h-[100svh] overflow-hidden">
       <div className="absolute inset-0" aria-hidden={multi ? true : undefined}>
-        {slides.map((src, i) => {
+        {slides.map((slide, i) => {
           const isActive = reduceMotion ? i === 0 : i === active;
+          const transitionMs = reduceMotion
+            ? 0
+            : resolveSlideTransitionMs(slide);
+          const key = `${slide.type}-${slide.url}-${i}`;
           return (
             <div
-              key={src}
+              key={key}
               className="absolute inset-0"
               style={{
                 opacity: isActive ? 1 : 0,
-                transition: fadeMs
-                  ? `opacity ${fadeMs}ms ease-in-out`
+                transition: transitionMs
+                  ? `opacity ${transitionMs}ms ease-in-out`
                   : undefined,
                 zIndex: isActive ? 1 : 0,
               }}
             >
-              <Image
-                src={src}
-                alt={isActive ? imageAlt : ""}
-                fill
-                priority={i === 0}
-                quality={85}
-                sizes="100vw"
-                className="object-cover object-[center_20%] md:object-[center_25%]"
-              />
+              {slide.type === "video" ? (
+                reduceMotion && slide.poster_url?.trim() ? (
+                  <Image
+                    src={slide.poster_url}
+                    alt={isActive ? imageAlt : ""}
+                    fill
+                    priority={i === 0}
+                    quality={85}
+                    sizes="100vw"
+                    className="object-cover object-[center_20%] md:object-[center_25%]"
+                  />
+                ) : (
+                  <AutoLoopVideo
+                    src={slide.url}
+                    poster={slide.poster_url}
+                    alt={isActive ? imageAlt : ""}
+                    active={isActive}
+                    reduceMotion={reduceMotion}
+                    display={slide.video_display}
+                  />
+                )
+              ) : (
+                <Image
+                  src={slide.url}
+                  alt={isActive ? imageAlt : ""}
+                  fill
+                  priority={i === 0}
+                  quality={85}
+                  sizes="100vw"
+                  className="object-cover object-[center_20%] md:object-[center_25%]"
+                />
+              )}
             </div>
           );
         })}

@@ -4,12 +4,32 @@ import Image from "next/image";
 import { useState } from "react";
 import type { SiteSettings } from "@/types";
 import { SITE_NAME } from "@/lib/constants";
+import {
+  HERO_SLIDE_MAX,
+  type HeroSlide,
+  normalizeHeroSlides,
+  normalizeHeroSlidesForCms,
+  resolveHeroSlides,
+  syncLegacyHeroImageFields,
+} from "@/lib/cms/hero-slides";
+import {
+  HERO_SLIDE_DURATION_MAX_MS,
+  HERO_SLIDE_DURATION_MIN_MS,
+  HERO_SLIDE_TRANSITION_MAX_MS,
+  HERO_SLIDE_TRANSITION_MIN_MS,
+  resolveSlideDurationMs,
+  resolveSlideTransitionMs,
+} from "@/lib/cms/hero-slide-timing";
 import { splitTitleEmphasis } from "@/lib/cms/locale-text";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { VideoUpload } from "@/components/admin/VideoUpload";
+import { VideoDisplayControls } from "@/components/admin/cms/VideoDisplayControls";
 import { CmsLivePreview } from "@/components/admin/cms/CmsLivePreview";
+import { AutoLoopVideo } from "@/components/media/AutoLoopVideo";
+import { cn } from "@/lib/utils";
 
 type HeroCmsFields = Pick<
   SiteSettings,
@@ -24,6 +44,7 @@ type HeroCmsFields = Pick<
   | "hero_subtitle_en"
   | "hero_image_url"
   | "hero_image_urls"
+  | "hero_slides"
   | "hero_image_alt_ar"
   | "hero_image_alt_he"
   | "hero_image_alt_en"
@@ -41,24 +62,11 @@ interface HomeHeroCmsFormProps {
   initialSettings: SiteSettings;
 }
 
-function heroUploadValue(s: Pick<SiteSettings, "hero_image_url" | "hero_image_urls">): string[] {
-  const primary = s.hero_image_url?.trim() || "";
-  const extras = Array.isArray(s.hero_image_urls)
-    ? s.hero_image_urls.map((u) => u.trim()).filter(Boolean)
-    : [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const url of [primary, ...extras]) {
-    if (!url || seen.has(url)) continue;
-    seen.add(url);
-    out.push(url);
-    if (out.length >= 4) break;
-  }
-  return out;
-}
-
 function fromSettings(s: SiteSettings): HeroCmsFields {
-  const slides = heroUploadValue(s);
+  const slides = normalizeHeroSlidesForCms(resolveHeroSlides(s));
+  const legacy = syncLegacyHeroImageFields(
+    slides.filter((slide) => slide.url.trim().length > 0)
+  );
   return {
     hero_title_ar: s.hero_title_ar ?? "",
     hero_title_he: s.hero_title_he ?? "",
@@ -69,8 +77,9 @@ function fromSettings(s: SiteSettings): HeroCmsFields {
     hero_subtitle_ar: s.hero_subtitle_ar ?? "",
     hero_subtitle_he: s.hero_subtitle_he ?? "",
     hero_subtitle_en: s.hero_subtitle_en ?? "",
-    hero_image_url: slides[0] ?? "",
-    hero_image_urls: slides.slice(1),
+    hero_image_url: legacy.hero_image_url,
+    hero_image_urls: legacy.hero_image_urls,
+    hero_slides: slides,
     hero_image_alt_ar: s.hero_image_alt_ar ?? "",
     hero_image_alt_he: s.hero_image_alt_he ?? "",
     hero_image_alt_en: s.hero_image_alt_en ?? "",
@@ -85,6 +94,23 @@ function fromSettings(s: SiteSettings): HeroCmsFields {
   };
 }
 
+function withSyncedSlides(
+  form: HeroCmsFields,
+  slides: HeroSlide[]
+): HeroCmsFields {
+  const normalized = normalizeHeroSlidesForCms(slides);
+  const ready = normalized.filter((slide) => slide.url.trim().length > 0);
+  const legacy = syncLegacyHeroImageFields(
+    ready.length > 0 ? ready : [{ type: "image", url: "/hero.webp" }]
+  );
+  return {
+    ...form,
+    hero_slides: normalized,
+    hero_image_url: legacy.hero_image_url,
+    hero_image_urls: legacy.hero_image_urls,
+  };
+}
+
 export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
   const { t } = useLocale();
   const cu = t.admin.cmsUi;
@@ -92,6 +118,8 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const slides = form.hero_slides ?? [];
 
   const update = <K extends keyof HeroCmsFields>(
     key: K,
@@ -101,11 +129,71 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
     setMessage("");
   };
 
+  const setSlides = (next: HeroSlide[] | ((current: HeroSlide[]) => HeroSlide[])) => {
+    setForm((s) => {
+      const current = s.hero_slides ?? [];
+      const resolved = typeof next === "function" ? next(current) : next;
+      return withSyncedSlides(s, resolved);
+    });
+    setMessage("");
+  };
+
+  const updateSlide = (index: number, patch: Partial<HeroSlide>) => {
+    setSlides((current) =>
+      current.map((slide, i) => (i === index ? { ...slide, ...patch } : slide))
+    );
+  };
+
+  const addSlide = (type: HeroSlide["type"]) => {
+    setSlides((current) => {
+      if (current.length >= HERO_SLIDE_MAX) return current;
+      return [...current, { type, url: "" }];
+    });
+  };
+
+  const duplicateSlide = (index: number) => {
+    setSlides((current) => {
+      if (current.length >= HERO_SLIDE_MAX) return current;
+      const source = current[index];
+      if (!source) return current;
+      const clone: HeroSlide = {
+        type: source.type,
+        url: source.url,
+        ...(source.poster_url?.trim()
+          ? { poster_url: source.poster_url.trim() }
+          : {}),
+        ...(source.video_display ? { video_display: { ...source.video_display } } : {}),
+        ...(source.duration_ms !== undefined
+          ? { duration_ms: source.duration_ms }
+          : {}),
+        ...(source.transition_ms !== undefined
+          ? { transition_ms: source.transition_ms }
+          : {}),
+      };
+      const next = [...current];
+      next.splice(index + 1, 0, clone);
+      return next.slice(0, HERO_SLIDE_MAX);
+    });
+  };
+
+  const removeSlide = (index: number) => {
+    if (index === 0) return;
+    setSlides((current) => current.filter((_, i) => i !== index));
+  };
+
   const save = async () => {
     if (!form.hero_title_ar.trim()) {
       setError(cu.heroTitleRequired);
       return;
     }
+    const ready = normalizeHeroSlides(
+      slides.filter((s) => s.url.trim().length > 0)
+    );
+    if (ready.length === 0) {
+      setError(cu.heroMediaRequired);
+      return;
+    }
+    const payload = withSyncedSlides(form, ready);
     setSaving(true);
     setMessage("");
     setError("");
@@ -113,7 +201,7 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? cu.saveFailed);
@@ -132,7 +220,11 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
     form.hero_title_ar,
     form.hero_title_emphasis_ar
   );
-  const previewImage = heroUploadValue(form)[0] || "/hero.webp";
+  const previewSlide = resolveHeroSlides(form)[0];
+  const previewImage =
+    previewSlide?.type === "image"
+      ? previewSlide.url
+      : previewSlide?.poster_url?.trim() || "/hero.webp";
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
@@ -164,7 +256,7 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
             onChange={(e) => update("hero_subtitle_ar", e.target.value)}
           />
           <Input
-            label="النص البديل للصورة"
+            label="النص البديل للوسائط"
             value={form.hero_image_alt_ar}
             onChange={(e) => update("hero_image_alt_ar", e.target.value)}
           />
@@ -205,7 +297,7 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
             onChange={(e) => update("hero_subtitle_he", e.target.value)}
           />
           <Input
-            label="טקסט חלופי לתמונה"
+            label="טקסט חלופי למדיה"
             value={form.hero_image_alt_he ?? ""}
             onChange={(e) => update("hero_image_alt_he", e.target.value)}
           />
@@ -246,7 +338,7 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
             onChange={(e) => update("hero_subtitle_en", e.target.value)}
           />
           <Input
-            label="Image alt"
+            label="Media alt"
             value={form.hero_image_alt_en ?? ""}
             onChange={(e) => update("hero_image_alt_en", e.target.value)}
           />
@@ -268,25 +360,235 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-charcoal">{cu.heroImages}</p>
-          <p className="text-xs text-muted">{cu.heroImagesHint}</p>
-          <ImageUpload
-            multiple
-            value={heroUploadValue(form)}
-            onChange={(urls) => {
-              const unique = [...new Set(urls.map((u) => u.trim()).filter(Boolean))].slice(
-                0,
-                4
-              );
-              setForm((s) => ({
-                ...s,
-                hero_image_url: unique[0] ?? "",
-                hero_image_urls: unique.slice(1),
-              }));
-              setMessage("");
-            }}
-          />
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-charcoal">{cu.heroMedia}</p>
+            <p className="mt-1 text-xs text-muted">{cu.heroMediaHint}</p>
+          </div>
+
+          <div className="space-y-4">
+            {slides.map((slide, index) => (
+              <div
+                key={`hero-slide-${index}-${slide.type}`}
+                className="space-y-3 rounded-xl border border-beige-dark/70 bg-beige/10 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-charcoal">
+                    {cu.heroSlideLabel.replace("{n}", String(index + 1))}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => duplicateSlide(index)}
+                      disabled={slides.length >= HERO_SLIDE_MAX}
+                      className="text-xs text-gold hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
+                    >
+                      {cu.heroSlideDuplicate}
+                    </button>
+                    {index > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => removeSlide(index)}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        {cu.heroSlideRemove}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted">
+                        {cu.heroSlidePrimaryLocked}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSlide(index, {
+                        type: "image",
+                        url: slide.type === "image" ? slide.url : "",
+                        poster_url: undefined,
+                        video_display: undefined,
+                      })
+                    }
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                      slide.type === "image"
+                        ? "bg-gold text-white"
+                        : "bg-white text-charcoal ring-1 ring-beige-dark"
+                    )}
+                  >
+                    {cu.heroMediaImage}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSlide(index, {
+                        type: "video",
+                        url: slide.type === "video" ? slide.url : "",
+                      })
+                    }
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                      slide.type === "video"
+                        ? "bg-gold text-white"
+                        : "bg-white text-charcoal ring-1 ring-beige-dark"
+                    )}
+                  >
+                    {cu.heroMediaVideo}
+                  </button>
+                </div>
+
+                {slide.type === "video" ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-charcoal">
+                        {cu.heroVideoUrl}
+                      </p>
+                      <VideoUpload
+                        value={slide.url}
+                        onChange={(url) => updateSlide(index, { url })}
+                        uploadLabel={cu.heroUploadVideo}
+                        uploadingLabel={cu.heroUploadingVideo}
+                        pastePlaceholder={cu.heroVideoUrlPlaceholder}
+                        pasteAddLabel={cu.heroAddVideoUrl}
+                        removeLabel={cu.heroRemoveVideo}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-charcoal">
+                        {cu.heroVideoPoster}
+                      </p>
+                      <p className="mb-2 text-xs text-muted">
+                        {cu.heroVideoPosterHint}
+                      </p>
+                      <ImageUpload
+                        value={slide.poster_url ? [slide.poster_url] : []}
+                        onChange={(urls) =>
+                          updateSlide(index, {
+                            poster_url: urls[0]?.trim() || undefined,
+                          })
+                        }
+                      />
+                    </div>
+                    {slide.url.trim() ? (
+                      <VideoDisplayControls
+                        src={slide.url}
+                        poster={slide.poster_url}
+                        value={slide.video_display}
+                        onChange={(video_display) =>
+                          updateSlide(index, { video_display })
+                        }
+                        labels={{
+                          sectionTitle: cu.heroVideoDisplayTitle,
+                          sectionHint: cu.heroVideoDisplayHint,
+                          focalTitle: cu.heroVideoFocalTitle,
+                          focalHint: cu.heroVideoFocalHint,
+                          focalX: cu.heroVideoFocalX,
+                          focalY: cu.heroVideoFocalY,
+                          rotationTitle: cu.heroVideoRotationTitle,
+                          speedTitle: cu.heroVideoSpeedTitle,
+                          speedHint: cu.heroVideoSpeedHint,
+                          trimTitle: cu.heroVideoTrimTitle,
+                          trimHint: cu.heroVideoTrimHint,
+                          trimStart: cu.heroVideoTrimStart,
+                          trimEnd: cu.heroVideoTrimEnd,
+                          trimFull: cu.heroVideoTrimFull,
+                          reset: cu.heroVideoDisplayReset,
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                ) : (
+                  <ImageUpload
+                    value={slide.url ? [slide.url] : []}
+                    onChange={(urls) =>
+                      updateSlide(index, { url: urls[0]?.trim() || "" })
+                    }
+                  />
+                )}
+
+                {slides.length > 1 ? (
+                  <div className="space-y-3 rounded-lg border border-beige-dark/50 bg-white/60 p-3">
+                    <div>
+                      <p className="text-xs font-semibold text-charcoal">
+                        {cu.heroSlideTimingTitle}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted">
+                        {cu.heroSlideTimingHint}
+                      </p>
+                    </div>
+                    <label className="block text-xs text-charcoal">
+                      <span className="mb-1 flex justify-between text-muted">
+                        <span>{cu.heroSlideDurationLabel}</span>
+                        <span>
+                          {(resolveSlideDurationMs(slide) / 1000).toFixed(1)}s
+                        </span>
+                      </span>
+                      <input
+                        type="range"
+                        min={HERO_SLIDE_DURATION_MIN_MS}
+                        max={HERO_SLIDE_DURATION_MAX_MS}
+                        step={500}
+                        value={resolveSlideDurationMs(slide)}
+                        onChange={(e) =>
+                          updateSlide(index, {
+                            duration_ms: Number(e.target.value),
+                          })
+                        }
+                        className="w-full accent-gold"
+                      />
+                    </label>
+                    <label className="block text-xs text-charcoal">
+                      <span className="mb-1 flex justify-between text-muted">
+                        <span>{cu.heroSlideTransitionLabel}</span>
+                        <span>
+                          {(resolveSlideTransitionMs(slide) / 1000).toFixed(1)}s
+                        </span>
+                      </span>
+                      <input
+                        type="range"
+                        min={HERO_SLIDE_TRANSITION_MIN_MS}
+                        max={HERO_SLIDE_TRANSITION_MAX_MS}
+                        step={100}
+                        value={resolveSlideTransitionMs(slide)}
+                        onChange={(e) =>
+                          updateSlide(index, {
+                            transition_ms: Number(e.target.value),
+                          })
+                        }
+                        className="w-full accent-gold"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateSlide(index, {
+                          duration_ms: undefined,
+                          transition_ms: undefined,
+                        })
+                      }
+                      className="text-xs text-gold hover:underline"
+                    >
+                      {cu.heroSlideTimingReset}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          {slides.length < HERO_SLIDE_MAX ? (
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => addSlide("image")}>
+                {cu.heroAddImageSlide}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => addSlide("video")}>
+                {cu.heroAddVideoSlide}
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -322,13 +624,23 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
 
       <CmsLivePreview title={cu.heroPreviewTitle}>
         <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-beige">
-          <Image
-            src={previewImage}
-            alt=""
-            fill
-            className="object-cover object-[center_25%]"
-            sizes="380px"
-          />
+          {previewSlide?.type === "video" && previewSlide.url ? (
+            <AutoLoopVideo
+              src={previewSlide.url}
+              poster={previewSlide.poster_url}
+              alt=""
+              active
+              display={previewSlide.video_display}
+            />
+          ) : (
+            <Image
+              src={previewImage}
+              alt=""
+              fill
+              className="object-cover object-[center_25%]"
+              sizes="380px"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#2c2419]/50 via-[#f0ebe3]/25 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-4 text-charcoal">
             <p className="font-[family-name:var(--font-cormorant)] text-lg tracking-[0.18em] text-gold">

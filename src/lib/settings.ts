@@ -4,6 +4,10 @@ import {
   OFFICIAL_INSTAGRAM_HANDLE,
   OFFICIAL_INSTAGRAM_URL,
 } from "@/lib/constants";
+import {
+  heroSlidesFromLegacyImages,
+  normalizeHeroSlides,
+} from "@/lib/cms/hero-slides";
 
 const ABOUT_VALUE_ICONS: AboutValueIcon[] = [
   "Heart",
@@ -121,6 +125,17 @@ export function normalizeSiteSettings(
       }
       // Store extras only (primary stays in hero_image_url).
       return out.slice(1);
+    })(),
+    hero_slides: (() => {
+      const typed = normalizeHeroSlides(source.hero_slides);
+      if (typed.length > 0) return typed;
+      if (Array.isArray(source.hero_slides) && source.hero_slides.length === 0) {
+        return [];
+      }
+      return heroSlidesFromLegacyImages({
+        hero_image_url: source.hero_image_url,
+        hero_image_urls: source.hero_image_urls,
+      });
     })(),
     hero_image_alt_ar: stringOrDefault(
       source.hero_image_alt_ar,
@@ -304,6 +319,10 @@ export function mergeSiteSettingsPatch(
 
   if (patch.hero_image_urls !== undefined) {
     next.hero_image_urls = patch.hero_image_urls;
+  }
+
+  if (patch.hero_slides !== undefined) {
+    next.hero_slides = patch.hero_slides;
   }
 
   if (patch.homepage_extra !== undefined) {

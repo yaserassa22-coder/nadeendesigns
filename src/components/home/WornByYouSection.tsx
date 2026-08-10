@@ -20,70 +20,11 @@ import {
 } from "@/lib/home/worn-by-you";
 import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { AutoLoopVideo } from "@/components/media/AutoLoopVideo";
 
 type WornByYouSectionProps = {
   items: WornByYouItem[];
 };
-
-function AutoLoopVideo({
-  src,
-  poster,
-  alt,
-  reduceMotion,
-}: {
-  src: string;
-  poster?: string;
-  alt: string;
-  reduceMotion: boolean | null;
-}) {
-  const ref = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    if (reduceMotion) {
-      el.pause();
-      return;
-    }
-
-    const tryPlay = () => {
-      void el.play().catch(() => {
-        /* Browser may block until muted + playsInline — already set. */
-      });
-    };
-
-    tryPlay();
-
-    const onIntersect: IntersectionObserverCallback = (entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) tryPlay();
-        else el.pause();
-      }
-    };
-
-    const io = new IntersectionObserver(onIntersect, {
-      threshold: 0.35,
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [src, reduceMotion]);
-
-  return (
-    <video
-      ref={ref}
-      className="absolute inset-0 h-full w-full object-cover"
-      src={src}
-      poster={poster || undefined}
-      aria-label={alt}
-      muted
-      loop
-      playsInline
-      autoPlay={!reduceMotion}
-      preload="metadata"
-    />
-  );
-}
 
 export function WornByYouSection({ items }: WornByYouSectionProps) {
   const { t, dir } = useLocale();

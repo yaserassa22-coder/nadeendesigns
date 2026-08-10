@@ -355,8 +355,28 @@ export interface SiteSettings {
   /**
    * Optional additional hero slideshow images (CMS).
    * Combined with `hero_image_url` (primary / first slide), max 4 unique URLs.
+   * Prefer `hero_slides` when mixing images and looping videos.
    */
   hero_image_urls?: string[];
+  /**
+   * Typed hero media slides (image and/or muted looping video). Max 4.
+   * When present, takes precedence over legacy image URL fields.
+   */
+  hero_slides?: Array<{
+    type: "image" | "video";
+    url: string;
+    poster_url?: string;
+    video_display?: {
+      focal_x?: number;
+      focal_y?: number;
+      rotation?: 0 | 90 | 180 | 270;
+      playback_rate?: number;
+      start_time?: number;
+      end_time?: number | null;
+    };
+    duration_ms?: number;
+    transition_ms?: number;
+  }>;
   hero_image_alt_ar: string;
   hero_image_alt_he?: string;
   hero_image_alt_en?: string;
