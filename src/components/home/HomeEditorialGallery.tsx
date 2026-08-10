@@ -4,39 +4,97 @@ import { HomeEditorialTile } from "@/components/home/HomeEditorialTile";
 import type { HomepageEditorialTile as GalleryTile } from "@/lib/home/homepage-editorial-gallery";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
+import type {
+  HomepageEditorialColumns,
+  HomepageEditorialGap,
+  HomepageEditorialTileSize,
+} from "@/types/store";
 
 type HomeEditorialGalleryProps = {
   tiles: GalleryTile[];
+  /** Desktop column count (Admin-managed). Default 3. */
+  columns?: HomepageEditorialColumns;
+  /** Gutter between tiles. */
+  gap?: HomepageEditorialGap;
+  /** Tile visual size / aspect. */
+  tileSize?: HomepageEditorialTileSize;
 };
 
 function tileFrameClass(tile: GalleryTile): string {
   return cn(
     "relative min-w-0",
     tile.mobileSpan === 2 ? "col-span-2" : "col-span-1",
+    tile.desktopSpan === 4 && "lg:col-span-4",
     tile.desktopSpan === 3 && "lg:col-span-3",
     tile.desktopSpan === 2 && "lg:col-span-2",
     tile.desktopSpan === 1 && "lg:col-span-1"
   );
 }
 
-function tileAspectClass(tile: GalleryTile): string {
-  if (tile.desktopSpan >= 2 || tile.mobileSpan === 2) {
-    return "aspect-square lg:aspect-auto lg:h-full lg:min-h-[16rem]";
+function desktopGridClass(columns: HomepageEditorialColumns): string {
+  if (columns === 2) return "lg:grid-cols-2";
+  if (columns === 4) return "lg:grid-cols-4";
+  return "lg:grid-cols-3";
+}
+
+function gapClass(gap: HomepageEditorialGap): string {
+  switch (gap) {
+    case "none":
+      return "gap-0";
+    case "sm":
+      return "gap-1 sm:gap-1.5 lg:gap-2";
+    case "lg":
+      return "gap-3 sm:gap-4 lg:gap-5";
+    case "xl":
+      return "gap-4 sm:gap-5 lg:gap-8";
+    case "md":
+    default:
+      return "gap-2 sm:gap-2.5 lg:gap-3";
   }
+}
+
+function tileAspectClass(
+  tile: GalleryTile,
+  tileSize: HomepageEditorialTileSize
+): string {
+  const tallMin =
+    tileSize === "sm"
+      ? "lg:min-h-[12rem]"
+      : tileSize === "lg"
+        ? "lg:min-h-[22rem]"
+        : "lg:min-h-[16rem]";
+
+  if (tile.desktopSpan >= 2 || tile.mobileSpan === 2) {
+    return cn("aspect-square lg:aspect-auto lg:h-full", tallMin);
+  }
+
+  if (tileSize === "sm") return "aspect-[5/4]";
+  if (tileSize === "lg") return "aspect-[3/4]";
   return "aspect-square";
 }
 
 /**
- * Post-hero collection gallery — equal tiles + custom design in leftover gap.
+ * Post-hero collection gallery — Admin-controlled columns, gap, size, pattern.
  */
-export function HomeEditorialGallery({ tiles }: HomeEditorialGalleryProps) {
+export function HomeEditorialGallery({
+  tiles,
+  columns = 3,
+  gap = "md",
+  tileSize = "md",
+}: HomeEditorialGalleryProps) {
   const { t } = useLocale();
   if (tiles.length === 0) return null;
 
   return (
     <section id="categories" className="bg-white pb-8 pt-8 md:pb-12 md:pt-12">
       <div className="w-full px-2 sm:px-3 md:px-4">
-        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-3 lg:gap-3 lg:auto-rows-fr">
+        <div
+          className={cn(
+            "grid grid-cols-2 lg:auto-rows-fr",
+            gapClass(gap),
+            desktopGridClass(columns)
+          )}
+        >
           {tiles.map((tile, index) => {
             const isCustom = tile.variant === "custom";
             return (
@@ -56,12 +114,16 @@ export function HomeEditorialGallery({ tiles }: HomeEditorialGalleryProps) {
                   titleSize={isCustom ? "md" : "sm"}
                   priority={index < 4}
                   className="h-full"
-                  aspectClassName={tileAspectClass(tile)}
+                  aspectClassName={tileAspectClass(tile, tileSize)}
                   emphasize={Boolean(tile.emphasize)}
                   sizes={
                     tile.desktopSpan >= 2 || tile.mobileSpan === 2
                       ? "(max-width: 1024px) 100vw, 66vw"
-                      : "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
+                      : columns === 4
+                        ? "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
+                        : columns === 2
+                          ? "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 50vw"
+                          : "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
                   }
                 />
               </div>

@@ -223,11 +223,32 @@ export function normalizeSiteSettings(
       DEFAULT_SETTINGS.about_cta_href
     ),
     about_values: normalizeAboutValues(source.about_values),
-    custom_design_image_url: String(
-      source.custom_design_image_url ??
-        DEFAULT_SETTINGS.custom_design_image_url ??
-        ""
-    ).trim(),
+    ...(() => {
+      const MAX_CUSTOM_DESIGN_IMAGES = 5;
+      const fromList = Array.isArray(source.custom_design_image_urls)
+        ? source.custom_design_image_urls
+            .filter((u): u is string => typeof u === "string")
+            .map((u) => u.trim())
+            .filter(Boolean)
+        : [];
+      const legacy = String(
+        source.custom_design_image_url ??
+          DEFAULT_SETTINGS.custom_design_image_url ??
+          ""
+      ).trim();
+      const seen = new Set<string>();
+      const urls: string[] = [];
+      for (const url of fromList.length ? fromList : legacy ? [legacy] : []) {
+        if (seen.has(url)) continue;
+        seen.add(url);
+        urls.push(url);
+        if (urls.length >= MAX_CUSTOM_DESIGN_IMAGES) break;
+      }
+      return {
+        custom_design_image_urls: urls,
+        custom_design_image_url: urls[0] ?? "",
+      };
+    })(),
     homepage_extra:
       source.homepage_extra &&
       typeof source.homepage_extra === "object" &&

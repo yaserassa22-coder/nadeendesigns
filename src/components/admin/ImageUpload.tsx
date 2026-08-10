@@ -10,6 +10,8 @@ interface ImageUploadProps {
   value: string[];
   onChange: (urls: string[]) => void;
   multiple?: boolean;
+  /** Cap on total images (upload + paste). Omit = unlimited. */
+  maxImages?: number;
   className?: string;
 }
 
@@ -17,6 +19,7 @@ export function ImageUpload({
   value,
   onChange,
   multiple = true,
+  maxImages,
   className,
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -26,14 +29,32 @@ export function ImageUpload({
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
+  const limit =
+    typeof maxImages === "number" && maxImages > 0 ? maxImages : null;
+  const remaining = limit == null ? Infinity : Math.max(0, limit - value.length);
+  const atLimit = remaining <= 0;
+
   const uploadFiles = async (files: FileList | null) => {
     if (!files?.length) return;
+    if (atLimit) {
+      setError(
+        limit == null
+          ? "تم الوصول للحد الأقصى من الصور."
+          : `يمكنك رفع حتى ${limit} صور فقط.`
+      );
+      return;
+    }
     setUploading(true);
     setError("");
 
     try {
       const urls: string[] = [];
-      const list = Array.from(files).slice(0, multiple ? undefined : 1);
+      const take = multiple
+        ? limit == null
+          ? undefined
+          : remaining
+        : 1;
+      const list = Array.from(files).slice(0, take);
 
       for (const file of list) {
         const form = new FormData();
@@ -54,7 +75,9 @@ export function ImageUpload({
         urls.push(data.url);
       }
 
-      onChange(multiple ? [...value, ...urls] : urls);
+      if (!urls.length) return;
+      const next = multiple ? [...value, ...urls] : urls;
+      onChange(limit == null ? next : next.slice(0, limit));
     } catch (e) {
       setError(e instanceof Error ? e.message : "فشل رفع الصورة");
     } finally {
@@ -72,12 +95,42 @@ export function ImageUpload({
   };
 
   const reorder = (from: number, to: number) => {
-    if (from === to || from < 0 || to < 0 || from >= value.length || to >= value.length)
+    if (
+      from === to ||
+      from < 0 ||
+      to < 0 ||
+      from >= value.length ||
+      to >= value.length
+    )
       return;
     const next = [...value];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onChange(next);
+  };
+
+  const addPasteUrl = () => {
+    const url = pasteUrl.trim();
+    if (!url) {
+      setError("الصقي رابط صورة صالح أولًا.");
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      setError("رابط الصورة يجب أن يبدأ بـ http أو https.");
+      return;
+    }
+    if (atLimit) {
+      setError(
+        limit == null
+          ? "تم الوصول للحد الأقصى من الصور."
+          : `يمكنك إضافة حتى ${limit} صور فقط.`
+      );
+      return;
+    }
+    setError("");
+    const next = multiple ? [...value, url] : [url];
+    onChange(limit == null ? next : next.slice(0, limit));
+    setPasteUrl("");
   };
 
   return (
@@ -142,27 +195,29 @@ export function ImageUpload({
           </div>
         ))}
 
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          aria-label="رفع صور"
-          className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gold/50 bg-beige/40 text-gold transition-colors hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 disabled:opacity-50"
-        >
-          {uploading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <ImagePlus className="h-5 w-5" />
-          )}
-          <span className="text-xs">{uploading ? "جاري الرفع" : "رفع"}</span>
-        </button>
+        {!atLimit ? (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            aria-label="رفع صور"
+            className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gold/50 bg-beige/40 text-gold transition-colors hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 disabled:opacity-50"
+          >
+            {uploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <ImagePlus className="h-5 w-5" />
+            )}
+            <span className="text-xs">{uploading ? "جاري الرفع" : "رفع"}</span>
+          </button>
+        ) : null}
       </div>
 
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        multiple={multiple}
+        multiple={multiple && (limit == null || remaining > 1)}
         className="hidden"
         onChange={(e) => uploadFiles(e.target.files)}
       />
@@ -181,25 +236,14 @@ export function ImageUpload({
           onChange={(e) => setPasteUrl(e.target.value)}
           placeholder="https://res.cloudinary.com/..."
           aria-label="لصق رابط صورة"
-          className="min-w-0 flex-1 rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm focus:border-gold focus:ring-2 focus:ring-gold/20"
+          disabled={atLimit}
+          className="min-w-0 flex-1 rounded-xl border border-beige-dark bg-white px-3 py-2 text-sm focus:border-gold focus:ring-2 focus:ring-gold/20 disabled:opacity-50"
         />
         <button
           type="button"
-          className="rounded-xl border border-gold/40 px-3 py-2 text-sm text-gold hover:bg-gold/10"
-          onClick={() => {
-            const url = pasteUrl.trim();
-            if (!url) {
-              setError("الصقي رابط صورة صالح أولًا.");
-              return;
-            }
-            if (!/^https?:\/\//i.test(url)) {
-              setError("رابط الصورة يجب أن يبدأ بـ http أو https.");
-              return;
-            }
-            setError("");
-            onChange(multiple ? [...value, url] : [url]);
-            setPasteUrl("");
-          }}
+          disabled={atLimit}
+          className="rounded-xl border border-gold/40 px-3 py-2 text-sm text-gold hover:bg-gold/10 disabled:opacity-50"
+          onClick={addPasteUrl}
         >
           إضافة رابط
         </button>
@@ -207,7 +251,10 @@ export function ImageUpload({
 
       <p className="text-xs text-muted">
         اسحبي الصور لإعادة الترتيب. الصورة الأولى هي الرئيسية. اضغطي النجمة
-        لتعيين صورة أخرى كرئيسية. عدد الصور غير محدود.
+        لتعيين صورة أخرى كرئيسية.{" "}
+        {limit == null
+          ? "عدد الصور غير محدود."
+          : `يمكنك إضافة حتى ${limit} صور (${value.length}/${limit}).`}
       </p>
     </div>
   );

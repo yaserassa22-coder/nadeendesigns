@@ -255,6 +255,43 @@ function normalizeSocial(raw: unknown): StoreSocialSettings {
 function normalizeHomepage(raw: unknown): StoreHomepageSettings {
   const d = DEFAULT_STORE_SETTINGS.homepage;
   const s = asObject(raw);
+  const editorialRaw = s.editorial_order;
+  const editorial_order = Array.isArray(editorialRaw)
+    ? editorialRaw
+        .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+        .map((id) => id.trim())
+    : [...d.editorial_order];
+  const colsRaw = Number(s.editorial_columns);
+  const editorial_columns =
+    colsRaw === 2 || colsRaw === 3 || colsRaw === 4
+      ? (colsRaw as 2 | 3 | 4)
+      : d.editorial_columns;
+  // Legacy: a non-empty order saved before editorial_manual existed counts as manual.
+  const editorial_manual =
+    "editorial_manual" in s
+      ? bool(s.editorial_manual, d.editorial_manual)
+      : editorial_order.length > 0;
+  const gapRaw = str(s.editorial_gap, d.editorial_gap);
+  const editorial_gap =
+    gapRaw === "none" ||
+    gapRaw === "sm" ||
+    gapRaw === "md" ||
+    gapRaw === "lg" ||
+    gapRaw === "xl"
+      ? gapRaw
+      : d.editorial_gap;
+  const sizeRaw = str(s.editorial_tile_size, d.editorial_tile_size);
+  const editorial_tile_size =
+    sizeRaw === "sm" || sizeRaw === "md" || sizeRaw === "lg"
+      ? sizeRaw
+      : d.editorial_tile_size;
+  const patternRaw = str(s.editorial_pattern, d.editorial_pattern);
+  const editorial_pattern =
+    patternRaw === "uniform" ||
+    patternRaw === "editorial" ||
+    patternRaw === "spotlight"
+      ? patternRaw
+      : d.editorial_pattern;
   return {
     hero: bool(s.hero, d.hero),
     featured_categories: bool(s.featured_categories, d.featured_categories),
@@ -268,6 +305,12 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     worn_by_you: bool(s.worn_by_you, d.worn_by_you),
     instagram: bool(s.instagram, d.instagram),
     newsletter: bool(s.newsletter, d.newsletter),
+    editorial_order,
+    editorial_manual,
+    editorial_columns,
+    editorial_gap,
+    editorial_tile_size,
+    editorial_pattern,
   };
 }
 

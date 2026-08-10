@@ -1495,6 +1495,8 @@ export function StoreSettingsPanel({
               <Link href="/admin/content/home" className="text-gold underline">
                 {sf.homeContentLink}
               </Link>
+              {" — "}
+              {sf.editorialOrderTitle}
             </p>
           </Section>
         )}

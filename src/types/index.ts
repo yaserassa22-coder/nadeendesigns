@@ -420,8 +420,14 @@ export interface SiteSettings {
   /**
    * Homepage post-hero “تصميم فستان خاص” editorial tile image (CMS).
    * When empty, storefront falls back to category cover / about / featured.
+   * Synced with `custom_design_image_urls[0]` when the multi-image list is set.
    */
   custom_design_image_url: string;
+  /**
+   * Up to 5 CMS images for the Custom Design homepage section
+   * (atelier → craft → dress stages + extras). Primary is index 0.
+   */
+  custom_design_image_urls: string[];
 
   /**
    * Optional bag for future homepage section payloads (Featured / Services /

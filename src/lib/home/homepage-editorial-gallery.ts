@@ -7,6 +7,10 @@ import { getDictionary, localizedName } from "@/lib/i18n";
 import { featuredImage } from "@/lib/products/featured-image";
 import type { Category } from "@/types/category";
 import type { Dress } from "@/types";
+import type {
+  HomepageEditorialColumns,
+  HomepageEditorialPattern,
+} from "@/types/store";
 import {
   isAccessoriesGroupCategory,
   resolveCategoryProductKind,
@@ -23,7 +27,7 @@ export type HomepageEditorialTile = {
   imageUrl: string;
   eyebrow?: string;
   mobileSpan: 1 | 2;
-  desktopSpan: 1 | 2 | 3;
+  desktopSpan: 1 | 2 | 3 | 4;
   emphasize?: boolean;
   /** Custom-design tile: dual CTAs (journey + booking). */
   variant?: "default" | "custom";
@@ -72,22 +76,87 @@ function toEqualTile(tile: RawTile): HomepageEditorialTile {
   };
 }
 
+function clampSpan(
+  span: number,
+  columns: HomepageEditorialColumns
+): 1 | 2 | 3 | 4 {
+  const n = Math.max(1, Math.min(span, columns)) as 1 | 2 | 3 | 4;
+  return n;
+}
+
+/** Magazine / spotlight span rhythm over equal base tiles. */
+export function applyEditorialPattern(
+  tiles: HomepageEditorialTile[],
+  pattern: HomepageEditorialPattern,
+  columns: HomepageEditorialColumns
+): HomepageEditorialTile[] {
+  if (pattern === "uniform" || tiles.length === 0) {
+    return tiles.map((t) => ({
+      ...t,
+      mobileSpan: 1 as const,
+      desktopSpan: 1 as const,
+      emphasize: false,
+    }));
+  }
+
+  if (pattern === "spotlight") {
+    return tiles.map((t, i) => {
+      if (i !== 0) {
+        return {
+          ...t,
+          mobileSpan: 1 as const,
+          desktopSpan: 1 as const,
+          emphasize: false,
+        };
+      }
+      return {
+        ...t,
+        mobileSpan: 2 as const,
+        desktopSpan: clampSpan(Math.min(2, columns), columns),
+        emphasize: true,
+      };
+    });
+  }
+
+  // editorial — repeating wide+narrow magazine rhythm
+  const cycle: number[] =
+    columns >= 4
+      ? [2, 1, 1, 1, 1, 1, 1]
+      : columns === 2
+        ? [2, 1, 1]
+        : [2, 1, 1, 1, 1];
+
+  return tiles.map((t, i) => {
+    const desktopSpan = clampSpan(cycle[i % cycle.length] ?? 1, columns);
+    const mobileSpan: 1 | 2 =
+      i % 5 === 0 && tiles.length > 1 ? 2 : 1;
+    return {
+      ...t,
+      mobileSpan,
+      desktopSpan,
+      emphasize: desktopSpan >= 2,
+    };
+  });
+}
+
 /**
- * Equal collection/product tiles, then optional custom-design tile sized to
- * fill any leftover last-row gap (desktop 3-col / mobile 2-col).
+ * Patterned collection/product tiles, then optional custom-design tile sized to
+ * fill any leftover last-row gap (mobile 2-col / desktop N-col).
  */
 export function composeEditorialLayout(
   raw: RawTile[],
-  custom?: RawTile | null
+  custom?: RawTile | null,
+  columns: HomepageEditorialColumns = 3,
+  pattern: HomepageEditorialPattern = "uniform"
 ): HomepageEditorialTile[] {
-  const tiles = raw.map(toEqualTile);
+  const tiles = applyEditorialPattern(raw.map(toEqualTile), pattern, columns);
   if (!custom) return tiles;
 
-  const n = tiles.length;
-  const mobileSpan: 1 | 2 = n % 2 === 0 ? 2 : 1;
-  const rem = n % 3;
-  const desktopSpan: 1 | 2 | 3 =
-    rem === 0 ? 3 : rem === 1 ? 2 : 1;
+  const n = tiles.reduce((sum, t) => sum + t.desktopSpan, 0);
+  const mobileCells = tiles.reduce((sum, t) => sum + t.mobileSpan, 0);
+  const mobileSpan: 1 | 2 = mobileCells % 2 === 0 ? 2 : 1;
+  const rem = n % columns;
+  const desktopSpan = clampSpan(rem === 0 ? columns : columns - rem, columns);
 
   tiles.push({
     ...custom,
@@ -107,7 +176,46 @@ export type HomepageEditorialOptions = {
   customDesign?: {
     imageUrl: string | null;
   } | null;
+  /**
+   * Admin-managed tile membership + order (`cat-…`, `dress-…`).
+   * When `editorialManual` is true, only listed ids appear (no auto-append).
+   * When false/omitted, empty order keeps all candidates (auto mode).
+   */
+  editorialOrder?: string[];
+  editorialManual?: boolean;
+  /** Desktop column count (affects leftover custom-tile span). */
+  editorialColumns?: HomepageEditorialColumns;
+  /** Magazine / spotlight / uniform composition. */
+  editorialPattern?: HomepageEditorialPattern;
 };
+
+/**
+ * Apply admin order.
+ * Auto mode (manual=false): empty order → all candidates; non-empty → reorder + append new.
+ * Manual mode: only listed ids, in order (supports empty grid).
+ */
+export function sortTilesByEditorialOrder<T extends { id: string }>(
+  tiles: T[],
+  order: string[] | null | undefined,
+  manual = false
+): T[] {
+  if (!order?.length) return manual ? [] : tiles;
+  const map = new Map(tiles.map((t) => [t.id, t]));
+  const sorted: T[] = [];
+  const used = new Set<string>();
+  for (const id of order) {
+    const tile = map.get(id);
+    if (!tile || used.has(id)) continue;
+    sorted.push(tile);
+    used.add(id);
+  }
+  if (!manual) {
+    for (const tile of tiles) {
+      if (!used.has(tile.id)) sorted.push(tile);
+    }
+  }
+  return sorted;
+}
 
 /**
  * Continuous editorial gallery: categories + featured dresses + optional
@@ -122,6 +230,8 @@ export async function getHomepageEditorialTiles(
   const veilImages = veils.flatMap((v) => uniqueUrls(v.images));
   const robeImages = robes.flatMap((r) => uniqueUrls(r.images));
   const dict = getDictionary(locale);
+  const columns = options.editorialColumns ?? 3;
+  const pattern = options.editorialPattern ?? "uniform";
 
   const raw: RawTile[] = [];
   const usedUrls = new Set<string>();
@@ -190,5 +300,38 @@ export async function getHomepageEditorialTiles(
       }
     : null;
 
-  return composeEditorialLayout(raw, customTile);
+  const ordered = sortTilesByEditorialOrder(
+    raw,
+    options.editorialOrder,
+    Boolean(options.editorialManual)
+  );
+  return composeEditorialLayout(ordered, customTile, columns, pattern);
+}
+
+/** Parse dress UUIDs from editorial tile ids. */
+export function parseEditorialDressIds(order: string[]): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of order) {
+    if (!raw.startsWith("dress-")) continue;
+    const id = raw.slice("dress-".length).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+/** Parse category UUIDs from editorial tile ids. */
+export function parseEditorialCategoryIds(order: string[]): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of order) {
+    if (!raw.startsWith("cat-")) continue;
+    const id = raw.slice("cat-".length).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
 }

@@ -6,14 +6,28 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 
-type CustomDesignCmsFields = Pick<SiteSettings, "custom_design_image_url">;
+const MAX_CUSTOM_DESIGN_IMAGES = 5;
+
+type CustomDesignCmsFields = {
+  custom_design_image_urls: string[];
+};
+
+function urlsFromSettings(settings: SiteSettings): string[] {
+  const list = Array.isArray(settings.custom_design_image_urls)
+    ? settings.custom_design_image_urls
+    : [];
+  const cleaned = list.map((u) => u.trim()).filter(Boolean);
+  if (cleaned.length) return cleaned.slice(0, MAX_CUSTOM_DESIGN_IMAGES);
+  const single = settings.custom_design_image_url?.trim() || "";
+  return single ? [single] : [];
+}
 
 interface HomeCustomDesignCmsFormProps {
   initialSettings: SiteSettings;
 }
 
 /**
- * Admin control for the homepage “تصميم فستان خاص” editorial tile image.
+ * Admin control for homepage Custom Design section images (up to 5).
  */
 export function HomeCustomDesignCmsForm({
   initialSettings,
@@ -21,7 +35,7 @@ export function HomeCustomDesignCmsForm({
   const { t } = useLocale();
   const cu = t.admin.cmsUi;
   const [form, setForm] = useState<CustomDesignCmsFields>({
-    custom_design_image_url: initialSettings.custom_design_image_url?.trim() || "",
+    custom_design_image_urls: urlsFromSettings(initialSettings),
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -32,20 +46,23 @@ export function HomeCustomDesignCmsForm({
     setMessage("");
     setError("");
     try {
+      const urls = form.custom_design_image_urls
+        .map((u) => u.trim())
+        .filter(Boolean)
+        .slice(0, MAX_CUSTOM_DESIGN_IMAGES);
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          custom_design_image_url: form.custom_design_image_url.trim(),
+          custom_design_image_urls: urls,
+          custom_design_image_url: urls[0] ?? "",
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? cu.saveFailed);
       if (data.settings) {
         const s = data.settings as SiteSettings;
-        setForm({
-          custom_design_image_url: s.custom_design_image_url?.trim() || "",
-        });
+        setForm({ custom_design_image_urls: urlsFromSettings(s) });
       }
       setMessage(cu.saved);
     } catch (e) {
@@ -69,12 +86,13 @@ export function HomeCustomDesignCmsForm({
           {cu.customDesignTileImage}
         </p>
         <ImageUpload
-          multiple={false}
-          value={
-            form.custom_design_image_url ? [form.custom_design_image_url] : []
-          }
+          multiple
+          maxImages={MAX_CUSTOM_DESIGN_IMAGES}
+          value={form.custom_design_image_urls}
           onChange={(urls) => {
-            setForm({ custom_design_image_url: urls[0] ?? "" });
+            setForm({
+              custom_design_image_urls: urls.slice(0, MAX_CUSTOM_DESIGN_IMAGES),
+            });
             setMessage("");
           }}
         />

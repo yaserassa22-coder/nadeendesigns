@@ -94,6 +94,7 @@ export async function PUT(request: NextRequest) {
     const saved = await saveStoreSettings(merged, sections);
 
     revalidatePath("/", "layout");
+    revalidatePath("/admin/content/home");
     revalidatePath("/checkout");
     revalidatePath("/contact");
     revalidatePath("/legal/terms");

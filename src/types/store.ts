@@ -159,6 +159,20 @@ export type StoreAnnouncementSettings = {
   link: string;
 };
 
+/** Desktop column count for the post-hero editorial grid. */
+export type HomepageEditorialColumns = 2 | 3 | 4;
+/** Gutter between editorial tiles. */
+export type HomepageEditorialGap = "none" | "sm" | "md" | "lg" | "xl";
+/** Visual tile scale / aspect. */
+export type HomepageEditorialTileSize = "sm" | "md" | "lg";
+/**
+ * Layout rhythm:
+ * - uniform: equal 1×1 cells
+ * - editorial: magazine rhythm (wide + narrow)
+ * - spotlight: first tile emphasized
+ */
+export type HomepageEditorialPattern = "uniform" | "editorial" | "spotlight";
+
 export type StoreHomepageSettings = {
   hero: boolean;
   featured_categories: boolean;
@@ -171,6 +185,26 @@ export type StoreHomepageSettings = {
   worn_by_you: boolean;
   instagram: boolean;
   newsletter: boolean;
+  /**
+   * Explicit post-hero editorial grid membership + order
+   * (tile ids: `cat-{uuid}`, `dress-{uuid}`).
+   * Used when `editorial_manual` is true.
+   */
+  editorial_order: string[];
+  /**
+   * When true, `editorial_order` is the sole source of grid tiles
+   * (add/remove/reorder from Admin). When false, auto from homepage
+   * categories + featured products.
+   */
+  editorial_manual: boolean;
+  /** Desktop grid columns for the post-hero editorial gallery. */
+  editorial_columns: HomepageEditorialColumns;
+  /** Gap between tiles. */
+  editorial_gap: HomepageEditorialGap;
+  /** Tile visual size / aspect. */
+  editorial_tile_size: HomepageEditorialTileSize;
+  /** Grid composition pattern. */
+  editorial_pattern: HomepageEditorialPattern;
 };
 
 export type StoreAuthSettings = {
@@ -695,6 +729,12 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     worn_by_you: true,
     instagram: true,
     newsletter: false,
+    editorial_order: [],
+    editorial_manual: false,
+    editorial_columns: 3,
+    editorial_gap: "md",
+    editorial_tile_size: "md",
+    editorial_pattern: "uniform",
   },
   authentication: {
     guest_checkout_enabled: true,
