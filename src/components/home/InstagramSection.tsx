@@ -16,8 +16,38 @@ type InstagramSectionProps = {
   images?: { src: string; alt: string; href?: string }[];
 };
 
+function InstagramLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="2.5"
+        y="2.5"
+        width="19"
+        height="19"
+        rx="5.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <circle
+        cx="12"
+        cy="12"
+        r="4.25"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <circle cx="17.35" cy="6.65" r="1.05" fill="currentColor" />
+    </svg>
+  );
+}
+
 /**
- * End-of-homepage gallery mosaic + Instagram visit band (no gallery title).
+ * End-of-homepage gallery mosaic + Instagram logo link (no gallery title).
  */
 export function InstagramSection({ images = [] }: InstagramSectionProps) {
   const { t } = useLocale();
@@ -60,21 +90,16 @@ export function InstagramSection({ images = [] }: InstagramSectionProps) {
           <HomeQuietLink href="/gallery">{t.nav.gallery}</HomeQuietLink>
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-2 px-2 text-center md:mt-12">
-          <p className="font-[family-name:var(--font-cormorant)] text-[10px] tracking-[0.32em] text-gold uppercase md:text-xs">
-            Instagram
-          </p>
-          <h2
-            className="font-[family-name:var(--font-cormorant)] text-lg tracking-[0.12em] text-charcoal uppercase md:text-xl"
-            dir="ltr"
+        <div className="mt-10 flex justify-center md:mt-12">
+          <a
+            href={OFFICIAL_INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${t.home.igVisit} ${OFFICIAL_INSTAGRAM_HANDLE}`}
+            className="inline-flex items-center justify-center text-charcoal transition-colors duration-300 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2"
           >
-            {OFFICIAL_INSTAGRAM_HANDLE}
-          </h2>
-          <div className="mt-2">
-            <HomeQuietLink href={OFFICIAL_INSTAGRAM_URL} external>
-              {t.home.igVisit}
-            </HomeQuietLink>
-          </div>
+            <InstagramLogo className="h-8 w-8 md:h-9 md:w-9" />
+          </a>
         </div>
       </div>
     </section>
