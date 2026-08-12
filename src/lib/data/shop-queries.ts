@@ -107,10 +107,15 @@ export async function getRelatedVeils(
     data = retry.data;
     error = retry.error;
   }
-  const rows = (error || !data ? SEED_VEILS : (data as (Veil & LifecycleRow)[]))
+  if (error || !data) {
+    return SEED_VEILS.filter((v) => v.id !== excludeId && isShopPublic(v)).slice(
+      0,
+      take
+    );
+  }
+  return (data as (Veil & LifecycleRow)[])
     .filter((row) => isPublicRow(row) && isShopPublic(row) && row.id !== excludeId)
     .slice(0, take);
-  return rows;
 }
 
 export async function getBridalRobes(): Promise<BridalRobe[]> {
@@ -177,10 +182,12 @@ export async function getRelatedBridalRobes(
     data = retry.data;
     error = retry.error;
   }
-  return (error || !data
-    ? SEED_BRIDAL_ROBES
-    : (data as (BridalRobe & LifecycleRow)[])
-  )
+  if (error || !data) {
+    return SEED_BRIDAL_ROBES.filter(
+      (r) => r.id !== excludeId && isShopPublic(r)
+    ).slice(0, take);
+  }
+  return (data as (BridalRobe & LifecycleRow)[])
     .filter((row) => isPublicRow(row) && isShopPublic(row) && row.id !== excludeId)
     .slice(0, take);
 }
