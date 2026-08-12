@@ -173,6 +173,52 @@ export type HomepageEditorialTileSize = "sm" | "md" | "lg";
  */
 export type HomepageEditorialPattern = "uniform" | "editorial" | "spotlight";
 
+export type HomepageVisualBlockShape =
+  | "square"
+  | "portrait"
+  | "landscape"
+  | "wide"
+  | "hero";
+
+export type HomepageVisualLayoutItem = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  shape: HomepageVisualBlockShape;
+  z: number;
+};
+
+export type VisualUnifiedBgSize = "cover" | "contain" | "natural";
+export type VisualUnifiedBgPosition =
+  | "center"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right";
+
+/** Optional editorial canvas behind the visual post grid. */
+export type VisualUnifiedBackgroundSettings = {
+  enabled: boolean;
+  color: string;
+  image_url: string;
+  size: VisualUnifiedBgSize;
+  position: VisualUnifiedBgPosition;
+  product_scale: number;
+  product_offset_x: number;
+  product_offset_y: number;
+  product_shadow: boolean;
+  product_shadow_intensity: number;
+  /** Cloudinary AI background removal for post-grid only — never mutates stored images. */
+  isolate_products: boolean;
+  /**
+   * When true with unified background: each product stays in its own card/grid frame.
+   * Canvas still uses the unified color. Disables floating isolation presentation.
+   */
+  keep_product_grids: boolean;
+};
+
 export type StoreHomepageSettings = {
   hero: boolean;
   featured_categories: boolean;
@@ -205,6 +251,24 @@ export type StoreHomepageSettings = {
   editorial_tile_size: HomepageEditorialTileSize;
   /** Grid composition pattern. */
   editorial_pattern: HomepageEditorialPattern;
+  /** Visual desktop layout editor toggle for custom design + editorial blocks. */
+  visual_layout_enabled: boolean;
+  /** Desktop showcase height in px for the visual layout section. */
+  visual_layout_height: number;
+  /** Absolute-positioned desktop blocks saved by the admin visual editor. */
+  visual_layout_items: HomepageVisualLayoutItem[];
+  /** Top inset below preview chrome (%). */
+  visual_layout_pad_top: number;
+  /** Gap between visual layout blocks (%). */
+  visual_layout_block_gap: number;
+  /** Left/right/bottom canvas inset (%). */
+  visual_layout_edge_gap: number;
+  /** Independent height scale per visual grid row (1 = default). */
+  visual_layout_row_scales: number[];
+  /** Unified editorial background for the visual post grid. */
+  visual_layout_unified: VisualUnifiedBackgroundSettings;
+  /** @deprecated Migrated to numeric spacing fields on read. */
+  visual_layout_gap?: HomepageEditorialGap;
 };
 
 export type StoreAuthSettings = {
@@ -735,6 +799,27 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     editorial_gap: "md",
     editorial_tile_size: "md",
     editorial_pattern: "uniform",
+    visual_layout_enabled: false,
+    visual_layout_height: 880,
+    visual_layout_items: [],
+    visual_layout_pad_top: 12,
+    visual_layout_block_gap: 0.6,
+    visual_layout_edge_gap: 2,
+    visual_layout_row_scales: [],
+    visual_layout_unified: {
+      enabled: false,
+      color: "#F5F2EA",
+      image_url: "",
+      size: "cover",
+      position: "center",
+      product_scale: 1,
+      product_offset_x: 0,
+      product_offset_y: 0,
+      product_shadow: true,
+      product_shadow_intensity: 28,
+      isolate_products: true,
+      keep_product_grids: false,
+    },
   },
   authentication: {
     guest_checkout_enabled: true,

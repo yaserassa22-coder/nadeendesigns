@@ -3,9 +3,9 @@ import Link from "next/link";
 import { HomeHeroCmsForm } from "@/components/admin/cms/HomeHeroCmsForm";
 import { HomeCustomDesignCmsForm } from "@/components/admin/cms/HomeCustomDesignCmsForm";
 import {
-  HomepageEditorialOrderManager,
-  type EditorialOrderTile,
-} from "@/components/admin/HomepageEditorialOrderManager";
+  HomepageVisualLayoutManager,
+  type VisualLayoutTile,
+} from "@/components/admin/HomepageVisualLayoutManager";
 import { getAdminSettings } from "@/lib/admin/data";
 import {
   getHomepageCategories,
@@ -21,15 +21,20 @@ export const metadata: Metadata = {
   title: "محتوى الرئيسية",
 };
 
-function toOrderTiles(
+function toVisualTiles(
   tiles: Awaited<ReturnType<typeof getHomepageEditorialTiles>>
-): EditorialOrderTile[] {
+): VisualLayoutTile[] {
   return tiles
     .filter((tile) => tile.variant !== "custom")
     .map((tile) => ({
       id: tile.id,
       title: tile.title,
       imageUrl: tile.imageUrl,
+      href: tile.href,
+      eyebrow: tile.eyebrow,
+      primaryCtaLabel: tile.primaryCtaLabel,
+      secondaryHref: tile.secondaryHref,
+      secondaryCtaLabel: tile.secondaryCtaLabel,
       kind: tile.id.startsWith("dress-") ? "product" : "category",
     }));
 }
@@ -53,6 +58,10 @@ export default async function AdminHomeContentPage() {
   ]);
   const cloudinaryReady = isCloudinaryConfigured();
   const hp = store.homepage;
+  const customDesignImageUrl =
+    settings.custom_design_image_urls?.find((url) => url.trim()) ||
+    settings.custom_design_image_url ||
+    null;
 
   const autoTilesRaw = await getHomepageEditorialTiles(
     hp.featured_categories ? homepageCategories : [],
@@ -76,8 +85,8 @@ export default async function AdminHomeContentPage() {
     }
   );
 
-  const autoTiles = toOrderTiles(autoTilesRaw);
-  const availableTiles = toOrderTiles(availableRaw);
+  const autoTiles = toVisualTiles(autoTilesRaw);
+  const availableTiles = toVisualTiles(availableRaw);
 
   return (
     <div className="space-y-6">
@@ -106,17 +115,20 @@ export default async function AdminHomeContentPage() {
 
       <HomeHeroCmsForm initialSettings={settings} />
 
-      <HomepageEditorialOrderManager
+      <HomepageVisualLayoutManager
         availableTiles={availableTiles}
         autoTiles={autoTiles}
         initialOrder={hp.editorial_order}
         initialManual={hp.editorial_manual}
-        initialLayout={{
-          columns: hp.editorial_columns,
-          gap: hp.editorial_gap,
-          tileSize: hp.editorial_tile_size,
-          pattern: hp.editorial_pattern,
-        }}
+        initialVisualEnabled={hp.visual_layout_enabled}
+        initialVisualItems={hp.visual_layout_items}
+        initialVisualHeight={hp.visual_layout_height}
+        initialVisualPadTop={hp.visual_layout_pad_top}
+        initialVisualBlockGap={hp.visual_layout_block_gap}
+        initialVisualEdgeGap={hp.visual_layout_edge_gap}
+        initialVisualRowScales={hp.visual_layout_row_scales}
+        initialVisualUnified={hp.visual_layout_unified}
+        customDesignImageUrl={customDesignImageUrl}
       />
 
       <HomeCustomDesignCmsForm initialSettings={settings} />

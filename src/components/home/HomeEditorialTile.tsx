@@ -2,29 +2,125 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { UnifiedProductPhoto } from "@/components/home/UnifiedProductPhoto";
+import { productDropShadow } from "@/lib/home/visual-unified-background";
 import { cn } from "@/lib/utils";
 
 type HomeEditorialTileProps = {
   href: string;
   imageUrl: string | null | undefined;
+  /** Stored product URL — fallback if Cloudinary isolation fails. */
+  originalImageUrl?: string | null | undefined;
   title: string;
-  /** Small caps line above the title (e.g. collection eyebrow). */
   eyebrow?: string;
-  /** CTA on the image — quiet text link by default for homepage gallery. */
   ctaLabel?: string;
   ctaVariant?: "quiet" | "outline";
-  /** Optional second CTA (custom design booking). */
   secondaryHref?: string;
   secondaryCtaLabel?: string;
   titleSize?: "sm" | "md" | "lg";
   priority?: boolean;
   className?: string;
-  /** Default tall editorial frame. */
   aspectClassName?: string;
   sizes?: string;
-  /** Feature / wide tiles get slightly stronger type; standard tiles stay quieter. */
   emphasize?: boolean;
+  presentation?: "card" | "float";
+  /** Cloudinary AI background removal for post-grid presentation. */
+  productIsolation?: boolean;
+  /** @deprecated Use productIsolation */
+  softIsolate?: boolean;
+  canvasColor?: string;
+  imageScale?: number;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  dropShadow?: boolean;
+  shadowIntensity?: number;
 };
+
+const FLOAT_CAPTION_ROW = "2.75rem";
+
+function FloatCaption({
+  title,
+  eyebrow,
+  ctaLabel,
+  ctaVariant,
+  secondaryHref,
+  secondaryCtaLabel,
+  href,
+  titleSize,
+  emphasize,
+  dir,
+}: {
+  title: string;
+  eyebrow?: string;
+  ctaLabel?: string;
+  ctaVariant: "quiet" | "outline";
+  secondaryHref?: string;
+  secondaryCtaLabel?: string;
+  href: string;
+  titleSize: "sm" | "md" | "lg";
+  emphasize: boolean;
+  dir: "ltr" | "rtl";
+}) {
+  const hasSecondary = Boolean(secondaryHref && secondaryCtaLabel);
+  const showCta = emphasize || hasSecondary;
+
+  return (
+    <div
+      className={cn(
+        "relative z-20 flex h-full w-full shrink-0 flex-col items-center justify-center text-center",
+        "px-1 isolation-isolate",
+        emphasize ? "gap-0.5" : "gap-0"
+      )}
+      dir={dir}
+      style={{ mixBlendMode: "normal" }}
+    >
+      {eyebrow ? (
+        <p className="text-[8px] font-medium tracking-[0.24em] text-charcoal/50 uppercase md:text-[9px]">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h3
+        className={cn(
+          "line-clamp-2 max-w-full font-[family-name:var(--font-cormorant)] font-normal leading-[1.3] text-charcoal",
+          titleSize === "lg" && "text-sm md:text-[15px]",
+          titleSize === "md" && "text-[12px] md:text-[13px]",
+          titleSize === "sm" && "text-[11px] md:text-xs"
+        )}
+      >
+        {title}
+      </h3>
+      {showCta && hasSecondary ? (
+        <div className="mt-0.5 flex flex-wrap justify-center gap-x-3 gap-y-1">
+          {ctaLabel ? (
+            <Link
+              href={href}
+              className="relative z-20 border-b border-charcoal/30 pb-0.5 text-[9px] tracking-[0.12em] text-charcoal/70 uppercase transition-colors hover:border-charcoal hover:text-charcoal md:text-[10px]"
+            >
+              {ctaLabel}
+            </Link>
+          ) : null}
+          <Link
+            href={secondaryHref!}
+            className="relative z-20 text-[9px] tracking-[0.12em] text-charcoal/50 uppercase transition-colors hover:text-charcoal md:text-[10px]"
+          >
+            {secondaryCtaLabel}
+          </Link>
+        </div>
+      ) : showCta && ctaLabel ? (
+        ctaVariant === "outline" ? (
+          <span className="mt-0.5 inline-flex border border-charcoal/70 bg-transparent px-2.5 py-1 text-[9px] font-medium tracking-[0.14em] text-charcoal uppercase md:text-[10px]">
+            {ctaLabel}
+          </span>
+        ) : (
+          <span className="mt-0.5 border-b border-charcoal/30 pb-0.5 text-[9px] tracking-[0.12em] text-charcoal/70 uppercase transition-colors duration-300 group-hover:border-charcoal group-hover:text-charcoal md:text-[10px]">
+            {ctaLabel}
+          </span>
+        )
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * Full-bleed editorial tile: photography first, restrained type + quiet CTA.
@@ -32,6 +128,7 @@ type HomeEditorialTileProps = {
 export function HomeEditorialTile({
   href,
   imageUrl,
+  originalImageUrl,
   title,
   eyebrow,
   ctaLabel,
@@ -44,11 +141,101 @@ export function HomeEditorialTile({
   aspectClassName = "aspect-[3/4]",
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 33vw",
   emphasize = false,
+  presentation = "card",
+  productIsolation,
+  softIsolate,
+  canvasColor: _canvasColor = "#F5F2EA",
+  imageScale = 1,
+  imageOffsetX = 0,
+  imageOffsetY = 0,
+  dropShadow = false,
+  shadowIntensity = 28,
 }: HomeEditorialTileProps) {
+  const { dir } = useLocale();
   const cover = imageUrl?.trim() || "";
+  const originalCover = originalImageUrl?.trim() || cover;
   const hasSecondary = Boolean(secondaryHref && secondaryCtaLabel);
+  const isFloat = presentation === "float";
+  const scale = Math.min(1.2, Math.max(0.7, imageScale));
+  const ox = Math.min(20, Math.max(-20, imageOffsetX));
+  const oy = Math.min(20, Math.max(-20, imageOffsetY));
+  const isolateOn =
+    productIsolation ?? softIsolate ?? false;
+  const useIsolation = isFloat && isolateOn;
+  const shadowFilter =
+    useIsolation && dropShadow
+      ? productDropShadow(shadowIntensity)
+      : undefined;
+  const legacyShadow =
+    isFloat && dropShadow && !useIsolation
+      ? productDropShadow(shadowIntensity)
+      : undefined;
 
-  const media = (
+  const floatImage = (
+    <div className="relative h-full min-h-0 w-full min-w-0 self-stretch">
+      {cover ? (
+        <div className="absolute inset-0 flex items-end justify-center">
+          <div
+            className="relative h-full w-full origin-bottom transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+            style={{
+              transform: `translate(${ox}%, ${oy}%) scale(${scale})`,
+            }}
+          >
+            {useIsolation ? (
+              <UnifiedProductPhoto
+                src={cover}
+                fallbackSrc={originalCover}
+                alt={title}
+                priority={priority}
+                dropShadow={shadowFilter}
+                className="absolute inset-0"
+              />
+            ) : (
+              <div
+                className="relative h-full w-full"
+                style={{ filter: legacyShadow }}
+              >
+                <Image
+                  src={cover}
+                  alt={title}
+                  fill
+                  priority={priority}
+                  quality={85}
+                  sizes={sizes}
+                  className="bg-transparent object-contain object-bottom"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const floatContent = (
+    <div
+      className={cn("grid h-full w-full bg-transparent", aspectClassName)}
+      style={{
+        gridTemplateRows: `minmax(0, 1fr) ${FLOAT_CAPTION_ROW}`,
+      }}
+    >
+      {floatImage}
+      <FloatCaption
+        title={title}
+        eyebrow={eyebrow}
+        ctaLabel={ctaLabel}
+        ctaVariant={ctaVariant}
+        secondaryHref={secondaryHref}
+        secondaryCtaLabel={secondaryCtaLabel}
+        href={href}
+        titleSize={titleSize}
+        emphasize={emphasize}
+        dir={dir}
+      />
+    </div>
+  );
+
+  const cardMedia = (
     <div className={cn("relative w-full overflow-hidden", aspectClassName)}>
       {cover ? (
         <Image
@@ -134,9 +321,12 @@ export function HomeEditorialTile({
   );
 
   const shellClass = cn(
-    "group relative block h-full overflow-hidden bg-beige",
+    "group relative block h-full",
+    isFloat ? "overflow-visible bg-transparent" : "overflow-hidden bg-beige",
     className
   );
+
+  const content = isFloat ? floatContent : cardMedia;
 
   if (hasSecondary) {
     return (
@@ -146,14 +336,14 @@ export function HomeEditorialTile({
           className="absolute inset-0 z-[1]"
           aria-label={title}
         />
-        {media}
+        {content}
       </div>
     );
   }
 
   return (
     <Link href={href} className={shellClass}>
-      {media}
+      {content}
     </Link>
   );
 }

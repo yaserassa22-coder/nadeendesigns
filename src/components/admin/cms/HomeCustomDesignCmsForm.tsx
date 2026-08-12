@@ -62,7 +62,9 @@ export function HomeCustomDesignCmsForm({
       if (!res.ok) throw new Error(data.error ?? cu.saveFailed);
       if (data.settings) {
         const s = data.settings as SiteSettings;
-        setForm({ custom_design_image_urls: urlsFromSettings(s) });
+        setForm({
+          custom_design_image_urls: urlsFromSettings(s),
+        });
       }
       setMessage(cu.saved);
     } catch (e) {
@@ -90,9 +92,10 @@ export function HomeCustomDesignCmsForm({
           maxImages={MAX_CUSTOM_DESIGN_IMAGES}
           value={form.custom_design_image_urls}
           onChange={(urls) => {
-            setForm({
+            setForm((prev) => ({
+              ...prev,
               custom_design_image_urls: urls.slice(0, MAX_CUSTOM_DESIGN_IMAGES),
-            });
+            }));
             setMessage("");
           }}
         />

@@ -1,6 +1,7 @@
 import { Hero } from "@/components/home/Hero";
 import { AccessoriesEditorialSlideshow } from "@/components/home/AccessoriesEditorialSlideshow";
 import { ServicesSection } from "@/components/home/ServicesSection";
+import { HomeVisualLayoutSection } from "@/components/home/HomeVisualLayoutSection";
 import { CustomDesignSection } from "@/components/home/CustomDesignSection";
 import { WornByYouSection } from "@/components/home/WornByYouSection";
 import { InstagramSection } from "@/components/home/InstagramSection";
@@ -49,6 +50,7 @@ export default async function HomePage() {
   ]);
 
   const hp = store.homepage;
+  const dict = getDictionary(locale);
 
   const cmsCustomUrls = (
     Array.isArray(settings.custom_design_image_urls)
@@ -83,6 +85,8 @@ export default async function HomePage() {
   const customImageUrl = customGallery[0] || null;
   const craftImageUrl = customGallery[2] || customGallery[1] || null;
   const dressImageUrl = customGallery[3] || customGallery[4] || craftImageUrl;
+  const visualLayoutEnabled =
+    hp.visual_layout_enabled && hp.visual_layout_items.length > 0;
 
   // Featured dresses fold into the post-hero grid; custom design is its own band.
   // Manual mode: editorial_order is the sole membership list (add/remove from Admin).
@@ -127,7 +131,35 @@ export default async function HomePage() {
   );
   const accessoriesLabel = accessoriesCategory
     ? resolveCategoryLabel(accessoriesCategory, locale)
-    : getDictionary(locale).catalog.bridalAccessories;
+    : dict.catalog.bridalAccessories;
+
+  const visualCustomTile =
+    hp.collections && visualLayoutEnabled
+      ? {
+          id: "custom-design",
+          href: "/custom-design",
+          title: dict.nav.customDesign,
+          eyebrow: dict.home.customEyebrow,
+          imageUrl: customImageUrl?.trim() || "",
+          mobileSpan: 2 as const,
+          desktopSpan: 2 as const,
+          emphasize: true,
+          variant: "custom" as const,
+          primaryCtaLabel: dict.home.customStartCta,
+          secondaryHref: "/booking?service=custom_design",
+          secondaryCtaLabel: dict.home.customBookCta,
+        }
+      : null;
+
+  const visualTileMap = new Map(editorialTiles.map((tile) => [tile.id, tile]));
+  if (visualCustomTile) {
+    visualTileMap.set(visualCustomTile.id, visualCustomTile);
+  }
+  const visualTiles = hp.visual_layout_items
+    .slice()
+    .sort((a, b) => a.z - b.z)
+    .map((item) => visualTileMap.get(item.id))
+    .filter((tile): tile is NonNullable<typeof tile> => Boolean(tile));
 
   const instagramTiles: { src: string; alt: string; href?: string }[] = [];
   const usedIgUrls = new Set<string>();
@@ -147,6 +179,18 @@ export default async function HomePage() {
     <>
       {hp.hero ? <Hero settings={settings} /> : null}
       <div className="bg-ivory">
+        {visualLayoutEnabled ? (
+          <HomeVisualLayoutSection
+            tiles={visualTiles}
+            layoutItems={hp.visual_layout_items}
+            height={hp.visual_layout_height}
+            columns={hp.editorial_columns}
+            gap={hp.editorial_gap}
+            tileSize={hp.editorial_tile_size}
+            unified={hp.visual_layout_unified}
+          />
+        ) : null}
+        {/* Custom design band stays on the frontpage even when visual layout is on. */}
         {hp.collections ? (
           <CustomDesignSection
             imageUrls={customGallery}
@@ -155,7 +199,7 @@ export default async function HomePage() {
             dressImageUrl={dressImageUrl}
           />
         ) : null}
-        {editorialTiles.length > 0 ? (
+        {!visualLayoutEnabled && editorialTiles.length > 0 ? (
           <ServicesSection
             tiles={editorialTiles}
             columns={hp.editorial_columns}
