@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/dresses/DressCatalog";
 import { GalleryGrid } from "@/components/gallery/GalleryGrid";
+import { getGalleryCategories } from "@/lib/data/gallery-categories";
 import { getGalleryItems } from "@/lib/data/queries";
 import { getStorefrontLocale } from "@/lib/i18n/server";
 import { getDictionary } from "@/lib/i18n";
@@ -17,7 +18,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GalleryPage() {
   const locale = await getStorefrontLocale();
   const t = getDictionary(locale);
-  const items = await getGalleryItems();
+  const [items, categories] = await Promise.all([
+    getGalleryItems(),
+    getGalleryCategories(),
+  ]);
 
   return (
     <>
@@ -27,7 +31,7 @@ export default async function GalleryPage() {
       />
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
-          <GalleryGrid items={items} />
+          <GalleryGrid items={items} categories={categories} />
         </div>
       </section>
     </>

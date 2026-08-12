@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Dress, DressFilters, GalleryItem, SiteSettings, WornByYouItem } from "@/types";
 import {
   DEFAULT_SETTINGS,
@@ -72,6 +73,9 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
     if (filters?.style) query = query.eq("style", filters.style);
     if (filters?.color) query = query.eq("color", filters.color);
     if (filters?.size) query = query.eq("size", filters.size);
+    if (filters?.limit && filters.limit > 0) {
+      query = query.limit(Math.min(48, Math.max(filters.limit * 3, filters.limit)));
+    }
 
     let { data, error } = await query;
     if (error && /is_deleted|archived_at|category_id|PGRST204|42703/i.test(error.message ?? "")) {
@@ -90,6 +94,11 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
       if (filters?.style) retry = retry.eq("style", filters.style);
       if (filters?.color) retry = retry.eq("color", filters.color);
       if (filters?.size) retry = retry.eq("size", filters.size);
+      if (filters?.limit && filters.limit > 0) {
+        retry = retry.limit(
+          Math.min(48, Math.max(filters.limit * 3, filters.limit))
+        );
+      }
       const second = await retry;
       data = second.data;
       error = second.error;
@@ -137,7 +146,11 @@ export async function getDresses(filters?: DressFilters): Promise<Dress[]> {
   }
 
   // Draft / hidden must not appear on the storefront.
-  return dresses.filter(isStorefrontPublished);
+  dresses = dresses.filter(isStorefrontPublished);
+  if (filters?.limit && filters.limit > 0) {
+    dresses = dresses.slice(0, filters.limit);
+  }
+  return dresses;
 }
 
 /**
@@ -227,7 +240,9 @@ export async function getDressesByCategoryKeys(
   );
 }
 
-export async function getDressById(id: string): Promise<Dress | null> {
+export const getDressById = cache(async function getDressById(
+  id: string
+): Promise<Dress | null> {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
     let query = supabase.from("dresses").select("*").eq("id", id);
@@ -258,7 +273,7 @@ export async function getDressById(id: string): Promise<Dress | null> {
   if (!seed) return null;
   const dress = withResolvedProductType(withNormalizedDressCategory(seed));
   return isStorefrontPublished(dress) ? dress : null;
-}
+});
 
 export async function getGalleryItems(): Promise<GalleryItem[]> {
   if (isSupabaseConfigured()) {

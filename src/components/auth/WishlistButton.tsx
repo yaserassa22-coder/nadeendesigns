@@ -67,16 +67,17 @@ export function WishlistButton({
         aria-label={saved ? t.wishlist.removeAria : t.wishlist.addAria}
         aria-pressed={saved}
         className={cn(
-          /* Position via ProductCardOverlay top-right, or PurchaseCtaGroup slot. */
-          "relative z-30 flex h-10 w-10 items-center justify-center rounded-full border border-beige-dark/80 bg-white/95 text-charcoal shadow-sm transition hover:border-gold hover:bg-gold hover:text-white disabled:opacity-60",
-          saved && "border-gold/40 text-gold",
+          "relative z-30 flex h-10 w-10 items-center justify-center rounded-full border bg-white/95 shadow-sm transition disabled:opacity-60",
+          saved
+            ? "border-red-200 text-red-500 hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+            : "border-beige-dark/80 text-charcoal hover:border-gold hover:bg-gold hover:text-white",
           className
         )}
       >
         <Heart
           className="h-[var(--xp-cta-icon)] w-[var(--xp-cta-icon)]"
           strokeWidth={1.75}
-          fill={saved ? t.wishlist.inWishlist : t.wishlist.addButton}
+          fill={saved ? "currentColor" : "none"}
         />
       </button>
     );
@@ -93,12 +94,12 @@ export function WishlistButton({
         className={cn(
           "inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm transition",
           saved
-            ? "border-gold bg-gold/10 text-charcoal"
+            ? "border-red-200 bg-red-50 text-red-600"
             : "border-beige-dark bg-white text-charcoal hover:border-gold"
         )}
       >
         <Heart
-          className="h-4 w-4 text-gold"
+          className={cn("h-4 w-4", saved ? "text-red-500" : "text-gold")}
           fill={saved ? "currentColor" : "none"}
         />
         {saved ? t.wishlist.inWishlist : t.wishlist.addButton}

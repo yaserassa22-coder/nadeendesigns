@@ -4,6 +4,8 @@
   --background: #faf8f5;
   --foreground: #2c2419;
   --ivory: #faf8f5;
+  /* Header + announcement keep this when the storefront canvas is white. */
+  --ivory-chrome: #faf8f5;
   --beige: #f0ebe3;
   --beige-dark: #e7dfd3;
   --gold: #c9a96e;
@@ -66,6 +68,59 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), "Noto Sans Arabic", "Noto Sans Hebrew",
     "Cormorant Garamond", sans-serif;
+}
+
+/* Storefront page canvas is white. News bar + menu bar keep original ivory. */
+[data-storefront] {
+  --background: #ffffff;
+  --ivory: #ffffff;
+  background-color: #ffffff;
+}
+
+body[data-storefront] {
+  --background: #ffffff;
+  --ivory: #ffffff;
+  background-color: #ffffff;
+}
+
+[data-storefront] header[data-storefront-chrome],
+body[data-storefront] header[data-storefront-chrome],
+[data-storefront] [data-announcement-bar],
+body[data-storefront] [data-announcement-bar] {
+  --ivory: var(--ivory-chrome);
+  --background: var(--ivory-chrome);
+}
+
+/* Accessories editorial frame — continuous size via --ae-s (1 = editorial). */
+.nd-ae-stage {
+  --ae-s: 1;
+  min-height: calc(72vw * var(--ae-s));
+}
+@media (min-width: 640px) {
+  .nd-ae-stage {
+    min-height: calc(58vw * var(--ae-s));
+  }
+}
+@media (min-width: 768px) {
+  .nd-ae-stage {
+    min-height: calc(60vh * var(--ae-s));
+  }
+}
+@media (min-width: 1024px) {
+  .nd-ae-stage {
+    min-height: calc(62vh * var(--ae-s));
+  }
+}
+.nd-ae-stage-preview {
+  --ae-s: 1;
+  min-height: calc(11rem * var(--ae-s));
+}
+.nd-ae-shell-scale {
+  --ae-s: 1;
+  --ae-max: 72rem;
+  width: 100%;
+  max-width: calc(var(--ae-max) * var(--ae-s));
+  margin-inline: auto;
 }
 
 ::selection {

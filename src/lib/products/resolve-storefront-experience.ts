@@ -69,7 +69,7 @@ export async function resolveStorefrontProductExperience(input?: {
   experience_config?: ProductExperienceConfig | null;
   features_config?: ProductFeaturesConfig | null;
 }): Promise<ResolvedProductExperience> {
-  const store = await getStoreSettings(true);
+  const store = await getStoreSettings();
   const commerceType = resolveProductCommerceType(
     input?.productType,
     input?.fallbackType ?? "ready_to_buy"
@@ -124,7 +124,10 @@ export async function resolveStorefrontProductExperience(input?: {
   });
 
   // Global Features Library: disabled rows must hide on storefront.
-  const library = await listExperienceFeatures();
+  const [library, flow] = await Promise.all([
+    listExperienceFeatures(),
+    getPurchaseFlowForType(commerceType),
+  ]);
   if (library.length) {
     const globallyOff = new Set(
       library.filter((f) => !f.enabled).map((f) => f.id)
@@ -134,7 +137,6 @@ export async function resolveStorefrontProductExperience(input?: {
     }
   }
 
-  const flow = await getPurchaseFlowForType(commerceType);
   const primaryAction = applyPurchaseFlowOverride(
     getProductPrimaryAction(commerceType),
     flow

@@ -8,6 +8,7 @@ import { InstagramSection } from "@/components/home/InstagramSection";
 import { CTASection } from "@/components/home/CTASection";
 import { AddToHomeScreenPrompt } from "@/components/home/AddToHomeScreenPrompt";
 import { getHomepageCategories, getVisibleCategories } from "@/lib/data/categories";
+import { getGalleryCategories } from "@/lib/data/gallery-categories";
 import {
   getDressById,
   getFeaturedDresses,
@@ -39,6 +40,7 @@ export default async function HomePage() {
     gallery,
     wornByYou,
     accessoriesSlides,
+    galleryCategories,
   ] = await Promise.all([
     getFeaturedDresses(8),
     getHomepageCategories(),
@@ -47,6 +49,7 @@ export default async function HomePage() {
     getGalleryItems(),
     getWornByYouItems(),
     getAccessoriesEditorialSlides(locale),
+    getGalleryCategories(),
   ]);
 
   const hp = store.homepage;
@@ -161,18 +164,33 @@ export default async function HomePage() {
     .map((item) => visualTileMap.get(item.id))
     .filter((tile): tile is NonNullable<typeof tile> => Boolean(tile));
 
-  const instagramTiles: { src: string; alt: string; href?: string }[] = [];
-  const usedIgUrls = new Set<string>();
+  const instagramTiles: {
+    src: string;
+    alt: string;
+    title?: string;
+    href?: string;
+    category: string;
+    videoUrl?: string;
+    mediaType?: "image" | "video";
+  }[] = [];
+  const usedIgKeys = new Set<string>();
   for (const item of gallery) {
-    const src = item.image_url?.trim();
-    if (!src || usedIgUrls.has(src)) continue;
-    usedIgUrls.add(src);
+    const videoUrl = item.video_url?.trim() || "";
+    const isVideo = item.media_type === "video" && Boolean(videoUrl);
+    const src = item.image_url?.trim() || "";
+    if (!isVideo && !src) continue;
+    const key = isVideo ? videoUrl : src;
+    if (usedIgKeys.has(key)) continue;
+    usedIgKeys.add(key);
     instagramTiles.push({
       src,
       alt: item.title_ar || SITE_NAME,
+      title: item.title_ar || "",
       href: "/gallery",
+      category: item.category || "details",
+      videoUrl: isVideo ? videoUrl : undefined,
+      mediaType: isVideo ? "video" : "image",
     });
-    if (instagramTiles.length >= 9) break;
   }
 
   return (
@@ -212,9 +230,15 @@ export default async function HomePage() {
           <AccessoriesEditorialSlideshow
             slides={accessoriesSlides}
             categoryLabel={accessoriesLabel}
+            frame={hp.accessories_editorial_frame}
           />
         ) : null}
-        {hp.instagram ? <InstagramSection images={instagramTiles} /> : null}
+        {hp.instagram ? (
+          <InstagramSection
+            images={instagramTiles}
+            categories={galleryCategories}
+          />
+        ) : null}
       </div>
       <CTASection />
       <AddToHomeScreenPrompt />

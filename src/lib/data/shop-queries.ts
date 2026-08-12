@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { SEED_BRIDAL_ROBES, SEED_VEILS } from "@/lib/data/shop-seed";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -49,7 +50,9 @@ export async function getVeils(): Promise<Veil[]> {
   return (rows ?? SEED_VEILS).filter(isShopPublic);
 }
 
-export async function getVeilById(id: string): Promise<Veil | null> {
+export const getVeilById = cache(async function getVeilById(
+  id: string
+): Promise<Veil | null> {
   if (!isSupabaseConfigured()) {
     return SEED_VEILS.find((v) => v.id === id) ?? null;
   }
@@ -72,6 +75,42 @@ export async function getVeilById(id: string): Promise<Veil | null> {
   const row = data as Veil & LifecycleRow;
   if (!isPublicRow(row) || !isShopPublic(row)) return null;
   return row;
+});
+
+export async function getRelatedVeils(
+  excludeId: string,
+  limit = 3
+): Promise<Veil[]> {
+  const take = Math.max(1, limit);
+  if (!isSupabaseConfigured()) {
+    return SEED_VEILS.filter((v) => v.id !== excludeId && isShopPublic(v)).slice(
+      0,
+      take
+    );
+  }
+  const supabase = await createClient();
+  let query = supabase
+    .from("veils")
+    .select("*")
+    .neq("id", excludeId)
+    .order("created_at", { ascending: false })
+    .limit(take + 6);
+  query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+  let { data, error } = await query;
+  if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+    const retry = await supabase
+      .from("veils")
+      .select("*")
+      .neq("id", excludeId)
+      .order("created_at", { ascending: false })
+      .limit(take + 6);
+    data = retry.data;
+    error = retry.error;
+  }
+  const rows = (error || !data ? SEED_VEILS : (data as (Veil & LifecycleRow)[]))
+    .filter((row) => isPublicRow(row) && isShopPublic(row) && row.id !== excludeId)
+    .slice(0, take);
+  return rows;
 }
 
 export async function getBridalRobes(): Promise<BridalRobe[]> {
@@ -82,7 +121,9 @@ export async function getBridalRobes(): Promise<BridalRobe[]> {
   return (rows ?? SEED_BRIDAL_ROBES).filter(isShopPublic);
 }
 
-export async function getBridalRobeById(id: string): Promise<BridalRobe | null> {
+export const getBridalRobeById = cache(async function getBridalRobeById(
+  id: string
+): Promise<BridalRobe | null> {
   if (!isSupabaseConfigured()) {
     return SEED_BRIDAL_ROBES.find((r) => r.id === id) ?? null;
   }
@@ -105,6 +146,43 @@ export async function getBridalRobeById(id: string): Promise<BridalRobe | null> 
   const row = data as BridalRobe & LifecycleRow;
   if (!isPublicRow(row) || !isShopPublic(row)) return null;
   return row;
+});
+
+export async function getRelatedBridalRobes(
+  excludeId: string,
+  limit = 3
+): Promise<BridalRobe[]> {
+  const take = Math.max(1, limit);
+  if (!isSupabaseConfigured()) {
+    return SEED_BRIDAL_ROBES.filter(
+      (r) => r.id !== excludeId && isShopPublic(r)
+    ).slice(0, take);
+  }
+  const supabase = await createClient();
+  let query = supabase
+    .from("bridal_robes")
+    .select("*")
+    .neq("id", excludeId)
+    .order("created_at", { ascending: false })
+    .limit(take + 6);
+  query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+  let { data, error } = await query;
+  if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+    const retry = await supabase
+      .from("bridal_robes")
+      .select("*")
+      .neq("id", excludeId)
+      .order("created_at", { ascending: false })
+      .limit(take + 6);
+    data = retry.data;
+    error = retry.error;
+  }
+  return (error || !data
+    ? SEED_BRIDAL_ROBES
+    : (data as (BridalRobe & LifecycleRow)[])
+  )
+    .filter((row) => isPublicRow(row) && isShopPublic(row) && row.id !== excludeId)
+    .slice(0, take);
 }
 
 /** Unified storefront card for Bridal Accessories (veils ∪ bridal_robes). */

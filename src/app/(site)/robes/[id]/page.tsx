@@ -7,7 +7,7 @@ import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
-import { getBridalRobeById, getBridalRobes } from "@/lib/data/shop-queries";
+import { getBridalRobeById, getRelatedBridalRobes } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
 import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { shopStockAvailability } from "@/lib/products/storefront-availability";
@@ -25,12 +25,13 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const robe = await getBridalRobeById(id);
+  const [robe, locale] = await Promise.all([
+    getBridalRobeById(id),
+    getStorefrontLocale(),
+  ]);
   if (!robe) {
-    const locale = await getStorefrontLocale();
     return { title: getDictionary(locale).common.notFound };
   }
-  const locale = await getStorefrontLocale();
   const og = featuredImage(robe.images);
   return {
     title: localizedName(robe, locale, robe.name_ar),
@@ -41,45 +42,48 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function RobeDetailPage({ params }: Props) {
   const { id } = await params;
-  const robe = await getBridalRobeById(id);
+  const [robe, locale] = await Promise.all([
+    getBridalRobeById(id),
+    getStorefrontLocale(),
+  ]);
   if (!robe) notFound();
-  const locale = await getStorefrontLocale();
   const t = getDictionary(locale);
   const displayName = localizedName(robe, locale, robe.name_ar);
 
-  const related = (await getBridalRobes())
-    .filter((r) => r.id !== robe.id)
-    .slice(0, 3)
-    .map((r) => ({
-      id: r.id,
-      name_ar: r.name_ar,
-      name_en: r.name_en,
-      name_he: r.name_he,
-      price: r.price,
-      sale_price: r.sale_price,
-      images: r.images,
-      href: `/robes/${r.id}`,
-      subtitle: r.color || r.size || r.material || undefined,
-      kind: "bridal_robe" as const,
-      is_featured: r.is_featured,
-    }));
+  const [relatedRows, experience] = await Promise.all([
+    getRelatedBridalRobes(robe.id, 3),
+    resolveStorefrontProductExperience({
+      productId: robe.id,
+      productType: robe.product_type ?? "bridal_accessory",
+      fallbackType: "bridal_accessory",
+      shopProductType: "bridal_robe",
+      categoryId: null,
+      collectionId: null,
+      order_options_config: robe.order_options_config,
+      extra_services_config: robe.extra_services_config,
+      experience_config: robe.experience_config,
+      features_config: robe.features_config,
+    }),
+  ]);
+
+  const related = relatedRows.map((r) => ({
+    id: r.id,
+    name_ar: r.name_ar,
+    name_en: r.name_en,
+    name_he: r.name_he,
+    price: r.price,
+    sale_price: r.sale_price,
+    images: r.images,
+    href: `/robes/${r.id}`,
+    subtitle: r.color || r.size || r.material || undefined,
+    kind: "bridal_robe" as const,
+    is_featured: r.is_featured,
+  }));
 
   const stock = shopStockAvailability({
     isAvailable: robe.is_available,
     stockQuantity: robe.stock_quantity,
     locale,
-  });
-  const experience = await resolveStorefrontProductExperience({
-    productId: robe.id,
-    productType: robe.product_type ?? "bridal_accessory",
-    fallbackType: "bridal_accessory",
-    shopProductType: "bridal_robe",
-    categoryId: null,
-    collectionId: null,
-    order_options_config: robe.order_options_config,
-    extra_services_config: robe.extra_services_config,
-    experience_config: robe.experience_config,
-    features_config: robe.features_config,
   });
 
   const wishlistProps = {

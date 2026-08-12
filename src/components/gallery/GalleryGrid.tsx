@@ -3,36 +3,36 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ZoomIn } from "lucide-react";
+import { X, ZoomIn, Play } from "lucide-react";
 import type { GalleryItem } from "@/types";
+import { isGalleryVideo } from "@/lib/gallery/media";
+import {
+  orderGalleryCategories,
+  resolveGalleryCategoryLabel,
+  type GalleryCategory,
+} from "@/lib/gallery/categories";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 
-const CATEGORY_KEYS = [
-  "all",
-  "wedding",
-  "nouf_dresses",
-  "details",
-  "boutique",
-  "events",
-] as const;
-
 interface GalleryGridProps {
   items: GalleryItem[];
+  categories: GalleryCategory[];
 }
 
-export function GalleryGrid({ items }: GalleryGridProps) {
-  const { t } = useLocale();
+export function GalleryGrid({ items, categories }: GalleryGridProps) {
+  const { t, locale } = useLocale();
   const [filter, setFilter] = useState("all");
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
 
-  const categories = useMemo(
-    () =>
-      CATEGORY_KEYS.map((value) => ({
-        value,
-        label: t.galleryUi[value],
+  const filters = useMemo(
+    () => [
+      { value: "all", label: t.galleryUi.all },
+      ...orderGalleryCategories(categories).map((cat) => ({
+        value: cat.slug,
+        label: resolveGalleryCategoryLabel(cat, locale),
       })),
-    [t]
+    ],
+    [categories, locale, t.galleryUi.all]
   );
 
   const filtered =
@@ -41,7 +41,7 @@ export function GalleryGrid({ items }: GalleryGridProps) {
   return (
     <>
       <div className="mb-8 flex flex-wrap justify-center gap-2">
-        {categories.map((cat) => (
+        {filters.map((cat) => (
           <button
             key={cat.value}
             type="button"
@@ -70,17 +70,35 @@ export function GalleryGrid({ items }: GalleryGridProps) {
             onClick={() => setLightbox(item)}
             className="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-xl"
           >
-            <Image
-              src={item.image_url}
-              alt={item.title_ar}
-              width={600}
-              height={800}
-              className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
+            {isGalleryVideo(item) && item.video_url ? (
+              <video
+                src={item.video_url}
+                poster={item.image_url || undefined}
+                muted
+                playsInline
+                preload="metadata"
+                className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : (
+              <Image
+                src={item.image_url}
+                alt={item.title_ar}
+                width={600}
+                height={800}
+                className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            )}
+            {isGalleryVideo(item) ? (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-charcoal/45 text-ivory">
+                  <Play className="h-4 w-4 ms-0.5" fill="currentColor" />
+                </span>
+              </span>
+            ) : null}
             <div className="absolute inset-0 flex items-end bg-gradient-to-t from-charcoal/60 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
-              <div className="flex w-full items-center justify-between text-white">
-                <span className="text-sm font-medium">{item.title_ar}</span>
-                <ZoomIn className="h-5 w-5" />
+              <div className="flex w-full items-center justify-between gap-2">
+                <p className="text-sm font-medium text-ivory">{item.title_ar}</p>
+                <ZoomIn className="h-4 w-4 shrink-0 text-ivory/80" />
               </div>
             </div>
           </motion.button>
@@ -88,39 +106,50 @@ export function GalleryGrid({ items }: GalleryGridProps) {
       </div>
 
       <AnimatePresence>
-        {lightbox && (
+        {lightbox ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-charcoal/90 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/80 p-4"
             onClick={() => setLightbox(null)}
           >
             <button
               type="button"
+              className="absolute top-4 end-4 rounded-full bg-ivory/90 p-2 text-charcoal"
               onClick={() => setLightbox(null)}
-              className="absolute top-6 right-6 text-white"
               aria-label={t.common.close}
             >
-              <X className="h-8 w-8" />
+              <X className="h-5 w-5" />
             </button>
             <motion.div
-              initial={{ scale: 0.9 }}
+              initial={{ scale: 0.96 }}
               animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              className="relative max-h-[90vh] max-w-4xl"
+              exit={{ scale: 0.96 }}
+              className="relative max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <Image
-                src={lightbox.image_url}
-                alt={lightbox.title_ar}
-                width={1200}
-                height={1600}
-                className="max-h-[90vh] w-auto object-contain"
-              />
+              {isGalleryVideo(lightbox) && lightbox.video_url ? (
+                <video
+                  src={lightbox.video_url}
+                  poster={lightbox.image_url || undefined}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[90vh] w-auto max-w-full"
+                />
+              ) : (
+                <Image
+                  src={lightbox.image_url}
+                  alt={lightbox.title_ar}
+                  width={1200}
+                  height={1600}
+                  className="max-h-[90vh] w-auto object-contain"
+                />
+              )}
             </motion.div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </>
   );

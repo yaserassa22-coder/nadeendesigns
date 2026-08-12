@@ -219,12 +219,37 @@ export type VisualUnifiedBackgroundSettings = {
   keep_product_grids: boolean;
 };
 
+/** Scale of the mid-page Accessories editorial block. */
+export type AccessoriesEditorialSize = "intimate" | "editorial" | "grand";
+
+/**
+ * Silhouette of the Accessories editorial block.
+ * `canvas` is the original full-bleed rectangle.
+ */
+export type AccessoriesEditorialShape =
+  | "canvas"
+  | "gallery"
+  | "atelier"
+  | "chapel"
+  | "cinema"
+  | "portrait"
+  | "oval";
+
+export type AccessoriesEditorialFrameSettings = {
+  size: AccessoriesEditorialSize;
+  shape: AccessoriesEditorialShape;
+  /** Continuous size 40–160. 100 = editorial (original). */
+  scale: number;
+};
+
 export type StoreHomepageSettings = {
   hero: boolean;
   featured_categories: boolean;
   featured_products: boolean;
   /** Mid-page Accessories editorial slideshow (veils + bridal robes). */
   accessories_editorial: boolean;
+  /** Size + silhouette of the Accessories editorial block (Admin). */
+  accessories_editorial_frame: AccessoriesEditorialFrameSettings;
   collections: boolean;
   testimonials: boolean;
   /** Customer visual gallery — Worn by You */
@@ -788,6 +813,11 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     featured_categories: true,
     featured_products: true,
     accessories_editorial: true,
+    accessories_editorial_frame: {
+      size: "editorial",
+      shape: "canvas",
+      scale: 100,
+    },
     collections: true,
     testimonials: false,
     worn_by_you: true,

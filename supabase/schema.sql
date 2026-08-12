@@ -162,10 +162,26 @@ CREATE TABLE IF NOT EXISTS notification_logs (
 CREATE TABLE IF NOT EXISTS gallery_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title_ar TEXT NOT NULL,
-  image_url TEXT NOT NULL,
+  image_url TEXT,
+  media_type TEXT NOT NULL DEFAULT 'image'
+    CHECK (media_type IN ('image', 'video')),
+  video_url TEXT,
   category TEXT NOT NULL DEFAULT 'wedding',
   sort_order INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Gallery filter categories (admin-managed; see migration 052)
+CREATE TABLE IF NOT EXISTS gallery_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT NOT NULL UNIQUE,
+  label_ar TEXT NOT NULL,
+  label_he TEXT NOT NULL DEFAULT '',
+  label_en TEXT NOT NULL DEFAULT '',
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Worn by You (homepage customer visual gallery)

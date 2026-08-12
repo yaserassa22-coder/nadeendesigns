@@ -238,23 +238,23 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
 
         <div className="space-y-4 rounded-xl border border-beige-dark/70 bg-beige/20 p-4">
           <p className="text-sm font-semibold text-charcoal">عربي</p>
-          <Input
-            label="العنوان *"
-            value={form.hero_title_ar}
-            onChange={(e) => update("hero_title_ar", e.target.value)}
-            error={!form.hero_title_ar.trim() && error ? error : undefined}
-          />
-          <Input
+        <Input
+          label="العنوان *"
+          value={form.hero_title_ar}
+          onChange={(e) => update("hero_title_ar", e.target.value)}
+          error={!form.hero_title_ar.trim() && error ? error : undefined}
+        />
+        <Input
             label="الكلمة المميزة"
-            value={form.hero_title_emphasis_ar}
-            onChange={(e) => update("hero_title_emphasis_ar", e.target.value)}
-          />
-          <Textarea
-            label="الوصف"
+          value={form.hero_title_emphasis_ar}
+          onChange={(e) => update("hero_title_emphasis_ar", e.target.value)}
+        />
+        <Textarea
+          label="الوصف"
             rows={3}
-            value={form.hero_subtitle_ar}
-            onChange={(e) => update("hero_subtitle_ar", e.target.value)}
-          />
+          value={form.hero_subtitle_ar}
+          onChange={(e) => update("hero_subtitle_ar", e.target.value)}
+        />
           <Input
             label="النص البديل للوسائط"
             value={form.hero_image_alt_ar}
@@ -296,12 +296,12 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
             value={form.hero_subtitle_he ?? ""}
             onChange={(e) => update("hero_subtitle_he", e.target.value)}
           />
-          <Input
+        <Input
             label="טקסט חלופי למדיה"
             value={form.hero_image_alt_he ?? ""}
             onChange={(e) => update("hero_image_alt_he", e.target.value)}
           />
-          <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
             <Input
               label="כפתור ראשי"
               value={form.hero_cta_primary_label_he ?? ""}
@@ -633,13 +633,13 @@ export function HomeHeroCmsForm({ initialSettings }: HomeHeroCmsFormProps) {
               display={previewSlide.video_display}
             />
           ) : (
-            <Image
-              src={previewImage}
-              alt=""
-              fill
-              className="object-cover object-[center_25%]"
-              sizes="380px"
-            />
+          <Image
+            src={previewImage}
+            alt=""
+            fill
+            className="object-cover object-[center_25%]"
+            sizes="380px"
+          />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#2c2419]/50 via-[#f0ebe3]/25 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-4 text-charcoal">

@@ -139,6 +139,8 @@ export interface Dress {
   updated_at: string;
 }
 
+export type GalleryMediaType = "image" | "video";
+
 export interface GalleryItem {
   id: string;
   title_ar: string;
@@ -146,6 +148,8 @@ export interface GalleryItem {
   category: string;
   sort_order: number;
   created_at: string;
+  media_type?: GalleryMediaType;
+  video_url?: string | null;
 }
 
 /** Admin-managed homepage “Worn by You” customer visual gallery item. */
@@ -476,6 +480,8 @@ export interface DressFilters {
   minPrice?: number;
   maxPrice?: number;
   featured?: boolean;
+  /** Cap rows for related-product queries (storefront PDP). */
+  limit?: number;
 }
 
 /**

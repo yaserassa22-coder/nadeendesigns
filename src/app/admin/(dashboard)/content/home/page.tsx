@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HomeHeroCmsForm } from "@/components/admin/cms/HomeHeroCmsForm";
 import { HomeCustomDesignCmsForm } from "@/components/admin/cms/HomeCustomDesignCmsForm";
+import { HomeAccessoriesEditorialCmsForm } from "@/components/admin/cms/HomeAccessoriesEditorialCmsForm";
 import {
   HomepageVisualLayoutManager,
   type VisualLayoutTile,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/data/categories";
 import { getDresses, getFeaturedDresses } from "@/lib/data/queries";
 import { getHomepageEditorialTiles } from "@/lib/home/homepage-editorial-gallery";
+import { getAccessoriesEditorialSlides } from "@/lib/home/accessories-editorial";
 import { getStoreSettings } from "@/lib/store/settings";
 import { getLocale } from "@/lib/i18n/server";
 import { isCloudinaryConfigured } from "@/lib/supabase/env";
@@ -48,6 +50,7 @@ export default async function AdminHomeContentPage() {
     visibleCategories,
     featuredDresses,
     allDresses,
+    accessoriesSlides,
   ] = await Promise.all([
     getAdminSettings(),
     getStoreSettings(),
@@ -55,6 +58,7 @@ export default async function AdminHomeContentPage() {
     getVisibleCategories(),
     getFeaturedDresses(8),
     getDresses(),
+    getAccessoriesEditorialSlides(locale),
   ]);
   const cloudinaryReady = isCloudinaryConfigured();
   const hp = store.homepage;
@@ -102,8 +106,9 @@ export default async function AdminHomeContentPage() {
           محتوى الصفحة الرئيسية
         </h1>
         <p className="mt-2 text-muted">
-          تعديل الهيرو، شبكة ما بعد الهيرو (إضافة / حذف / ترتيب / أعمدة)، وبلاطة
-          التصميم الخاص.
+          تعديل الهيرو، شبكة ما بعد الهيرو (إضافة / حذف / ترتيب / أعمدة)، إطار
+          إكسسوارات العروس، التصميم الخاص، ورابط سريع لإدارة معرض الصور (تفاصيل /
+          البوتيك / فعاليات).
         </p>
       </div>
 
@@ -131,7 +136,33 @@ export default async function AdminHomeContentPage() {
         customDesignImageUrl={customDesignImageUrl}
       />
 
+      <HomeAccessoriesEditorialCmsForm
+        initialFrame={hp.accessories_editorial_frame}
+        previewImageUrl={accessoriesSlides[0]?.imageUrl}
+      />
+
       <HomeCustomDesignCmsForm initialSettings={settings} />
+
+      <div className="rounded-2xl border border-beige-dark/70 bg-ivory/40 p-5 md:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-charcoal">
+              معرض الصور — تفاصيل / البوتيك / فعاليات
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              أزرار الفلتر في صفحة المعرض تُدار من هنا: ارفعي الصور واختاري
+              التصنيف (تفاصيل، البوتيك، فعاليات، فساتين زفاف، فساتين نوف). صور
+              المعرض تظهر أيضاً في قسم إنستغرام على الرئيسية.
+            </p>
+          </div>
+          <Link
+            href="/admin/gallery"
+            className="inline-flex shrink-0 items-center justify-center rounded-full border border-beige-dark bg-white px-5 py-2.5 text-sm font-medium text-charcoal transition hover:border-gold hover:text-gold"
+          >
+            إدارة المعرض
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -25,12 +25,13 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const dress = await getDressById(id);
+  const [dress, locale] = await Promise.all([
+    getDressById(id),
+    getStorefrontLocale(),
+  ]);
   if (!dress) {
-    const locale = await getStorefrontLocale();
     return { title: getDictionary(locale).common.notFound };
   }
-  const locale = await getStorefrontLocale();
   const title = localizedName(dress, locale, dress.name_ar);
   const og = featuredImage(dress.images);
   return {
@@ -42,20 +43,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function DressDetailPage({ params }: Props) {
   const { id } = await params;
-  const dress = await getDressById(id);
+  const [dress, locale] = await Promise.all([
+    getDressById(id),
+    getStorefrontLocale(),
+  ]);
   if (!dress) notFound();
 
-  const locale = await getStorefrontLocale();
   const t = getDictionary(locale);
   const displayName = localizedName(dress, locale, dress.name_ar);
+  const commerceType = resolveProductCommerceType(dress.product_type);
 
-  const categories = await getCategories();
-  const category =
-    (dress.category_id
-      ? await getCategoryById(dress.category_id)
-      : null) ??
-    findCategoryMatch(categories, dress.category) ??
-    null;
+  const [category, experience, relatedRaw] = await Promise.all([
+    dress.category_id
+      ? getCategoryById(dress.category_id)
+      : getCategories().then(
+          (categories) => findCategoryMatch(categories, dress.category) ?? null
+        ),
+    resolveStorefrontProductExperience({
+      productId: dress.id,
+      productType: commerceType,
+      shopProductType: "dress",
+      categoryId: dress.category_id ?? null,
+      collectionId: dress.collection_id ?? null,
+      order_options_config: dress.order_options_config,
+      extra_services_config: dress.extra_services_config,
+      experience_config: dress.experience_config,
+      features_config: dress.features_config,
+    }),
+    getDresses(
+      dress.category_id
+        ? { categoryId: dress.category_id, limit: 8 }
+        : { category: dress.category, limit: 8 }
+    ),
+  ]);
 
   const categoryLabel = category
     ? localizedName(category, locale, category.name_ar)
@@ -64,30 +84,9 @@ export default async function DressDetailPage({ params }: Props) {
     ? resolveCategoryHref(category)
     : "/wedding-dresses";
 
-  // CTA from product_type + Admin purchase_flows (never category name/slug)
-  const commerceType = resolveProductCommerceType(dress.product_type);
-  const experience = await resolveStorefrontProductExperience({
-    productId: dress.id,
-    productType: commerceType,
-    shopProductType: "dress",
-    categoryId: dress.category_id ?? category?.id ?? null,
-    collectionId: dress.collection_id ?? null,
-    order_options_config: dress.order_options_config,
-    extra_services_config: dress.extra_services_config,
-    experience_config: dress.experience_config,
-    features_config: dress.features_config,
-  });
   const primaryAction = experience.primaryAction;
   const availability = dressAvailability(dress.is_available, locale);
-  const related = (
-    await getDresses(
-      dress.category_id
-        ? { categoryId: dress.category_id }
-        : { category: dress.category }
-    )
-  )
-    .filter((d) => d.id !== dress.id)
-    .slice(0, 3);
+  const related = relatedRaw.filter((d) => d.id !== dress.id).slice(0, 3);
 
   const wishlistProps = {
     variant: "icon" as const,

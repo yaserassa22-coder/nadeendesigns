@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   DEFAULT_PAYMENT_PROVIDERS,
   DEFAULT_STORE_INTEGRATIONS,
@@ -33,6 +34,7 @@ import {
   normalizeOrderOptions,
 } from "@/lib/products/order-experience";
 import { resolveUnifiedCanvasColor } from "@/lib/home/visual-unified-background";
+import { normalizeAccessoriesEditorialFrame } from "@/lib/home/accessories-editorial-frame";
 import {
   resolveStoreExtraServices,
   syncStoreServicesTable,
@@ -444,6 +446,9 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     accessories_editorial: bool(
       s.accessories_editorial,
       d.accessories_editorial
+    ),
+    accessories_editorial_frame: normalizeAccessoriesEditorialFrame(
+      s.accessories_editorial_frame
     ),
     collections: bool(s.collections, d.collections),
     testimonials: bool(s.testimonials, d.testimonials),
@@ -863,7 +868,9 @@ export function mergeStoreSettingsPatch(
   return normalizeStoreSettings(next);
 }
 
-export async function getStoreSettings(force = false): Promise<StoreSettings> {
+export const getStoreSettings = cache(async function getStoreSettings(
+  force = false
+): Promise<StoreSettings> {
   const now = Date.now();
   if (!force && cached && now - cachedAt < CACHE_MS) return cached;
 
@@ -934,7 +941,7 @@ export async function getStoreSettings(force = false): Promise<StoreSettings> {
   } catch {
     return DEFAULT_STORE_SETTINGS;
   }
-}
+});
 
 function hydrateFromSite(
   store: StoreSettings,

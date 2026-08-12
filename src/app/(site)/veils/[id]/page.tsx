@@ -7,7 +7,7 @@ import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
 import { WishlistButton } from "@/components/auth/WishlistButton";
 import { TrackRecentlyViewed } from "@/components/shop/TrackRecentlyViewed";
 import { Button } from "@/components/ui/Button";
-import { getVeilById, getVeils } from "@/lib/data/shop-queries";
+import { getVeilById, getRelatedVeils } from "@/lib/data/shop-queries";
 import { featuredImage } from "@/lib/products/featured-image";
 import { isFeatureEnabled } from "@/lib/products/experience-features";
 import { shopStockAvailability } from "@/lib/products/storefront-availability";
@@ -26,12 +26,13 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const veil = await getVeilById(id);
+  const [veil, locale] = await Promise.all([
+    getVeilById(id),
+    getStorefrontLocale(),
+  ]);
   if (!veil) {
-    const locale = await getStorefrontLocale();
     return { title: getDictionary(locale).common.notFound };
   }
-  const locale = await getStorefrontLocale();
   const og = featuredImage(veil.images);
   return {
     title: localizedName(veil, locale, veil.name_ar),
@@ -42,43 +43,46 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VeilDetailPage({ params }: Props) {
   const { id } = await params;
-  const veil = await getVeilById(id);
+  const [veil, locale] = await Promise.all([
+    getVeilById(id),
+    getStorefrontLocale(),
+  ]);
   if (!veil) notFound();
-  const locale = await getStorefrontLocale();
   const t = getDictionary(locale);
   const displayName = localizedName(veil, locale, veil.name_ar);
 
-  const related = (await getVeils())
-    .filter((v) => v.id !== veil.id)
-    .slice(0, 3)
-    .map((v) => ({
-      id: v.id,
-      name_ar: v.name_ar,
-      price: v.price,
-      sale_price: v.sale_price,
-      images: v.images,
-      href: `/veils/${v.id}`,
-      subtitle: v.category,
-      kind: "veil" as const,
-      is_featured: v.is_featured,
-    }));
+  const [relatedRows, experience] = await Promise.all([
+    getRelatedVeils(veil.id, 3),
+    resolveStorefrontProductExperience({
+      productId: veil.id,
+      productType: veil.product_type ?? "bridal_accessory",
+      fallbackType: "bridal_accessory",
+      shopProductType: "veil",
+      categoryId: null,
+      collectionId: null,
+      order_options_config: veil.order_options_config,
+      extra_services_config: veil.extra_services_config,
+      experience_config: veil.experience_config,
+      features_config: veil.features_config,
+    }),
+  ]);
+
+  const related = relatedRows.map((v) => ({
+    id: v.id,
+    name_ar: v.name_ar,
+    price: v.price,
+    sale_price: v.sale_price,
+    images: v.images,
+    href: `/veils/${v.id}`,
+    subtitle: v.category,
+    kind: "veil" as const,
+    is_featured: v.is_featured,
+  }));
 
   const stock = shopStockAvailability({
     isAvailable: veil.is_available,
     stockQuantity: veil.stock_quantity,
     locale,
-  });
-  const experience = await resolveStorefrontProductExperience({
-    productId: veil.id,
-    productType: veil.product_type ?? "bridal_accessory",
-    fallbackType: "bridal_accessory",
-    shopProductType: "veil",
-    categoryId: null,
-    collectionId: null,
-    order_options_config: veil.order_options_config,
-    extra_services_config: veil.extra_services_config,
-    experience_config: veil.experience_config,
-    features_config: veil.features_config,
   });
 
   const wishlistProps = {
