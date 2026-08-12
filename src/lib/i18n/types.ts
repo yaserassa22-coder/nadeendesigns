@@ -646,6 +646,7 @@ export type Dictionary = {
     details: string;
     boutique: string;
     events: string;
+    emptyCategory: string;
   };
   customization: {
     loading: string;
@@ -800,6 +801,19 @@ export type Dictionary = {
     igTitle: string;
     igBody: string;
     igVisit: string;
+    journal: {
+      title: string;
+      subtitle: string;
+      filterAll: string;
+      filterAtelier: string;
+      filterBoutique: string;
+      filterEvents: string;
+      filterMoments: string;
+      closingBrand: string;
+      closingLine: string;
+      linkInstagram: string;
+      empty: string;
+    };
     wornByYouEyebrow: string;
     wornByYouTitle: string;
     wornByYouViewPiece: string;
@@ -2194,19 +2208,40 @@ export type Dictionary = {
     };
     galleryAdmin: {
       addImage: string;
+      addVideo: string;
       empty: string;
       editImage: string;
+      editVideo: string;
       addImageTitle: string;
+      addVideoTitle: string;
       titleRequired: string;
       category: string;
       sortOrder: string;
       imageRequired: string;
+      videoRequired: string;
+      posterOptional: string;
+      video: string;
       imageUrlPlaceholder: string;
       titleAndImageRequired: string;
+      titleAndVideoRequired: string;
       saveFailed: string;
       genericError: string;
       deleteConfirm: string;
       deleteFailed: string;
+      categoriesTitle: string;
+      categoriesHint: string;
+      addCategory: string;
+      editCategory: string;
+      categoryLabelAr: string;
+      categoryLabelHe: string;
+      categoryLabelEn: string;
+      categorySlug: string;
+      categoryActive: string;
+      categoryEmpty: string;
+      categoryDeleteConfirm: string;
+      categorySaveFailed: string;
+      imagesTitle: string;
+      imagesHint: string;
     };
     wornByYouAdmin: {
       addItem: string;
@@ -2450,6 +2485,34 @@ export type Dictionary = {
       customDesignTileTitle: string;
       customDesignTileDesc: string;
       customDesignTileImage: string;
+      accessoriesFrame: {
+        title: string;
+        desc: string;
+        previewLabel: string;
+        previewEyebrow: string;
+        previewTitle: string;
+        sizeLabel: string;
+        sizeHint: string;
+        scaleLabel: string;
+        scaleHint: string;
+        shapeLabel: string;
+        shapeHint: string;
+        reset: string;
+        sizes: {
+          intimate: { label: string; hint: string };
+          editorial: { label: string; hint: string };
+          grand: { label: string; hint: string };
+        };
+        shapes: {
+          canvas: { label: string; hint: string };
+          gallery: { label: string; hint: string };
+          atelier: { label: string; hint: string };
+          chapel: { label: string; hint: string };
+          cinema: { label: string; hint: string };
+          portrait: { label: string; hint: string };
+          oval: { label: string; hint: string };
+        };
+      };
     };
     shippingRegionsUi: {
       pickupMethodsTitle: string;

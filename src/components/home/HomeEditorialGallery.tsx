@@ -3,11 +3,22 @@
 import { HomeEditorialTile } from "@/components/home/HomeEditorialTile";
 import type { HomepageEditorialTile as GalleryTile } from "@/lib/home/homepage-editorial-gallery";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import {
+  isProductIsolationEnabled,
+  isUnifiedBackgroundEnabled,
+  unifiedBackgroundStyle,
+  unifiedCanvasClassName,
+  unifiedCanvasInsetClassName,
+  unifiedGalleryGapClass,
+  unifiedTileImageUrl,
+  unifiedTilePresentation,
+} from "@/lib/home/visual-unified-background";
 import { cn } from "@/lib/utils";
 import type {
   HomepageEditorialColumns,
   HomepageEditorialGap,
   HomepageEditorialTileSize,
+  VisualUnifiedBackgroundSettings,
 } from "@/types/store";
 
 type HomeEditorialGalleryProps = {
@@ -18,6 +29,8 @@ type HomeEditorialGalleryProps = {
   gap?: HomepageEditorialGap;
   /** Tile visual size / aspect. */
   tileSize?: HomepageEditorialTileSize;
+  /** Optional shared editorial canvas. Off keeps the existing card grid. */
+  unified?: VisualUnifiedBackgroundSettings;
 };
 
 function tileFrameClass(tile: GalleryTile): string {
@@ -81,19 +94,31 @@ export function HomeEditorialGallery({
   columns = 3,
   gap = "md",
   tileSize = "md",
+  unified,
 }: HomeEditorialGalleryProps) {
   const { t } = useLocale();
   if (tiles.length === 0) return null;
+  const unifiedOn = isUnifiedBackgroundEnabled(unified);
+  const presentation = unifiedTilePresentation(unified);
 
   return (
-    <section id="categories" className="bg-white pb-8 pt-8 md:pb-12 md:pt-12">
+    <section
+      id="categories"
+      className={cn(
+        "pb-8 pt-8 md:pb-12 md:pt-12",
+        unifiedOn ? "" : "bg-white"
+      )}
+    >
       <div className="w-full px-2 sm:px-3 md:px-4">
         <div
           className={cn(
             "grid grid-cols-2 lg:auto-rows-fr",
-            gapClass(gap),
-            desktopGridClass(columns)
+            unifiedOn ? unifiedGalleryGapClass(true) : gapClass(gap),
+            desktopGridClass(columns),
+            unifiedOn &&
+              cn(unifiedCanvasClassName(true), unifiedCanvasInsetClassName(true))
           )}
+          style={unifiedOn && unified ? unifiedBackgroundStyle(unified) : undefined}
         >
           {tiles.map((tile, index) => {
             const isCustom = tile.variant === "custom";
@@ -101,19 +126,22 @@ export function HomeEditorialGallery({
               <div key={tile.id} className={tileFrameClass(tile)}>
                 <HomeEditorialTile
                   href={tile.href}
-                  imageUrl={tile.imageUrl}
+                  imageUrl={unifiedTileImageUrl(tile.imageUrl, unified)}
+                  originalImageUrl={tile.imageUrl}
                   title={tile.title}
                   eyebrow={tile.eyebrow}
                   ctaLabel={
-                    tile.primaryCtaLabel ??
-                    (isCustom ? undefined : t.nav.viewCollection)
+                    unifiedOn
+                      ? tile.primaryCtaLabel
+                      : tile.primaryCtaLabel ??
+                        (isCustom ? undefined : t.nav.viewCollection)
                   }
                   secondaryHref={tile.secondaryHref}
                   secondaryCtaLabel={tile.secondaryCtaLabel}
                   ctaVariant="quiet"
                   titleSize={isCustom ? "md" : "sm"}
                   priority={index < 4}
-                  className="h-full"
+                  className="h-full bg-transparent"
                   aspectClassName={tileAspectClass(tile, tileSize)}
                   emphasize={Boolean(tile.emphasize)}
                   sizes={
@@ -125,6 +153,14 @@ export function HomeEditorialGallery({
                           ? "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 50vw"
                           : "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
                   }
+                  presentation={presentation.presentation}
+                  productIsolation={isProductIsolationEnabled(unified)}
+                  canvasColor={presentation.canvasColor}
+                  imageScale={presentation.imageScale}
+                  imageOffsetX={presentation.imageOffsetX}
+                  imageOffsetY={presentation.imageOffsetY}
+                  dropShadow={presentation.dropShadow}
+                  shadowIntensity={presentation.shadowIntensity}
                 />
               </div>
             );

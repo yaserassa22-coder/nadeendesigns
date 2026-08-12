@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   SEED_CATEGORIES,
   isHomepageCategory,
@@ -43,7 +44,9 @@ export function normalizeCategoryRow(row: Category): Category {
  * Uses the anon/service client (no cookies) so layout can stay cache-friendly.
  * Soft-deleted / archived rows are excluded when lifecycle columns exist.
  */
-export async function getCategories(): Promise<Category[]> {
+export const getCategories = cache(async function getCategories(): Promise<
+  Category[]
+> {
   if (!isSupabaseConfigured()) return SEED_CATEGORIES;
   try {
     const supabase = createAdminClient();
@@ -89,7 +92,7 @@ export async function getCategories(): Promise<Category[]> {
     console.error("[getCategories]", e);
     return SEED_CATEGORIES;
   }
-}
+});
 
 /** Visible storefront categories, sorted by sort_order (from query). */
 export async function getVisibleCategories(): Promise<Category[]> {

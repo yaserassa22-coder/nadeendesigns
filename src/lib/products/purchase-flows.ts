@@ -3,6 +3,7 @@
  * Storefront falls back to hardcoded primary-action defaults when DB missing.
  */
 
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -142,7 +143,9 @@ function mapRow(row: Record<string, unknown>): PurchaseFlow {
   };
 }
 
-export async function listPurchaseFlows(): Promise<PurchaseFlow[]> {
+export const listPurchaseFlows = cache(async function listPurchaseFlows(): Promise<
+  PurchaseFlow[]
+> {
   if (!isSupabaseConfigured()) return DEFAULT_PURCHASE_FLOWS;
   try {
     const supabase = createAdminClient();
@@ -162,7 +165,7 @@ export async function listPurchaseFlows(): Promise<PurchaseFlow[]> {
   } catch {
     return DEFAULT_PURCHASE_FLOWS;
   }
-}
+});
 
 export async function getPurchaseFlowForType(
   productType: string

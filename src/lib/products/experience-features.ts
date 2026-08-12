@@ -3,6 +3,7 @@
  * Storefront shows only enabled features for that product (+ purchase flow).
  */
 
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { ShopProductType } from "@/types/shop";
@@ -280,7 +281,9 @@ export function featuresAllowGiftWrap(enabledIds: readonly string[]): boolean {
   return isFeatureEnabled(enabledIds, "gift_wrap");
 }
 
-export async function listExperienceFeatures(): Promise<ExperienceFeature[]> {
+export const listExperienceFeatures = cache(async function listExperienceFeatures(): Promise<
+  ExperienceFeature[]
+> {
   if (!isSupabaseConfigured()) return FALLBACK_FEATURES;
   try {
     const supabase = createAdminClient();
@@ -300,7 +303,7 @@ export async function listExperienceFeatures(): Promise<ExperienceFeature[]> {
   } catch {
     return FALLBACK_FEATURES;
   }
-}
+});
 
 export async function saveExperienceFeature(input: {
   id: string;

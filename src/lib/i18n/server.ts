@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import {
   DEFAULT_LOCALE,
@@ -23,7 +24,7 @@ export async function getPreferredLocale(): Promise<Locale> {
 export async function getStorefrontLocales(): Promise<Locale[]> {
   try {
     const { getStoreSettings } = await import("@/lib/store/settings");
-    const settings = await getStoreSettings(true);
+    const settings = await getStoreSettings();
     return normalizeEnabledLocales(settings.general.enabled_locales);
   } catch {
     return [...LOCALES];
@@ -34,11 +35,11 @@ export async function getStorefrontLocales(): Promise<Locale[]> {
  * Customer-facing locale: always one of the admin-enabled languages.
  * Ignores cookie preferences that were turned off in Settings → General.
  */
-export async function getStorefrontLocale(): Promise<Locale> {
+export const getStorefrontLocale = cache(async function getStorefrontLocale(): Promise<Locale> {
   const preferred = await getPreferredLocale();
   try {
     const { getStoreSettings } = await import("@/lib/store/settings");
-    const settings = await getStoreSettings(true);
+    const settings = await getStoreSettings();
     const enabled = normalizeEnabledLocales(settings.general.enabled_locales);
     return resolveEnabledLocale(
       preferred,
@@ -48,7 +49,7 @@ export async function getStorefrontLocale(): Promise<Locale> {
   } catch {
     return preferred;
   }
-}
+});
 
 /**
  * Locale for the current request.

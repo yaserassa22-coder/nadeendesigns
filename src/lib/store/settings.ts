@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   DEFAULT_PAYMENT_PROVIDERS,
   DEFAULT_STORE_INTEGRATIONS,
@@ -24,11 +25,16 @@ import {
   type StoreSocialSettings,
   type StoreTaxDocumentType,
   type StoreTaxSettings,
+  type VisualUnifiedBackgroundSettings,
+  type VisualUnifiedBgPosition,
+  type VisualUnifiedBgSize,
 } from "@/types/store";
 import {
   normalizeExtraServices,
   normalizeOrderOptions,
 } from "@/lib/products/order-experience";
+import { resolveUnifiedCanvasColor } from "@/lib/home/visual-unified-background";
+import { normalizeAccessoriesEditorialFrame } from "@/lib/home/accessories-editorial-frame";
 import {
   resolveStoreExtraServices,
   syncStoreServicesTable,
@@ -77,6 +83,50 @@ function num(value: unknown, fallback: number, min = 0): number {
 
 function str(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function clampPercent(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, n));
+}
+
+function normalizeUnifiedBackground(raw: unknown): VisualUnifiedBackgroundSettings {
+  const d = DEFAULT_STORE_SETTINGS.homepage.visual_layout_unified;
+  const s = asObject(raw);
+  const sizeRaw = str(s.size, d.size);
+  const size: VisualUnifiedBgSize =
+    sizeRaw === "cover" || sizeRaw === "contain" || sizeRaw === "natural"
+      ? sizeRaw
+      : d.size;
+  const posRaw = str(s.position, d.position);
+  const position: VisualUnifiedBgPosition =
+    posRaw === "center" ||
+    posRaw === "top" ||
+    posRaw === "bottom" ||
+    posRaw === "left" ||
+    posRaw === "right"
+      ? posRaw
+      : d.position;
+  const colorRaw = str(s.color, d.color).trim();
+  const color = resolveUnifiedCanvasColor(colorRaw);
+  const scale = num(s.product_scale, d.product_scale);
+  const intensity = num(s.product_shadow_intensity, d.product_shadow_intensity);
+  const enabled = bool(s.enabled, d.enabled);
+  return {
+    enabled,
+    color,
+    image_url: str(s.image_url, d.image_url).trim(),
+    size,
+    position,
+    product_scale: Math.min(1.2, Math.max(0.7, scale)),
+    product_offset_x: Math.min(20, Math.max(-20, num(s.product_offset_x, d.product_offset_x))),
+    product_offset_y: Math.min(20, Math.max(-20, num(s.product_offset_y, d.product_offset_y))),
+    product_shadow: bool(s.product_shadow, d.product_shadow),
+    product_shadow_intensity: Math.min(100, Math.max(0, intensity)),
+    isolate_products: bool(s.isolate_products, enabled ? true : d.isolate_products),
+    keep_product_grids: bool(s.keep_product_grids, d.keep_product_grids),
+  };
 }
 
 function normalizeProvider(
@@ -292,6 +342,103 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     patternRaw === "spotlight"
       ? patternRaw
       : d.editorial_pattern;
+  const visualLayoutEnabled = bool(
+    s.visual_layout_enabled,
+    d.visual_layout_enabled
+  );
+  const visualLayoutHeight = Math.min(
+    1800,
+    Math.max(520, Math.floor(num(s.visual_layout_height, d.visual_layout_height, 520)))
+  );
+  const visualLayoutItems = Array.isArray(s.visual_layout_items)
+    ? s.visual_layout_items
+        .map((entry, index) => {
+          const item = asObject(entry);
+          const shapeRaw = str(item.shape, "portrait");
+          const shape: StoreHomepageSettings["visual_layout_items"][number]["shape"] =
+            shapeRaw === "square" ||
+            shapeRaw === "portrait" ||
+            shapeRaw === "landscape" ||
+            shapeRaw === "wide" ||
+            shapeRaw === "hero"
+              ? shapeRaw
+              : "portrait";
+          const width = Math.max(10, Math.min(100, clampPercent(item.w, 24)));
+          const height = Math.max(12, Math.min(100, clampPercent(item.h, 36)));
+          return {
+            id: str(item.id, "").trim(),
+            x: clampPercent(item.x, 0),
+            y: clampPercent(item.y, 0),
+            w: width,
+            h: height,
+            shape,
+            z: Math.max(0, Math.floor(num(item.z, index, 0))),
+          };
+        })
+        .filter((item) => item.id.length > 0)
+    : d.visual_layout_items;
+
+  const legacyGapRaw = str(s.visual_layout_gap, "");
+  const hasNumericSpacing =
+    s.visual_layout_pad_top !== undefined ||
+    s.visual_layout_block_gap !== undefined ||
+    s.visual_layout_edge_gap !== undefined;
+
+  let visual_layout_pad_top = clampPercent(
+    s.visual_layout_pad_top,
+    d.visual_layout_pad_top
+  );
+  let visual_layout_block_gap = clampPercent(
+    s.visual_layout_block_gap,
+    d.visual_layout_block_gap
+  );
+  let visual_layout_edge_gap = clampPercent(
+    s.visual_layout_edge_gap,
+    d.visual_layout_edge_gap
+  );
+
+  if (!hasNumericSpacing && legacyGapRaw) {
+    const migrated =
+      legacyGapRaw === "none" ||
+      legacyGapRaw === "sm" ||
+      legacyGapRaw === "md" ||
+      legacyGapRaw === "lg" ||
+      legacyGapRaw === "xl"
+        ? legacyGapRaw
+        : "md";
+    const spacing =
+      migrated === "none"
+        ? { padTop: 8, blockGap: 0, edgeGap: 1 }
+        : migrated === "sm"
+          ? { padTop: 10, blockGap: 0.3, edgeGap: 1.5 }
+          : migrated === "lg"
+            ? { padTop: 14, blockGap: 1, edgeGap: 2.5 }
+            : migrated === "xl"
+              ? { padTop: 16, blockGap: 1.65, edgeGap: 3 }
+              : { padTop: 12, blockGap: 0.6, edgeGap: 2 };
+    visual_layout_pad_top = spacing.padTop;
+    visual_layout_block_gap = spacing.blockGap;
+    visual_layout_edge_gap = spacing.edgeGap;
+  }
+
+  visual_layout_pad_top = Math.min(24, Math.max(4, visual_layout_pad_top));
+  visual_layout_block_gap = Math.min(5, Math.max(0, visual_layout_block_gap));
+  visual_layout_edge_gap = Math.min(4, Math.max(0, visual_layout_edge_gap));
+
+  const visual_layout_row_scales = Array.isArray(s.visual_layout_row_scales)
+    ? s.visual_layout_row_scales
+        .map((value) => {
+          const n = typeof value === "number" ? value : Number(value);
+          if (!Number.isFinite(n)) return 1;
+          return Math.min(2.5, Math.max(0.4, Math.round(n * 100) / 100));
+        })
+        .slice(0, 24)
+    : d.visual_layout_row_scales;
+
+  const visual_layout_unified = normalizeUnifiedBackground(
+    s.visual_layout_unified
+  );
+
   return {
     hero: bool(s.hero, d.hero),
     featured_categories: bool(s.featured_categories, d.featured_categories),
@@ -299,6 +446,9 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     accessories_editorial: bool(
       s.accessories_editorial,
       d.accessories_editorial
+    ),
+    accessories_editorial_frame: normalizeAccessoriesEditorialFrame(
+      s.accessories_editorial_frame
     ),
     collections: bool(s.collections, d.collections),
     testimonials: bool(s.testimonials, d.testimonials),
@@ -311,6 +461,14 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     editorial_gap,
     editorial_tile_size,
     editorial_pattern,
+    visual_layout_enabled: visualLayoutEnabled,
+    visual_layout_height: visualLayoutHeight,
+    visual_layout_items: visualLayoutItems,
+    visual_layout_pad_top,
+    visual_layout_block_gap,
+    visual_layout_edge_gap,
+    visual_layout_row_scales,
+    visual_layout_unified,
   };
 }
 
@@ -710,7 +868,9 @@ export function mergeStoreSettingsPatch(
   return normalizeStoreSettings(next);
 }
 
-export async function getStoreSettings(force = false): Promise<StoreSettings> {
+export const getStoreSettings = cache(async function getStoreSettings(
+  force = false
+): Promise<StoreSettings> {
   const now = Date.now();
   if (!force && cached && now - cachedAt < CACHE_MS) return cached;
 
@@ -781,7 +941,7 @@ export async function getStoreSettings(force = false): Promise<StoreSettings> {
   } catch {
     return DEFAULT_STORE_SETTINGS;
   }
-}
+});
 
 function hydrateFromSite(
   store: StoreSettings,

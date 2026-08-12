@@ -12,8 +12,13 @@ import {
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AccessoriesEditorialSlide } from "@/lib/home/accessories-editorial";
+import {
+  accessoriesEditorialFrameLayout,
+  DEFAULT_ACCESSORIES_EDITORIAL_FRAME,
+} from "@/lib/home/accessories-editorial-frame";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
+import type { AccessoriesEditorialFrameSettings } from "@/types/store";
 
 const SLIDE_MS = 2200;
 const FADE_MS = 900;
@@ -23,6 +28,7 @@ type AccessoriesEditorialSlideshowProps = {
   slides: AccessoriesEditorialSlide[];
   /** Localized Accessories category / collection label. */
   categoryLabel: string;
+  frame?: AccessoriesEditorialFrameSettings;
 };
 
 /**
@@ -32,6 +38,7 @@ type AccessoriesEditorialSlideshowProps = {
 export function AccessoriesEditorialSlideshow({
   slides,
   categoryLabel,
+  frame = DEFAULT_ACCESSORIES_EDITORIAL_FRAME,
 }: AccessoriesEditorialSlideshowProps) {
   const { t, dir } = useLocale();
   const baseId = useId();
@@ -88,10 +95,13 @@ export function AccessoriesEditorialSlideshow({
 
   const current = slides[Math.min(active, slides.length - 1)]!;
   const fadeMs = reduceMotion ? 0 : FADE_MS;
+  const layout = accessoriesEditorialFrameLayout(frame);
+  const hideSideArrows =
+    frame.shape === "oval" || frame.shape === "chapel" || frame.shape === "portrait";
 
   return (
     <section
-      className="bg-ivory pt-8 sm:pt-10 md:pt-12"
+      className={layout.sectionClassName}
       aria-roledescription={multi ? "carousel" : undefined}
       aria-label={categoryLabel}
       onMouseEnter={() => setPaused(true)}
@@ -103,9 +113,10 @@ export function AccessoriesEditorialSlideshow({
         }
       }}
     >
-      <div className="w-full px-1 sm:px-1.5">
+      <div className={layout.shellClassName} style={layout.shellStyle}>
         <div
-          className="relative min-h-[72vw] overflow-hidden bg-beige sm:min-h-[58vw] md:min-h-[60vh] lg:min-h-[62vh]"
+          className={layout.stageClassName}
+          style={layout.stageStyle}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
           onPointerCancel={() => {
@@ -145,7 +156,7 @@ export function AccessoriesEditorialSlideshow({
           <div className="absolute inset-0 z-[2] bg-gradient-to-t from-charcoal/55 via-charcoal/10 to-transparent" />
 
           {/* Text stays locked to active slide — never out of sync with image */}
-          <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-2 p-5 md:gap-2.5 md:p-8 lg:max-w-lg lg:p-10">
+          <div className={layout.textClassName}>
             <p className="text-[9px] font-medium tracking-[0.32em] text-ivory/80 uppercase md:text-[10px]">
               {categoryLabel}
             </p>
@@ -191,7 +202,7 @@ export function AccessoriesEditorialSlideshow({
             ) : null}
           </div>
 
-          {multi ? (
+          {multi && !hideSideArrows ? (
             <>
               <button
                 type="button"

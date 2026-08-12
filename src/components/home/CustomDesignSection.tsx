@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SITE_NAME } from "@/lib/constants";
@@ -34,6 +34,10 @@ function WordReveal({
   text: string;
   wordsRef: MutableRefObject<HTMLSpanElement[]>;
 }) {
+  if (!text.trim()) {
+    wordsRef.current = [];
+    return null;
+  }
   wordsRef.current = [];
   const parts = text.split(/(\s+)/);
   return (
@@ -99,6 +103,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
 
   const [src0, src1, src2, src3, src4] = resolveStageImages(props);
   const stageKey = [src0, src1, src2, src3, src4].join("|");
+  const [activeStage, setActiveStage] = useState(0);
 
   const sectionRef = useRef<HTMLElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -108,6 +113,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
   const layer2Ref = useRef<HTMLDivElement | null>(null);
   const layer3MaskRef = useRef<HTMLDivElement | null>(null);
   const layer3Ref = useRef<HTMLDivElement | null>(null);
+  const layer4MaskRef = useRef<HTMLDivElement | null>(null);
   const layer4Ref = useRef<HTMLDivElement | null>(null);
   const dimRef = useRef<HTMLDivElement | null>(null);
 
@@ -127,6 +133,29 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
   const stageLabelRef = useRef<HTMLSpanElement | null>(null);
   const stageNumRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
+  const defaultSteps = useMemo(
+    () => [
+      { title: t.nav.customDesign, body: t.home.customLead },
+      {
+        title: t.home.customSteps.consultTitle,
+        body: t.home.customSteps.consultBody,
+      },
+      {
+        title: t.home.customSteps.designTitle,
+        body: t.home.customSteps.designBody,
+      },
+      {
+        title: t.home.customSteps.craftTitle,
+        body: t.home.customSteps.craftBody,
+      },
+      {
+        title: t.home.customSteps.deliverTitle,
+        body: t.home.customSteps.deliverBody,
+      },
+    ],
+    [t]
+  );
+
   useEffect(() => {
     const section = sectionRef.current;
     const frame = frameRef.current;
@@ -135,8 +164,12 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const mobile = window.matchMedia("(max-width: 767px)").matches;
     const xIn = dir === "rtl" ? 28 : -28;
+    let currentStage = -1;
+    const dressOrigin = dir === "rtl" ? "38% 42%" : "62% 42%";
 
     const setStage = (idx: number) => {
+      if (currentStage === idx) return;
+      currentStage = idx;
       stageNumRefs.current.forEach((el, i) => {
         if (!el) return;
         const on = i === idx;
@@ -150,6 +183,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
       if (stageLabelRef.current) {
         stageLabelRef.current.textContent = STAGES[idx] ?? "01";
       }
+      setActiveStage(idx);
     };
 
     const allText = [
@@ -165,6 +199,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
       gsap.set(layer1Ref.current, { opacity: 0 });
       gsap.set(layer2Ref.current, { opacity: 0 });
       gsap.set(layer3MaskRef.current, { clipPath: "inset(0% 0% 0% 0%)" });
+      gsap.set(layer4MaskRef.current, { clipPath: "inset(0% 0% 0% 0%)" });
       gsap.set(layer4Ref.current, { opacity: 1 });
       gsap.set(allText, { opacity: 1, y: 0, x: 0, clipPath: "none", filter: "none" });
       gsap.set(leadWordsRef.current, { opacity: 1, y: 0, filter: "none" });
@@ -189,24 +224,28 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
         clipPath: "circle(0% at 65% 50%)",
       });
       gsap.set(layer3Ref.current, { scale: 1.18 });
-      gsap.set(layer4Ref.current, { opacity: 0, scale: 1.08 });
-      gsap.set(dimRef.current, { opacity: 0.2 });
+      gsap.set(layer4MaskRef.current, {
+        clipPath: `ellipse(0% 0% at ${dressOrigin})`,
+      });
+      gsap.set(layer4Ref.current, { opacity: 1, scale: 1.12 });
+      gsap.set(dimRef.current, { opacity: 0.35 });
 
-      gsap.set(eyebrowWrapRef.current, { opacity: 0, y: 20 });
-      gsap.set(eyebrowRef.current, { letterSpacing: "0.55em" });
+      // Resting state: eyebrow + title readable on charcoal (not a blank black frame).
+      gsap.set(eyebrowWrapRef.current, { opacity: 1, y: 0 });
+      gsap.set(eyebrowRef.current, { letterSpacing: "0.3em" });
       gsap.set(eyebrowLineRef.current, {
-        scaleX: 0,
+        scaleX: 1,
         transformOrigin: dir === "rtl" ? "100% 50%" : "0% 50%",
       });
 
       gsap.set(titleWrapRef.current, {
         opacity: 1,
-        clipPath: dir === "rtl" ? "inset(0 0 0 100%)" : "inset(0 100% 0 0)",
+        clipPath: "inset(0% 0% 0% 0%)",
       });
       gsap.set(titleRef.current, {
-        opacity: 0.5,
-        y: 40,
-        scale: 0.92,
+        opacity: 1,
+        y: 0,
+        scale: 1,
       });
 
       gsap.set(leadWrapRef.current, { opacity: 1 });
@@ -259,19 +298,12 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
         },
       });
 
-      // ─── 01 ATELIER → image 1 + eyebrow ───
+      // ─── 01 ATELIER → hold readable title, deepen dim ───
       tl.to(layer0Ref.current, { scale: 1.18, duration: 0.14 }, 0);
-      tl.to(dimRef.current, { opacity: 0.28, duration: 0.1 }, 0);
-      tl.to(eyebrowWrapRef.current, { opacity: 1, y: 0, duration: 0.08 }, 0.05);
-      tl.to(
-        eyebrowRef.current,
-        { letterSpacing: "0.3em", duration: 0.1 },
-        0.05
-      );
-      tl.to(eyebrowLineRef.current, { scaleX: 1, duration: 0.1 }, 0.08);
+      tl.to(dimRef.current, { opacity: 0.42, duration: 0.1 }, 0);
       tl.to({}, { duration: 0.06 }, 0.14);
 
-      // ─── 02 IDEA → image 2 + title ───
+      // ─── 02 IDEA → image 2 (title already visible) ───
       tl.to(
         layer1Ref.current,
         { opacity: 1, scale: 1.04, duration: 0.12 },
@@ -283,16 +315,6 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
         0.18
       );
       tl.to(dimRef.current, { opacity: 0.4, duration: 0.1 }, 0.18);
-      tl.to(
-        titleWrapRef.current,
-        { clipPath: "inset(0% 0% 0% 0%)", duration: 0.12 },
-        0.2
-      );
-      tl.to(
-        titleRef.current,
-        { opacity: 1, y: 0, scale: 1, duration: 0.12 },
-        0.2
-      );
       tl.to({}, { duration: 0.06 }, 0.3);
 
       // ─── 03 CRAFT → image 3 + lead ───
@@ -322,7 +344,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
       }
       tl.to({}, { duration: 0.05 }, 0.5);
 
-      // ─── 04 DRESS → image 4 + body ───
+      // ─── 04 DRESS DETAIL → image 4 becomes dominant ───
       tl.to(
         layer3MaskRef.current,
         { clipPath: "circle(150% at 65% 50%)", duration: 0.16 },
@@ -345,25 +367,47 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
       );
       tl.to(layer3Ref.current, { scale: 1.0, duration: 0.08 }, 0.66);
 
-      // ─── 05 CUSTOM → image 5 + CTAs ───
+      // ─── 05 FINALE → image 5 emerges through aperture, then hold + CTAs ───
       tl.to(
-        layer4Ref.current,
-        { opacity: 1, scale: 1.0, duration: 0.12 },
+        layer4MaskRef.current,
+        {
+          clipPath: `ellipse(14% 12% at ${dressOrigin})`,
+          duration: 0.04,
+        },
+        0.7
+      );
+      tl.to(
+        layer4MaskRef.current,
+        {
+          clipPath: `ellipse(42% 38% at ${dressOrigin})`,
+          duration: 0.06,
+        },
         0.74
       );
-      tl.to(dimRef.current, { opacity: 0.48, duration: 0.08 }, 0.74);
-      tl.to(layer2Ref.current, { opacity: 0, duration: 0.06 }, 0.76);
-      tl.to(layer1Ref.current, { opacity: 0, duration: 0.06 }, 0.76);
-      tl.to(ctasWrapRef.current, { opacity: 1, duration: 0.04 }, 0.78);
+      tl.to(
+        layer4MaskRef.current,
+        {
+          clipPath: `ellipse(140% 140% at ${dressOrigin})`,
+          duration: 0.08,
+        },
+        0.8
+      );
+      tl.to(layer4Ref.current, { scale: 1.0, duration: 0.18 }, 0.7);
+      tl.to(layer3Ref.current, { opacity: 0.2, scale: 1.08, duration: 0.1 }, 0.78);
+      tl.to(layer2Ref.current, { opacity: 0, duration: 0.08 }, 0.8);
+      tl.to(layer1Ref.current, { opacity: 0, duration: 0.08 }, 0.8);
+      tl.to(dimRef.current, { opacity: 0.44, duration: 0.08 }, 0.82);
+      tl.to({}, { duration: 0.05 }, 0.88);
+      tl.to(ctasWrapRef.current, { opacity: 1, duration: 0.04 }, 0.9);
       tl.to(
         ctaARef.current,
         { opacity: 1, y: 0, x: 0, duration: 0.08 },
-        0.8
+        0.92
       );
       tl.to(
         ctaBRef.current,
         { opacity: 1, y: 0, x: 0, duration: 0.08 },
-        0.86
+        0.96
       );
     }, section);
 
@@ -371,7 +415,17 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
   }, [dir, stageKey, t.home.customLead]);
 
   const alt = imageAlt || SITE_NAME;
-  const bodyText = formatMessage(t.home.customBody, { name: SITE_NAME });
+  const activeStep = defaultSteps[activeStage] ?? defaultSteps[0]!;
+  const eyebrowText = t.home.customEyebrow;
+  const titleText = activeStep.title || t.nav.customDesign;
+  const leadText =
+    activeStage < 4
+      ? activeStep.body || t.home.customLead
+      : "";
+  const bodyText =
+    activeStage === 4
+      ? activeStep.body || formatMessage(t.home.customBody, { name: SITE_NAME })
+      : "";
 
   const objectPos = [
     "object-[center_28%]",
@@ -467,26 +521,28 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
 
           {/* 05 */}
           <div
-            ref={layer4Ref}
-            className="absolute inset-0 will-change-transform"
+            ref={layer4MaskRef}
+            className="absolute inset-0 overflow-hidden will-change-[clip-path]"
             aria-hidden
           >
-            {src4 ? (
-              <Image
-                src={src4}
-                alt=""
-                fill
-                quality={90}
-                sizes="100vw"
-                className={cn("object-cover", objectPos[4])}
-              />
-            ) : null}
+            <div ref={layer4Ref} className="absolute inset-0 will-change-transform">
+              {src4 ? (
+                <Image
+                  src={src4}
+                  alt=""
+                  fill
+                  quality={90}
+                  sizes="100vw"
+                  className={cn("object-cover", objectPos[4])}
+                />
+              ) : null}
+            </div>
           </div>
 
           <div
             ref={dimRef}
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-charcoal"
+            className="pointer-events-none absolute inset-0 bg-charcoal opacity-35"
           />
           <div
             aria-hidden
@@ -515,7 +571,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
                 ref={eyebrowRef}
                 className="text-[10px] font-medium uppercase text-ivory/90 md:text-[11px]"
               >
-                {t.home.customEyebrow}
+                {eyebrowText}
               </p>
               <span
                 ref={eyebrowLineRef}
@@ -533,7 +589,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
                   "text-4xl leading-[1.05] text-ivory md:text-5xl lg:text-6xl"
                 )}
               >
-                {t.nav.customDesign}
+                {titleText}
               </h2>
             </div>
 
@@ -544,7 +600,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
                   "max-w-[28ch] text-lg leading-snug text-ivory/90 md:text-xl lg:text-2xl"
                 )}
               >
-                <WordReveal text={t.home.customLead} wordsRef={leadWordsRef} />
+                <WordReveal text={leadText} wordsRef={leadWordsRef} />
               </p>
             </div>
 
