@@ -27,6 +27,7 @@ export type StorePaymentProviderId =
   | "cod"
   | "credit_card"
   | "bit"
+  | "payplus"
   | "stripe"
   | "paypal"
   | "tranzila"
