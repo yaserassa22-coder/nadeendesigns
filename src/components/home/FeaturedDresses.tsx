@@ -18,7 +18,7 @@ export function FeaturedDresses({ dresses }: FeaturedDressesProps) {
 
   if (dresses.length === 0) {
     return (
-      <section className="bg-ivory pt-8 pb-2 md:pt-10">
+      <section className="bg-white pt-8 pb-2 md:pt-10">
         <div className="mx-auto max-w-[100rem] px-3 text-center md:px-5">
           <p className="font-[family-name:var(--font-cormorant)] text-[10px] tracking-[0.32em] text-gold uppercase md:text-xs">
             {t.home.featuredSubtitle}
@@ -38,7 +38,7 @@ export function FeaturedDresses({ dresses }: FeaturedDressesProps) {
   }
 
   return (
-    <section className="bg-ivory pt-8 md:pt-10">
+    <section className="bg-white pt-8 md:pt-10">
       <div className="w-full px-1 sm:px-1.5">
         <div className="mb-4 px-2 text-center md:mb-5">
           <p className="font-[family-name:var(--font-cormorant)] text-[10px] tracking-[0.32em] text-gold uppercase md:text-xs">

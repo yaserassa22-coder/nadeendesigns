@@ -14,12 +14,12 @@ import {
   Playfair_Display,
   Parisienne,
   Dancing_Script,
-  Cinzel,
   Pinyon_Script,
   Frank_Ruhl_Libre,
   Heebo,
   Rubik,
 } from "next/font/google";
+import localFont from "next/font/local";
 import { cn } from "@/lib/utils";
 
 const fontClassicAr = Amiri({
@@ -100,9 +100,29 @@ const fontDancing = Dancing_Script({
   variable: "--font-pers-dancing",
   display: "swap",
 });
-const fontCinzel = Cinzel({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const fontCinzel = localFont({
+  src: [
+    {
+      path: "../../fonts/cinzel/cinzel-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../fonts/cinzel/cinzel-latin-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../../fonts/cinzel/cinzel-latin-600-normal.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../../fonts/cinzel/cinzel-latin-700-normal.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-pers-cinzel",
   display: "swap",
 });

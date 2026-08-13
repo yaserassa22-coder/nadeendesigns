@@ -4,6 +4,7 @@ import { useLayoutEffect, type ReactNode } from "react";
 import { CartProvider } from "@/components/shop/CartProvider";
 import { CustomerAuthProvider } from "@/components/auth/CustomerAuthProvider";
 import { WishlistProvider } from "@/components/shop/WishlistProvider";
+import { MobileSwipeBack } from "@/components/layout/MobileSwipeBack";
 
 /**
  * Single client boundary for storefront providers.
@@ -20,7 +21,10 @@ export function StorefrontProviders({ children }: { children: ReactNode }) {
   return (
     <CartProvider>
       <CustomerAuthProvider>
-        <WishlistProvider>{children}</WishlistProvider>
+        <WishlistProvider>
+          <MobileSwipeBack />
+          {children}
+        </WishlistProvider>
       </CustomerAuthProvider>
     </CartProvider>
   );

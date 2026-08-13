@@ -657,6 +657,11 @@ const ar: Dictionary = {
     wornByYouNext: "التالي",
     wornByYouPlay: "تشغيل الفيديو",
     wornByYouSocial: "فتح المنشور",
+    visualRunwayLabel: "اكتشفي القطع",
+    visualRunwayPrev: "السابق",
+    visualRunwayNext: "التالي",
+    visualGridPagesLabel: "اكتشفي الشبكات",
+    visualGridPagesPage: "شبكة {n}",
     featuredCollection: "مجموعة مميزة",
     pwaAddTitle: "أضيفي Nadeen إلى الشاشة الرئيسية",
     pwaAddBody: "ثبّتي الأيقونة للوصول السريع مثل تطبيق — على الآيفون والأندرويد.",
@@ -2368,6 +2373,9 @@ lifecycleUi: {
       customDesignTileDesc:
         "صور قسم التصميم الخاص في الرئيسية (حتى 5 صور). الصورة الأولى رئيسية لمراحل العرض؛ رتّبيها بالسحب.",
       customDesignTileImage: "صور القسم (حتى 5)",
+      customDesignImageTransition: "انتقال الصور",
+      customDesignImageTransitionHint:
+        "عند الإيقاف تبقى الصورة الأولى ثابتة أثناء التمرير.",
       accessoriesFrame: {
         title: "إطار عرض إكسسوارات العروس",
         desc: "اختاري حجم وشكل بلوك السلايد شو في منتصف الرئيسية — دون المساس بالهيرو أو القائمة.",
@@ -3325,6 +3333,11 @@ const he: Dictionary = {
     wornByYouNext: "הבא",
     wornByYouPlay: "נגן וידאו",
     wornByYouSocial: "פתח פוסט",
+    visualRunwayLabel: "גלי את הפריטים",
+    visualRunwayPrev: "הקודם",
+    visualRunwayNext: "הבא",
+    visualGridPagesLabel: "גלי רשתות נוספות",
+    visualGridPagesPage: "רשת {n}",
     featuredCollection: "קולקציה נבחרת",
     pwaAddTitle: "הוסיפי את Nadeen למסך הבית",
     pwaAddBody: "שמרי אייקון לגישה מהירה כמו אפליקציה — באייפון ובאנדרואיד.",
@@ -5035,6 +5048,9 @@ lifecycleUi: {
       customDesignTileDesc:
         "תמונות מדור העיצוב המותאם בדף הבית (עד 5). התמונה הראשונה ראשית לשלבי התצוגה; סדרי בגרירה.",
       customDesignTileImage: "תמונות המדור (עד 5)",
+      customDesignImageTransition: "מעבר בין תמונות",
+      customDesignImageTransitionHint:
+        "כשכבוי, התמונה הראשונה נשארת קבועה בזמן הגלילה.",
       accessoriesFrame: {
         title: "מסגרת מצגת אקססוריז לכלה",
         desc: "בחרי גודל וצורה לבלוק הסליידשו באמצע דף הבית — בלי לשנות את ההירו או התפריט.",
@@ -5992,6 +6008,11 @@ const en: Dictionary = {
     wornByYouNext: "Next",
     wornByYouPlay: "Play video",
     wornByYouSocial: "Open social post",
+    visualRunwayLabel: "Discover the pieces",
+    visualRunwayPrev: "Previous",
+    visualRunwayNext: "Next",
+    visualGridPagesLabel: "Discover more grids",
+    visualGridPagesPage: "Grid {n}",
     featuredCollection: "Featured collection",
     pwaAddTitle: "Add Nadeen to your Home Screen",
     pwaAddBody: "Save the icon for quick access like an app — on iPhone and Android.",
@@ -7705,6 +7726,9 @@ lifecycleUi: {
       customDesignTileDesc:
         "Images for the homepage Custom Design section (up to 5). The first is primary for the scroll stages; drag to reorder.",
       customDesignTileImage: "Section images (up to 5)",
+      customDesignImageTransition: "Image transitions",
+      customDesignImageTransitionHint:
+        "When off, the section stays on the first image while you scroll.",
       accessoriesFrame: {
         title: "Bridal accessories frame",
         desc: "Choose the size and silhouette of the mid-page accessories slideshow — hero and menu stay unchanged.",

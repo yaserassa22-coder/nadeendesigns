@@ -132,6 +132,7 @@ export function ProductGallery({
             : undefined
         }
         aria-roledescription={multi ? "carousel" : undefined}
+        data-swipe-own={multi ? true : undefined}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={() => {

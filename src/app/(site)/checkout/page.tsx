@@ -403,7 +403,12 @@ export default function CheckoutPage() {
         body: JSON.stringify(payload),
       });
 
-      let data: { error?: string; success?: boolean; order?: ShopOrder } = {};
+      let data: {
+        error?: string;
+        success?: boolean;
+        order?: ShopOrder;
+        payment?: { ok?: boolean; redirectUrl?: string; error?: string };
+      } = {};
       try {
         data = await res.json();
       } catch {
@@ -426,6 +431,10 @@ export default function CheckoutPage() {
           sessionStorage.setItem("nadeen_order_just_placed", data.order.id);
         } catch {
           /* ignore */
+        }
+        if (data.payment?.redirectUrl) {
+          window.location.assign(data.payment.redirectUrl);
+          return;
         }
         router.push(`/orders/${data.order.id}`);
       } else {

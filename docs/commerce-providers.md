@@ -28,7 +28,9 @@ Checkout → payment_provider_id on order
 | Settings | `settings.key = 'commerce'` + encrypted_secrets |
 | SQL | `supabase/APPLY_COMMERCE_PAYMENTS_INVOICING.sql` |
 
-**SOLID:** each gateway/invoicer is a plugin. Orchestration (`payments/service.ts`, `invoicing/service.ts`) depends only on interfaces — never on concrete Bit/Green Invoice code.
+Registered payment plugins: **COD** (live), **PayPlus** (ready, disabled until Admin enables it), **Bit**, plus placeholders.
+
+See **[PAYMENTS.md](../PAYMENTS.md)** for PayPlus payment + invoice capabilities, combinations, credentials, callbacks, and how to activate later without code changes.
 
 ---
 
@@ -151,4 +153,5 @@ Creates: `encrypted_secrets`, `payment_transactions`, `payment_webhook_events`, 
 
 - **COD** remains the default live method.
 - **Internal Hebrew invoice** remains the default invoice provider.
+- **PayPlus** is registered for both payment and invoice roles but stays **disabled** until Admin configuration.
 - Existing order workflow (`payment_received`) still triggers invoicing via commerce orchestration.

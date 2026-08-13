@@ -1,5 +1,16 @@
 import type { WornByYouItem, WornByYouProductKind } from "@/types";
 
+export function isWornByYouStorefrontItem(item: WornByYouItem): boolean {
+  if (item.media_type === "video") return Boolean(item.video_url?.trim());
+  return Boolean(item.image_url?.trim());
+}
+
+export function wornByYouStorefrontItems(
+  items: WornByYouItem[] | null | undefined
+): WornByYouItem[] {
+  return (items ?? []).filter(isWornByYouStorefrontItem);
+}
+
 export function wornByYouProductHref(
   kind: WornByYouProductKind | null | undefined,
   productId: string | null | undefined

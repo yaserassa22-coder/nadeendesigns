@@ -2,7 +2,14 @@
 
 import { HomeEditorialGallery } from "@/components/home/HomeEditorialGallery";
 import { HomeEditorialTile } from "@/components/home/HomeEditorialTile";
+import { HomeVisualGridPages } from "@/components/home/HomeVisualGridPages";
+import { HomeVisualProductRunway } from "@/components/home/HomeVisualProductRunway";
 import type { HomepageEditorialTile } from "@/lib/home/homepage-editorial-gallery";
+import {
+  isGridScrollLayout,
+  isHorizontalScrollLayout,
+  type VisualGridLayoutId,
+} from "@/lib/home/visual-layout-grid";
 import {
   isProductIsolationEnabled,
   isUnifiedBackgroundEnabled,
@@ -28,6 +35,7 @@ type Props = {
   gap?: HomepageEditorialGap;
   tileSize?: HomepageEditorialTileSize;
   unified?: VisualUnifiedBackgroundSettings;
+  layoutGrid?: VisualGridLayoutId;
 };
 
 function styleFor(item: HomepageVisualLayoutItem) {
@@ -48,6 +56,7 @@ export function HomeVisualLayoutSection({
   gap = "md",
   tileSize = "md",
   unified,
+  layoutGrid = "editorial_split",
 }: Props) {
   const tileMap = new Map(tiles.map((tile) => [tile.id, tile]));
   const orderedTiles = layoutItems
@@ -59,6 +68,16 @@ export function HomeVisualLayoutSection({
   const presentation = unifiedTilePresentation(unified);
 
   if (orderedTiles.length === 0) return null;
+
+  if (isHorizontalScrollLayout(layoutGrid)) {
+    return (
+      <HomeVisualProductRunway tiles={orderedTiles} unified={unified} />
+    );
+  }
+
+  if (isGridScrollLayout(layoutGrid)) {
+    return <HomeVisualGridPages tiles={orderedTiles} unified={unified} />;
+  }
 
   return (
     <>

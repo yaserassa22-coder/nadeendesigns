@@ -43,6 +43,10 @@ import { NotificationCenter } from "@/components/layout/NotificationCenter";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import {
+  StorefrontSocialLinks,
+  type StorefrontSocialUrls,
+} from "@/components/layout/StorefrontSocialLinks";
 
 /** Last-resort offline fallback only — live nav is DB-driven via layout. */
 const FALLBACK_ITEMS: NavItem[] = capTopLevelNav([
@@ -83,6 +87,7 @@ interface HeaderProps {
   items?: NavItem[];
   storeName?: string;
   logoUrl?: string;
+  social?: StorefrontSocialUrls;
 }
 
 function itemHasPanel(item: NavItem): boolean {
@@ -124,6 +129,7 @@ export function Header({
   items = FALLBACK_ITEMS,
   storeName = SITE_NAME,
   logoUrl,
+  social,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -452,6 +458,16 @@ export function Header({
                       {t.nav.login}
                     </button>
                   )}
+                  <StorefrontSocialLinks
+                    className="mt-4 px-2"
+                    appearance="plain"
+                    variant="light"
+                    instagram={social?.instagram}
+                    facebook={social?.facebook}
+                    tiktok={social?.tiktok}
+                    pinterest={social?.pinterest}
+                    youtube={social?.youtube}
+                  />
                 </div>
               </nav>
             </motion.aside>

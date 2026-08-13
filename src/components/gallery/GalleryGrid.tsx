@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ZoomIn, Play } from "lucide-react";
+import { X, ZoomIn } from "lucide-react";
 import type { GalleryItem } from "@/types";
 import { isGalleryVideo } from "@/lib/gallery/media";
 import {
@@ -11,6 +11,7 @@ import {
   resolveGalleryCategoryLabel,
   type GalleryCategory,
 } from "@/lib/gallery/categories";
+import { GalleryLoopVideo } from "@/components/media/GalleryLoopVideo";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 
@@ -71,12 +72,10 @@ export function GalleryGrid({ items, categories }: GalleryGridProps) {
             className="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-xl"
           >
             {isGalleryVideo(item) && item.video_url ? (
-              <video
+              <GalleryLoopVideo
                 src={item.video_url}
                 poster={item.image_url || undefined}
-                muted
-                playsInline
-                preload="metadata"
+                alt={item.title_ar}
                 className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
@@ -88,13 +87,6 @@ export function GalleryGrid({ items, categories }: GalleryGridProps) {
                 className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             )}
-            {isGalleryVideo(item) ? (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-charcoal/45 text-ivory">
-                  <Play className="h-4 w-4 ms-0.5" fill="currentColor" />
-                </span>
-              </span>
-            ) : null}
             <div className="absolute inset-0 flex items-end bg-gradient-to-t from-charcoal/60 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
               <div className="flex w-full items-center justify-between gap-2">
                 <p className="text-sm font-medium text-ivory">{item.title_ar}</p>
@@ -130,12 +122,11 @@ export function GalleryGrid({ items, categories }: GalleryGridProps) {
               onClick={(e) => e.stopPropagation()}
             >
               {isGalleryVideo(lightbox) && lightbox.video_url ? (
-                <video
+                <GalleryLoopVideo
                   src={lightbox.video_url}
                   poster={lightbox.image_url || undefined}
+                  alt={lightbox.title_ar}
                   controls
-                  autoPlay
-                  playsInline
                   className="max-h-[90vh] w-auto max-w-full"
                 />
               ) : (

@@ -133,6 +133,7 @@ export default async function AdminHomeContentPage() {
         initialVisualEdgeGap={hp.visual_layout_edge_gap}
         initialVisualRowScales={hp.visual_layout_row_scales}
         initialVisualUnified={hp.visual_layout_unified}
+        initialVisualGrid={hp.visual_layout_grid}
         customDesignImageUrl={customDesignImageUrl}
       />
 

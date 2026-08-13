@@ -151,6 +151,7 @@ export function ProductCardImageCarousel({
         roundedClassName,
         className
       )}
+      data-swipe-own
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

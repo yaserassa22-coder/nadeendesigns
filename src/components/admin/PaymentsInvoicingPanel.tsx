@@ -41,6 +41,7 @@ type PaymentProviderRow = {
   configured: boolean;
   webhook_url: string | null;
   supports_test: boolean;
+  invoice_capability?: { module_enabled: boolean } | null;
 };
 
 type InvoiceProviderRow = {
@@ -53,6 +54,8 @@ type InvoiceProviderRow = {
   secrets_masked: Record<string, string>;
   public_config: Record<string, string>;
   configured: boolean;
+  selectable?: boolean;
+  capability_warning?: string | null;
   supports_test: boolean;
   supports_test_document: boolean;
 };
@@ -385,6 +388,24 @@ export function PaymentsInvoicingPanel() {
                         Status: {p.connection_status}
                         {p.coming_soon ? " · adapter pending" : ""}
                       </p>
+                      {p.id === "payplus" ? (
+                        <p className="text-[11px] text-muted">
+                          Payments:{" "}
+                          {p.enabled
+                            ? p.configured
+                              ? "Ready (enable + credentials)"
+                              : "Not configured"
+                            : "Disabled"}
+                          {" · "}
+                          Invoicing:{" "}
+                          {p.invoice_capability?.module_enabled
+                            ? "Invoice module enabled (Invoicing tab)"
+                            : "Invoice module not configured"}
+                          {" · "}
+                          Environment follows Mode above (Test = staging, Live =
+                          production)
+                        </p>
+                      ) : null}
                     </button>
                     {p.supports_test ? (
                       <button
@@ -410,12 +431,50 @@ export function PaymentsInvoicingPanel() {
                       ) : null}
                       {p.credential_fields.map((field) => {
                         const isSecret = field.kind === "secret";
+                        const isCheckbox = field.inputType === "checkbox";
                         const value = isSecret
                           ? secretDrafts[p.id]?.[field.key] ?? ""
                           : p.public_config[field.key] ?? "";
                         const placeholder = isSecret
                           ? p.secrets_masked[field.key] || "••••"
                           : "";
+                        if (isCheckbox) {
+                          const checked =
+                            (p.public_config[field.key] || "").toLowerCase() ===
+                            "true";
+                          return (
+                            <label
+                              key={field.key}
+                              className="flex items-center gap-2"
+                            >
+                              <input
+                                type="checkbox"
+                                className="accent-gold"
+                                checked={checked}
+                                onChange={(e) =>
+                                  setPayments((prev) =>
+                                    prev.map((x) =>
+                                      x.id === p.id
+                                        ? {
+                                            ...x,
+                                            public_config: {
+                                              ...x.public_config,
+                                              [field.key]: e.target.checked
+                                                ? "true"
+                                                : "false",
+                                            },
+                                          }
+                                        : x
+                                    )
+                                  )
+                                }
+                              />
+                              <span className="text-xs text-muted">
+                                {field.label_he || field.label}
+                              </span>
+                            </label>
+                          );
+                        }
                         return (
                           <label key={field.key} className="block">
                             <span className="text-xs text-muted">
@@ -610,14 +669,16 @@ export function PaymentsInvoicingPanel() {
                         type="radio"
                         name="active_invoice"
                         checked={p.active}
-                        onChange={() =>
+                        disabled={p.selectable === false}
+                        onChange={() => {
+                          if (p.selectable === false) return;
                           setInvoiceProviders((prev) =>
                             prev.map((x) => ({
                               ...x,
                               active: x.id === p.id,
                             }))
-                          )
-                        }
+                          );
+                        }}
                         className="accent-gold"
                       />
                       Active
@@ -639,6 +700,11 @@ export function PaymentsInvoicingPanel() {
                           ? " · API adapter pending"
                           : ""}
                       </p>
+                      {p.capability_warning ? (
+                        <p className="text-[11px] text-amber-700">
+                          {p.capability_warning}
+                        </p>
+                      ) : null}
                     </button>
                     {p.supports_test ? (
                       <button
@@ -668,9 +734,54 @@ export function PaymentsInvoicingPanel() {
                       ) : (
                         p.credential_fields.map((field) => {
                           const isSecret = field.kind === "secret";
+                          const isCheckbox = field.inputType === "checkbox";
                           const value = isSecret
                             ? invoiceSecretDrafts[p.id]?.[field.key] ?? ""
                             : p.public_config[field.key] ?? "";
+                          if (isCheckbox) {
+                            const checked =
+                              (p.public_config[field.key] || "").toLowerCase() ===
+                              "true";
+                            return (
+                              <label
+                                key={field.key}
+                                className="flex items-start gap-2"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5 accent-gold"
+                                  checked={checked}
+                                  onChange={(e) =>
+                                    setInvoiceProviders((prev) =>
+                                      prev.map((x) =>
+                                        x.id === p.id
+                                          ? {
+                                              ...x,
+                                              public_config: {
+                                                ...x.public_config,
+                                                [field.key]: e.target.checked
+                                                  ? "true"
+                                                  : "false",
+                                              },
+                                            }
+                                          : x
+                                      )
+                                    )
+                                  }
+                                />
+                                <span>
+                                  <span className="text-xs text-muted">
+                                    {field.label}
+                                  </span>
+                                  {field.help ? (
+                                    <span className="mt-1 block text-[11px] text-muted">
+                                      {field.help}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </label>
+                            );
+                          }
                           return (
                             <label key={field.key} className="block">
                               <span className="text-xs text-muted">
@@ -712,6 +823,11 @@ export function PaymentsInvoicingPanel() {
                                   }
                                 }}
                               />
+                              {field.help ? (
+                                <span className="mt-1 block text-[11px] text-muted">
+                                  {field.help}
+                                </span>
+                              ) : null}
                             </label>
                           );
                         })

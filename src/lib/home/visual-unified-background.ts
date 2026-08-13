@@ -10,22 +10,21 @@ import type {
   VisualUnifiedBackgroundSettings,
 } from "@/types/store";
 
-export const DEFAULT_UNIFIED_BG_COLOR = "#F5F2EA";
+export const DEFAULT_UNIFIED_BG_COLOR = "#FFFFFF";
 
-/** Luxury editorial presets — warm neutrals + pure white. */
+/** Previous shipped default — treat as unset so the storefront canvas is white. */
+const LEGACY_UNIFIED_DEFAULTS = new Set(["#F5F2EA", "#f5f2ea"]);
+
+/** Luxury editorial presets — white first, then warm neutrals. */
 export const UNIFIED_BG_COLOR_PRESETS: { id: string; label: string; color: string }[] =
   [
-    {
-      id: "editorial-ivory",
-      label: "Editorial ivory",
-      color: "#F5F2EA",
-    },
+    { id: "pure-white", label: "White", color: "#FFFFFF" },
+    { id: "editorial-ivory", label: "Editorial ivory", color: "#F6F1E6" },
     { id: "warm-ivory", label: "Warm ivory", color: "#F4F1EB" },
     { id: "champagne", label: "Champagne", color: "#E8DFD0" },
     { id: "soft-linen", label: "Soft linen", color: "#EDE6DC" },
     { id: "pale-sand", label: "Pale sand", color: "#F0EBE3" },
     { id: "warm-taupe", label: "Warm taupe", color: "#D9D2C8" },
-    { id: "pure-white", label: "White", color: "#FFFFFF" },
   ];
 
 export function isNearWhiteHex(color: string): boolean {
@@ -39,7 +38,9 @@ export function isNearWhiteHex(color: string): boolean {
 
 /** Normalize hex; white is allowed (product isolation uses transparent PNGs). */
 export function resolveUnifiedCanvasColor(color: string): string {
-  return normalizeHexColor(color, DEFAULT_UNIFIED_BG_COLOR);
+  const hex = normalizeHexColor(color, DEFAULT_UNIFIED_BG_COLOR);
+  if (LEGACY_UNIFIED_DEFAULTS.has(hex)) return DEFAULT_UNIFIED_BG_COLOR;
+  return hex;
 }
 
 export const DEFAULT_UNIFIED_BACKGROUND: VisualUnifiedBackgroundSettings = {

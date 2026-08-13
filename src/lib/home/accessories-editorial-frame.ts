@@ -137,7 +137,7 @@ export function accessoriesEditorialFrameLayout(
 
   if (shape === "canvas") {
     return {
-      sectionClassName: preview ? "" : "bg-ivory pt-8 sm:pt-10 md:pt-12",
+      sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
       shellClassName: preview ? "w-full" : "w-full px-1 sm:px-1.5",
       stageClassName: cn(
         "relative overflow-hidden bg-beige",
@@ -152,7 +152,7 @@ export function accessoriesEditorialFrameLayout(
 
   if (shape === "gallery") {
     return {
-      sectionClassName: preview ? "" : "bg-ivory pt-8 sm:pt-10 md:pt-12",
+      sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
       shellClassName: cn(
         "nd-ae-shell-scale",
         preview ? "px-0" : "px-4 sm:px-6 md:px-10"
@@ -171,7 +171,7 @@ export function accessoriesEditorialFrameLayout(
 
   if (shape === "atelier") {
     return {
-      sectionClassName: preview ? "" : "bg-ivory pt-8 sm:pt-10 md:pt-12",
+      sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
       shellClassName: cn(
         "nd-ae-shell-scale",
         preview ? "px-0" : "px-5 sm:px-8 md:px-12"
@@ -190,7 +190,7 @@ export function accessoriesEditorialFrameLayout(
 
   if (shape === "chapel") {
     return {
-      sectionClassName: preview ? "" : "bg-ivory pt-10 sm:pt-12 md:pt-16",
+      sectionClassName: preview ? "" : "bg-white pt-10 sm:pt-12 md:pt-16",
       shellClassName: cn(
         "nd-ae-shell-scale",
         preview ? "px-0" : "px-6 sm:px-10 md:px-16"
@@ -208,7 +208,7 @@ export function accessoriesEditorialFrameLayout(
 
   if (shape === "cinema") {
     return {
-      sectionClassName: preview ? "" : "bg-ivory pt-8 sm:pt-10 md:pt-12",
+      sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
       shellClassName: cn(
         "nd-ae-shell-scale",
         preview ? "px-0" : "px-4 sm:px-8 md:px-10"
@@ -224,7 +224,7 @@ export function accessoriesEditorialFrameLayout(
 
   if (shape === "portrait") {
     return {
-      sectionClassName: preview ? "" : "bg-ivory pt-8 sm:pt-10 md:pt-12",
+      sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
       shellClassName: cn(
         "nd-ae-shell-scale",
         preview ? "px-0" : "px-6 sm:px-8"
@@ -239,7 +239,7 @@ export function accessoriesEditorialFrameLayout(
   }
 
   return {
-    sectionClassName: preview ? "" : "bg-ivory py-10 sm:py-12 md:py-16",
+    sectionClassName: preview ? "" : "bg-white py-10 sm:py-12 md:py-16",
     shellClassName: cn(
       "nd-ae-shell-scale",
       preview ? "px-0" : "px-6 sm:px-10 md:px-16"

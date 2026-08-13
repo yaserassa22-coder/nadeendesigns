@@ -35,6 +35,7 @@ import {
 } from "@/lib/products/order-experience";
 import { resolveUnifiedCanvasColor } from "@/lib/home/visual-unified-background";
 import { normalizeAccessoriesEditorialFrame } from "@/lib/home/accessories-editorial-frame";
+import { normalizeVisualGridLayoutId } from "@/lib/home/visual-layout-grid";
 import {
   resolveStoreExtraServices,
   syncStoreServicesTable,
@@ -462,6 +463,7 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     editorial_tile_size,
     editorial_pattern,
     visual_layout_enabled: visualLayoutEnabled,
+    visual_layout_grid: normalizeVisualGridLayoutId(s.visual_layout_grid),
     visual_layout_height: visualLayoutHeight,
     visual_layout_items: visualLayoutItems,
     visual_layout_pad_top,
@@ -865,6 +867,25 @@ export function mergeStoreSettingsPatch(
       : current.legal,
     tax: patch.tax ? { ...current.tax, ...patch.tax } : current.tax,
   };
+
+  // Keep Contact + Social TikTok/Facebook/Instagram URLs in sync so either admin tab shows on the storefront.
+  if (patch.contact) {
+    next.social = {
+      ...next.social,
+      instagram_url: next.contact.instagram_url || next.social.instagram_url,
+      facebook_url: next.contact.facebook_url || next.social.facebook_url,
+      tiktok_url: next.contact.tiktok_url || next.social.tiktok_url,
+    };
+  }
+  if (patch.social) {
+    next.contact = {
+      ...next.contact,
+      instagram_url: next.social.instagram_url || next.contact.instagram_url,
+      facebook_url: next.social.facebook_url || next.contact.facebook_url,
+      tiktok_url: next.social.tiktok_url || next.contact.tiktok_url,
+    };
+  }
+
   return normalizeStoreSettings(next);
 }
 

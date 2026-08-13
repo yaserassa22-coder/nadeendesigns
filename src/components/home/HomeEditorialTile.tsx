@@ -144,7 +144,7 @@ export function HomeEditorialTile({
   presentation = "card",
   productIsolation,
   softIsolate,
-  canvasColor: _canvasColor = "#F5F2EA",
+  canvasColor: _canvasColor = "#FFFFFF",
   imageScale = 1,
   imageOffsetX = 0,
   imageOffsetY = 0,
@@ -322,7 +322,7 @@ export function HomeEditorialTile({
 
   const shellClass = cn(
     "group relative block h-full",
-    isFloat ? "overflow-visible bg-transparent" : "overflow-hidden bg-beige",
+    isFloat ? "overflow-visible bg-transparent" : "overflow-hidden bg-white",
     className
   );
 

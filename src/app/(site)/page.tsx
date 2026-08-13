@@ -23,6 +23,7 @@ import {
   parseEditorialDressIds,
 } from "@/lib/home/homepage-editorial-gallery";
 import { featuredImage } from "@/lib/products/featured-image";
+import { wornByYouStorefrontItems } from "@/lib/home/worn-by-you";
 import { getStoreSettings } from "@/lib/store/settings";
 import { getStorefrontLocale } from "@/lib/i18n/server";
 import { getDictionary } from "@/lib/i18n";
@@ -196,7 +197,7 @@ export default async function HomePage() {
   return (
     <>
       {hp.hero ? <Hero settings={settings} /> : null}
-      <div className="bg-ivory">
+      <div className="bg-white">
         {visualLayoutEnabled ? (
           <HomeVisualLayoutSection
             tiles={visualTiles}
@@ -206,6 +207,7 @@ export default async function HomePage() {
             gap={hp.editorial_gap}
             tileSize={hp.editorial_tile_size}
             unified={hp.visual_layout_unified}
+            layoutGrid={hp.visual_layout_grid}
           />
         ) : null}
         {/* Custom design band stays on the frontpage even when visual layout is on. */}
@@ -215,6 +217,7 @@ export default async function HomePage() {
             imageUrl={customImageUrl}
             craftImageUrl={craftImageUrl}
             dressImageUrl={dressImageUrl}
+            imageTransition={settings.custom_design_image_transition !== false}
           />
         ) : null}
         {!visualLayoutEnabled && editorialTiles.length > 0 ? (
@@ -225,7 +228,9 @@ export default async function HomePage() {
             tileSize={hp.editorial_tile_size}
           />
         ) : null}
-        {hp.worn_by_you ? <WornByYouSection items={wornByYou} /> : null}
+        {hp.worn_by_you && wornByYouStorefrontItems(wornByYou).length > 0 ? (
+          <WornByYouSection items={wornByYou} />
+        ) : null}
         {hp.accessories_editorial ? (
           <AccessoriesEditorialSlideshow
             slides={accessoriesSlides}
@@ -237,6 +242,15 @@ export default async function HomePage() {
           <InstagramSection
             images={instagramTiles}
             categories={galleryCategories}
+            social={{
+              instagram:
+                store.social.instagram_url || store.contact.instagram_url,
+              facebook:
+                store.social.facebook_url || store.contact.facebook_url,
+              tiktok: store.social.tiktok_url || store.contact.tiktok_url,
+              pinterest: store.social.pinterest_url,
+              youtube: store.social.youtube_url,
+            }}
           />
         ) : null}
       </div>

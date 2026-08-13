@@ -432,6 +432,11 @@ export interface SiteSettings {
    * (atelier → craft → dress stages + extras). Primary is index 0.
    */
   custom_design_image_urls: string[];
+  /**
+   * When true (default), homepage Custom Design images transition across
+   * scroll stages. When false, the section stays on the first image.
+   */
+  custom_design_image_transition: boolean;
 
   /**
    * Optional bag for future homepage section payloads (Featured / Services /

@@ -40,7 +40,7 @@ export function HomeCollectionSection({
   if (items.length === 0) return null;
 
   return (
-    <section className="bg-ivory py-10 md:py-14">
+    <section className="bg-white py-10 md:py-14">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <div className="mb-5 text-center md:mb-7">
           {eyebrow ? (

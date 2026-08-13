@@ -1,6 +1,7 @@
 import type {
   HomepageEditorialGap,
   HomepageVisualBlockShape,
+  HomepageVisualGridLayoutId,
   HomepageVisualLayoutItem,
 } from "@/types/store";
 
@@ -96,15 +97,7 @@ export const VISUAL_SHAPE_PRESETS: Record<
   hero: { cols: 8, rows: 4, label: "Hero" },
 };
 
-export type VisualGridLayoutId =
-  | "uniform_3col"
-  | "uniform_4col"
-  | "two_column"
-  | "spotlight_top"
-  | "custom_design_top"
-  | "editorial_split"
-  | "magazine_rows"
-  | "mosaic_balanced";
+export type VisualGridLayoutId = HomepageVisualGridLayoutId;
 
 export type VisualGridLayoutOption = {
   id: VisualGridLayoutId;
@@ -127,6 +120,16 @@ export const VISUAL_GRID_LAYOUT_OPTIONS: VisualGridLayoutOption[] = [
     id: "two_column",
     label: "2-column grid",
     hint: "Large balanced pairs — 2 per row",
+  },
+  {
+    id: "horizontal_scroll",
+    label: "Side scroll",
+    hint: "One product row — swipe left and right to discover more",
+  },
+  {
+    id: "grid_scroll",
+    label: "Sliding grids",
+    hint: "One product fills the grid — swipe left or right to the next",
   },
   {
     id: "spotlight_top",
@@ -461,6 +464,16 @@ function slotMagazineRows(index: number): GridSlot {
   };
 }
 
+function slotHorizontalScroll(index: number): GridSlot {
+  return {
+    col: index * 3,
+    row: 0,
+    colSpan: 3,
+    rowSpan: 4,
+    shape: "portrait",
+  };
+}
+
 function slotMosaicBalanced(index: number): GridSlot {
   const rowPair = Math.floor(index / 4);
   const pos = index % 4;
@@ -518,9 +531,51 @@ function resolveSlot(
       return slotMagazineRows(index);
     case "mosaic_balanced":
       return slotMosaicBalanced(index);
+    case "horizontal_scroll":
+      return slotHorizontalScroll(index);
+    case "grid_scroll":
+      return slotUniform3Col(index);
     default:
       return slotUniform3Col(index);
   }
+}
+
+export function isVisualGridLayoutId(
+  value: unknown
+): value is VisualGridLayoutId {
+  return VISUAL_GRID_LAYOUT_OPTIONS.some((option) => option.id === value);
+}
+
+export function normalizeVisualGridLayoutId(
+  raw: unknown
+): VisualGridLayoutId {
+  return isVisualGridLayoutId(raw) ? raw : "editorial_split";
+}
+
+export function isHorizontalScrollLayout(
+  layoutId: VisualGridLayoutId
+): boolean {
+  return layoutId === "horizontal_scroll";
+}
+
+export function isGridScrollLayout(layoutId: VisualGridLayoutId): boolean {
+  return layoutId === "grid_scroll";
+}
+
+export function isScrollVisualLayout(layoutId: VisualGridLayoutId): boolean {
+  return isHorizontalScrollLayout(layoutId) || isGridScrollLayout(layoutId);
+}
+
+/** One product per swipeable grid page (1 column on phone and desktop). */
+export const GRID_SCROLL_PAGE_SIZE = 1;
+
+export function chunkVisualTiles<T>(items: T[], size = GRID_SCROLL_PAGE_SIZE): T[][] {
+  if (items.length === 0) return [];
+  const pages: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    pages.push(items.slice(i, i + size));
+  }
+  return pages;
 }
 
 function orderItemsForLayout(

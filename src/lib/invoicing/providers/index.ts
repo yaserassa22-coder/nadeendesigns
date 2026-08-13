@@ -6,6 +6,7 @@ import {
   morningInvoiceProvider,
 } from "./external";
 import { internalInvoiceProvider } from "./internal";
+import { payplusInvoiceProvider } from "./payplus";
 
 let registered = false;
 
@@ -16,5 +17,6 @@ export function ensureInvoiceProvidersRegistered(): void {
   registerInvoiceProvider(morningInvoiceProvider);
   registerInvoiceProvider(icountInvoiceProvider);
   registerInvoiceProvider(easycountInvoiceProvider);
+  registerInvoiceProvider(payplusInvoiceProvider);
   registered = true;
 }

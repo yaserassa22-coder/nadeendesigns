@@ -10,6 +10,7 @@ const MAX_CUSTOM_DESIGN_IMAGES = 5;
 
 type CustomDesignCmsFields = {
   custom_design_image_urls: string[];
+  custom_design_image_transition: boolean;
 };
 
 function urlsFromSettings(settings: SiteSettings): string[] {
@@ -36,6 +37,8 @@ export function HomeCustomDesignCmsForm({
   const cu = t.admin.cmsUi;
   const [form, setForm] = useState<CustomDesignCmsFields>({
     custom_design_image_urls: urlsFromSettings(initialSettings),
+    custom_design_image_transition:
+      initialSettings.custom_design_image_transition !== false,
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -56,6 +59,7 @@ export function HomeCustomDesignCmsForm({
         body: JSON.stringify({
           custom_design_image_urls: urls,
           custom_design_image_url: urls[0] ?? "",
+          custom_design_image_transition: form.custom_design_image_transition,
         }),
       });
       const data = await res.json();
@@ -64,6 +68,8 @@ export function HomeCustomDesignCmsForm({
         const s = data.settings as SiteSettings;
         setForm({
           custom_design_image_urls: urlsFromSettings(s),
+          custom_design_image_transition:
+            s.custom_design_image_transition !== false,
         });
       }
       setMessage(cu.saved);
@@ -100,6 +106,29 @@ export function HomeCustomDesignCmsForm({
           }}
         />
       </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-beige-dark/70 bg-ivory/35 px-4 py-3">
+        <input
+          type="checkbox"
+          checked={form.custom_design_image_transition}
+          onChange={(event) => {
+            setForm((prev) => ({
+              ...prev,
+              custom_design_image_transition: event.target.checked,
+            }));
+            setMessage("");
+          }}
+          className="mt-1 accent-gold"
+        />
+        <span>
+          <span className="block text-sm font-medium text-charcoal">
+            {cu.customDesignImageTransition}
+          </span>
+          <span className="mt-0.5 block text-xs text-muted">
+            {cu.customDesignImageTransitionHint}
+          </span>
+        </span>
+      </label>
 
       {message ? (
         <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">

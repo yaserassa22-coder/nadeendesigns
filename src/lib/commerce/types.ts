@@ -14,7 +14,7 @@ export type CredentialFieldDef = {
   label_ar?: string;
   /** secret = encrypted vault; public = stored in settings JSON */
   kind: "secret" | "public";
-  inputType?: "text" | "password" | "url" | "email";
+  inputType?: "text" | "password" | "url" | "email" | "checkbox";
   required?: boolean;
   placeholder?: string;
   help?: string;
