@@ -5,6 +5,7 @@ import { codPaymentProvider } from "./cod";
 import { creditCardPaymentProvider } from "./credit-card";
 import { googlePayPaymentProvider } from "./google-pay";
 import { paypalPaymentProvider } from "./paypal";
+import { payplusPaymentProvider } from "./payplus";
 
 let registered = false;
 
@@ -14,6 +15,7 @@ export function ensurePaymentProvidersRegistered(): void {
   registerPaymentProvider(codPaymentProvider);
   registerPaymentProvider(creditCardPaymentProvider);
   registerPaymentProvider(bitPaymentProvider);
+  registerPaymentProvider(payplusPaymentProvider);
   registerPaymentProvider(applePayPaymentProvider);
   registerPaymentProvider(googlePayPaymentProvider);
   registerPaymentProvider(paypalPaymentProvider);

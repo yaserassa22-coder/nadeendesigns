@@ -211,6 +211,32 @@ export async function issueInvoiceForOrder(
 
   const secrets = await getSecrets("invoice_provider", provider.id);
   const row = commerce.invoicing.providers.find((p) => p.id === provider!.id);
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = createAdminClient();
+      const { data: existingDoc } = await supabase
+        .from("invoice_documents")
+        .select("id, document_number, status")
+        .eq("order_id", order.id)
+        .in("status", ["issued", "emailed"])
+        .limit(1)
+        .maybeSingle();
+      if (existingDoc) {
+        await logCommerceEvent({
+          category: "invoice",
+          providerId: provider.id,
+          orderId: order.id,
+          message: `Invoice already issued ${existingDoc.document_number}`,
+          details: { source: opts?.source, duplicate: true },
+        });
+        return { ok: true };
+      }
+    } catch {
+      /* table may be missing until migration */
+    }
+  }
+
   const result = await provider.issueDocument({
     order,
     store,

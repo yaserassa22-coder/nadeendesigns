@@ -6,12 +6,7 @@ import { getPaymentProvider } from "@/lib/payments/registry";
 
 type Ctx = { params: Promise<{ provider: string }> };
 
-/**
- * POST /api/webhooks/payments/[provider]
- * Signature verification + idempotent processing per provider plugin.
- */
-export async function POST(request: NextRequest, ctx: Ctx) {
-  const { provider: providerId } = await ctx.params;
+async function handleWebhook(request: NextRequest, providerId: string) {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
@@ -37,7 +32,17 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "unknown_provider" }, { status: 404 });
   }
 
-  const rawBody = await request.text();
+  let rawBody = "";
+  if (request.method === "GET") {
+    const entries: Record<string, string> = {};
+    request.nextUrl.searchParams.forEach((value, key) => {
+      entries[key] = value;
+    });
+    rawBody = JSON.stringify(entries);
+  } else {
+    rawBody = await request.text();
+  }
+
   const headers: Record<string, string> = {};
   request.headers.forEach((value, key) => {
     headers[key.toLowerCase()] = value;
@@ -50,4 +55,21 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   });
 
   return NextResponse.json(result.body, { status: result.status });
+}
+
+/**
+ * POST /api/webhooks/payments/[provider]
+ * Signature verification + idempotent processing per provider plugin.
+ */
+export async function POST(request: NextRequest, ctx: Ctx) {
+  const { provider: providerId } = await ctx.params;
+  return handleWebhook(request, providerId);
+}
+
+/**
+ * GET — PayPlus (and similar) may deliver IPN/callback as GET with query params.
+ */
+export async function GET(request: NextRequest, ctx: Ctx) {
+  const { provider: providerId } = await ctx.params;
+  return handleWebhook(request, providerId);
 }

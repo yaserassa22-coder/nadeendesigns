@@ -166,6 +166,20 @@ function scheduleNotifications(task: () => Promise<void>) {
   }
 }
 
+async function startPaymentForCreatedOrder(
+  request: NextRequest,
+  row: ShopOrder
+) {
+  const { startOrderPayment } = await import("@/lib/payments/service");
+  const origin = new URL(request.url).origin;
+  return startOrderPayment({
+    order: row,
+    providerId: row.payment_provider_id || "cod",
+    returnUrl: `${origin}/orders/${row.id}`,
+    cancelUrl: `${origin}/checkout`,
+  });
+}
+
 export async function GET() {
   const { error: authError } = await requireAdminApi();
   if (authError) return authError;
@@ -360,21 +374,25 @@ export async function POST(request: NextRequest) {
       memoryOrdersStore().unshift(row);
       console.info("[orders API] saved to memory (Supabase not configured)", row.id);
       scheduleNotifications(() => onOrderSubmitted(row));
-      scheduleNotifications(async () => {
-        try {
-          const { startOrderPayment } = await import("@/lib/payments/service");
-          const origin = new URL(request.url).origin;
-          await startOrderPayment({
-            order: row,
-            providerId: row.payment_provider_id || "cod",
-            returnUrl: `${origin}/orders/${row.id}`,
-            cancelUrl: `${origin}/checkout`,
-          });
-        } catch (e) {
-          console.error("[orders API] startOrderPayment failed", e);
-        }
+      let payment: Awaited<ReturnType<typeof startPaymentForCreatedOrder>> | null =
+        null;
+      try {
+        payment = await startPaymentForCreatedOrder(request, row);
+      } catch (e) {
+        console.error("[orders API] startOrderPayment failed", e);
+      }
+      return NextResponse.json({
+        success: true,
+        order: row,
+        payment: payment
+          ? {
+              ok: payment.ok,
+              status: payment.ok ? payment.status : undefined,
+              redirectUrl: payment.ok ? payment.redirectUrl : undefined,
+              error: payment.ok ? undefined : payment.error,
+            }
+          : null,
       });
-      return NextResponse.json({ success: true, order: row });
     }
 
     const supabase = createAdminClient();
@@ -515,21 +533,25 @@ export async function POST(request: NextRequest) {
 
     console.info("[orders API] order saved", row.id);
     scheduleNotifications(() => onOrderSubmitted(row));
-    scheduleNotifications(async () => {
-      try {
-        const { startOrderPayment } = await import("@/lib/payments/service");
-        const origin = new URL(request.url).origin;
-        await startOrderPayment({
-          order: row,
-          providerId: row.payment_provider_id || "cod",
-          returnUrl: `${origin}/orders/${row.id}`,
-          cancelUrl: `${origin}/checkout`,
-        });
-      } catch (e) {
-        console.error("[orders API] startOrderPayment failed", e);
-      }
+    let payment: Awaited<ReturnType<typeof startPaymentForCreatedOrder>> | null =
+      null;
+    try {
+      payment = await startPaymentForCreatedOrder(request, row);
+    } catch (e) {
+      console.error("[orders API] startOrderPayment failed", e);
+    }
+    return NextResponse.json({
+      success: true,
+      order: row,
+      payment: payment
+        ? {
+            ok: payment.ok,
+            status: payment.ok ? payment.status : undefined,
+            redirectUrl: payment.ok ? payment.redirectUrl : undefined,
+            error: payment.ok ? undefined : payment.error,
+          }
+        : null,
     });
-    return NextResponse.json({ success: true, order: row });
   } catch (e) {
     if (e instanceof z.ZodError) {
       console.error("[orders API] zod error", e.issues);

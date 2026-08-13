@@ -20,6 +20,7 @@ const PAYMENT_NAME: Record<string, LocalizedTriple> = {
     en: "Credit Card",
   },
   bit: { ar: "Bit", he: "ביט", en: "Bit" },
+  payplus: { ar: "PayPlus", he: "PayPlus", en: "PayPlus" },
   stripe: { ar: "سترايب", he: "Stripe", en: "Stripe" },
   paypal: { ar: "باي بال", he: "PayPal", en: "PayPal" },
   tranzila: { ar: "ترانزيلا", he: "Tranzila", en: "Tranzila" },
@@ -47,6 +48,11 @@ const PAYMENT_DESCRIPTION: Record<string, LocalizedTriple> = {
     ar: "الدفع عبر Bit",
     he: "תשלום באמצעות ביט",
     en: "Pay with Bit",
+  },
+  payplus: {
+    ar: "الدفع عبر صفحة PayPlus الآمنة (بطاقة / Bit)",
+    he: "תשלום מאובטח בדף PayPlus (כרטיס / ביט)",
+    en: "Pay securely on the PayPlus hosted page (card / Bit)",
   },
   stripe: {
     ar: "بطاقات عبر سترايب",

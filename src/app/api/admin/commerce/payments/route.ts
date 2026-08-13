@@ -5,6 +5,7 @@ import { auditSettingsChange } from "@/lib/commerce/logging";
 import { rateLimit } from "@/lib/commerce/rate-limit";
 import {
   getMaskedSecrets,
+  hasAnySecret,
   setSecrets,
 } from "@/lib/commerce/secrets/store";
 import {
@@ -16,7 +17,7 @@ import {
   getPaymentProvider,
   listPaymentProviders,
 } from "@/lib/payments/registry";
-import { hasAnySecret } from "@/lib/commerce/secrets/store";
+import { isPayPlusInvoiceModuleEnabled } from "@/lib/payplus/client";
 
 function siteOrigin(request: NextRequest): string {
   const env = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
@@ -69,6 +70,15 @@ export async function GET(request: NextRequest) {
         webhook_url: reg.supportsWebhook
           ? `${origin}/api/webhooks/payments/${reg.id}`
           : null,
+        invoice_capability:
+          reg.id === "payplus"
+            ? {
+                module_enabled: isPayPlusInvoiceModuleEnabled(
+                  settings.invoicing.providers.find((p) => p.id === "payplus")
+                    ?.public_config || {}
+                ),
+              }
+            : null,
       };
     })
   );

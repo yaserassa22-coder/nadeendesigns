@@ -19,6 +19,15 @@ import {
   listInvoiceProviders,
 } from "@/lib/invoicing/registry";
 import { getStoreSettings } from "@/lib/store/settings";
+import {
+  PAYPLUS_INVOICE_NOT_CONFIGURED,
+  PAYPLUS_PROVIDER_ID,
+  isPayPlusInvoiceModuleEnabled,
+} from "@/lib/payplus/client";
+import {
+  payplusAuthConfigured,
+  resolvePayPlusAuth,
+} from "@/lib/payplus/secrets";
 
 export async function GET() {
   const { error } = await requireAdminApi();
@@ -38,13 +47,28 @@ export async function GET() {
         reg.id,
         secretKeys
       );
-      const configured =
+      let configured =
         reg.id === "internal" ||
-        (await hasAnySecret(
-          "invoice_provider",
-          reg.id,
-          reg.requiredSecretKeys
-        ));
+        (reg.requiredSecretKeys.length
+          ? await hasAnySecret(
+              "invoice_provider",
+              reg.id,
+              reg.requiredSecretKeys
+            )
+          : true);
+
+      let selectable = true;
+      let capability_warning: string | null = null;
+
+      if (reg.id === PAYPLUS_PROVIDER_ID) {
+        const auth = await resolvePayPlusAuth();
+        const moduleOn = isPayPlusInvoiceModuleEnabled(row?.public_config || {});
+        configured = payplusAuthConfigured(auth) && moduleOn;
+        selectable = configured;
+        if (!selectable) {
+          capability_warning = PAYPLUS_INVOICE_NOT_CONFIGURED;
+        }
+      }
 
       return {
         id: reg.id,
@@ -58,6 +82,8 @@ export async function GET() {
         credential_fields: reg.credentialFields,
         secrets_masked: masked,
         configured,
+        selectable,
+        capability_warning,
         supports_test: reg.supportsTestConnection,
         supports_test_document: reg.supportsTestDocument,
       };
@@ -143,6 +169,31 @@ export async function PUT(request: NextRequest) {
         { error: "Unknown invoice provider" },
         { status: 400 }
       );
+    }
+    if (d.active_provider_id === PAYPLUS_PROVIDER_ID) {
+      const payplusRow =
+        d.provider?.id === PAYPLUS_PROVIDER_ID
+          ? {
+              ...(next.invoicing.providers.find((p) => p.id === PAYPLUS_PROVIDER_ID)
+                ?.public_config || {}),
+              ...(d.provider.public_config || {}),
+            }
+          : next.invoicing.providers.find((p) => p.id === PAYPLUS_PROVIDER_ID)
+              ?.public_config || {};
+      const auth = await resolvePayPlusAuth({
+        invoiceSecrets: d.provider?.id === PAYPLUS_PROVIDER_ID
+          ? d.provider.secrets
+          : undefined,
+      });
+      if (
+        !isPayPlusInvoiceModuleEnabled(payplusRow) ||
+        !payplusAuthConfigured(auth)
+      ) {
+        return NextResponse.json(
+          { error: PAYPLUS_INVOICE_NOT_CONFIGURED },
+          { status: 400 }
+        );
+      }
     }
     next.invoicing.active_provider_id = d.active_provider_id;
   }
