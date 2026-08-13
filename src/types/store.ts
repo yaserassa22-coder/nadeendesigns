@@ -181,6 +181,19 @@ export type HomepageVisualBlockShape =
   | "wide"
   | "hero";
 
+/** Named post-grid template applied from Admin. */
+export type HomepageVisualGridLayoutId =
+  | "uniform_3col"
+  | "uniform_4col"
+  | "two_column"
+  | "spotlight_top"
+  | "custom_design_top"
+  | "editorial_split"
+  | "magazine_rows"
+  | "mosaic_balanced"
+  | "horizontal_scroll"
+  | "grid_scroll";
+
 export type HomepageVisualLayoutItem = {
   id: string;
   x: number;
@@ -279,6 +292,8 @@ export type StoreHomepageSettings = {
   editorial_pattern: HomepageEditorialPattern;
   /** Visual desktop layout editor toggle for custom design + editorial blocks. */
   visual_layout_enabled: boolean;
+  /** Last applied grid template. Scroll templates render a swipeable runway or paged grids. */
+  visual_layout_grid: HomepageVisualGridLayoutId;
   /** Desktop showcase height in px for the visual layout section. */
   visual_layout_height: number;
   /** Absolute-positioned desktop blocks saved by the admin visual editor. */
@@ -831,6 +846,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     editorial_tile_size: "md",
     editorial_pattern: "uniform",
     visual_layout_enabled: false,
+    visual_layout_grid: "editorial_split",
     visual_layout_height: 880,
     visual_layout_items: [],
     visual_layout_pad_top: 12,
@@ -839,7 +855,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     visual_layout_row_scales: [],
     visual_layout_unified: {
       enabled: false,
-      color: "#F5F2EA",
+      color: "#FFFFFF",
       image_url: "",
       size: "cover",
       position: "center",

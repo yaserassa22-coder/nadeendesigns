@@ -821,6 +821,11 @@ export type Dictionary = {
     wornByYouNext: string;
     wornByYouPlay: string;
     wornByYouSocial: string;
+    visualRunwayLabel: string;
+    visualRunwayPrev: string;
+    visualRunwayNext: string;
+    visualGridPagesLabel: string;
+    visualGridPagesPage: string;
     featuredCollection: string;
     pwaAddTitle: string;
     pwaAddBody: string;
@@ -2485,6 +2490,8 @@ export type Dictionary = {
       customDesignTileTitle: string;
       customDesignTileDesc: string;
       customDesignTileImage: string;
+      customDesignImageTransition: string;
+      customDesignImageTransitionHint: string;
       accessoriesFrame: {
         title: string;
         desc: string;

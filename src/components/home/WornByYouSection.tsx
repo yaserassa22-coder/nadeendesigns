@@ -17,6 +17,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   wornByYouAlt,
   wornByYouProductHref,
+  wornByYouStorefrontItems,
 } from "@/lib/home/worn-by-you";
 import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -34,11 +35,9 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
 
-  const list = items.filter((item) => {
-    if (item.media_type === "video") return Boolean(item.video_url?.trim());
-    return Boolean(item.image_url?.trim());
-  });
-  const scrollable = list.length > 1;
+  const list = wornByYouStorefrontItems(items);
+  const count = list.length;
+  const scrollable = count > 1;
 
   const updateArrows = useCallback(() => {
     const el = scrollerRef.current;
@@ -93,13 +92,13 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
     }
   };
 
-  if (list.length === 0) return null;
+  if (count === 0) return null;
 
   const showArrows = scrollable && (canPrev || canNext);
 
   return (
     <section
-      className="bg-ivory pt-8 md:pt-10"
+      className="bg-white pt-8 md:pt-10"
       aria-labelledby={`${baseId}-title`}
     >
       <div className="w-full px-1 sm:px-1.5">
@@ -164,8 +163,10 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
             onKeyDown={onKeyDown}
             className={cn(
               "flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 [&::-webkit-scrollbar]:hidden",
-              scrollable ? "snap-x snap-mandatory" : "justify-center"
+              scrollable ? "snap-x snap-mandatory" : "justify-center",
+              count < 4 && "lg:justify-center"
             )}
+            data-swipe-own
           >
             {list.map((item, index) => {
               const alt = wornByYouAlt(item, SITE_NAME);
@@ -187,7 +188,14 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
                   className={cn(
                     "relative shrink-0",
                     scrollable
-                      ? "w-[82%] snap-start sm:w-[calc(50%-0.25rem)] lg:w-[calc(33.333%-0.375rem)]"
+                      ? cn(
+                          "w-[82%] snap-start sm:w-[calc(50%-0.25rem)]",
+                          count >= 4
+                            ? "md:w-[calc(33.333%-0.333rem)] lg:w-[calc(25%-0.375rem)]"
+                            : count === 3
+                              ? "md:w-[calc(33.333%-0.333rem)]"
+                              : "md:w-[calc(50%-0.25rem)]"
+                        )
                       : "w-full max-w-md sm:w-[min(100%,24rem)]"
                   )}
                 >
@@ -216,8 +224,8 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
                             alt={alt}
                             fill
                             className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-                            sizes="(max-width: 640px) 85vw, (max-width: 1024px) 50vw, 33vw"
-                            loading={index < 3 ? "eager" : "lazy"}
+                            sizes="(max-width: 640px) 85vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            loading={index < 4 ? "eager" : "lazy"}
                           />
                           {social ? (
                             <a

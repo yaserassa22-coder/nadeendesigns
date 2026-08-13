@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
 import type { SiteSettings } from "@/types";
 import type { NavLink } from "@/lib/categories/nav";
 import {
@@ -13,17 +13,17 @@ import {
 import { pickCmsOrUi } from "@/lib/cms/locale-text";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { getDictionary } from "@/lib/i18n";
+import {
+  StorefrontSocialLinks,
+  type StorefrontSocialUrls,
+} from "@/components/layout/StorefrontSocialLinks";
 
 interface FooterProps {
   settings: SiteSettings;
   navLinks?: NavLink[];
   storeName?: string;
   logoUrl?: string;
-  social?: {
-    instagram?: string;
-    facebook?: string;
-    tiktok?: string;
-  };
+  social?: StorefrontSocialUrls;
 }
 
 const LEGAL_LINKS = [
@@ -181,15 +181,24 @@ export function Footer({
               {t.footer.workingHours}
             </h3>
             <p className="text-sm text-ivory/70">{hours}</p>
-            <a
-              href={instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex items-center gap-2 text-sm text-gold transition-colors hover:text-gold-light"
-            >
-              <Camera className="h-5 w-5" />
-              <span dir="ltr">{instagramHandle}</span>
-            </a>
+            <StorefrontSocialLinks
+              className="mt-6"
+              instagram={instagramUrl}
+              facebook={social?.facebook}
+              tiktok={social?.tiktok}
+              pinterest={social?.pinterest}
+              youtube={social?.youtube}
+            />
+            {instagramUrl ? (
+              <a
+                href={instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center text-sm text-gold transition-colors hover:text-gold-light"
+              >
+                <span dir="ltr">{instagramHandle}</span>
+              </a>
+            ) : null}
           </div>
         </div>
 

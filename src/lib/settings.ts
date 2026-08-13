@@ -247,6 +247,10 @@ export function normalizeSiteSettings(
       return {
         custom_design_image_urls: urls,
         custom_design_image_url: urls[0] ?? "",
+        custom_design_image_transition:
+          typeof source.custom_design_image_transition === "boolean"
+            ? source.custom_design_image_transition
+            : DEFAULT_SETTINGS.custom_design_image_transition,
       };
     })(),
     homepage_extra:

@@ -47,7 +47,7 @@ export default async function SiteLayout({
 
   return (
     <StorefrontProviders>
-      <div data-storefront className="min-h-screen">
+      <div data-storefront className="min-h-screen bg-white">
         <StorefrontAnalytics
           bannerEnabled={store.legal.cookie_banner_enabled}
           googleAnalyticsId={store.seo.google_analytics_id}
@@ -63,6 +63,14 @@ export default async function SiteLayout({
           items={nav.items}
           storeName={storeName}
           logoUrl={store.general.logo_url || undefined}
+          social={{
+            instagram:
+              store.social.instagram_url || store.contact.instagram_url,
+            facebook: store.social.facebook_url || store.contact.facebook_url,
+            tiktok: store.social.tiktok_url || store.contact.tiktok_url,
+            pinterest: store.social.pinterest_url,
+            youtube: store.social.youtube_url,
+          }}
         />
         <main className="flex-1">{children}</main>
         <Footer
@@ -96,6 +104,8 @@ export default async function SiteLayout({
               store.social.instagram_url || store.contact.instagram_url,
             facebook: store.social.facebook_url || store.contact.facebook_url,
             tiktok: store.social.tiktok_url || store.contact.tiktok_url,
+            pinterest: store.social.pinterest_url,
+            youtube: store.social.youtube_url,
           }}
         />
         <WhatsAppButton whatsapp={whatsapp} />

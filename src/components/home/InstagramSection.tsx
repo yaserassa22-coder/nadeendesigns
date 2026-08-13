@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
-  OFFICIAL_INSTAGRAM_HANDLE,
   OFFICIAL_INSTAGRAM_URL,
   SITE_NAME,
 } from "@/lib/constants";
@@ -17,39 +16,14 @@ import {
   withFallbackGalleryIds,
   type GalleryCategory,
 } from "@/lib/gallery/categories";
+import { GalleryLoopVideo } from "@/components/media/GalleryLoopVideo";
+import {
+  StorefrontSocialLinks,
+  type StorefrontSocialUrls,
+} from "@/components/layout/StorefrontSocialLinks";
 import { cn } from "@/lib/utils";
 
 gsap.registerPlugin(ScrollTrigger);
-
-function InstagramLogo({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect
-        x="2.5"
-        y="2.5"
-        width="19"
-        height="19"
-        rx="5.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      />
-      <circle
-        cx="12"
-        cy="12"
-        r="4.25"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      />
-      <circle cx="17.35" cy="6.65" r="1.05" fill="currentColor" />
-    </svg>
-  );
-}
 
 export type HomeGalleryTile = {
   src: string;
@@ -66,6 +40,8 @@ type InstagramSectionProps = {
   images?: HomeGalleryTile[];
   /** Active gallery filter categories from admin. */
   categories?: GalleryCategory[];
+  /** Store social URLs — TikTok / Facebook logos appear when filled in Admin. */
+  social?: StorefrontSocialUrls;
 };
 
 const MAX_VISIBLE = 8;
@@ -187,6 +163,7 @@ function slotFor(index: number, total: number): JournalSlot {
 export function InstagramSection({
   images = [],
   categories = [],
+  social,
 }: InstagramSectionProps) {
   const { t, locale, dir } = useLocale();
   const displayFont =
@@ -341,7 +318,7 @@ export function InstagramSection({
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-ivory pb-28 pt-12 md:pb-28 md:pt-24"
+      className="relative overflow-hidden bg-white pb-28 pt-12 md:pb-28 md:pt-24"
     >
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 md:px-10">
         <div ref={titleRef} className="mb-10 text-center md:mb-14">
@@ -398,12 +375,10 @@ export function InstagramSection({
                         className="absolute inset-0 will-change-transform transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:scale-[1.04]"
                       >
                         {tile.videoUrl ? (
-                          <video
+                          <GalleryLoopVideo
                             src={tile.videoUrl}
                             poster={tile.src || undefined}
-                            muted
-                            playsInline
-                            preload="metadata"
+                            alt={tile.alt || SITE_NAME}
                             className="absolute inset-0 h-full w-full object-cover"
                           />
                         ) : tile.src ? (
@@ -416,13 +391,6 @@ export function InstagramSection({
                           />
                         ) : null}
                       </div>
-                      {tile.videoUrl ? (
-                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-charcoal/45 text-ivory">
-                            <Play className="h-4 w-4 ms-0.5" fill="currentColor" />
-                          </span>
-                        </span>
-                      ) : null}
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-charcoal/25 via-transparent to-transparent opacity-0 transition-opacity duration-500 [@media(hover:hover)]:group-hover:opacity-100" />
                     </div>
                     <figcaption className="pointer-events-none absolute inset-x-0 bottom-3 hidden px-3 text-[10px] tracking-[0.2em] text-ivory/0 uppercase transition-colors duration-500 [@media(hover:hover)]:group-hover:text-ivory/90 md:block">
@@ -437,15 +405,15 @@ export function InstagramSection({
 
         <div className="mt-12 text-center md:mt-20">
           <nav className="flex flex-col items-center gap-5 md:flex-row md:justify-center md:gap-x-8 md:gap-y-3">
-            <a
-              href={OFFICIAL_INSTAGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`${t.home.igVisit} ${OFFICIAL_INSTAGRAM_HANDLE}`}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center text-charcoal/50 transition-colors hover:text-gold"
-            >
-              <InstagramLogo className="h-6 w-6 md:h-6 md:w-6" />
-            </a>
+            <StorefrontSocialLinks
+              appearance="plain"
+              variant="light"
+              instagram={social?.instagram || OFFICIAL_INSTAGRAM_URL}
+              facebook={social?.facebook}
+              tiktok={social?.tiktok}
+              pinterest={social?.pinterest}
+              youtube={social?.youtube}
+            />
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
               <Link
                 href="/custom-design"
@@ -524,13 +492,12 @@ export function InstagramSection({
           >
             <div className="relative max-h-[78vh] w-full">
               {active.videoUrl ? (
-                <video
+                <GalleryLoopVideo
                   key={active.videoUrl}
                   src={active.videoUrl}
                   poster={active.src || undefined}
+                  alt={active.alt || SITE_NAME}
                   controls
-                  autoPlay
-                  playsInline
                   className="mx-auto max-h-[78vh] w-auto max-w-full"
                 />
               ) : (

@@ -31,7 +31,10 @@ import {
 import { Button } from "@/components/ui/Button";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { HomeEditorialTile } from "@/components/home/HomeEditorialTile";
+import { HomeVisualGridPages } from "@/components/home/HomeVisualGridPages";
+import { HomeVisualProductRunway } from "@/components/home/HomeVisualProductRunway";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import type { HomepageEditorialTile } from "@/lib/home/homepage-editorial-gallery";
 import {
   alignVisualItems,
   applyVisualGridLayout,
@@ -44,6 +47,7 @@ import {
   listLayoutBands,
   masterFromSpacing,
   normalizeRowScales,
+  normalizeVisualGridLayoutId,
   normalizeVisualItems,
   recommendedCanvasHeightForRows,
   ROW_SCALE_MAX,
@@ -56,6 +60,9 @@ import {
   VISUAL_GRID_LAYOUT_OPTIONS,
   VISUAL_ROW_UNIT,
   VISUAL_SHAPE_PRESETS,
+  isGridScrollLayout,
+  isHorizontalScrollLayout,
+  isScrollVisualLayout,
   type VisualAlignMode,
   type VisualGridLayoutId,
   type VisualLayoutSpacing,
@@ -106,6 +113,7 @@ type Props = {
   initialVisualEdgeGap?: number;
   initialVisualRowScales?: number[];
   initialVisualUnified?: VisualUnifiedBackgroundSettings;
+  initialVisualGrid?: VisualGridLayoutId;
   customDesignImageUrl?: string | null;
 };
 
@@ -317,6 +325,7 @@ export function HomepageVisualLayoutManager({
   initialVisualEdgeGap = DEFAULT_VISUAL_SPACING.edgeGap,
   initialVisualRowScales = [],
   initialVisualUnified = DEFAULT_UNIFIED_BACKGROUND,
+  initialVisualGrid = "editorial_split",
   customDesignImageUrl,
 }: Props) {
   const initialSpacing = useMemo<VisualLayoutSpacing>(
@@ -388,7 +397,12 @@ export function HomepageVisualLayoutManager({
   const [shapeScope, setShapeScope] = useState<ShapeApplyScope>("all");
   const [layoutScope, setLayoutScope] = useState<LayoutApplyScope>("selected");
   const [activeGridLayout, setActiveGridLayout] =
-    useState<VisualGridLayoutId>("editorial_split");
+    useState<VisualGridLayoutId>(() =>
+      normalizeVisualGridLayoutId(initialVisualGrid)
+    );
+  const [canvasLayout, setCanvasLayout] = useState<VisualGridLayoutId>(() =>
+    normalizeVisualGridLayoutId(initialVisualGrid)
+  );
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -414,6 +428,31 @@ export function HomepageVisualLayoutManager({
   const selected = activeItems.find((item) => item.id === selectedId) ?? null;
   const selectedTile = selected ? tileMap.get(selected.id) ?? null : null;
   const selectedIds = useMemo(() => new Set(activeItems.map((item) => item.id)), [activeItems]);
+  const runwayTiles = useMemo<HomepageEditorialTile[]>(
+    () =>
+      activeItems.flatMap((item) => {
+        const tile = tileMap.get(item.id);
+        if (!tile) return [];
+        return [
+          {
+            id: tile.id,
+            href: tile.href,
+            title: tile.title,
+            imageUrl: tile.imageUrl,
+            eyebrow: tile.eyebrow,
+            mobileSpan: 1 as const,
+            desktopSpan: 1 as const,
+            emphasize: tile.kind === "custom",
+            variant: tile.kind === "custom" ? ("custom" as const) : ("default" as const),
+            primaryCtaLabel: tile.primaryCtaLabel,
+            secondaryHref: tile.secondaryHref,
+            secondaryCtaLabel: tile.secondaryCtaLabel,
+          },
+        ];
+      }),
+    [activeItems, tileMap]
+  );
+  const scrollCanvas = isScrollVisualLayout(canvasLayout);
   const addCandidates = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return pool.filter((tile) => {
@@ -676,12 +715,26 @@ export function HomepageVisualLayoutManager({
     const rows = layoutRowCount(activeItems, layoutId);
     setItems(organized);
     setActiveGridLayout(layoutId);
+    setCanvasLayout(layoutId);
     setRowScales(nextScales);
-    setHeight(recommendedCanvasHeightForRows(rows, nextScales));
+    setHeight(
+      isHorizontalScrollLayout(layoutId)
+        ? 720
+        : isGridScrollLayout(layoutId)
+          ? 760
+          : recommendedCanvasHeightForRows(rows, nextScales)
+    );
     setEnabled(true);
     setError("");
+    const layoutLabel =
+      VISUAL_GRID_LAYOUT_OPTIONS.find((l) => l.id === layoutId)?.label ??
+      layoutId;
     setMessage(
-      `Applied “${VISUAL_GRID_LAYOUT_OPTIONS.find((l) => l.id === layoutId)?.label ?? layoutId}” — ${bands.length} rows with independent height.`
+      isHorizontalScrollLayout(layoutId)
+        ? `Applied “${layoutLabel}” — swipe left and right to discover products.`
+        : isGridScrollLayout(layoutId)
+          ? `Applied “${layoutLabel}” — swipe left and right to see more grids.`
+          : `Applied “${layoutLabel}” — ${bands.length} rows with independent height.`
     );
   };
 
@@ -807,6 +860,7 @@ export function HomepageVisualLayoutManager({
         .map((item) => item.id),
       editorial_manual: true,
       visual_layout_enabled: visualEnabled,
+      visual_layout_grid: canvasLayout,
       visual_layout_height: height,
       visual_layout_pad_top: spacing.padTop,
       visual_layout_block_gap: spacing.blockGap,
@@ -851,6 +905,8 @@ export function HomepageVisualLayoutManager({
     setItems(normalizeItems(createDefaultLayout(orderedSeed)));
     setRowScales([]);
     setEnabled(true);
+    setActiveGridLayout("editorial_split");
+    setCanvasLayout("editorial_split");
     setSelectedId(orderedSeed[0]?.id ?? null);
     touch();
   };
@@ -881,6 +937,8 @@ export function HomepageVisualLayoutManager({
       }
       setEnabled(false);
       setItems(normalizeItems(createDefaultLayout(autoTiles)));
+      setActiveGridLayout("editorial_split");
+      setCanvasLayout("editorial_split");
       setSelectedId(autoTiles[0]?.id ?? null);
       setMessage("Reset to the default storefront flow.");
     } catch (err) {
@@ -937,7 +995,11 @@ export function HomepageVisualLayoutManager({
               <div>
                 <p className="text-sm font-medium text-charcoal">Desktop showcase preview</p>
                 <p className="text-xs text-muted">
-                  White storefront canvas with proportional 12-column grid. Drag, resize, align, then save.
+                  {isHorizontalScrollLayout(canvasLayout)
+                    ? "Side-scroll runway. Swipe or use arrows to browse products, then save."
+                    : isGridScrollLayout(canvasLayout)
+                      ? "Sliding grids. One product fills the grid — swipe to the next, then save."
+                      : "White storefront canvas with proportional 12-column grid. Drag, resize, align, then save."}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -1271,6 +1333,49 @@ export function HomepageVisualLayoutManager({
               </div>
             </div>
 
+            {scrollCanvas ? (
+              <div
+                className={cn(
+                  "relative mt-4 overflow-hidden border",
+                  unified.enabled
+                    ? cn("border-beige-dark/30", unifiedCanvasClassName(true))
+                    : "rounded-[28px] border-beige-dark/50 bg-white shadow-inner"
+                )}
+              >
+                <div className="border-b border-beige-dark/30 px-5 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-muted">
+                    Storefront
+                  </p>
+                  <p className="text-sm font-medium text-charcoal">
+                    {isGridScrollLayout(canvasLayout)
+                      ? "Sliding grids preview"
+                      : "Side-scroll preview"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    {isGridScrollLayout(canvasLayout)
+                      ? "Shoppers see one product at a time. Swipe left or right to transition to the next grid. Reorder in Canvas order below."
+                      : "Shoppers swipe left and right to discover products. Reorder in Canvas order below."}
+                  </p>
+                </div>
+                {isGridScrollLayout(canvasLayout) ? (
+                  <HomeVisualGridPages
+                    tiles={runwayTiles}
+                    unified={unified.enabled ? unified : undefined}
+                    preview
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                  />
+                ) : (
+                  <HomeVisualProductRunway
+                    tiles={runwayTiles}
+                    unified={unified.enabled ? unified : undefined}
+                    preview
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                  />
+                )}
+              </div>
+            ) : (
             <div
               ref={canvasRef}
               className={cn(
@@ -1422,6 +1527,7 @@ export function HomepageVisualLayoutManager({
                 );
               })}
             </div>
+            )}
           </div>
 
           {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
@@ -1468,7 +1574,7 @@ export function HomepageVisualLayoutManager({
                   Unified background color
                 </p>
                 <p className="mt-1 text-[10px] text-muted">
-                  Warm ivory editorial tone for the shared post-grid canvas.
+                  White by default. Pick a cream swatch if you want a warmer canvas.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {UNIFIED_BG_COLOR_PRESETS.map((preset) => {
@@ -1519,7 +1625,7 @@ export function HomepageVisualLayoutManager({
                   />
                   <button
                     type="button"
-                    title="Reset to editorial cream"
+                    title="Reset to white"
                     onClick={() =>
                       setUnifiedBackgroundColor(DEFAULT_UNIFIED_BG_COLOR)
                     }
@@ -1784,7 +1890,7 @@ export function HomepageVisualLayoutManager({
             <div>
               <p className="text-sm font-medium text-charcoal">Grid layout templates</p>
               <p className="mt-1 text-xs text-muted">
-                Choose a proportional grid, then apply it to all canvas blocks. Height adjusts automatically.
+                Choose a proportional grid, then apply it to all canvas blocks. Side scroll is one product row. Sliding grids shows one product at a time — swipe to the next grid.
               </p>
             </div>
             <div className="mt-3 grid gap-2">

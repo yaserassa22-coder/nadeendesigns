@@ -104,6 +104,7 @@ export function AccessoriesEditorialSlideshow({
       className={layout.sectionClassName}
       aria-roledescription={multi ? "carousel" : undefined}
       aria-label={categoryLabel}
+      data-swipe-own={multi ? true : undefined}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
