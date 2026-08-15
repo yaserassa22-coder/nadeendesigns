@@ -1,5 +1,5 @@
 /**
- * Smoke checks for M12 shipping QR URL construction.
+ * Smoke checks for shipment QR URL construction.
  * Run: node scripts/check-shipping-qr.mjs
  *
  * Mirrors src/lib/shop/order-tracking-qr.ts (plain JS, no build step).
@@ -11,73 +11,55 @@ function getPublicSiteUrl(env = process.env) {
   return raw.replace(/\/$/, "");
 }
 
+function formatPublicOrderNumber(orderId) {
+  return `ND-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
+function buildShipmentLookupUrl(publicToken, siteUrl = getPublicSiteUrl()) {
+  const token = publicToken?.trim?.() ?? String(publicToken || "").trim();
+  if (!siteUrl || !token) return null;
+  return `${siteUrl}/s/${encodeURIComponent(token)}`;
+}
+
 function buildOrderTrackingUrl(orderId, siteUrl = getPublicSiteUrl()) {
   const id = orderId?.trim?.() ?? String(orderId || "").trim();
   if (!siteUrl || !id) return null;
   return `${siteUrl}/orders/${id}`;
 }
 
-function formatPublicOrderNumber(orderId) {
-  return `ND-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-}
-
-function buildOrderSummaryQrText(order) {
-  const orderNo = formatPublicOrderNumber(order.id);
-  const name = (order.shipping_full_name || order.name || "").trim() || "—";
-  const phone = (order.shipping_phone || order.phone || "").trim() || "—";
-  const region =
-    (
-      order.shipping_region_name_ar ||
-      order.shipping_region_custom ||
-      order.shipping_region ||
-      ""
-    ).trim() || "—";
-  const address = (order.shipping_address || "").trim() || "—";
-  const products = (order.items ?? [])
-    .map((item) => {
-      const label = (item.name_ar || "").trim() || "منتج";
-      const qty = Number(item.quantity) || 1;
-      return `${label} × ${qty}`;
-    })
-    .join("، ");
-  const total =
-    order.total != null && Number.isFinite(Number(order.total))
-      ? String(Number(order.total))
-      : "—";
-
-  return [
-    `NadEEN Designs — طلب ${orderNo}`,
-    `الاسم: ${name}`,
-    `الهاتف: ${phone}`,
-    `المنطقة: ${region}`,
-    `العنوان: ${address}`,
-    products ? `المنتجات: ${products}` : null,
-    `الإجمالي: ${total}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+function buildShipmentTokenQrText(publicToken) {
+  return `nadeen:s:${publicToken.trim()}`;
 }
 
 function resolveShippingQrPayload(order, env = process.env) {
+  const token = order.shipment?.public_token?.trim() || null;
   const siteUrl = getPublicSiteUrl(env);
-  const trackingUrl = buildOrderTrackingUrl(order.id, siteUrl);
-  if (trackingUrl) {
+  if (!token) {
+    const isDev = (env.NODE_ENV ?? process.env.NODE_ENV) === "development";
     return {
-      kind: "tracking_url",
-      data: trackingUrl,
-      trackingUrl,
+      kind: "shipment_token",
+      data: "nadeen:s:pending",
+      trackingUrl: null,
+      siteUrlMissing: !siteUrl,
+      warning: isDev ? "missing token" : null,
+    };
+  }
+  const lookupUrl = buildShipmentLookupUrl(token, siteUrl);
+  if (lookupUrl) {
+    return {
+      kind: "shipment_url",
+      data: lookupUrl,
+      trackingUrl: lookupUrl,
       siteUrlMissing: false,
       warning: null,
     };
   }
-  const summary = buildOrderSummaryQrText(order);
   const isDev = (env.NODE_ENV ?? process.env.NODE_ENV) === "development";
   return {
-    kind: "order_summary",
-    data: summary,
+    kind: "shipment_token",
+    data: buildShipmentTokenQrText(token),
     trackingUrl: null,
     siteUrlMissing: true,
-    // UI warning is development-only; production must not expose config details.
     warning: isDev ? "missing NEXT_PUBLIC_SITE_URL" : null,
   };
 }
@@ -105,6 +87,7 @@ function assert(cond, msg) {
 }
 
 const SAMPLE_ID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+const TOKEN = "abcdefghijklmnopqrstuvwxyz012345";
 const sampleOrder = {
   id: SAMPLE_ID,
   name: "سارة",
@@ -113,53 +96,55 @@ const sampleOrder = {
   shipping_phone: "0500000000",
   shipping_region_name_ar: "القدس",
   shipping_address: "شارع الرئيسي 12",
+  tracking_number: "CARRIER-SHOULD-NOT-BE-IN-QR",
   total: 450,
   items: [{ name_ar: "طرحة", quantity: 1 }],
+  shipment: { public_token: TOKEN },
 };
 
-// Prefer absolute public tracking URL from NEXT_PUBLIC_SITE_URL
 {
   const env = { NEXT_PUBLIC_SITE_URL: "https://nadeendesigns.com/" };
-  const url = buildOrderTrackingUrl(SAMPLE_ID, getPublicSiteUrl(env));
+  const url = buildShipmentLookupUrl(TOKEN, getPublicSiteUrl(env));
   assert(
-    url === `https://nadeendesigns.com/orders/${SAMPLE_ID}`,
-    `expected tracking URL, got ${url}`
+    url === `https://nadeendesigns.com/s/${TOKEN}`,
+    `expected shipment URL, got ${url}`
   );
   assert(!url.includes("localhost"), "must not hardcode localhost");
   const payload = resolveShippingQrPayload(sampleOrder, env);
-  assert(payload.kind === "tracking_url", "kind should be tracking_url");
-  assert(payload.data === url, "QR data should be tracking URL");
-  assert(!payload.siteUrlMissing, "siteUrlMissing should be false");
+  assert(payload.kind === "shipment_url", "kind should be shipment_url");
+  assert(payload.data === url, "QR data should be /s/{token}");
+  assert(!payload.data.includes(SAMPLE_ID), "QR must not encode order UUID");
+  assert(!payload.data.includes("سارة"), "QR must not encode customer name");
+  assert(!payload.data.includes("0500000000"), "QR must not encode phone");
+  assert(
+    !payload.data.includes("شارع"),
+    "QR must not encode address"
+  );
+  assert(
+    !payload.data.includes("CARRIER-SHOULD-NOT-BE-IN-QR"),
+    "QR must not encode carrier tracking"
+  );
   const img = buildShippingQrImageUrl(payload.data, { size: 320 });
   assert(img && img.includes("320x320"), "QR image must be ≥320×320");
   assert(img.includes("ecc=H"), "QR must use high error correction");
-  assert(img.includes(encodeURIComponent(url)), "QR must encode tracking URL");
+  assert(img.includes(encodeURIComponent(url)), "QR must encode lookup URL");
 }
 
-// Missing env → structured text fallback, never empty QR
-// UI warning only in development; production warning must be null
 {
   const env = { NODE_ENV: "production" };
   assert(getPublicSiteUrl(env) === null, "missing env → null site url");
-  assert(
-    buildOrderTrackingUrl(SAMPLE_ID, null) === null,
-    "no URL without site"
-  );
   const payload = resolveShippingQrPayload(sampleOrder, env);
   assert(payload.siteUrlMissing, "should flag when env missing");
   assert(payload.warning === null, "no UI warning in production");
-  assert(payload.kind === "order_summary", "fallback to summary text");
-  assert(payload.data.trim().length > 0, "fallback data must not be empty");
-  assert(payload.data.includes("سارة"), "summary includes name");
-  assert(payload.data.includes("القدس"), "summary includes region");
+  assert(payload.kind === "shipment_token", "fallback to token marker");
+  assert(payload.data === `nadeen:s:${TOKEN}`, "token-only fallback");
+  assert(!payload.data.includes("سارة"), "fallback must not include name");
+  assert(!payload.data.includes("0500000000"), "fallback must not include phone");
   assert(
     buildShippingQrImageUrl("") === null,
     "never generate empty QR image"
   );
-  assert(
-    buildShippingQrImageUrl(payload.data) != null,
-    "summary QR image ok"
-  );
+  assert(buildShippingQrImageUrl(payload.data) != null, "token QR image ok");
 }
 
 {
@@ -167,13 +152,24 @@ const sampleOrder = {
   const payload = resolveShippingQrPayload(sampleOrder, env);
   assert(payload.siteUrlMissing, "should flag when env missing");
   assert(payload.warning, "should warn in development when env missing");
-  assert(payload.kind === "order_summary", "fallback to summary text");
+  assert(payload.kind === "shipment_token", "fallback to token marker");
 }
 
-// Never invent localhost when env is unset
 {
   const url = buildOrderTrackingUrl(SAMPLE_ID, getPublicSiteUrl({}));
   assert(url === null, "no silent localhost fallback");
+}
+
+{
+  const twoOrders = [
+    { id: "11111111-1111-4111-8111-111111111111", shipment: { public_token: "token-order-one-aaaaaaaaaaaa" } },
+    { id: "22222222-2222-4222-8222-222222222222", shipment: { public_token: "token-order-two-bbbbbbbbbbbb" } },
+  ];
+  const env = { NEXT_PUBLIC_SITE_URL: "https://nadeendesigns.com" };
+  const a = resolveShippingQrPayload(twoOrders[0], env);
+  const b = resolveShippingQrPayload(twoOrders[1], env);
+  assert(a.data !== b.data, "same product/two orders get distinct QR tokens");
+  assert(formatPublicOrderNumber(SAMPLE_ID) === "ND-A1B2C3D4", "ND display format");
 }
 
 console.log("check-shipping-qr: ok");

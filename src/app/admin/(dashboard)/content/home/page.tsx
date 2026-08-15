@@ -102,10 +102,10 @@ export default async function AdminHomeContentPage() {
           <span className="mx-2">/</span>
           محتوى الموقع
         </p>
-        <h1 className="mt-2 text-3xl font-bold text-charcoal">
+        <h1 className="mt-2 text-[1.65rem] font-semibold tracking-tight text-charcoal md:text-[1.85rem]">
           محتوى الصفحة الرئيسية
         </h1>
-        <p className="mt-2 text-muted">
+        <p className="mt-1.5 max-w-3xl text-[0.9375rem] leading-relaxed text-muted">
           تعديل الهيرو، شبكة ما بعد الهيرو (إضافة / حذف / ترتيب / أعمدة)، إطار
           إكسسوارات العروس، التصميم الخاص، ورابط سريع لإدارة معرض الصور (تفاصيل /
           البوتيك / فعاليات).
@@ -118,8 +118,32 @@ export default async function AdminHomeContentPage() {
         </div>
       )}
 
-      <HomeHeroCmsForm initialSettings={settings} />
+      <nav
+        aria-label="Homepage sections"
+        className="sticky top-[4.25rem] z-20 flex flex-wrap gap-2 rounded-2xl border border-[#e8e2d8] bg-white/95 p-3 shadow-sm backdrop-blur"
+      >
+        {[
+          { href: "#hero", label: "Hero" },
+          { href: "#visual-layout", label: "Post Grid" },
+          { href: "#accessories", label: "Accessories" },
+          { href: "#custom-design", label: "Custom Design" },
+          { href: "#gallery", label: "Gallery" },
+        ].map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className="rounded-full border border-[#e8e2d8] px-3 py-1.5 text-xs font-medium text-charcoal hover:border-[#b89a6a]/50 hover:bg-[#faf8f5]"
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
 
+      <div id="hero">
+        <HomeHeroCmsForm initialSettings={settings} />
+      </div>
+
+      <div id="visual-layout">
       <HomepageVisualLayoutManager
         availableTiles={availableTiles}
         autoTiles={autoTiles}
@@ -136,15 +160,20 @@ export default async function AdminHomeContentPage() {
         initialVisualGrid={hp.visual_layout_grid}
         customDesignImageUrl={customDesignImageUrl}
       />
+      </div>
 
+      <div id="accessories">
       <HomeAccessoriesEditorialCmsForm
         initialFrame={hp.accessories_editorial_frame}
         previewImageUrl={accessoriesSlides[0]?.imageUrl}
       />
+      </div>
 
+      <div id="custom-design">
       <HomeCustomDesignCmsForm initialSettings={settings} />
+      </div>
 
-      <div className="rounded-2xl border border-beige-dark/70 bg-ivory/40 p-5 md:p-6">
+      <div id="gallery" className="rounded-2xl border border-beige-dark/70 bg-ivory/40 p-5 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-charcoal">

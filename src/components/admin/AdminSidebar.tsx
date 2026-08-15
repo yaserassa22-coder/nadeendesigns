@@ -3,10 +3,27 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  Activity,
+  Bell,
+  CalendarDays,
   ChevronDown,
+  CreditCard,
+  FileBarChart,
+  Home,
+  Images,
+  Info,
+  LayoutDashboard,
   LogOut,
-  Menu,
+  Mail,
+  Package,
   Settings2,
+  Shield,
+  ShoppingBag,
+  Sparkles,
+  Trash2,
+  Truck,
+  UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -21,10 +38,9 @@ import { createClient } from "@/lib/supabase/client";
 import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { ADMIN_CATEGORIES_CHANGED_EVENT } from "@/lib/admin/category-events";
-import {
-  ADMIN_INBOX_CHANGED_EVENT,
-} from "@/lib/admin/inbox-events";
 import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
+import { useAdminInboxCounts } from "@/hooks/useAdminInboxCounts";
+import { useAdminShell } from "@/components/admin/shell/AdminShellProvider";
 import {
   adminCategoryProductsHref,
   buildAdminProductSidebarGroups,
@@ -36,52 +52,77 @@ import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import type { Dictionary } from "@/lib/i18n";
 import { resolveCategoryLabel } from "@/lib/i18n/category-labels";
 
-type InboxCounts = {
-  messages: number;
-  bookings: number;
-  orders: number;
-  total: number;
-};
-
-type CategoryWithCount = Category & { product_count?: number };
-
 type AdminDict = Dictionary["admin"];
 type AdminLabelKey = {
   [K in keyof AdminDict]: AdminDict[K] extends string ? K : never;
 }[keyof AdminDict];
 
-/** Top-level modules — never hardcode product-category shortcuts here. */
-const PRIMARY_LINK_DEFS = [
-  { href: "/admin", labelKey: "dashboard" as const, exact: true },
-] as const;
+type CategoryWithCount = Category & { product_count?: number };
 
-const MODULE_LINK_DEFS = [
-  { href: "/admin/gallery", labelKey: "gallery" as const },
-  { href: "/admin/bookings", labelKey: "bookings" as const },
-  { href: "/admin/calendar", labelKey: "calendar" as const },
+const MODULE_GROUPS = [
   {
-    href: "/admin/appointments/settings",
-    labelKey: "appointmentSettings" as const,
+    id: "store",
+    labelKey: "groupStore" as const,
+    links: [
+      { href: "/admin/orders", labelKey: "orders" as const, icon: ShoppingBag },
+      { href: "/admin/customers", labelKey: "customers" as const, icon: Users },
+      { href: "/admin/guests", labelKey: "guests" as const, icon: UserPlus },
+      { href: "/admin/shipping", labelKey: "shipping" as const, icon: Truck },
+      {
+        href: "/admin/shipping/providers",
+        labelKey: "shippingProviders" as const,
+        icon: Truck,
+      },
+      { href: "/admin/payments", labelKey: "paymentsInvoicing" as const, icon: CreditCard },
+    ],
   },
   {
-    href: "/admin/appointments/analytics",
-    labelKey: "appointmentAnalytics" as const,
+    id: "bookings",
+    labelKey: "groupBookings" as const,
+    links: [
+      { href: "/admin/bookings", labelKey: "bookings" as const, icon: CalendarDays },
+      { href: "/admin/calendar", labelKey: "calendar" as const, icon: CalendarDays },
+      {
+        href: "/admin/appointments/settings",
+        labelKey: "appointmentSettings" as const,
+        icon: Settings2,
+      },
+      {
+        href: "/admin/appointments/analytics",
+        labelKey: "appointmentAnalytics" as const,
+        icon: FileBarChart,
+      },
+    ],
   },
-  { href: "/admin/orders", labelKey: "orders" as const },
-  { href: "/admin/customers", labelKey: "customers" as const },
-  { href: "/admin/guests", labelKey: "guests" as const },
-  { href: "/admin/shipping", labelKey: "shipping" as const },
-  { href: "/admin/notifications", labelKey: "notifications" as const },
-  { href: "/admin/payments", labelKey: "paymentsInvoicing" as const },
-  { href: "/admin/messages", labelKey: "messages" as const },
-  { href: "/admin/activity", labelKey: "activity" as const },
-  { href: "/admin/trash", labelKey: "trash" as const },
-  { href: "/admin/content/home", labelKey: "homeContent" as const },
-  { href: "/admin/content/worn-by-you", labelKey: "wornByYou" as const },
-  { href: "/admin/content/about", labelKey: "aboutContent" as const },
-  { href: "/admin/reports", labelKey: "reports" as const },
-  { href: "/admin/settings", labelKey: "storeSettings" as const },
-  { href: "/admin/administrators", labelKey: "administrators" as const },
+  {
+    id: "content",
+    labelKey: "groupContent" as const,
+    links: [
+      { href: "/admin/content/home", labelKey: "homeContent" as const, icon: Home },
+      { href: "/admin/gallery", labelKey: "gallery" as const, icon: Images },
+      { href: "/admin/content/worn-by-you", labelKey: "wornByYou" as const, icon: Sparkles },
+      { href: "/admin/content/about", labelKey: "aboutContent" as const, icon: Info },
+    ],
+  },
+  {
+    id: "comms",
+    labelKey: "groupComms" as const,
+    links: [
+      { href: "/admin/messages", labelKey: "messages" as const, icon: Mail },
+      { href: "/admin/notifications", labelKey: "notifications" as const, icon: Bell },
+    ],
+  },
+  {
+    id: "system",
+    labelKey: "groupSystem" as const,
+    links: [
+      { href: "/admin/reports", labelKey: "reports" as const, icon: FileBarChart },
+      { href: "/admin/activity", labelKey: "activity" as const, icon: Activity },
+      { href: "/admin/trash", labelKey: "trash" as const, icon: Trash2 },
+      { href: "/admin/settings", labelKey: "storeSettings" as const, icon: Settings2 },
+      { href: "/admin/administrators", labelKey: "administrators" as const, icon: Shield },
+    ],
+  },
 ] as const;
 
 const CUSTOM_DESIGN_LINK_DEFS = [
@@ -155,6 +196,10 @@ function isLinkActive(
     return pathname === "/admin/bookings" && !service;
   }
 
+  if (href === "/admin/shipping") {
+    return pathname === "/admin/shipping";
+  }
+
   if (pathname.startsWith(href + "/") || pathname === href) {
     return true;
   }
@@ -168,6 +213,8 @@ function NavLink({
   onNavigate,
   className,
   badge,
+  icon: Icon,
+  collapsed,
 }: {
   href: string;
   label: ReactNode;
@@ -175,25 +222,32 @@ function NavLink({
   onNavigate: () => void;
   className?: string;
   badge?: number;
+  icon?: React.ComponentType<{ className?: string }>;
+  collapsed?: boolean;
 }) {
   return (
     <Link
       href={href}
       onClick={onNavigate}
+      title={typeof label === "string" ? label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-[0.9375rem] font-medium transition-colors",
         active
-          ? "bg-gold text-white shadow-sm shadow-gold/20"
-          : "text-charcoal hover:bg-beige",
+          ? "border-s-[3px] border-[#b89a6a] bg-[#f4efe6] text-charcoal ps-[9px]"
+          : "border-s-[3px] border-transparent text-charcoal/75 hover:bg-[#f7f4ef] hover:text-charcoal",
+        collapsed && "justify-center px-2 ps-2",
         className
       )}
     >
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {badge != null && badge > 0 ? (
+      {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
+      <span className={cn("min-w-0 flex-1 truncate", collapsed && "hidden")}>
+        {label}
+      </span>
+      {!collapsed && badge != null && badge > 0 ? (
         <span
           className={cn(
             "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
-            active ? "bg-white/20 text-white" : "bg-gold/15 text-gold"
+            active ? "bg-[#b89a6a]/15 text-[#8a7048]" : "bg-[#b89a6a]/10 text-[#8a7048]"
           )}
         >
           {badge > 99 ? "99+" : badge}
@@ -201,56 +255,6 @@ function NavLink({
       ) : null}
     </Link>
   );
-}
-
-function useAdminInboxCounts() {
-  const [counts, setCounts] = useState<InboxCounts>({
-    messages: 0,
-    bookings: 0,
-    orders: 0,
-    total: 0,
-  });
-
-  const refetch = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/inbox-counts", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = (await res.json()) as Partial<InboxCounts>;
-      setCounts({
-        messages: Number(data.messages) || 0,
-        bookings: Number(data.bookings) || 0,
-        orders: Number(data.orders) || 0,
-        total: Number(data.total) || 0,
-      });
-    } catch {
-      /* keep previous */
-    }
-  }, []);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      void refetch();
-    }, 0);
-    const onFocus = () => {
-      void refetch();
-    };
-    const onChanged = () => {
-      void refetch();
-    };
-    window.addEventListener("focus", onFocus);
-    window.addEventListener(ADMIN_INBOX_CHANGED_EVENT, onChanged);
-    const interval = window.setInterval(() => {
-      void refetch();
-    }, 60_000);
-    return () => {
-      window.clearTimeout(t);
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener(ADMIN_INBOX_CHANGED_EVENT, onChanged);
-    };
-  }, [refetch]);
-
-  return counts;
 }
 
 function SectionToggle({
@@ -278,7 +282,7 @@ function SectionToggle({
         aria-expanded={open}
         onClick={onToggle}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-colors",
+          "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-[0.9375rem] font-medium transition-colors",
           open || active
             ? "text-charcoal"
             : "text-charcoal hover:bg-beige"
@@ -705,23 +709,14 @@ function AdminSidebarInner() {
   const collection = searchParams.get("collection");
   const service = searchParams.get("service");
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const inbox = useAdminInboxCounts();
   const { caps } = useAdminCapabilities();
   const { t } = useLocale();
+  const { collapsed, mobileOpen, setMobileOpen } = useAdminShell();
+  const s = t.admin.shellUi;
 
-  const moduleLinks = useMemo(
-    () =>
-      MODULE_LINK_DEFS.filter(
-        (link) =>
-          link.href !== "/admin/administrators" ||
-          caps.canManageAdministrators
-      ),
-    [caps.canManageAdministrators]
-  );
-
-  const closeMobile = () => setOpen(false);
+  const closeMobile = () => setMobileOpen(false);
 
   const moduleBadge = (href: string): number | undefined => {
     if (href === "/admin/messages") return inbox.messages;
@@ -744,85 +739,132 @@ function AdminSidebarInner() {
 
   const Nav = (
     <div className="flex h-full flex-col">
-      <div className="border-b border-beige-dark px-6 py-6">
+      <div className={cn("border-b border-[#e8e2d8]", collapsed ? "px-3 py-6" : "px-5 py-6")}>
         <Link href="/admin" className="block" onClick={closeMobile}>
-          <p className="font-[family-name:var(--font-cormorant)] text-xl font-semibold tracking-widest text-gold">
-            {SITE_NAME}
+          <p className="font-[family-name:var(--font-cormorant)] text-lg font-semibold tracking-[0.22em] text-charcoal">
+            {collapsed ? "N" : SITE_NAME}
           </p>
-          <p className="mt-1 text-xs text-muted">{t.admin.panelSubtitle}</p>
+          {collapsed ? null : (
+            <p className="mt-1 text-[11px] text-muted">{t.admin.panelSubtitle}</p>
+          )}
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-        {PRIMARY_LINK_DEFS.map((link) => (
+      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+        <div className="space-y-1">
+          {collapsed ? null : (
+            <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-wide text-muted">
+              {s.groupOverview}
+            </p>
+          )}
           <NavLink
-            key={link.href}
-            href={link.href}
-            label={labelFromAdmin(t.admin, link.labelKey)}
-            active={isLinkActive(
-              link.href,
-              pathname,
-              category,
-              collection,
-              service,
-              "exact" in link ? link.exact : false
-            )}
+            href="/admin"
+            icon={LayoutDashboard}
+            collapsed={collapsed}
+            label={t.admin.dashboard}
+            active={isLinkActive("/admin", pathname, category, collection, service, true)}
             onNavigate={closeMobile}
-            badge={
-              link.href === "/admin" && inbox.total > 0
-                ? inbox.total
-                : undefined
+            badge={inbox.total > 0 ? inbox.total : undefined}
+          />
+        </div>
+
+        {collapsed ? (
+          <NavLink
+            href="/admin/dresses"
+            icon={Package}
+            collapsed
+            label={t.admin.products}
+            active={
+              pathname.startsWith("/admin/dresses") ||
+              pathname.startsWith("/admin/categories") ||
+              pathname.startsWith("/admin/veils") ||
+              pathname.startsWith("/admin/bridal-robes")
             }
-          />
-        ))}
-
-        <ProductsNavSection
-          pathname={pathname}
-          categoryParam={category}
-          collectionParam={collection}
-          serviceParam={service}
-          onNavigate={closeMobile}
-        />
-
-        <ExperienceEngineNavSection
-          pathname={pathname}
-          onNavigate={closeMobile}
-        />
-
-        <CustomDesignNavSection
-          pathname={pathname}
-          categoryParam={category}
-          collectionParam={collection}
-          serviceParam={service}
-          onNavigate={closeMobile}
-        />
-
-        {moduleLinks.map((link) => (
-          <NavLink
-            key={link.href}
-            href={link.href}
-            label={labelFromAdmin(t.admin, link.labelKey)}
-            active={isLinkActive(
-              link.href,
-              pathname,
-              category,
-              collection,
-              service
-            )}
             onNavigate={closeMobile}
-            badge={moduleBadge(link.href)}
           />
-        ))}
+        ) : (
+          <>
+            <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-wide text-muted">
+              {s.groupStore}
+            </p>
+            <ProductsNavSection
+              pathname={pathname}
+              categoryParam={category}
+              collectionParam={collection}
+              serviceParam={service}
+              onNavigate={closeMobile}
+            />
+          </>
+        )}
+
+        {collapsed ? (
+          <NavLink
+            href="/admin/experience"
+            icon={Sparkles}
+            collapsed
+            label={t.admin.experienceEngine}
+            active={pathname.startsWith("/admin/experience")}
+            onNavigate={closeMobile}
+          />
+        ) : (
+          <ExperienceEngineNavSection
+            pathname={pathname}
+            onNavigate={closeMobile}
+          />
+        )}
+
+        {collapsed ? null : (
+          <CustomDesignNavSection
+            pathname={pathname}
+            categoryParam={category}
+            collectionParam={collection}
+            serviceParam={service}
+            onNavigate={closeMobile}
+          />
+        )}
+
+        {MODULE_GROUPS.map((group) => {
+          const links = group.links.filter(
+            (link) =>
+              link.href !== "/admin/administrators" ||
+              caps.canManageAdministrators
+          );
+          if (links.length === 0) return null;
+          return (
+            <div key={group.id} className="space-y-1">
+              {collapsed ? null : (
+                <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-wide text-muted">
+                  {s[group.labelKey]}
+                </p>
+              )}
+              {links.map((link) => (
+                <NavLink
+                  key={link.href}
+                  href={link.href}
+                  icon={link.icon}
+                  collapsed={collapsed}
+                  label={labelFromAdmin(t.admin, link.labelKey)}
+                  active={isLinkActive(
+                    link.href,
+                    pathname,
+                    category,
+                    collection,
+                    service
+                  )}
+                  onNavigate={closeMobile}
+                  badge={moduleBadge(link.href)}
+                />
+              ))}
+            </div>
+          );
+        })}
       </nav>
 
-      <div className="space-y-1 border-t border-beige-dark p-4">
+      <div className={cn("space-y-1 border-t border-[#e8e2d8] p-3", collapsed && "hidden")}>
         <LanguageSwitcher variant="admin" />
-        <p className="px-1 pb-2 text-[11px] leading-snug text-muted">
-          {t.admin.languageHint}
-        </p>
         <Link
           href="/"
-          className="mb-2 block rounded-xl px-4 py-2 text-sm text-muted hover:bg-beige hover:text-charcoal"
+          className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-[#f7f4ef] hover:text-charcoal"
           onClick={closeMobile}
         >
           {t.admin.viewSite}
@@ -831,7 +873,7 @@ function AdminSidebarInner() {
           type="button"
           onClick={logout}
           disabled={loggingOut}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" />
           {t.admin.logout}
@@ -842,38 +884,28 @@ function AdminSidebarInner() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 start-0 z-40 hidden w-64 border-e border-beige-dark bg-white lg:block">
+      <aside
+        className={cn(
+          "fixed inset-y-0 start-0 z-40 hidden overflow-hidden border-e border-[#e8e2d8] bg-white transition-[width] duration-300 lg:block",
+          collapsed ? "w-[72px]" : "w-64"
+        )}
+      >
         {Nav}
       </aside>
 
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-beige-dark bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={t.admin.openMenu}
-          className="rounded-lg p-2 hover:bg-beige"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-        <span className="font-[family-name:var(--font-cormorant)] text-lg tracking-widest text-gold">
-          {SITE_NAME}
-        </span>
-        <LanguageSwitcher variant="storefront" compact />
-      </div>
-
-      {open && (
+      {mobileOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-charcoal/40"
             aria-label={t.admin.close}
-            onClick={() => setOpen(false)}
+            onClick={() => setMobileOpen(false)}
           />
           <aside className="absolute inset-y-0 start-0 w-[min(288px,85vw)] bg-white shadow-xl">
             <button
               type="button"
-              onClick={() => setOpen(false)}
-              className="absolute top-4 start-4 rounded-lg p-2 hover:bg-beige"
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 end-4 z-10 rounded-lg p-2 hover:bg-[#f7f4ef]"
               aria-label={t.admin.close}
             >
               <X className="h-5 w-5" />
@@ -881,7 +913,7 @@ function AdminSidebarInner() {
             {Nav}
           </aside>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

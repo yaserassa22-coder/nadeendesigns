@@ -23,6 +23,10 @@ import {
   toPublicShopOrder,
 } from "@/lib/shop/to-public-order";
 import { logMissingPublicSiteUrl } from "@/lib/shop/order-tracking-qr";
+import {
+  attachShipmentToOrder,
+  ensurePrimaryShipment,
+} from "@/lib/shipping/shipment-service";
 import type { ShopOrder } from "@/types/shop";
 
 /** In-memory fallback shared with main orders route via process (dev only). */
@@ -97,16 +101,26 @@ async function enrichEstimatedDelivery(
  * payload without internal notes or admin-only fields.
  */
 async function asTrackingResponse(order: ShopOrder, isAdmin: boolean) {
-  const estimated = await enrichEstimatedDelivery(order);
+  let hydrated = order;
   if (isAdmin) {
-    // Server console only — never expose config details in the admin UI in production.
+    try {
+      const supabase = isSupabaseConfigured() ? createAdminClient() : null;
+      const shipment = await ensurePrimaryShipment(supabase, order);
+      hydrated = attachShipmentToOrder(order, shipment);
+    } catch {
+      /* shipment table optional until migration is applied */
+    }
+  }
+
+  const estimated = await enrichEstimatedDelivery(hydrated);
+  if (isAdmin) {
     logMissingPublicSiteUrl("admin order fetch");
     return {
-      ...order,
-      estimated_delivery: estimated ?? order.estimated_delivery ?? null,
+      ...hydrated,
+      estimated_delivery: estimated ?? hydrated.estimated_delivery ?? null,
     };
   }
-  return toPublicShopOrder(order, { estimated_delivery: estimated });
+  return toPublicShopOrder(hydrated, { estimated_delivery: estimated });
 }
 
 export async function GET(

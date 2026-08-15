@@ -4,10 +4,13 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createRouteHandlerClient } from "@/lib/supabase/route";
 import { safeAuthNextPath } from "@/lib/customer-auth/callback-url";
 import {
+  getCustomerByAuthUserId,
   recordCustomerSession,
   recordLoginHistory,
   upsertCustomerForAuthUser,
 } from "@/lib/customer-auth/customer";
+import { isAdminRole } from "@/lib/auth/roles";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   applyGuestCookie,
   readGuestIdFromRequest,
@@ -96,21 +99,32 @@ export async function GET(request: NextRequest) {
 
   const guestId = readGuestIdFromRequest(request);
 
-  const customer = await upsertCustomerForAuthUser({
-    authUserId: user.id,
-    email: user.email,
-    phone: user.phone,
-    fullName:
-      (user.user_metadata?.full_name as string | undefined) ||
-      (user.user_metadata?.name as string | undefined) ||
-      "",
-    photoUrl:
-      (user.user_metadata?.avatar_url as string | undefined) ||
-      (user.user_metadata?.picture as string | undefined) ||
-      null,
-    provider: providerId,
-    guestId,
-  });
+  const existingCustomer = await getCustomerByAuthUserId(user.id);
+  const { data: profile } = await createAdminClient()
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  const staffOnly =
+    isAdminRole((profile?.role as string | null) ?? null) && !existingCustomer;
+
+  const customer = staffOnly
+    ? null
+    : await upsertCustomerForAuthUser({
+        authUserId: user.id,
+        email: user.email,
+        phone: user.phone,
+        fullName:
+          (user.user_metadata?.full_name as string | undefined) ||
+          (user.user_metadata?.name as string | undefined) ||
+          "",
+        photoUrl:
+          (user.user_metadata?.avatar_url as string | undefined) ||
+          (user.user_metadata?.picture as string | undefined) ||
+          null,
+        provider: providerId,
+        guestId,
+      });
 
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, Trash2 } from "lucide-react";
 import type { LifecycleModule } from "@/lib/admin/lifecycle-types";
 import { postTrash } from "@/lib/admin/lifecycle-client";
@@ -55,6 +55,7 @@ export function TrashManager() {
   const [lastRestored, setLastRestored] = useState<TrashItem | null>(null);
   const [canRestore, setCanRestore] = useState(true);
   const [canPermanent, setCanPermanent] = useState(true);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const moduleLabel = useCallback(
     (m: LifecycleModule) => tu.modules[m] ?? m,
@@ -108,6 +109,16 @@ export function TrashManager() {
     [items, selected]
   );
 
+  const allSelected =
+    items.length > 0 && items.every((item) => selected.has(keyOf(item)));
+  const someSelected = items.some((item) => selected.has(keyOf(item)));
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected && !allSelected;
+    }
+  }, [someSelected, allSelected]);
+
   const toggle = (item: TrashItem) => {
     const k = keyOf(item);
     setSelected((prev) => {
@@ -116,6 +127,14 @@ export function TrashManager() {
       else next.add(k);
       return next;
     });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(items.map((item) => keyOf(item))));
   };
 
   const restoreOne = async (item: TrashItem) => {
@@ -263,7 +282,19 @@ export function TrashManager() {
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-start font-medium">{tu.select}</th>
+                <th className="px-4 py-3 text-start font-medium">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      ref={selectAllRef}
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      disabled={items.length === 0 || busy || loading}
+                      aria-label={tu.selectAll}
+                    />
+                    <span>{tu.selectAll}</span>
+                  </label>
+                </th>
                 <th className="px-4 py-3 text-start font-medium">{tu.colItem}</th>
                 <th className="px-4 py-3 text-start font-medium">{tu.colModule}</th>
                 <th className="px-4 py-3 text-start font-medium">{tu.colDeletedAt}</th>
@@ -285,7 +316,12 @@ export function TrashManager() {
                 </tr>
               ) : (
                 items.map((item) => (
-                  <tr key={keyOf(item)} className="border-t border-beige-dark/60">
+                  <tr
+                    key={keyOf(item)}
+                    className={`border-t border-beige-dark/60 ${
+                      selected.has(keyOf(item)) ? "bg-beige/30" : ""
+                    }`}
+                  >
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"

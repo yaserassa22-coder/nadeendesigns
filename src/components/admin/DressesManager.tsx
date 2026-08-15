@@ -392,7 +392,7 @@ function DressesManagerInner({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="admin-surface flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Input
             label={p.search}
@@ -468,16 +468,16 @@ function DressesManagerInner({
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-beige-dark bg-white">
+      <div className="admin-surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">{p.colProduct}</th>
-                <th className="px-4 py-3 text-right font-medium">{p.colCategory}</th>
-                <th className="px-4 py-3 text-right font-medium">{p.colPrice}</th>
-                <th className="px-4 py-3 text-right font-medium">{p.colStatus}</th>
-                <th className="px-4 py-3 text-right font-medium">{p.colActions}</th>
+                <th className="px-4 py-3 text-start font-medium">{p.colProduct}</th>
+                <th className="px-4 py-3 text-start font-medium">{p.colCategory}</th>
+                <th className="px-4 py-3 text-start font-medium">{p.colPrice}</th>
+                <th className="px-4 py-3 text-start font-medium">{p.colStatus}</th>
+                <th className="px-4 py-3 text-start font-medium">{p.colActions}</th>
               </tr>
             </thead>
             <tbody>

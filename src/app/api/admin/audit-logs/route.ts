@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth";
 import { isLifecycleModule } from "@/lib/admin/lifecycle";
+import { deleteAuditLogs, parseAuditLogIds } from "@/lib/admin/audit";
 import {
   getErrorMessage,
   isMissingTableError,
@@ -59,3 +60,43 @@ export async function GET(request: Request) {
     count: (data ?? []).length,
   });
 }
+
+export async function DELETE(request: Request) {
+  const { error: authError } = await requireAdminApi("canPermanentDelete");
+  if (authError) return authError;
+
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "Supabase غير مضبوط" }, { status: 503 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "طلب غير صالح" }, { status: 400 });
+  }
+
+  const ids = parseAuditLogIds(
+    body && typeof body === "object" && "ids" in body
+      ? (body as { ids: unknown }).ids
+      : null
+  );
+  if (!ids) {
+    return NextResponse.json(
+      { error: "حدّدي سجلات صالحة للحذف (حتى 200)" },
+      { status: 400 }
+    );
+  }
+
+  const supabase = await createPrivilegedClient();
+  const result = await deleteAuditLogs(supabase, ids);
+  if (result.error) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    deleted: result.deleted,
+  });
+}
+

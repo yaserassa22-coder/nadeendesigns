@@ -415,3 +415,103 @@ body[data-cookie-banner="open"] [data-whatsapp-fab] {
     padding: 12mm !important;
   }
 }
+
+/* Nadeen Admin — operational chrome (does not change the storefront). */
+[data-admin] {
+  --admin-bg: #f6f3ee;
+  --admin-card: #ffffff;
+  --admin-border: #e8e2d8;
+  --admin-text: #2c2419;
+  --admin-muted: #6b5e4f;
+  --admin-accent: #b89a6a;
+  --admin-ok: #2f6f4e;
+  --admin-warn: #9a6b1f;
+  --admin-danger: #9b2c2c;
+  --admin-shadow: 0 1px 2px rgba(44, 36, 25, 0.045);
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-size: 0.9375rem;
+}
+
+[data-admin] :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--admin-accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+[data-admin] h1 {
+  font-size: 1.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--admin-text);
+}
+
+[data-admin] .rounded-2xl {
+  border-radius: 0.875rem;
+}
+
+[data-admin] .shadow-xl {
+  box-shadow: 0 8px 24px rgba(44, 36, 25, 0.08);
+}
+
+[data-admin] h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--admin-text);
+}
+
+[data-admin] .admin-surface {
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: 0.875rem;
+  box-shadow: var(--admin-shadow);
+}
+
+[data-admin] table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9375rem;
+}
+
+[data-admin] thead th {
+  background: #faf8f5;
+  color: var(--admin-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--admin-border);
+  white-space: nowrap;
+  text-align: start;
+}
+
+[data-admin] tbody td {
+  padding: 1.05rem 1.15rem;
+  border-bottom: 1px solid var(--admin-border);
+  vertical-align: middle;
+  text-align: start;
+}
+
+[data-admin] tbody tr:last-child td {
+  border-bottom: none;
+}
+
+[data-admin] tbody tr:hover td {
+  background: color-mix(in srgb, var(--admin-accent) 5%, white);
+}
+
+[data-admin] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+[data-admin] select,
+[data-admin] textarea {
+  border-color: var(--admin-border);
+}
+
+[data-admin] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+[data-admin] select:focus,
+[data-admin] textarea:focus {
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-accent) 18%, transparent);
+}

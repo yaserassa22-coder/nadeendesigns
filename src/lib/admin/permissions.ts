@@ -202,6 +202,63 @@ export function getLifecycleCapabilities(
   };
 }
 
+/** Rank used only to detect a broader role assignment (not a new permission system). */
+const ROLE_RANK: Record<AdminRole, number> = {
+  staff: 0,
+  manager: 1,
+  admin: 2,
+  owner: 3,
+};
+
+export type RoleAccessPreviewKey =
+  | "store"
+  | "settings"
+  | "team"
+  | "financial"
+  | "reports"
+  | "archive"
+  | "trash"
+  | "assignOwner";
+
+export type RoleAccessPreviewItem = {
+  key: RoleAccessPreviewKey;
+  granted: boolean;
+};
+
+export type RoleAccessPreview = {
+  role: AdminRole;
+  isHighPrivilege: boolean;
+  items: RoleAccessPreviewItem[];
+};
+
+/** Read-only view of the existing capability matrix for a role. */
+export function getRoleAccessPreview(role: AdminRole): RoleAccessPreview {
+  const c = getAdminCapabilities({ id: "preview", role });
+  return {
+    role,
+    isHighPrivilege: c.canManageAdministrators,
+    items: [
+      { key: "store", granted: c.canMutateStore },
+      { key: "settings", granted: c.canMutateSettings },
+      { key: "team", granted: c.canManageAdministrators },
+      { key: "financial", granted: c.canViewFinancial },
+      { key: "reports", granted: c.canViewReports },
+      { key: "archive", granted: c.canArchive },
+      { key: "trash", granted: c.canEmptyTrash },
+      { key: "assignOwner", granted: c.canAssignOwner },
+    ],
+  };
+}
+
+export function isBroaderAdminRole(
+  current: string | null | undefined,
+  next: string | null | undefined
+): boolean {
+  const from = ROLE_RANK[normalizeAdminRole(current)];
+  const to = ROLE_RANK[normalizeAdminRole(next)];
+  return to > from;
+}
+
 export const CAPABILITY_DENIED_AR: Record<AdminCapability, string> = {
   canMutateStore: "غير مصرح — صلاحية موظف للقراءة فقط",
   canMutateSettings: "غير مصرح — إعدادات المتجر للمالك/المسؤول فقط",

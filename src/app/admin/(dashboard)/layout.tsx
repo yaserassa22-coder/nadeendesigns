@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminChrome } from "@/components/admin/shell/AdminChrome";
 import { AdminSessionTimeout } from "@/components/admin/AdminSessionTimeout";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -23,16 +23,9 @@ export default async function AdminDashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-ivory print:bg-white">
-      <div className="print:hidden">
-        <AdminSidebar />
-      </div>
+    <>
+      <AdminChrome email={user.email}>{children}</AdminChrome>
       <AdminSessionTimeout />
-      <div className="lg:ps-64 print:ps-0">
-        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10 print:max-w-none print:p-0">
-          {children}
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

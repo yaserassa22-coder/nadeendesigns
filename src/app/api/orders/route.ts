@@ -36,8 +36,12 @@ import { isValidCheckoutPhone, isValidPersonName } from "@/lib/phone";
 import { normalizeSiteSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
 import {
-  ensureCustomerForCheckout,
-} from "@/lib/customer-auth/customer";
+  attachPrimaryShipments,
+  attachShipmentToOrder,
+  ensurePrimaryShipment,
+  syncPrimaryShipmentFromOrderMirrors,
+} from "@/lib/shipping/shipment-service";
+import { ensureCustomerForCheckout } from "@/lib/customer-auth/customer";
 import { getCustomerAuthSettings } from "@/lib/customer-auth/settings";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import {
@@ -61,6 +65,14 @@ declare global {
 function memoryOrdersStore(): ShopOrder[] {
   if (!globalThis.__nadeenMemoryOrders) globalThis.__nadeenMemoryOrders = [];
   return globalThis.__nadeenMemoryOrders;
+}
+
+async function autoCreateOrderShipment(
+  row: ShopOrder,
+  supabase: Awaited<ReturnType<typeof createPrivilegedClient>> | null
+): Promise<ShopOrder> {
+  const shipment = await ensurePrimaryShipment(supabase, row);
+  return attachShipmentToOrder(row, shipment);
 }
 
 async function loadSiteSettingsForShipping(): Promise<SiteSettings> {
@@ -195,7 +207,8 @@ export async function GET() {
       const mapped = mapOrderError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
     }
-    return NextResponse.json(data ?? []);
+    const withShipments = await attachPrimaryShipments(supabase, data ?? []);
+    return NextResponse.json(withShipments);
   } catch (e) {
     const mapped = mapOrderError(e);
     return NextResponse.json({ error: mapped.message }, { status: mapped.status });
@@ -371,19 +384,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (!isSupabaseConfigured()) {
-      memoryOrdersStore().unshift(row);
-      console.info("[orders API] saved to memory (Supabase not configured)", row.id);
-      scheduleNotifications(() => onOrderSubmitted(row));
+      const withShipment = await autoCreateOrderShipment(row, null);
+      memoryOrdersStore().unshift(withShipment);
+      console.info("[orders API] saved to memory (Supabase not configured)", withShipment.id);
+      scheduleNotifications(() => onOrderSubmitted(withShipment));
       let payment: Awaited<ReturnType<typeof startPaymentForCreatedOrder>> | null =
         null;
       try {
-        payment = await startPaymentForCreatedOrder(request, row);
+        payment = await startPaymentForCreatedOrder(request, withShipment);
       } catch (e) {
         console.error("[orders API] startOrderPayment failed", e);
       }
       return NextResponse.json({
         success: true,
-        order: row,
+        order: withShipment,
         payment: payment
           ? {
               ok: payment.ok,
@@ -527,22 +541,23 @@ export async function POST(request: NextRequest) {
 
     // Same-process read-through so confirmation GET works even if anon RLS
     // blocks shop_orders SELECT (no service role / public read policy yet).
+    const savedRow = await autoCreateOrderShipment(row, supabase);
     const mem = memoryOrdersStore();
-    mem.unshift(row);
+    mem.unshift(savedRow);
     if (mem.length > 100) mem.length = 100;
 
-    console.info("[orders API] order saved", row.id);
-    scheduleNotifications(() => onOrderSubmitted(row));
+    console.info("[orders API] order saved", savedRow.id);
+    scheduleNotifications(() => onOrderSubmitted(savedRow));
     let payment: Awaited<ReturnType<typeof startPaymentForCreatedOrder>> | null =
       null;
     try {
-      payment = await startPaymentForCreatedOrder(request, row);
+      payment = await startPaymentForCreatedOrder(request, savedRow);
     } catch (e) {
       console.error("[orders API] startOrderPayment failed", e);
     }
     return NextResponse.json({
       success: true,
-      order: row,
+      order: savedRow,
       payment: payment
         ? {
             ok: payment.ok,
@@ -701,6 +716,8 @@ export async function PATCH(request: Request) {
       let order = store[idx];
       if (hasShippingPatch) {
         order = { ...order, ...buildShippingUpdate(order) } as ShopOrder;
+        const shipment = await syncPrimaryShipmentFromOrderMirrors(null, order);
+        order = attachShipmentToOrder(order, shipment);
         store[idx] = order;
       }
       if (status && previous !== status) {
@@ -775,6 +792,17 @@ export async function PATCH(request: Request) {
       ...(existing as ShopOrder),
       ...updatePayload,
     };
+    if (
+      body.tracking_number !== undefined ||
+      body.tracking_url !== undefined ||
+      body.carrier_code !== undefined
+    ) {
+      const shipment = await syncPrimaryShipmentFromOrderMirrors(
+        supabase,
+        order
+      );
+      Object.assign(order, attachShipmentToOrder(order, shipment));
+    }
     if (status && previous !== status) {
       try {
         await onOrderStatusChanged(order, previous, status, { paymentAmount });

@@ -38,7 +38,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-beige-dark bg-background p-5 shadow-sm print:break-inside-avoid">
+    <section className="rounded-2xl border border-beige-dark bg-background p-5 shadow-sm">
       <h3 className="mb-4 text-base font-semibold text-foreground">{title}</h3>
       {empty ? (
         <p className="flex h-52 items-center justify-center text-sm text-muted">
@@ -118,7 +118,7 @@ export function ReportCharts({
     !focus || focus === "all" || focus === key;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="reports-chart-grid grid gap-4 lg:grid-cols-2">
       {show("revenue") ? (
         <ChartCard title="الإيرادات" empty={!hasValues(charts.revenue)}>
           <ResponsiveContainer width="100%" height="100%">

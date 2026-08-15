@@ -1,79 +1,58 @@
 /**
- * Shipping-slip QR helpers.
+ * Internal shipment QR helpers.
  *
- * Encodes the public customer tracking URL when NEXT_PUBLIC_SITE_URL is set.
- * Never hardcodes localhost for logistics QR codes.
- * When the site URL is missing, encodes a structured public order summary instead.
- * Config warnings are development-only in the UI; production logs to the server console.
- *
- * Future carrier integrations can use {@link buildCarrierReadyPayload} — this
- * module does not call any carrier APIs today.
+ * Encodes `/s/{public_token}` — our shipment lookup, never a carrier tracking
+ * number and never customer PII (name, phone, address).
+ * Admin does not create the QR; it is derived from the shipment token.
  */
 
-export type ShippingQrKind = "tracking_url" | "order_summary";
+export type ShippingQrKind = "shipment_url" | "shipment_token";
 
 export type ShippingQrPayload = {
   kind: ShippingQrKind;
-  /** Exact string encoded into the QR (URL or structured text). */
+  /** Exact string encoded into the QR (URL or token marker). */
   data: string;
   trackingUrl: string | null;
   siteUrlMissing: boolean;
   warning: string | null;
 };
 
-/** Structured payload for future carrier / label APIs (not encoded in QR today). */
+/** Structured payload for future carrier / label APIs (not encoded in QR). */
 export type CarrierReadyPayload = {
   schemaVersion: 1;
   orderId: string;
   orderNumber: string;
+  shipmentPublicToken: string | null;
   trackingUrl: string | null;
   trackingNumber: string | null;
-  /** Future: Aramex, SMSA, etc. */
   carrierCode: string | null;
-  customerName: string | null;
-  phone: string | null;
-  region: string | null;
-  address: string | null;
-  total: number | null;
 };
 
 export type OrderTrackingQrSource = {
   id: string;
-  name?: string | null;
-  phone?: string | null;
-  total?: number | null;
-  shipping_full_name?: string | null;
-  shipping_phone?: string | null;
-  shipping_region?: string | null;
-  shipping_region_name_ar?: string | null;
-  shipping_region_custom?: string | null;
-  shipping_address?: string | null;
-  shipping_city?: string | null;
   tracking_number?: string | null;
   carrier_code?: string | null;
-  items?: Array<{ name_ar?: string; quantity?: number }> | null;
+  shipment?: {
+    public_token?: string | null;
+    carrier?: string | null;
+    carrier_tracking_number?: string | null;
+  } | null;
 };
 
 const QR_API = "https://api.qrserver.com/v1/create-qr-code/";
-/** Print-ready QR edge length (px) for shipping slips. */
 const DEFAULT_QR_SIZE = 320;
 
 const SITE_URL_MISSING_LOG =
-  "NEXT_PUBLIC_SITE_URL is not configured — shipping QR falls back to structured order summary text instead of a tracking URL.";
+  "NEXT_PUBLIC_SITE_URL is not configured — shipping QR encodes an internal token marker instead of a public URL.";
 
 let loggedMissingSiteUrl = false;
 
-/** Public site origin from NEXT_PUBLIC_SITE_URL only — no localhost fallback. */
 export function getPublicSiteUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (!raw) return null;
   return raw.replace(/\/$/, "");
 }
 
-/**
- * Log missing NEXT_PUBLIC_SITE_URL once to the server/process console.
- * Never surfaces technical config details in the production UI.
- */
 export function logMissingPublicSiteUrl(context?: string): void {
   if (loggedMissingSiteUrl || getPublicSiteUrl()) return;
   loggedMissingSiteUrl = true;
@@ -86,9 +65,26 @@ export function formatPublicOrderNumber(orderId: string): string {
   return `ND-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 }
 
+export function shipmentPublicTokenOf(
+  order: OrderTrackingQrSource
+): string | null {
+  const token = order.shipment?.public_token?.trim();
+  return token || null;
+}
+
+/** Internal lookup URL: `{SITE_URL}/s/{public_token}`. */
+export function buildShipmentLookupUrl(
+  publicToken: string,
+  siteUrl: string | null = getPublicSiteUrl()
+): string | null {
+  const token = publicToken?.trim();
+  if (!siteUrl || !token) return null;
+  return `${siteUrl}/s/${encodeURIComponent(token)}`;
+}
+
 /**
- * Absolute public tracking URL: `{NEXT_PUBLIC_SITE_URL}/orders/{order_id}`.
- * Returns null when the env var is missing or orderId is empty.
+ * @deprecated Use {@link buildShipmentLookupUrl}. Kept so existing customer
+ * `/orders/{uuid}` links continue to work; QR no longer encodes this.
  */
 export function buildOrderTrackingUrl(
   orderId: string,
@@ -99,89 +95,59 @@ export function buildOrderTrackingUrl(
   return `${siteUrl}/orders/${id}`;
 }
 
-/** Structured text fallback when an absolute tracking URL cannot be built. */
-export function buildOrderSummaryQrText(order: OrderTrackingQrSource): string {
-  const orderNo = formatPublicOrderNumber(order.id);
-  const name = (order.shipping_full_name || order.name || "").trim() || "—";
-  const phone = (order.shipping_phone || order.phone || "").trim() || "—";
-  const region =
-    (
-      order.shipping_region_name_ar ||
-      order.shipping_region_custom ||
-      order.shipping_region ||
-      ""
-    ).trim() || "—";
-  const city = (order.shipping_city || "").trim();
-  const address = (order.shipping_address || "").trim() || "—";
-  const products = (order.items ?? [])
-    .map((item) => {
-      const label = (item.name_ar || "").trim() || "منتج";
-      const qty = Number(item.quantity) || 1;
-      return `${label} × ${qty}`;
-    })
-    .join("، ");
-  const total =
-    order.total != null && Number.isFinite(Number(order.total))
-      ? String(Number(order.total))
-      : "—";
-
-  return [
-    `NadEEN Designs — طلب ${orderNo}`,
-    `الاسم: ${name}`,
-    `الهاتف: ${phone}`,
-    `المنطقة: ${region}`,
-    city ? `المدينة: ${city}` : null,
-    `العنوان: ${address}`,
-    products ? `المنتجات: ${products}` : null,
-    `الإجمالي: ${total}`,
-    order.tracking_number
-      ? `رقم التتبع: ${order.tracking_number.trim()}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+/** Token-only marker when the public site URL is missing. Never includes PII. */
+export function buildShipmentTokenQrText(publicToken: string): string {
+  return `nadeen:s:${publicToken.trim()}`;
 }
 
 /**
- * Prefer the public tracking URL. If NEXT_PUBLIC_SITE_URL is missing, fall back
- * to structured order text — never encode an empty string.
- * UI warning is development-only; production logs to console instead.
+ * QR payload from the shipment public_token. Never encodes phone, address,
+ * or a carrier tracking number.
  */
 export function resolveShippingQrPayload(
   order: OrderTrackingQrSource
 ): ShippingQrPayload {
+  const token = shipmentPublicTokenOf(order);
   const siteUrl = getPublicSiteUrl();
-  const trackingUrl = buildOrderTrackingUrl(order.id, siteUrl);
 
-  if (trackingUrl) {
+  if (!token) {
+    logMissingPublicSiteUrl("resolveShippingQrPayload:missing-token");
+    const isDev = process.env.NODE_ENV === "development";
     return {
-      kind: "tracking_url",
-      data: trackingUrl,
-      trackingUrl,
+      kind: "shipment_token",
+      data: "nadeen:s:pending",
+      trackingUrl: null,
+      siteUrlMissing: !siteUrl,
+      warning: isDev
+        ? "Shipment token missing — QR is a pending marker until the shipment row exists."
+        : null,
+    };
+  }
+
+  const lookupUrl = buildShipmentLookupUrl(token, siteUrl);
+  if (lookupUrl) {
+    return {
+      kind: "shipment_url",
+      data: lookupUrl,
+      trackingUrl: lookupUrl,
       siteUrlMissing: false,
       warning: null,
     };
   }
 
   logMissingPublicSiteUrl("resolveShippingQrPayload");
-
-  const summary = buildOrderSummaryQrText(order);
   const isDev = process.env.NODE_ENV === "development";
   return {
-    kind: "order_summary",
-    data: summary,
+    kind: "shipment_token",
+    data: buildShipmentTokenQrText(token),
     trackingUrl: null,
     siteUrlMissing: true,
     warning: isDev
-      ? "NEXT_PUBLIC_SITE_URL غير مضبوط — لن يُنشأ رمز QR فارغ. يُستخدم ملخص الطلب كنص بديل بدل رابط التتبع."
+      ? "NEXT_PUBLIC_SITE_URL غير مضبوط — يُرمَّز معرّف الشحنة الداخلي فقط، دون بيانات العميلة."
       : null,
   };
 }
 
-/**
- * High-contrast print-friendly QR image URL (≥320×320, ECC H).
- * Returns null when data would be empty (never generate an empty QR).
- */
 export function buildShippingQrImageUrl(
   data: string,
   options?: { size?: number; cacheBust?: number | string }
@@ -204,31 +170,23 @@ export function buildShippingQrImageUrl(
   return `${QR_API}?${params.toString()}`;
 }
 
-/** Future-ready helper for carrier label / tracking APIs. */
+/** Future-ready helper for carrier label / tracking APIs — not encoded in QR. */
 export function buildCarrierReadyPayload(
   order: OrderTrackingQrSource
 ): CarrierReadyPayload {
+  const token = shipmentPublicTokenOf(order);
   const siteUrl = getPublicSiteUrl();
   return {
     schemaVersion: 1,
     orderId: order.id,
     orderNumber: formatPublicOrderNumber(order.id),
-    trackingUrl: buildOrderTrackingUrl(order.id, siteUrl),
-    trackingNumber: order.tracking_number?.trim() || null,
-    carrierCode: order.carrier_code?.trim() || null,
-    customerName: (order.shipping_full_name || order.name || "").trim() || null,
-    phone: (order.shipping_phone || order.phone || "").trim() || null,
-    region:
-      (
-        order.shipping_region_name_ar ||
-        order.shipping_region_custom ||
-        order.shipping_region ||
-        ""
-      ).trim() || null,
-    address: order.shipping_address?.trim() || null,
-    total:
-      order.total != null && Number.isFinite(Number(order.total))
-        ? Number(order.total)
-        : null,
+    shipmentPublicToken: token,
+    trackingUrl: token ? buildShipmentLookupUrl(token, siteUrl) : null,
+    trackingNumber:
+      order.shipment?.carrier_tracking_number?.trim() ||
+      order.tracking_number?.trim() ||
+      null,
+    carrierCode:
+      order.shipment?.carrier?.trim() || order.carrier_code?.trim() || null,
   };
 }

@@ -185,14 +185,14 @@ export default function AdminGuestsPage() {
         <table className="min-w-full text-sm">
           <thead className="border-b border-beige-dark bg-beige/40 text-muted">
             <tr>
-              <th className="px-4 py-3 text-right font-medium">guest_id</th>
-              <th className="px-4 py-3 text-right font-medium">{g.colLastSeen}</th>
-              <th className="px-4 py-3 text-right font-medium">{g.colCreated}</th>
-              <th className="px-4 py-3 text-right font-medium">{g.colOrders}</th>
-              <th className="px-4 py-3 text-right font-medium">{g.colBookings}</th>
-              <th className="px-4 py-3 text-right font-medium">{g.colWishlist}</th>
-              <th className="px-4 py-3 text-right font-medium">{g.colCart}</th>
-              <th className="px-4 py-3 text-right font-medium">{g.colStatus}</th>
+              <th className="px-4 py-3 text-start font-medium">guest_id</th>
+              <th className="px-4 py-3 text-start font-medium">{g.colLastSeen}</th>
+              <th className="px-4 py-3 text-start font-medium">{g.colCreated}</th>
+              <th className="px-4 py-3 text-start font-medium">{g.colOrders}</th>
+              <th className="px-4 py-3 text-start font-medium">{g.colBookings}</th>
+              <th className="px-4 py-3 text-start font-medium">{g.colWishlist}</th>
+              <th className="px-4 py-3 text-start font-medium">{g.colCart}</th>
+              <th className="px-4 py-3 text-start font-medium">{g.colStatus}</th>
             </tr>
           </thead>
           <tbody>

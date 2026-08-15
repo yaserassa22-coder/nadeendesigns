@@ -1,11 +1,12 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, FileText, MessageSquare, Printer } from "lucide-react";
 import type {
   DeliveryMethod,
   OrderWorkflowAction,
+  ShipmentStatus,
   ShopOrder,
   ShopOrderStatus,
 } from "@/types/shop";
@@ -20,6 +21,7 @@ import {
   SHOP_ORDER_STATUSES,
 } from "@/types/shop";
 import { getOrderWorkflowActions } from "@/lib/i18n/order-labels";
+import { resolveCarrierLabel } from "@/lib/i18n/carrier-labels";
 import { resolveOrderLineName } from "@/lib/i18n/order-item-labels";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
 import { filterLifecycleRows } from "@/lib/admin/query-lifecycle";
@@ -39,6 +41,9 @@ import { ExtraServicesSummary } from "@/components/product/ExtraServicesSummary"
 import { shopLineDisplayTotal } from "@/lib/products/order-experience";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
+import { BulkActionBar } from "@/components/admin/lifecycle/BulkActionBar";
+import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
+import { postLifecycle } from "@/lib/admin/lifecycle-client";
 import Image from "next/image";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { formatMessage } from "@/lib/i18n";
@@ -55,6 +60,25 @@ function normalizeStatus(status: ShopOrderStatus): ShopOrderStatus {
 
 function orderNumber(id: string) {
   return `ND-${id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
+function shipmentStatusLabel(
+  status: ShipmentStatus | undefined,
+  ui: {
+    shipmentStatusPending: string;
+    shipmentStatusLabelCreated: string;
+    shipmentStatusInTransit: string;
+    shipmentStatusDelivered: string;
+    shipmentStatusCancelled: string;
+    shipmentStatusFailed: string;
+  }
+): string {
+  if (status === "label_created") return ui.shipmentStatusLabelCreated;
+  if (status === "in_transit") return ui.shipmentStatusInTransit;
+  if (status === "delivered") return ui.shipmentStatusDelivered;
+  if (status === "cancelled") return ui.shipmentStatusCancelled;
+  if (status === "failed") return ui.shipmentStatusFailed;
+  return ui.shipmentStatusPending;
 }
 
 function actionClass(tone?: "default" | "danger" | "gold") {
@@ -105,8 +129,13 @@ export function OrdersManager({
   const [shipTrackingUrl, setShipTrackingUrl] = useState("");
   const [shipInternalNotes, setShipInternalNotes] = useState("");
   const [savingShipping, setSavingShipping] = useState(false);
+  const [shipmentBusy, setShipmentBusy] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
   const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -176,6 +205,88 @@ export function OrdersManager({
       return true;
     });
   }, [orders, filter, methodFilter, regionFilter, visibility]);
+
+  const canSelect = Boolean(caps?.canArchive || caps?.canSoftDelete);
+  const allSelected =
+    filtered.length > 0 && filtered.every((order) => selected.has(order.id));
+  const someSelected = filtered.some((order) => selected.has(order.id));
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected && !allSelected;
+    }
+  }, [someSelected, allSelected]);
+
+  useEffect(() => {
+    setSelected(new Set());
+  }, [filter, methodFilter, regionFilter, visibility]);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(filtered.map((order) => order.id)));
+  };
+
+  const bulkArchive = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0 || !caps?.canArchive) return;
+    setBulkBusy(true);
+    const result = await postLifecycle({
+      action: "archive",
+      module: "orders",
+      ids,
+    });
+    setBulkBusy(false);
+    if (!result.ok) {
+      setLoadError(result.error);
+      return;
+    }
+    const now = new Date().toISOString();
+    const idSet = new Set(ids);
+    setOrders((prev) =>
+      prev.map((o) =>
+        idSet.has(o.id)
+          ? ({ ...o, archived_at: now } as ShopOrder)
+          : o
+      )
+    );
+    setSelected(new Set());
+    setSnack(formatMessage(t.admin.ordersUi.bulkArchived, { count: ids.length }));
+  };
+
+  const bulkSoftDelete = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0 || !caps?.canSoftDelete) return;
+    setBulkBusy(true);
+    const result = await postLifecycle({
+      action: "soft_delete",
+      module: "orders",
+      ids,
+    });
+    setBulkBusy(false);
+    if (!result.ok) {
+      setLoadError(result.error);
+      return;
+    }
+    const idSet = new Set(ids);
+    setOrders((prev) => prev.filter((o) => !idSet.has(o.id)));
+    setSelected(new Set());
+    setConfirmBulkDelete(false);
+    setSnack(
+      formatMessage(t.admin.ordersUi.bulkMovedToTrash, { count: ids.length })
+    );
+  };
 
   const patchStatus = async (
     id: string,
@@ -299,6 +410,65 @@ export function OrdersManager({
     }
   };
 
+  const runShipmentAction = async (
+    order: ShopOrder,
+    action: "create" | "refresh" | "cancel" | "label"
+  ) => {
+    if (action === "cancel" && !confirm(t.admin.ordersUi.cancelShipmentConfirm)) {
+      return;
+    }
+    setShipmentBusy(`${order.id}:${action}`);
+    try {
+      const res = await fetch(
+        `/api/admin/orders/${encodeURIComponent(order.id)}/shipment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        }
+      );
+      const data = (await res.json()) as {
+        error?: string;
+        skipped?: string | null;
+        label_url?: string | null;
+        order?: ShopOrder;
+      };
+      if (!res.ok) {
+        throw new Error(data.error || t.admin.ordersUi.shipmentActionFailed);
+      }
+      if (data.order) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? { ...o, ...data.order } : o))
+        );
+      }
+      if (action === "label") {
+        if (data.label_url) {
+          window.open(data.label_url, "_blank", "noopener,noreferrer");
+        } else {
+          setSnack(data.error || t.admin.ordersUi.noCarrierMessage);
+        }
+        return;
+      }
+      if (data.skipped === "not_connected" || data.skipped === "not_configured") {
+        setSnack(t.admin.ordersUi.noCarrierMessage);
+        return;
+      }
+      if (data.skipped === "not_implemented") {
+        setSnack(data.error || t.admin.ordersUi.noCarrierMessage);
+        return;
+      }
+      if (action === "create") {
+        setSnack(t.admin.ordersUi.shipmentCreated);
+      }
+    } catch (e) {
+      alert(
+        e instanceof Error ? e.message : t.admin.ordersUi.shipmentActionFailed
+      );
+    } finally {
+      setShipmentBusy(null);
+    }
+  };
+
   const runAction = async (order: ShopOrder, action: OrderWorkflowAction) => {
     if (action === "request_payment") {
       setPaymentOrderId(order.id);
@@ -375,8 +545,10 @@ export function OrdersManager({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal">{t.admin.ordersUi.title}</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="text-[1.65rem] font-semibold tracking-tight text-charcoal md:text-[1.85rem]">
+            {t.admin.ordersUi.title}
+          </h1>
+          <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-muted">
             {t.admin.ordersUi.subtitle}{" "}
             {formatMessage(t.admin.ordersUi.orderCount, {
               count: typeof initialCount === "number" ? initialCount : orders.length,
@@ -438,7 +610,7 @@ export function OrdersManager({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="admin-surface grid gap-4 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
         <Select
           label={t.admin.ordersUi.filterStatus}
           value={filter}
@@ -478,22 +650,37 @@ export function OrdersManager({
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-beige-dark bg-ivory/80 shadow-sm">
+      <div className="admin-surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-beige/60 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colCustomer}</th>
-                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colItems}</th>
-                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colTotal}</th>
-                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colStatus}</th>
-                <th className="px-4 py-3 text-right font-medium">{t.admin.ordersUi.colDetails}</th>
+                {canSelect ? (
+                  <th className="px-4 py-3 text-start font-medium">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        disabled={filtered.length === 0 || bulkBusy}
+                        aria-label={t.admin.ordersUi.selectAll}
+                      />
+                      <span>{t.admin.ordersUi.selectAll}</span>
+                    </label>
+                  </th>
+                ) : null}
+                <th className="px-4 py-3 text-start font-medium">{t.admin.ordersUi.colCustomer}</th>
+                <th className="px-4 py-3 text-start font-medium">{t.admin.ordersUi.colItems}</th>
+                <th className="px-4 py-3 text-start font-medium">{t.admin.ordersUi.colTotal}</th>
+                <th className="px-4 py-3 text-start font-medium">{t.admin.ordersUi.colStatus}</th>
+                <th className="px-4 py-3 text-start font-medium">{t.admin.ordersUi.colDetails}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={canSelect ? 6 : 5} className="px-4 py-10 text-center text-muted">
                     {orders.length === 0
                       ? t.admin.ordersUi.empty
                       : t.admin.ordersUi.emptyFiltered}
@@ -505,7 +692,22 @@ export function OrdersManager({
                   const status = normalizeStatus(order.status);
                   return (
                     <Fragment key={order.id}>
-                      <tr className="border-t border-beige-dark/80">
+                      <tr
+                        className={`border-t border-beige-dark/80 ${
+                          selected.has(order.id) ? "bg-beige/30" : ""
+                        }`}
+                      >
+                        {canSelect ? (
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(order.id)}
+                              onChange={() => toggle(order.id)}
+                              disabled={bulkBusy}
+                              aria-label={t.admin.ordersUi.select}
+                            />
+                          </td>
+                        ) : null}
                         <td className="px-4 py-3">
                           <p className="font-medium text-charcoal">{order.name}</p>
                           <p className="text-xs text-gold" dir="ltr">
@@ -626,7 +828,7 @@ export function OrdersManager({
                       </tr>
                       {isOpen && (
                         <tr className="border-t border-beige-dark/50 bg-gradient-to-l from-beige/40 to-ivory/60">
-                          <td colSpan={5} className="space-y-5 px-4 py-5">
+                          <td colSpan={canSelect ? 6 : 5} className="space-y-5 px-4 py-5">
                             <div className="flex flex-wrap gap-2">
                               {getOrderWorkflowActions(
                                 locale,
@@ -954,6 +1156,103 @@ export function OrdersManager({
                                 <h3 className="mb-2 text-sm font-semibold text-gold">
                                   {t.admin.ordersUi.shippingInfo}
                                 </h3>
+                                <dl className="mb-3 space-y-1 text-sm">
+                                  <div className="flex justify-between gap-2">
+                                    <dt className="text-muted">
+                                      {t.admin.ordersUi.shipmentCarrier}
+                                    </dt>
+                                    <dd>
+                                      {order.shipment?.carrier ||
+                                      order.carrier_code
+                                        ? resolveCarrierLabel(
+                                            order.shipment?.carrier ||
+                                              order.carrier_code,
+                                            locale
+                                          )
+                                        : t.admin.ordersUi
+                                            .shipmentCarrierDisconnected}
+                                    </dd>
+                                  </div>
+                                  <div className="flex justify-between gap-2">
+                                    <dt className="text-muted">
+                                      {t.admin.ordersUi.shipmentTracking}
+                                    </dt>
+                                    <dd dir="ltr">
+                                      {order.shipment
+                                        ?.carrier_tracking_number ||
+                                      order.tracking_number
+                                        ? order.shipment
+                                            ?.carrier_tracking_number ||
+                                          order.tracking_number
+                                        : t.admin.ordersUi
+                                            .shipmentTrackingUnavailable}
+                                    </dd>
+                                  </div>
+                                  <div className="flex justify-between gap-2">
+                                    <dt className="text-muted">
+                                      {t.admin.ordersUi.shipmentStatus}
+                                    </dt>
+                                    <dd>
+                                      {shipmentStatusLabel(
+                                        order.shipment?.shipment_status,
+                                        t.admin.ordersUi
+                                      )}
+                                    </dd>
+                                  </div>
+                                </dl>
+                                <p className="mb-3 text-xs text-muted">
+                                  {t.admin.ordersUi.shipmentFallbackHint}
+                                </p>
+                                <div className="mb-3 flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    loading={
+                                      shipmentBusy === `${order.id}:create`
+                                    }
+                                    onClick={() =>
+                                      void runShipmentAction(order, "create")
+                                    }
+                                  >
+                                    {t.admin.ordersUi.createShipment}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    loading={
+                                      shipmentBusy === `${order.id}:label`
+                                    }
+                                    onClick={() =>
+                                      void runShipmentAction(order, "label")
+                                    }
+                                  >
+                                    {t.admin.ordersUi.printLabel}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    loading={
+                                      shipmentBusy === `${order.id}:refresh`
+                                    }
+                                    onClick={() =>
+                                      void runShipmentAction(order, "refresh")
+                                    }
+                                  >
+                                    {t.admin.ordersUi.refreshTracking}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    loading={
+                                      shipmentBusy === `${order.id}:cancel`
+                                    }
+                                    onClick={() =>
+                                      void runShipmentAction(order, "cancel")
+                                    }
+                                  >
+                                    {t.admin.ordersUi.cancelShipment}
+                                  </Button>
+                                </div>
                                 {order.shipping_fee_pending && (
                                   <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
                                     ⚠️ {t.admin.ordersUi.newRegionWarning}
@@ -1130,6 +1429,37 @@ export function OrdersManager({
           </table>
         </div>
       </div>
+
+      {canSelect ? (
+        <BulkActionBar
+          selectedCount={selected.size}
+          mode="list"
+          onClear={() => setSelected(new Set())}
+          onArchive={
+            caps?.canArchive && visibility !== "archived" && visibility !== "deleted"
+              ? () => void bulkArchive()
+              : undefined
+          }
+          onDelete={
+            caps?.canSoftDelete && visibility !== "deleted"
+              ? () => setConfirmBulkDelete(true)
+              : undefined
+          }
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        title={t.admin.ordersUi.bulkDeleteConfirmTitle}
+        description={formatMessage(t.admin.ordersUi.bulkDeleteConfirmDesc, {
+          count: selected.size,
+        })}
+        confirmLabel={t.admin.lifecycleUi.softDelete}
+        danger
+        loading={bulkBusy}
+        onCancel={() => setConfirmBulkDelete(false)}
+        onConfirm={() => void bulkSoftDelete()}
+      />
     </div>
   );
 }

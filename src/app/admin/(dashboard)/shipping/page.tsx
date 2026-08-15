@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ShippingRegionsManager } from "@/components/admin/ShippingRegionsManager";
 import {
   getAdminShippingRegions,
@@ -24,6 +25,12 @@ export default async function AdminShippingPage() {
         <p className="mt-2 text-muted">
           مناطق الشحن، الرسوم، مدة التوصيل، وتفعيل الاستلام من البوتيك أو التوصيل
         </p>
+        <Link
+          href="/admin/shipping/providers"
+          className="mt-3 inline-block text-sm text-gold hover:underline"
+        >
+          شركات الشحن — ربط وإعداد شركات التوصيل
+        </Link>
       </div>
       <ShippingRegionsManager
         initialRegions={regions}

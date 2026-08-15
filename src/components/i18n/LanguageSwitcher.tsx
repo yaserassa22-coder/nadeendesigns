@@ -70,10 +70,10 @@ export function LanguageSwitcher({
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "group inline-flex items-center gap-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2",
-          isAdmin
+          isAdmin && !compact
             ? "w-full justify-start rounded-xl px-4 py-3 text-sm font-medium text-charcoal hover:bg-beige"
             : compact
-              ? "inline-flex size-9 items-center justify-center rounded-full text-charcoal/80 hover:text-gold sm:size-10 md:size-auto md:p-2"
+              ? "inline-flex size-9 items-center justify-center rounded-lg text-charcoal hover:bg-[#f4f0e8]"
               : "border border-gold/30 bg-ivory/70 px-3 py-1.5 text-charcoal/85 backdrop-blur-sm hover:border-gold/60 hover:text-gold"
         )}
       >
@@ -90,7 +90,7 @@ export function LanguageSwitcher({
             className="absolute -bottom-0.5 -end-0.5 h-1.5 w-1.5 rounded-full bg-gold shadow-[0_0_0_1.5px_rgba(250,248,245,0.9)]"
           />
         </span>
-        {(!compact || isAdmin) && (
+        {(!compact || (isAdmin && !compact)) && (
           <span className="min-w-0 truncate tracking-wide">
             {isAdmin ? (
               <>
@@ -117,7 +117,7 @@ export function LanguageSwitcher({
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
               "absolute z-[80] min-w-[11.5rem] overflow-hidden rounded-2xl border border-beige-dark/90 bg-ivory/95 shadow-[0_20px_50px_-28px_rgba(44,36,25,0.55)] backdrop-blur-md",
-              isAdmin
+              isAdmin && !compact
                 ? "bottom-full start-0 mb-2 w-full"
                 : "top-full end-0 mt-2"
             )}

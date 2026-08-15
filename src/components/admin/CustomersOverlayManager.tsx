@@ -131,8 +131,10 @@ export function CustomersOverlayManager() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal">{c.title}</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="text-[1.65rem] font-semibold tracking-tight text-charcoal md:text-[1.85rem]">
+            {c.title}
+          </h1>
+          <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-muted">
             {c.subtitle}
           </p>
         </div>
@@ -152,7 +154,7 @@ export function CustomersOverlayManager() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="admin-surface grid gap-4 px-4 py-4 md:grid-cols-2">
         <Input
           label={c.search}
           value={search}
@@ -171,15 +173,15 @@ export function CustomersOverlayManager() {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-beige-dark bg-white">
+      <div className="admin-surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">{c.colName}</th>
-                <th className="px-4 py-3 text-right font-medium">{c.colPhone}</th>
-                <th className="px-4 py-3 text-right font-medium">{c.colEmail}</th>
-                <th className="px-4 py-3 text-right font-medium">{c.colActions}</th>
+                <th className="px-4 py-3 text-start font-medium">{c.colName}</th>
+                <th className="px-4 py-3 text-start font-medium">{c.colPhone}</th>
+                <th className="px-4 py-3 text-start font-medium">{c.colEmail}</th>
+                <th className="px-4 py-3 text-start font-medium">{c.colActions}</th>
               </tr>
             </thead>
             <tbody>

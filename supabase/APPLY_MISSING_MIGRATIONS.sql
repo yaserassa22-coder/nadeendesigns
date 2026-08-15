@@ -419,5 +419,167 @@ COMMENT ON COLUMN shipping_regions.estimated_days_max IS
 COMMENT ON COLUMN shipping_regions.estimated_delivery_ar IS
   'Optional Arabic free-text estimated delivery (overrides min/max display when set).';
 
+-- ---------------------------------------------------------------------------
+-- Order shipments (054) — carrier-independent tracking + QR token
+-- Prefer supabase/APPLY_ORDER_SHIPMENTS.sql if only this block is needed.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS order_shipments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES shop_orders(id) ON DELETE CASCADE,
+  public_token TEXT NOT NULL UNIQUE,
+  carrier TEXT,
+  carrier_shipment_id TEXT,
+  carrier_tracking_number TEXT,
+  carrier_service TEXT,
+  carrier_label_url TEXT,
+  shipment_status TEXT NOT NULL DEFAULT 'pending',
+  shipped_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
+  is_primary BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT order_shipments_status_check CHECK (
+    shipment_status IN (
+      'pending',
+      'label_created',
+      'in_transit',
+      'delivered',
+      'cancelled',
+      'failed'
+    )
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_shipments_order_id
+  ON order_shipments (order_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_order_shipments_public_token
+  ON order_shipments (public_token);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_order_shipments_one_primary
+  ON order_shipments (order_id)
+  WHERE is_primary;
+
+ALTER TABLE order_shipments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin all order_shipments" ON order_shipments;
+CREATE POLICY "Admin all order_shipments" ON order_shipments
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('admin', 'owner', 'super_admin', 'manager', 'staff')
+    )
+  ) WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('admin', 'owner', 'super_admin', 'manager', 'staff')
+    )
+  );
+
+INSERT INTO order_shipments (
+  order_id,
+  public_token,
+  carrier,
+  carrier_tracking_number,
+  shipment_status,
+  is_primary
+)
+SELECT
+  o.id,
+  replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
+  NULLIF(btrim(COALESCE(o.carrier_code, '')), ''),
+  NULLIF(btrim(COALESCE(o.tracking_number, '')), ''),
+  CASE
+    WHEN o.status IN ('delivered', 'completed') THEN 'delivered'
+    WHEN o.status = 'shipped' THEN 'in_transit'
+    WHEN o.status = 'cancelled' THEN 'cancelled'
+    ELSE 'pending'
+  END,
+  true
+FROM shop_orders o
+WHERE NOT EXISTS (
+  SELECT 1 FROM order_shipments s WHERE s.order_id = o.id AND s.is_primary
+);
+
+-- ---------------------------------------------------------------------------
+-- Shipping providers (055) — carrier credentials + future rates
+-- Prefer supabase/APPLY_SHIPPING_PROVIDERS.sql if only this block is needed.
+-- Does not replace order_shipments. Checkout still uses shipping_regions.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shipping_providers (
+  code TEXT PRIMARY KEY,
+  enabled BOOLEAN NOT NULL DEFAULT false,
+  environment TEXT NOT NULL DEFAULT 'test'
+    CHECK (environment IN ('test', 'production')),
+  public_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  enabled_services TEXT[] NOT NULL DEFAULT '{}',
+  last_test_at TIMESTAMPTZ,
+  last_test_ok BOOLEAN,
+  last_test_message TEXT,
+  is_active_provider BOOLEAN NOT NULL DEFAULT false,
+  secrets_enc JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shipping_providers_one_active
+  ON shipping_providers ((true))
+  WHERE is_active_provider;
+
+ALTER TABLE shipping_providers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin all shipping_providers" ON shipping_providers;
+CREATE POLICY "Admin all shipping_providers" ON shipping_providers
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('admin', 'owner', 'super_admin', 'manager', 'staff')
+    )
+  ) WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('admin', 'owner', 'super_admin', 'manager', 'staff')
+    )
+  );
+
+CREATE TABLE IF NOT EXISTS shipping_rates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_code TEXT NOT NULL REFERENCES shipping_providers(code) ON DELETE CASCADE,
+  service_code TEXT NOT NULL,
+  service_name TEXT,
+  price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  free_shipping_threshold NUMERIC(12, 2),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (provider_code, service_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shipping_rates_provider
+  ON shipping_rates (provider_code, sort_order);
+
+ALTER TABLE shipping_rates ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin all shipping_rates" ON shipping_rates;
+CREATE POLICY "Admin all shipping_rates" ON shipping_rates
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('admin', 'owner', 'super_admin', 'manager', 'staff')
+    )
+  ) WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('admin', 'owner', 'super_admin', 'manager', 'staff')
+    )
+  );
+
 -- Reload PostgREST schema cache so new columns are visible immediately.
 NOTIFY pgrst, 'reload schema';

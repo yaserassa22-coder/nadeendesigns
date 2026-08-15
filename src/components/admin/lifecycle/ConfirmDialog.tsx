@@ -47,7 +47,7 @@ export function ConfirmDialog({
       >
         <h2 className="text-lg font-semibold text-charcoal">{title}</h2>
         {description ? (
-          <p className="mt-2 text-sm leading-relaxed text-muted">{description}</p>
+          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted">{description}</p>
         ) : null}
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={onCancel} disabled={loading}>

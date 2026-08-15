@@ -96,7 +96,7 @@ function Kpi({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-beige-dark bg-background p-4 shadow-sm print:break-inside-avoid">
+    <div className="rounded-2xl border border-beige-dark bg-background p-4 shadow-sm">
       <p className="text-sm text-muted">{title}</p>
       <p className="mt-2 font-[family-name:var(--font-cormorant)] text-2xl font-semibold text-foreground">
         {value}
@@ -116,7 +116,7 @@ function Panel({
   action?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-beige-dark bg-background p-5 shadow-sm print:break-inside-avoid">
+    <section className="rounded-2xl border border-beige-dark bg-background p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>
         {action}
@@ -149,7 +149,7 @@ function SimpleTable({
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[480px] text-sm">
+      <table className="w-full min-w-[480px] text-sm print:min-w-0">
         <thead>
           <tr className="border-b border-beige-dark text-muted">
             {headers.map((h) => (
@@ -404,6 +404,7 @@ export function ReportsCenter({
         ))}
       </div>
 
+      <div className="print:hidden">
       <Panel title={r.filters} action={<CalendarDays className="h-4 w-4 text-gold print:hidden" />}>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 print:hidden">
           <label className="block text-sm">
@@ -566,9 +567,10 @@ export function ReportsCenter({
           </p>
         )}
       </Panel>
+      </div>
 
       {(section === "overview" || section === "sales" || section === "financial") && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="reports-kpi-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi title={r.kpiGrossRevenue} value={formatPrice(data.sales.totalRevenue)} />
           <Kpi title={r.kpiNetRevenue} value={formatPrice(data.sales.netRevenue)} />
           <Kpi title={r.kpiOrdersCount} value={data.sales.ordersCount} />
@@ -587,7 +589,7 @@ export function ReportsCenter({
       )}
 
       {(section === "overview" || section === "bookings") && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="reports-kpi-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi title={r.kpiNewBookings} value={data.bookings.newCount} />
           <Kpi title={r.kpiConfirmed} value={data.bookings.confirmed} />
           <Kpi title={r.kpiCompleted} value={data.bookings.completed} />
@@ -610,7 +612,7 @@ export function ReportsCenter({
       )}
 
       {(section === "overview" || section === "customers") && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="reports-kpi-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi title={r.kpiNewCustomers} value={data.customers.newCustomers} />
           <Kpi title={r.kpiReturning} value={data.customers.returningCustomers} />
           <Kpi title={r.kpiAvgSpend} value={formatPrice(data.customers.avgSpend)} />
@@ -619,7 +621,7 @@ export function ReportsCenter({
       )}
 
       {(section === "overview" || section === "shipping") && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="reports-kpi-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi title={r.kpiDelivery} value={data.shipping.deliveryCount} />
           <Kpi title={r.kpiPickup} value={data.shipping.pickupCount} />
           <Kpi title={r.kpiAvgShipCost} value={formatPrice(data.shipping.avgShippingCost)} />
@@ -637,7 +639,7 @@ export function ReportsCenter({
       )}
 
       {section === "financial" && data.financial ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="reports-kpi-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi title={r.kpiGross} value={formatPrice(data.financial.gross)} />
           <Kpi title={r.kpiNet} value={formatPrice(data.financial.net)} />
           <Kpi title={r.kpiShipIncome} value={formatPrice(data.financial.shippingIncome)} />
@@ -658,7 +660,7 @@ export function ReportsCenter({
         section === "insights" ||
         section === "sales") && (
         <Panel title={r.businessInsights} action={<BarChart3 className="h-4 w-4 text-gold" />}>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="reports-insights-grid grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {data.insights.map((insight) => (
               <div
                 key={insight.id}
@@ -680,13 +682,15 @@ export function ReportsCenter({
         </Panel>
       )}
 
+      <div className="print:hidden">
       <ReportCharts
         charts={data.charts}
         focus={chartFocus === "all" ? "all" : chartFocus}
       />
+      </div>
 
       {(section === "overview" || section === "products") && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="reports-table-grid grid gap-4 xl:grid-cols-2">
           <Panel title={r.topProducts}>
             <SimpleTable
               headers={[r.colProduct, r.colQty, r.colOrders, r.colRevenue]}
@@ -736,7 +740,7 @@ export function ReportsCenter({
       )}
 
       {(section === "overview" || section === "categories") && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="reports-table-grid grid gap-4 xl:grid-cols-2">
           <Panel title={r.topCategories}>
             <SimpleTable
               headers={[r.colCategory, r.colQty, r.colRevenue]}
@@ -761,7 +765,7 @@ export function ReportsCenter({
       )}
 
       {(section === "overview" || section === "customers") && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="reports-table-grid grid gap-4 xl:grid-cols-2">
           <Panel title={r.topCustomersOrders}>
             <SimpleTable
               headers={[r.colName, r.colOrders, r.colSpend]}
@@ -786,7 +790,7 @@ export function ReportsCenter({
       )}
 
       {(section === "overview" || section === "bookings") && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="reports-table-grid grid gap-4 lg:grid-cols-2">
           <Panel title={r.topServices}>
             <SimpleTable
               headers={[r.colService, r.colCount]}

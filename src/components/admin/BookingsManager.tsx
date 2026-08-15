@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   Mail,
+  MoreHorizontal,
   RefreshCw,
   Sparkles,
   X,
@@ -71,13 +72,23 @@ const DELIVERY_OPTIONS = Object.entries(DELIVERY_STATUS_LABELS).map(
   ([value, label]) => ({ value, label })
 );
 
-const PRIMARY_ACTIONS: BookingAdminAction[] = [
-  "confirm",
-  "reschedule",
-  "cancel",
-  "complete",
-  "reply",
-];
+const VISIBLE_ROW_ACTIONS: BookingAdminAction[] = ["confirm", "complete"];
+const MENU_ROW_ACTIONS: BookingAdminAction[] = ["reschedule", "cancel", "reply"];
+
+function todayIsoDate() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function isUpcomingBooking(booking: Booking, today: string) {
+  if (booking.status === "cancelled" || booking.status === "completed") {
+    return false;
+  }
+  const date = (booking.date || "").slice(0, 10);
+  return Boolean(date) && date >= today;
+}
 
 function normalizeBooking(b: Booking): Booking {
   return {
@@ -91,7 +102,7 @@ function StatusBadge({ status }: { status: BookingStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex rounded-full px-2.5 py-1 text-[0.8125rem] font-medium",
         BOOKING_STATUS_BADGE_CLASS[status] ?? BOOKING_STATUS_BADGE_CLASS.pending
       )}
     >
@@ -147,6 +158,7 @@ function BookingsManagerInner({
   const [visibility, setVisibility] = useState<ListVisibility>("active");
   const [updating, setUpdating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
@@ -236,6 +248,35 @@ function BookingsManagerInner({
     if (filter === "all") return byService;
     return byService.filter((b) => b.status === filter);
   }, [bookings, filter, serviceFilter, visibility]);
+
+  const summary = useMemo(() => {
+    const byVis = filterLifecycleRows(
+      bookings as Array<
+        Booking & { is_deleted?: boolean | null; archived_at?: string | null }
+      >,
+      visibility
+    );
+    const source =
+      serviceFilter === "all"
+        ? byVis
+        : byVis.filter((b) => b.service_type === serviceFilter);
+    const today = todayIsoDate();
+    return {
+      total: source.length,
+      confirmed: source.filter((b) => b.status === "confirmed").length,
+      pending: source.filter((b) => b.status === "pending").length,
+      upcoming: source.filter((b) => isUpcomingBooking(b, today)).length,
+    };
+  }, [bookings, serviceFilter, visibility]);
+
+  useEffect(() => {
+    const onPointer = (event: PointerEvent) => {
+      const el = event.target as HTMLElement | null;
+      if (!el?.closest("[data-booking-more]")) setMoreOpenId(null);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, []);
 
   const patchBooking = async (
     id: string,
@@ -420,9 +461,40 @@ function BookingsManagerInner({
     }
   };
 
+  const isCustomDesign = serviceFilter === "custom_design";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="max-w-3xl">
+        <h1 className="text-[1.65rem] font-semibold tracking-tight text-charcoal md:text-[1.85rem]">
+          {isCustomDesign ? bu.pageTitleCustomDesign : bu.pageTitle}
+        </h1>
+        <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-muted">
+          {isCustomDesign
+            ? bu.pageDescriptionCustomDesign
+            : bu.pageDescription}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {(
+          [
+            { label: bu.summaryTotal, value: summary.total },
+            { label: bu.summaryConfirmed, value: summary.confirmed },
+            { label: bu.summaryPending, value: summary.pending },
+            { label: bu.summaryUpcoming, value: summary.upcoming },
+          ] as const
+        ).map((item) => (
+          <div key={item.label} className="admin-surface px-4 py-3.5">
+            <p className="text-[0.8125rem] text-muted">{item.label}</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-charcoal">
+              {item.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="admin-surface flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap items-end gap-4">
           <Select
             label={bu.filterStatus}
@@ -441,11 +513,13 @@ function BookingsManagerInner({
             <VisibilityFilter value={visibility} onChange={setVisibility} />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setManualOpen(true)}>{bu.addManual}</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => setManualOpen(true)} className="!rounded-xl">
+            {bu.addManual}
+          </Button>
           <Link
             href="/admin/calendar"
-            className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
+            className="inline-flex items-center rounded-xl border border-[#e8e2d8] bg-white px-4 py-2 text-sm text-charcoal hover:bg-[#faf8f5]"
           >
             {bu.calendar}
           </Link>
@@ -454,6 +528,7 @@ function BookingsManagerInner({
             size="sm"
             loading={loading}
             onClick={() => void loadBookings()}
+            className="!rounded-xl"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             {bu.refresh}
@@ -461,7 +536,7 @@ function BookingsManagerInner({
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/admin/export?module=bookings"
-            className="inline-flex items-center rounded-xl border border-beige-dark px-4 py-2 text-sm hover:bg-beige"
+            className="inline-flex items-center rounded-xl border border-[#e8e2d8] bg-white px-4 py-2 text-sm text-charcoal hover:bg-[#faf8f5]"
           >
             {bu.exportCsv}
           </a>
@@ -472,17 +547,17 @@ function BookingsManagerInner({
         <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-beige-dark bg-white">
+      <div className="admin-surface overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-beige/50 text-muted">
+          <table className="min-w-full">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-right font-medium">{bu.colCustomer}</th>
-                <th className="px-4 py-3 text-right font-medium">{bu.colAppointment}</th>
-                <th className="px-4 py-3 text-right font-medium">{bu.colService}</th>
-                <th className="px-4 py-3 text-right font-medium">{bu.colSource}</th>
-                <th className="px-4 py-3 text-right font-medium">{bu.colStatus}</th>
-                <th className="px-4 py-3 text-right font-medium">{bu.colActions}</th>
+                <th>{bu.colCustomer}</th>
+                <th>{bu.colAppointment}</th>
+                <th>{bu.colService}</th>
+                <th>{bu.colSource}</th>
+                <th>{bu.colStatus}</th>
+                <th>{bu.colActions}</th>
               </tr>
             </thead>
             <tbody>
@@ -534,13 +609,15 @@ function BookingsManagerInner({
                             </p>
                           ) : null}
                         </td>
-                        <td className="px-4 py-3">
-                          <p>{formatDate(booking.date)}</p>
-                          <p className="text-xs text-muted" dir="ltr">
+                        <td>
+                          <p className="font-medium tabular-nums text-charcoal">
+                            {formatDate(booking.date)}
+                          </p>
+                          <p className="text-[0.8125rem] text-muted" dir="ltr">
                             {booking.time}
                           </p>
                           {booking.created_at ? (
-                            <p className="text-xs text-muted">
+                            <p className="text-[0.8125rem] text-muted">
                               {bu.createdAt} {formatDate(booking.created_at)}
                             </p>
                           ) : null}
@@ -582,83 +659,125 @@ function BookingsManagerInner({
                             </select>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex max-w-[18rem] flex-wrap gap-1.5">
-                            {PRIMARY_ACTIONS.map((action) => (
-                              <Button
-                                key={action}
-                                size="sm"
-                                variant="outline"
-                                disabled={updating === booking.id}
-                                onClick={() => openAction(booking, action)}
-                                className="text-xs"
-                              >
-                                {action === "reply" ? (
-                                  <Mail className="h-3 w-3" />
-                                ) : null}
-                                {bookingActionLabel(bu, action)}
-                              </Button>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setExpanded(isOpen ? null : booking.id)
-                              }
-                              className="inline-flex items-center gap-1 text-xs text-gold"
-                            >
-                              {bu.details}
-                              {isOpen ? (
-                                <ChevronUp className="h-3.5 w-3.5" />
-                              ) : (
-                                <ChevronDown className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                            <RowLifecycleActions
-                              module="bookings"
-                              id={booking.id}
-                              archived={Boolean(
-                                (
-                                  booking as Booking & {
-                                    archived_at?: string | null;
-                                  }
-                                ).archived_at
-                              )}
-                              allowArchive={caps?.canArchive ?? false}
-                              allowRestore={caps?.canRestore ?? false}
-                              allowSoftDelete={caps?.canSoftDelete ?? false}
-                              onChanged={(kind) => {
-                                if (kind === "soft_delete") {
-                                  setLastDeletedId(booking.id);
-                                  setBookings((prev) =>
-                                    prev.filter((b) => b.id !== booking.id)
-                                  );
-                                  setSnack(
-                                    `${bu.movedToTrash} — تم إلغاء الموعد وإشعار العميلة`
-                                  );
-                                  notifyAdminInboxChanged();
-                                  return;
+                        <td>
+                          <div className="flex min-w-[12rem] flex-col items-start gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {VISIBLE_ROW_ACTIONS.map((action) => (
+                                <Button
+                                  key={action}
+                                  size="sm"
+                                  variant={action === "confirm" ? "secondary" : "outline"}
+                                  disabled={updating === booking.id}
+                                  onClick={() => openAction(booking, action)}
+                                  className="!rounded-lg px-3 py-1.5 text-[0.8125rem]"
+                                >
+                                  {bookingActionLabel(bu, action)}
+                                </Button>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpanded(isOpen ? null : booking.id)
                                 }
-                                setBookings((prev) =>
-                                  prev.map((b) =>
-                                    b.id === booking.id
-                                      ? {
-                                          ...b,
-                                          archived_at:
-                                            kind === "archive"
-                                              ? new Date().toISOString()
-                                              : null,
+                                className="inline-flex items-center gap-1 text-[0.8125rem] font-medium text-[#8a7048] hover:text-charcoal"
+                              >
+                                {bu.details}
+                                {isOpen ? (
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              <div className="relative" data-booking-more>
+                                <button
+                                  type="button"
+                                  aria-label={bu.moreActions}
+                                  aria-expanded={moreOpenId === booking.id}
+                                  onClick={() =>
+                                    setMoreOpenId((id) =>
+                                      id === booking.id ? null : booking.id
+                                    )
+                                  }
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-[#f4efe6] hover:text-charcoal"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                                {moreOpenId === booking.id ? (
+                                  <div className="absolute end-0 z-20 mt-1 w-52 rounded-xl border border-[#e8e2d8] bg-white p-1 shadow-md">
+                                    {MENU_ROW_ACTIONS.map((action) => (
+                                      <button
+                                        key={action}
+                                        type="button"
+                                        disabled={updating === booking.id}
+                                        onClick={() => {
+                                          setMoreOpenId(null);
+                                          openAction(booking, action);
+                                        }}
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-charcoal hover:bg-[#faf8f5] disabled:opacity-50"
+                                      >
+                                        {action === "reply" ? (
+                                          <Mail className="h-3.5 w-3.5 text-muted" />
+                                        ) : null}
+                                        {bookingActionLabel(bu, action)}
+                                      </button>
+                                    ))}
+                                    <div className="mt-1 border-t border-[#e8e2d8] px-1 pt-1">
+                                      <RowLifecycleActions
+                                        module="bookings"
+                                        id={booking.id}
+                                        archived={Boolean(
+                                          (
+                                            booking as Booking & {
+                                              archived_at?: string | null;
+                                            }
+                                          ).archived_at
+                                        )}
+                                        allowArchive={caps?.canArchive ?? false}
+                                        allowRestore={caps?.canRestore ?? false}
+                                        allowSoftDelete={
+                                          caps?.canSoftDelete ?? false
                                         }
-                                      : b
-                                  )
-                                );
-                                setSnack(
-                                  kind === "archive"
-                                    ? bu.archived
-                                    : bu.unarchived
-                                );
-                              }}
-                              onError={(msg) => alert(msg)}
-                            />
+                                        onChanged={(kind) => {
+                                          setMoreOpenId(null);
+                                          if (kind === "soft_delete") {
+                                            setLastDeletedId(booking.id);
+                                            setBookings((prev) =>
+                                              prev.filter(
+                                                (b) => b.id !== booking.id
+                                              )
+                                            );
+                                            setSnack(
+                                              `${bu.movedToTrash} — تم إلغاء الموعد وإشعار العميلة`
+                                            );
+                                            notifyAdminInboxChanged();
+                                            return;
+                                          }
+                                          setBookings((prev) =>
+                                            prev.map((b) =>
+                                              b.id === booking.id
+                                                ? {
+                                                    ...b,
+                                                    archived_at:
+                                                      kind === "archive"
+                                                        ? new Date().toISOString()
+                                                        : null,
+                                                  }
+                                                : b
+                                            )
+                                          );
+                                          setSnack(
+                                            kind === "archive"
+                                              ? bu.archived
+                                              : bu.unarchived
+                                          );
+                                        }}
+                                        onError={(msg) => alert(msg)}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
                           </div>
                         </td>
                       </tr>

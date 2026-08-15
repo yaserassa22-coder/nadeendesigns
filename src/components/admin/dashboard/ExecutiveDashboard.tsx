@@ -85,16 +85,16 @@ function KpiCard({
   icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <div className="rounded-2xl border border-beige-dark bg-background p-5 shadow-sm transition-colors">
+    <div className="admin-surface p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-muted">{title}</p>
-          <p className="mt-2 font-[family-name:var(--font-cormorant)] text-2xl font-semibold text-foreground sm:text-3xl">
+          <p className="text-[0.8125rem] text-muted">{title}</p>
+          <p className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight text-foreground">
             {value}
           </p>
           {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
         </div>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/10 text-gold">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f4efe6] text-[#8a7048]">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -125,7 +125,7 @@ function Panel({
   return (
     <section
       className={cn(
-        "rounded-2xl border border-beige-dark bg-background p-5 shadow-sm",
+        "admin-surface p-5",
         className
       )}
     >
@@ -224,11 +224,15 @@ export function ExecutiveDashboard({ initialData }: Props) {
     <div className="space-y-8" dir={dir}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.25em] text-gold uppercase">
+          <p className="font-[family-name:var(--font-cormorant)] text-sm tracking-[0.18em] text-[#8a7048]">
             {d.eyebrow}
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-foreground">{d.title}</h1>
-          <p className="mt-2 text-muted">{d.subtitle}</p>
+          <h1 className="mt-1.5 text-[1.65rem] font-semibold tracking-tight text-foreground md:text-[1.85rem]">
+            {d.title}
+          </h1>
+          <p className="mt-1.5 max-w-xl text-[0.9375rem] leading-relaxed text-muted">
+            {d.subtitle}
+          </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -302,38 +306,79 @@ export function ExecutiveDashboard({ initialData }: Props) {
         </div>
       )}
 
-      {alerts.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {alerts.map((alert) => (
+      <section className="rounded-2xl border border-[#e8e2d8] bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-charcoal">{t.admin.shellUi.quickActions}</h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            { href: "/admin/dresses", label: t.admin.shellUi.qaAddProduct },
+            { href: "/admin/content/home", label: t.admin.shellUi.qaHomepage },
+            { href: "/admin/bookings", label: t.admin.shellUi.qaBookings },
+            { href: "/admin/orders", label: t.admin.shellUi.qaOrders },
+            { href: "/admin/gallery", label: t.admin.shellUi.qaGallery },
+            { href: "/admin/settings", label: t.admin.shellUi.qaSettings },
+          ].map((action) => (
             <Link
-              key={alert.id}
-              href={alert.href || "/admin"}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm transition-opacity hover:opacity-90",
-                alertTone(alert.severity)
-              )}
+              key={action.href + action.label}
+              href={action.href}
+              className="rounded-full border border-[#e8e2d8] bg-[#faf8f5] px-3 py-1.5 text-xs font-medium text-charcoal transition hover:border-[#b89a6a]/50 hover:bg-white"
             >
-              <span className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                {alert.id === "orders-awaiting-confirmation"
-                  ? d.alertOrdersPending
-                  : alert.id === "unknown-shipping-regions"
-                    ? d.alertUnknownShipping
-                    : alert.id === "pending-delivery-fees"
-                      ? d.alertPendingFees
-                      : alert.id === "failed-notifications"
-                        ? d.alertFailedNotifications
-                        : alert.id === "out-of-stock"
-                          ? d.alertOutOfStock
-                          : alert.title}
-              </span>
-              <span className="font-[family-name:var(--font-cormorant)] text-xl font-semibold">
-                {alert.count}
-              </span>
+              {action.label}
             </Link>
           ))}
         </div>
-      )}
+      </section>
+
+      <section className="rounded-2xl border border-[#e8e2d8] bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-charcoal">{t.admin.shellUi.needsAttention}</h2>
+        {alerts.length === 0 && bookingAnalytics.pending <= 0 ? (
+          <p className="mt-3 text-sm text-muted">{t.admin.shellUi.everythingUpToDate}</p>
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {bookingAnalytics.pending > 0 ? (
+              <Link
+                href="/admin/bookings"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+              >
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {t.admin.shellUi.pendingBookings}
+                </span>
+                <span className="font-[family-name:var(--font-cormorant)] text-xl font-semibold">
+                  {bookingAnalytics.pending}
+                </span>
+              </Link>
+            ) : null}
+            {alerts.map((alert) => (
+              <Link
+                key={alert.id}
+                href={alert.href || "/admin"}
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm transition-opacity hover:opacity-90",
+                  alertTone(alert.severity)
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {alert.id === "orders-awaiting-confirmation"
+                    ? d.alertOrdersPending
+                    : alert.id === "unknown-shipping-regions"
+                      ? d.alertUnknownShipping
+                      : alert.id === "pending-delivery-fees"
+                        ? d.alertPendingFees
+                        : alert.id === "failed-notifications"
+                          ? d.alertFailedNotifications
+                          : alert.id === "out-of-stock"
+                            ? d.alertOutOfStock
+                            : alert.title}
+                </span>
+                <span className="font-[family-name:var(--font-cormorant)] text-xl font-semibold">
+                  {alert.count}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
         {busy ? (
@@ -556,10 +601,10 @@ export function ExecutiveDashboard({ initialData }: Props) {
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-beige-dark text-muted">
-                  <th className="px-2 py-2 text-right font-medium">{d.colProduct}</th>
-                  <th className="px-2 py-2 text-right font-medium">{d.colOrders}</th>
-                  <th className="px-2 py-2 text-right font-medium">{d.colQty}</th>
-                  <th className="px-2 py-2 text-right font-medium">{d.colRevenue}</th>
+                  <th className="px-2 py-2 text-start font-medium">{d.colProduct}</th>
+                  <th className="px-2 py-2 text-start font-medium">{d.colOrders}</th>
+                  <th className="px-2 py-2 text-start font-medium">{d.colQty}</th>
+                  <th className="px-2 py-2 text-start font-medium">{d.colRevenue}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-beige-dark">

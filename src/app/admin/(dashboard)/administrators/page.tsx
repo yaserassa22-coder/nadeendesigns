@@ -4,10 +4,13 @@ import { AdministratorsManager } from "@/components/admin/AdministratorsManager"
 import { canManageAdministrators } from "@/lib/admin/permissions";
 import { getProfileRole } from "@/lib/customer-auth/customer";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
+import { getLocale } from "@/lib/i18n/server";
+import { getDictionary } from "@/lib/i18n";
 
-export const metadata: Metadata = {
-  title: "المسؤولون",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return { title: getDictionary(locale).admin.administratorsUi.pageTitle };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -26,17 +29,5 @@ export default async function AdminAdministratorsPage() {
     redirect("/admin?error=admins_forbidden");
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm text-muted">إعدادات ← المسؤولون</p>
-        <h1 className="mt-1 text-3xl font-bold text-charcoal">المسؤولون</h1>
-        <p className="mt-2 text-muted">
-          أضيفي موظفين ومسؤولين بأدوار مختلفة (موظف / مدير / مسؤول / مالك)،
-          غيّري الأدوار، وعطّلي الحسابات دون حذف بيانات العملاء.
-        </p>
-      </div>
-      <AdministratorsManager />
-    </div>
-  );
+  return <AdministratorsManager />;
 }

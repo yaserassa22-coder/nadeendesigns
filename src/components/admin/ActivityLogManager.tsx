@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MODULE_LABEL_AR, type LifecycleModule } from "@/lib/admin/lifecycle-types";
+import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { BulkActionBar } from "@/components/admin/lifecycle/BulkActionBar";
+import { ConfirmDialog } from "@/components/admin/lifecycle/ConfirmDialog";
 import { formatDate } from "@/lib/utils";
 
 type AuditRow = {
@@ -45,12 +48,18 @@ const MODULE_OPTIONS = [
 ];
 
 export function ActivityLogManager() {
+  const { caps } = useAdminCapabilities();
+  const canDelete = caps.canPermanentDelete;
   const [logs, setLogs] = useState<AuditRow[]>([]);
   const [module, setModule] = useState("");
   const [recordId, setRecordId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +73,7 @@ export function ActivityLogManager() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "فشل التحميل");
       setLogs(Array.isArray(data.logs) ? data.logs : []);
+      setSelected(new Set());
       setWarning(data.warning || null);
       setError(null);
     } catch (e) {
@@ -79,6 +89,59 @@ export function ActivityLogManager() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  const allSelected = logs.length > 0 && logs.every((log) => selected.has(log.id));
+  const someSelected = logs.some((log) => selected.has(log.id));
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected && !allSelected;
+    }
+  }, [someSelected, allSelected]);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(logs.map((log) => log.id)));
+  };
+
+  const selectedIds = useMemo(() => Array.from(selected), [selected]);
+
+  const deleteSelected = async () => {
+    if (!canDelete || selectedIds.length === 0) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/audit-logs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل الحذف");
+      const removed = new Set(selectedIds);
+      setLogs((prev) => prev.filter((log) => !removed.has(log.id)));
+      setSelected(new Set());
+      setConfirmOpen(false);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل الحذف");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const colSpan = canDelete ? 6 : 5;
 
   return (
     <div className="space-y-6">
@@ -99,6 +162,16 @@ export function ActivityLogManager() {
         <Button loading={loading} onClick={() => void load()}>
           تحديث
         </Button>
+        {canDelete ? (
+          <Button
+            variant="outline"
+            className="border-red-200 text-red-700 hover:bg-red-50"
+            disabled={selected.size === 0 || busy}
+            onClick={() => setConfirmOpen(true)}
+          >
+            حذف المحدد{selected.size > 0 ? ` (${selected.size})` : ""}
+          </Button>
+        ) : null}
       </div>
 
       {warning && (
@@ -115,6 +188,21 @@ export function ActivityLogManager() {
           <table className="min-w-full text-sm">
             <thead className="bg-beige/50 text-muted">
               <tr>
+                {canDelete ? (
+                  <th className="px-4 py-3 text-right">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        disabled={logs.length === 0 || busy}
+                        aria-label="تحديد الكل"
+                      />
+                      <span>تحديد الكل</span>
+                    </label>
+                  </th>
+                ) : null}
                 <th className="px-4 py-3 text-right">الوقت</th>
                 <th className="px-4 py-3 text-right">الإجراء</th>
                 <th className="px-4 py-3 text-right">الوحدة</th>
@@ -125,13 +213,29 @@ export function ActivityLogManager() {
             <tbody>
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={colSpan} className="px-4 py-10 text-center text-muted">
                     {loading ? "جاري التحميل..." : "لا سجلات"}
                   </td>
                 </tr>
               ) : (
                 logs.map((log) => (
-                  <tr key={log.id} className="border-t border-beige-dark">
+                  <tr
+                    key={log.id}
+                    className={`border-t border-beige-dark ${
+                      selected.has(log.id) ? "bg-beige/30" : ""
+                    }`}
+                  >
+                    {canDelete ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(log.id)}
+                          onChange={() => toggle(log.id)}
+                          disabled={busy}
+                          aria-label="تحديد السجل"
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {formatDate(log.created_at)}
                     </td>
@@ -155,6 +259,26 @@ export function ActivityLogManager() {
           </table>
         </div>
       </div>
+
+      {canDelete ? (
+        <BulkActionBar
+          selectedCount={selected.size}
+          mode="trash"
+          onClear={() => setSelected(new Set())}
+          onDelete={() => setConfirmOpen(true)}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="حذف سجلات النشاط"
+        description={`سيتم حذف ${selected.size} سجل نهائياً. لا يمكن التراجع عن هذا الإجراء.`}
+        confirmLabel="حذف نهائي"
+        danger
+        loading={busy}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => void deleteSelected()}
+      />
     </div>
   );
 }

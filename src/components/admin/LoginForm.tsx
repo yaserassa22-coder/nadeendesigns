@@ -30,6 +30,33 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(errorFromQuery);
   const [loading, setLoading] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  const onForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setForgotSent(false);
+    if (!email.includes("@")) {
+      setError(login.email);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/login/forgot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.error || login.errorLoginFailed);
+      setForgotSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : login.errorLoginFailed);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,11 +106,50 @@ export function LoginForm() {
           {SITE_NAME}
         </p>
         <h1 className="mt-3 text-xl font-semibold text-charcoal">
-          {login.title}
+          {forgot ? login.forgotPassword : login.title}
         </h1>
-        <p className="mt-2 text-sm text-muted">{login.subtitle}</p>
+        <p className="mt-2 text-sm text-muted">
+          {forgot ? login.forgotIntro : login.subtitle}
+        </p>
       </div>
 
+      {forgot ? (
+        <form onSubmit={onForgot} className="space-y-5">
+          <Input
+            label={login.email}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            dir="ltr"
+            autoComplete="email"
+          />
+          {error ? (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+              {error}
+            </p>
+          ) : null}
+          {forgotSent ? (
+            <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              {login.forgotSent}
+            </p>
+          ) : null}
+          <Button type="submit" size="lg" loading={loading} className="w-full">
+            {login.sendResetLink}
+          </Button>
+          <button
+            type="button"
+            className="w-full text-sm text-muted hover:text-charcoal"
+            onClick={() => {
+              setForgot(false);
+              setForgotSent(false);
+              setError("");
+            }}
+          >
+            {login.backToLogin}
+          </button>
+        </form>
+      ) : (
       <form onSubmit={onSubmit} className="space-y-5">
         <Input
           label={login.email}
@@ -93,7 +159,7 @@ export function LoginForm() {
           required
           dir="ltr"
           autoComplete="email"
-          placeholder="admin@nadeendesigns.com"
+          placeholder={login.emailPlaceholder}
         />
         <Input
           label={login.password}
@@ -115,7 +181,18 @@ export function LoginForm() {
         <Button type="submit" size="lg" loading={loading} className="w-full">
           {login.submit}
         </Button>
+        <button
+          type="button"
+          className="w-full text-sm text-muted hover:text-charcoal"
+          onClick={() => {
+            setForgot(true);
+            setError("");
+          }}
+        >
+          {login.forgotPassword}
+        </button>
       </form>
+      )}
     </div>
   );
 }

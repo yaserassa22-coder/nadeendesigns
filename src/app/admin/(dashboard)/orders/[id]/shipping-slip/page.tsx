@@ -227,21 +227,30 @@ export default function ShippingSlipPrintPage() {
                     : ui.dash}
               </dd>
             </div>
-            {order.tracking_number && (
+            {(order.shipment?.carrier_tracking_number ||
+              order.tracking_number) && (
               <div>
                 <dt className="inline text-muted">{ui.trackingNumber} </dt>
                 <dd className="inline font-medium" dir="ltr">
-                  {order.tracking_number}
+                  {order.shipment?.carrier_tracking_number ||
+                    order.tracking_number}
                 </dd>
               </div>
             )}
-            {order.carrier_code && (
+            {(order.shipment?.carrier || order.carrier_code) && (
               <div>
                 <dt className="inline text-muted">{ui.carrier} </dt>
                 <dd className="inline">
-                  <span>{resolveCarrierLabel(order.carrier_code, locale)}</span>
+                  <span>
+                    {resolveCarrierLabel(
+                      order.shipment?.carrier || order.carrier_code,
+                      locale
+                    )}
+                  </span>
                   <span className="mt-0.5 block text-xs text-muted">
-                    {resolveCarrierLabelTrilingual(order.carrier_code)}
+                    {resolveCarrierLabelTrilingual(
+                      order.shipment?.carrier || order.carrier_code
+                    )}
                   </span>
                 </dd>
               </div>

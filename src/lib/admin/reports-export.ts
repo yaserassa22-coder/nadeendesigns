@@ -6,6 +6,11 @@ import { rowsToCsv } from "@/lib/admin/csv-export";
 import { SITE_NAME, DEFAULT_SETTINGS } from "@/lib/constants";
 import type { ReportsPayload, ReportSection } from "@/lib/admin/reports-types";
 import { formatPrice } from "@/lib/utils";
+import {
+  drawMixedPdfText,
+  registerArabicPdfFonts,
+  type PdfFontDoc,
+} from "@/lib/pdf/arabic-pdf";
 
 export type ExportTable = {
   title: string;
@@ -224,6 +229,29 @@ export async function buildReportXlsx(
   return new Uint8Array(buf);
 }
 
+function formatPdfCell(cell: string | number): string {
+  if (typeof cell === "number" && cell >= 100) {
+    return formatPrice(cell).replace(/[^\d.,]/g, "") || String(cell);
+  }
+  return String(cell);
+}
+
+function pdfColumnStyles(colCount: number): Record<number, { cellWidth: number }> {
+  const usable = 182;
+  const styles: Record<number, { cellWidth: number }> = {};
+  if (colCount <= 0) return styles;
+  if (colCount === 2) {
+    styles[0] = { cellWidth: usable * 0.72 };
+    styles[1] = { cellWidth: usable * 0.28 };
+    return styles;
+  }
+  const width = usable / colCount;
+  for (let i = 0; i < colCount; i += 1) {
+    styles[i] = { cellWidth: width };
+  }
+  return styles;
+}
+
 export async function buildReportPdf(
   data: ReportsPayload,
   section: ReportSection = "overview"
@@ -231,15 +259,33 @@ export async function buildReportPdf(
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  }) as unknown as PdfFontDoc & {
+    internal: { pageSize: { getWidth: () => number } };
+    addPage: () => void;
+    output: (type: "arraybuffer") => ArrayBuffer;
+    lastAutoTable?: { finalY?: number };
+    setR2L: (value: boolean) => void;
+    setFillColor: (r: number, g: number, b: number) => void;
+  };
+
+  await registerArabicPdfFonts(doc);
+  doc.setR2L(false);
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setFont("helvetica", "bold");
+  doc.setTextColor(44, 36, 27);
+  doc.setFillColor(44, 36, 27);
+  doc.setFont("NotoSans", "normal");
   doc.setFontSize(16);
   doc.text(SITE_NAME, pageWidth / 2, 18, { align: "center" });
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.text("Report Center / التقارير", pageWidth / 2, 26, { align: "center" });
+  drawMixedPdfText(doc, "Report Center / التقارير", pageWidth / 2, 26, {
+    align: "center",
+    size: 11,
+  });
+  doc.setFont("NotoSans", "normal");
   doc.setFontSize(9);
   doc.text(
     `${DEFAULT_SETTINGS.email} | ${DEFAULT_SETTINGS.phone}`,
@@ -247,9 +293,11 @@ export async function buildReportPdf(
     32,
     { align: "center" }
   );
-  doc.text(`Period: ${periodLabel(data)}`, pageWidth / 2, 38, {
+  drawMixedPdfText(doc, `Period: ${periodLabel(data)}`, pageWidth / 2, 38, {
     align: "center",
+    size: 9,
   });
+  doc.setFont("NotoSans", "normal");
   doc.text(
     `Generated: ${new Date().toLocaleString("en-GB")}`,
     pageWidth / 2,
@@ -261,28 +309,58 @@ export async function buildReportPdf(
   const tables = buildExportTables(data, section);
 
   for (const table of tables) {
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text(table.title, 14, startY);
+    drawMixedPdfText(doc, table.title, pageWidth - 14, startY, {
+      align: "right",
+      size: 11,
+    });
     startY += 2;
 
+    const body = table.rows.map((r) => r.map((cell) => formatPdfCell(cell)));
     autoTable(doc, {
       startY: startY + 2,
       head: [table.headers],
-      body: table.rows.map((r) =>
-        r.map((cell) =>
-          typeof cell === "number" && cell >= 100
-            ? formatPrice(cell).replace(/[^\d.,]/g, "") || String(cell)
-            : String(cell)
-        )
-      ),
-      styles: { fontSize: 8, halign: "right" },
-      headStyles: { fillColor: [184, 149, 106], textColor: 255 },
+      body,
+      styles: {
+        font: "NotoSans",
+        fontSize: 8,
+        minCellHeight: 7,
+        valign: "middle",
+        cellPadding: 1.6,
+        overflow: "hidden",
+        textColor: [44, 36, 27],
+      },
+      headStyles: {
+        fillColor: [184, 149, 106],
+        textColor: [255, 255, 255],
+        font: "NotoSans",
+      },
+      columnStyles: pdfColumnStyles(table.headers.length),
+      didParseCell: (hook) => {
+        hook.cell.text = [""];
+      },
+      didDrawCell: (hook) => {
+        const raw = hook.cell.raw;
+        if (raw === null || raw === undefined || raw === "") return;
+        const padding = 1.8;
+        const x = hook.cell.x + hook.cell.width - padding;
+        const y = hook.cell.y + hook.cell.height / 2 + 1.1;
+        if (hook.section === "head") {
+          doc.setTextColor(255, 255, 255);
+          doc.setFillColor(255, 255, 255);
+        } else {
+          doc.setTextColor(44, 36, 27);
+          doc.setFillColor(44, 36, 27);
+        }
+        drawMixedPdfText(doc, String(raw), x, y, {
+          align: "right",
+          size: 8,
+          maxWidth: Math.max(8, hook.cell.width - padding * 2),
+        });
+      },
       margin: { left: 14, right: 14 },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const finalY = (doc as any).lastAutoTable?.finalY ?? startY + 20;
+    const finalY = doc.lastAutoTable?.finalY ?? startY + 20;
     startY = finalY + 10;
     if (startY > 260) {
       doc.addPage();
@@ -291,6 +369,8 @@ export async function buildReportPdf(
   }
 
   const summary = data.sales;
+  doc.setTextColor(44, 36, 27);
+  doc.setFont("NotoSans", "normal");
   doc.setFontSize(9);
   doc.text(
     `Totals — Revenue: ${summary.totalRevenue} | Orders: ${summary.ordersCount} | AOV: ${summary.aov}`,

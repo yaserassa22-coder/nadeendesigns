@@ -22,9 +22,15 @@ export function AdminPageHeader({
   const { dir } = useLocale();
   return (
     <div className="space-y-6" dir={dir}>
-      <div>
-        <h1 className="text-3xl font-bold text-charcoal">{title}</h1>
-        {subtitle ? <p className="mt-2 text-muted">{subtitle}</p> : null}
+      <div className="max-w-3xl">
+        <h1 className="text-[1.65rem] font-semibold tracking-tight text-charcoal md:text-[1.85rem]">
+          {title}
+        </h1>
+        {subtitle ? (
+          <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-muted">
+            {subtitle}
+          </p>
+        ) : null}
       </div>
       {children}
     </div>
@@ -50,9 +56,13 @@ export function AdminProductsPageHeader({
 
   return (
     <div className="space-y-6" dir={dir}>
-      <div>
-        <h1 className="text-3xl font-bold text-charcoal">{title}</h1>
-        <p className="mt-2 text-muted">{subtitle}</p>
+      <div className="max-w-3xl">
+        <h1 className="text-[1.65rem] font-semibold tracking-tight text-charcoal md:text-[1.85rem]">
+          {title}
+        </h1>
+        <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-muted">
+          {subtitle}
+        </p>
       </div>
       {children}
     </div>

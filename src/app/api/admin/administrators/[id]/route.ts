@@ -3,6 +3,7 @@ import { requireAdminManagersApi } from "@/lib/auth";
 import {
   demoteAdministrator,
   promoteAdministrator,
+  sendAdministratorPasswordReset,
   setAdministratorDisabled,
 } from "@/lib/admin/administrators";
 import { normalizeAdminRole } from "@/lib/admin/permissions";
@@ -24,13 +25,31 @@ export async function PATCH(request: NextRequest, context: Ctx) {
 
     const { id } = await context.params;
     const body = (await request.json().catch(() => ({}))) as {
-      action?: "set_role" | "disable" | "enable";
+      action?: "set_role" | "disable" | "enable" | "reset_password";
       role?: string;
     };
 
     const actor = { id: user!.id, email: user!.email, role };
     const ip = clientIp(request);
     const action = body.action || "set_role";
+
+    if (action === "reset_password") {
+      const result = await sendAdministratorPasswordReset({
+        actor,
+        targetUserId: id,
+        ip,
+      });
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: result.error },
+          { status: result.status }
+        );
+      }
+      return NextResponse.json({
+        ok: true,
+        message: "تم إرسال رابط إعادة تعيين كلمة المرور",
+      });
+    }
 
     if (action === "disable" || action === "enable") {
       const result = await setAdministratorDisabled({

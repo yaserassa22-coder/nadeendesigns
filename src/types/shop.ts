@@ -248,6 +248,35 @@ export interface ShippingRegion {
   updated_at?: string;
 }
 
+export const SHIPMENT_STATUSES = [
+  "pending",
+  "label_created",
+  "in_transit",
+  "delivered",
+  "cancelled",
+  "failed",
+] as const;
+
+export type ShipmentStatus = (typeof SHIPMENT_STATUSES)[number];
+
+/** One shipment per order (primary). Tracking lives here, never on the product. */
+export interface OrderShipment {
+  id: string;
+  order_id: string;
+  public_token: string;
+  carrier: string | null;
+  carrier_shipment_id: string | null;
+  carrier_tracking_number: string | null;
+  carrier_service: string | null;
+  carrier_label_url: string | null;
+  shipment_status: ShipmentStatus;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ShopOrderItem {
   product_type: ShopProductType;
   product_id: string;
@@ -312,6 +341,8 @@ export interface ShopOrder {
   internal_shipping_notes?: string | null;
   /** Carrier / shipping company code — future-ready for integrations */
   carrier_code?: string | null;
+  /** Primary shipment (not stored on the product). */
+  shipment?: OrderShipment | null;
   /**
    * Customer-facing estimated delivery label (API enrichment from region;
    * not a persisted shop_orders column).
