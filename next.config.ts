@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     /** Large image uploads through /api/upload (videos use direct Cloudinary upload). */
-    middlewareClientMaxBodySize: "50mb",
+    proxyClientMaxBodySize: "50mb",
     serverActions: {
       bodySizeLimit: "50mb",
     },
