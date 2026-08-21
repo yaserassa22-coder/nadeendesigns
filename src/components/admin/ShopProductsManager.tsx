@@ -9,7 +9,7 @@ import { localizedName } from "@/lib/i18n/localize";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Copy, Pencil, Plus, X } from "lucide-react";
-import type { BridalRobe, Veil } from "@/types/shop";
+import type { AccessoryItem, BridalRobe, Veil } from "@/types/shop";
 import { VEIL_CATEGORY_OPTIONS } from "@/types/shop";
 import { DRESS_COLORS, DRESS_SIZES } from "@/lib/constants";
 import type { ListVisibility } from "@/lib/admin/lifecycle-types";
@@ -23,8 +23,21 @@ import { ImageUpload } from "@/components/admin/ImageUpload";
 import { useAdminCapabilities } from "@/hooks/useAdminCapabilities";
 import { RowLifecycleActions } from "@/components/admin/lifecycle/RowLifecycleActions";
 import { VisibilityFilter } from "@/components/admin/lifecycle/VisibilityFilter";
+import { ExperienceDesignerPanel } from "@/components/admin/product-editor/ExperienceDesignerPanel";
+import { ProductFeaturesPanel } from "@/components/admin/product-editor/ProductFeaturesPanel";
+import {
+  defaultProductExperienceConfig,
+  normalizeProductExperienceConfig,
+  type ProductExperienceConfig,
+} from "@/lib/products/experience-designer";
+import {
+  normalizeProductFeaturesConfig,
+  type ProductFeaturesConfig,
+} from "@/lib/products/experience-features";
 
-type Kind = "veils" | "bridal-robes";
+type Kind = "veils" | "bridal-robes" | "accessory-item";
+
+type ShopItem = Veil | BridalRobe | AccessoryItem;
 
 type FormState = {
   name_ar: string;
@@ -39,6 +52,8 @@ type FormState = {
   is_featured: boolean;
   is_available: boolean;
   images: string[];
+  experience_config: ProductExperienceConfig;
+  features_config: ProductFeaturesConfig | null;
 };
 
 const emptyForm = (kind: Kind): FormState => ({
@@ -54,12 +69,16 @@ const emptyForm = (kind: Kind): FormState => ({
   is_featured: false,
   is_available: true,
   images: [],
+  experience_config: defaultProductExperienceConfig(),
+  features_config: null,
 });
 
 interface ShopProductsManagerProps {
   kind: Kind;
   title: string;
-  initialItems: (Veil | BridalRobe)[];
+  initialItems: ShopItem[];
+  /** Required when kind === "accessory-item" — scopes create/list to this category. */
+  categoryId?: string;
 }
 
 const PAGE_SIZE = 8;
@@ -68,17 +87,26 @@ export function ShopProductsManager({
   kind,
   title,
   initialItems,
+  categoryId,
 }: ShopProductsManagerProps) {
   const { t, locale } = useLocale();
   const p = t.admin.productsUi;
   const { caps } = useAdminCapabilities();
-  const apiPath = kind === "veils" ? "/api/veils" : "/api/bridal-robes";
+  const apiPath =
+    kind === "veils"
+      ? "/api/veils"
+      : kind === "bridal-robes"
+        ? "/api/bridal-robes"
+        : "/api/accessory-items";
   const [items, setItems] = useState(initialItems);
   const [search, setSearch] = useState("");
   const [availability, setAvailability] = useState<"all" | "yes" | "no">("all");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Veil | BridalRobe | null>(null);
+  const [tab, setTab] = useState<"general" | "experience" | "features">(
+    "general"
+  );
+  const [editing, setEditing] = useState<ShopItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm(kind));
   const [saving, setSaving] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -86,14 +114,19 @@ export function ShopProductsManager({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [visibility, setVisibility] = useState<ListVisibility>("active");
-  const lifecycleModule = kind === "veils" ? "veils" : "bridal_robes";
+  const lifecycleModule =
+    kind === "veils"
+      ? "veils"
+      : kind === "bridal-robes"
+        ? "bridal_robes"
+        : "accessory_items";
   const duplicateApiPath = `${apiPath}/duplicate`;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const visible = filterLifecycleRows(
       items as Array<
-        (Veil | BridalRobe) & {
+        ShopItem & {
           is_deleted?: boolean | null;
           archived_at?: string | null;
         }
@@ -126,10 +159,11 @@ export function ShopProductsManager({
     setForm(emptyForm(kind));
     setError("");
     setNotice("");
+    setTab("general");
     setOpen(true);
   };
 
-  const openEdit = (item: Veil | BridalRobe) => {
+  const openEdit = (item: ShopItem) => {
     setEditing(item);
     setForm({
       name_ar: item.name_ar,
@@ -147,13 +181,16 @@ export function ShopProductsManager({
       is_featured: item.is_featured,
       is_available: item.is_available,
       images: item.images ?? [],
+      experience_config: normalizeProductExperienceConfig(item.experience_config),
+      features_config: normalizeProductFeaturesConfig(item.features_config),
     });
     setError("");
     setNotice("");
+    setTab("general");
     setOpen(true);
   };
 
-  const applyItemToForm = (item: Veil | BridalRobe) => {
+  const applyItemToForm = (item: ShopItem) => {
     setForm({
       name_ar: item.name_ar,
       description_ar: item.description_ar,
@@ -170,10 +207,12 @@ export function ShopProductsManager({
       is_featured: item.is_featured,
       is_available: item.is_available,
       images: [...(item.images ?? [])],
+      experience_config: normalizeProductExperienceConfig(item.experience_config),
+      features_config: normalizeProductFeaturesConfig(item.features_config),
     });
   };
 
-  const duplicateProduct = async (item: Veil | BridalRobe) => {
+  const duplicateProduct = async (item: ShopItem) => {
     setDuplicatingId(item.id);
     setError("");
     try {
@@ -183,7 +222,7 @@ export function ShopProductsManager({
         body: JSON.stringify({ id: item.id }),
       });
       const data = (await res.json()) as {
-        product?: Veil | BridalRobe;
+        product?: ShopItem;
         message?: string;
         error?: string;
       };
@@ -205,7 +244,7 @@ export function ShopProductsManager({
     }
   };
 
-  const deleteProduct = async (item: Veil | BridalRobe) => {
+  const deleteProduct = async (item: ShopItem) => {
     const confirmed = window.confirm(
       formatMessage(p.deleteConfirm, { name: item.name_ar })
     );
@@ -253,9 +292,14 @@ export function ShopProductsManager({
       stock_quantity: Number(form.stock_quantity || 0),
       is_featured: form.is_featured,
       is_available: form.is_available,
+      experience_config: form.experience_config,
+      features_config: form.features_config,
     };
     if (kind === "veils") {
       return { ...base, category: form.category || "كلاسيكي" };
+    }
+    if (kind === "accessory-item") {
+      return { ...base, size: form.size || null, category_id: categoryId };
     }
     return { ...base, size: form.size || null };
   };
@@ -446,7 +490,7 @@ export function ShopProductsManager({
                           id={item.id}
                           archived={Boolean(
                             (
-                              item as (Veil | BridalRobe) & {
+                              item as ShopItem & {
                                 archived_at?: string | null;
                               }
                             ).archived_at
@@ -473,7 +517,7 @@ export function ShopProductsManager({
                                         kind === "archive"
                                           ? new Date().toISOString()
                                           : null,
-                                    } as unknown as Veil | BridalRobe)
+                                    } as unknown as ShopItem)
                                   : i
                               )
                             );
@@ -586,6 +630,54 @@ export function ShopProductsManager({
               </p>
             ) : null}
 
+            <div className="mb-4 flex gap-2 border-b border-beige-dark/40">
+              {(
+                [
+                  {
+                    key: "general" as const,
+                    label:
+                      locale === "en"
+                        ? "General"
+                        : locale === "he"
+                          ? "כללי"
+                          : "عام",
+                  },
+                  {
+                    key: "experience" as const,
+                    label:
+                      locale === "en"
+                        ? "Experience"
+                        : locale === "he"
+                          ? "חוויית מוצר"
+                          : "تجربة المنتج",
+                  },
+                  {
+                    key: "features" as const,
+                    label:
+                      locale === "en"
+                        ? "Features"
+                        : locale === "he"
+                          ? "תכונות"
+                          : "الميزات",
+                  },
+                ]
+              ).map((t2) => (
+                <button
+                  key={t2.key}
+                  type="button"
+                  onClick={() => setTab(t2.key)}
+                  className={`rounded-t-lg px-3 py-2 text-sm font-medium transition ${
+                    tab === t2.key
+                      ? "border-b-2 border-gold text-charcoal"
+                      : "text-muted hover:text-charcoal"
+                  }`}
+                >
+                  {t2.label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "general" && (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Input
@@ -705,6 +797,29 @@ export function ShopProductsManager({
                 {p.featured}
               </label>
             </div>
+            )}
+
+            {tab === "experience" && (
+              <ExperienceDesignerPanel
+                value={form.experience_config}
+                onChange={(next) =>
+                  setForm({ ...form, experience_config: next })
+                }
+                productNameAr={form.name_ar}
+                productType="bridal_accessory"
+                featuresConfig={form.features_config}
+              />
+            )}
+
+            {tab === "features" && (
+              <ProductFeaturesPanel
+                value={form.features_config}
+                onChange={(next) =>
+                  setForm({ ...form, features_config: next })
+                }
+                productType="bridal_accessory"
+              />
+            )}
 
             {error && (
               <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-600">

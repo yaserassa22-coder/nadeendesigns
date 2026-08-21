@@ -28,6 +28,7 @@ const PURCHASE_EXPERIENCE_GROUPS: {
     featureIds: [
       "veil_writing",
       "robe_writing",
+      "accessory_writing",
       "font_selection",
       "color_selection",
     ],

@@ -44,6 +44,18 @@ async function fetchAccessoryCount(table: "veils" | "bridal_robes"): Promise<num
   return 0;
 }
 
+async function fetchAccessoryItemCountRows(): Promise<CountRow[]> {
+  const supabase = createAdminClient();
+  let query = supabase.from("accessory_items").select("category_id");
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (!error && data) return data as CountRow[];
+
+  const retry = await supabase.from("accessory_items").select("category_id");
+  if (!retry.error && retry.data) return retry.data as CountRow[];
+  return [];
+}
+
 function isVeilCategory(c: Category): boolean {
   const kind = resolveCategoryProductKind(c);
   if (kind === "veil") return true;
@@ -84,10 +96,11 @@ export async function getCategoryProductCounts(
     veilCount = SEED_VEILS.length;
     robeCount = SEED_BRIDAL_ROBES.length;
   } else {
-    const [dresses, veils, robes] = await Promise.all([
+    const [dresses, veils, robes, accessoryItemRows] = await Promise.all([
       fetchDressCountRows(),
       fetchAccessoryCount("veils"),
       fetchAccessoryCount("bridal_robes"),
+      fetchAccessoryItemCountRows(),
     ]);
     for (const row of dresses) {
       if (row.category_id) {
@@ -95,6 +108,9 @@ export async function getCategoryProductCounts(
       } else {
         bump(byText, row.category?.trim().toLowerCase());
       }
+    }
+    for (const row of accessoryItemRows) {
+      bump(byId, row.category_id);
     }
     veilCount = veils;
     robeCount = robes;

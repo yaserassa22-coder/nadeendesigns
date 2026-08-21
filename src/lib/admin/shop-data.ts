@@ -7,7 +7,7 @@ import { selectShopOrdersList } from "@/lib/shop/order-query";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
-import type { BridalRobe, ShopOrder, Veil } from "@/types/shop";
+import type { AccessoryItem, BridalRobe, ShopOrder, Veil } from "@/types/shop";
 import type { ContactMessage } from "@/types";
 
 export async function getAdminVeils(): Promise<Veil[]> {
@@ -50,6 +50,32 @@ export async function getAdminBridalRobes(): Promise<BridalRobe[]> {
   }
   if (error || !data) return SEED_BRIDAL_ROBES;
   return filterLifecycleRows(data as BridalRobe[], "all");
+}
+
+/** Generic bridal-accessory rows for one category (migration 056). */
+export async function getAdminAccessoryItems(
+  categoryId: string
+): Promise<AccessoryItem[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("accessory_items")
+    .select("*")
+    .eq("category_id", categoryId)
+    .order("created_at", { ascending: false });
+  query = query.eq("is_deleted", false) as typeof query;
+  const { data, error } = await query;
+  if (error && isLifecycleSchemaError(error)) {
+    const retry = await supabase
+      .from("accessory_items")
+      .select("*")
+      .eq("category_id", categoryId)
+      .order("created_at", { ascending: false });
+    if (retry.error || !retry.data) return [];
+    return retry.data as AccessoryItem[];
+  }
+  if (error || !data) return [];
+  return filterLifecycleRows(data as AccessoryItem[], "all");
 }
 
 export type AdminOrdersResult = {

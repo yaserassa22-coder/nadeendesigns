@@ -20,11 +20,17 @@ export const ACCESSORIES_EDITORIAL_SHAPES = [
   "cinema",
   "portrait",
   "oval",
+  "arch",
+  "diamond",
+  "ticket",
 ] as const satisfies readonly AccessoriesEditorialShape[];
 
 export const ACCESSORIES_EDITORIAL_SCALE_MIN = 40;
 export const ACCESSORIES_EDITORIAL_SCALE_MAX = 160;
 export const ACCESSORIES_EDITORIAL_SCALE_DEFAULT = 100;
+export const ACCESSORIES_EDITORIAL_LENGTH_MIN = 40;
+export const ACCESSORIES_EDITORIAL_LENGTH_MAX = 160;
+export const ACCESSORIES_EDITORIAL_LENGTH_DEFAULT = 100;
 
 export const ACCESSORIES_EDITORIAL_PRESET_SCALE: Record<
   AccessoriesEditorialSize,
@@ -40,6 +46,7 @@ export const DEFAULT_ACCESSORIES_EDITORIAL_FRAME: AccessoriesEditorialFrameSetti
     size: "editorial",
     shape: "canvas",
     scale: ACCESSORIES_EDITORIAL_SCALE_DEFAULT,
+    horizontalLength: ACCESSORIES_EDITORIAL_LENGTH_DEFAULT,
   };
 
 const SIZE_SET = new Set<string>(ACCESSORIES_EDITORIAL_SIZES);
@@ -51,6 +58,15 @@ export function clampAccessoriesEditorialScale(value: unknown): number {
   return Math.min(
     ACCESSORIES_EDITORIAL_SCALE_MAX,
     Math.max(ACCESSORIES_EDITORIAL_SCALE_MIN, Math.round(n))
+  );
+}
+
+export function clampAccessoriesEditorialLength(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return ACCESSORIES_EDITORIAL_LENGTH_DEFAULT;
+  return Math.min(
+    ACCESSORIES_EDITORIAL_LENGTH_MAX,
+    Math.max(ACCESSORIES_EDITORIAL_LENGTH_MIN, Math.round(n))
   );
 }
 
@@ -79,7 +95,11 @@ export function normalizeAccessoriesEditorialFrame(
     s.scale === undefined || s.scale === null
       ? ACCESSORIES_EDITORIAL_PRESET_SCALE[size]
       : clampAccessoriesEditorialScale(s.scale);
-  return { size, shape, scale };
+  const horizontalLength =
+    s.horizontalLength === undefined || s.horizontalLength === null
+      ? ACCESSORIES_EDITORIAL_LENGTH_DEFAULT
+      : clampAccessoriesEditorialLength(s.horizontalLength);
+  return { size, shape, scale, horizontalLength };
 }
 
 const SHAPE_MAX: Record<
@@ -93,6 +113,9 @@ const SHAPE_MAX: Record<
   cinema: { storefront: "80rem", preview: "32rem" },
   portrait: { storefront: "36rem", preview: "14rem" },
   oval: { storefront: "72rem", preview: "30rem" },
+  arch: { storefront: "64rem", preview: "26rem" },
+  diamond: { storefront: "64rem", preview: "26rem" },
+  ticket: { storefront: "72rem", preview: "30rem" },
 };
 
 export type AccessoriesEditorialFrameLayout = {
@@ -117,6 +140,7 @@ function scaleVars(
 ): CSSProperties {
   return {
     ["--ae-s" as string]: String(scaleFactor(frame)),
+    ["--ae-w" as string]: String(clampAccessoriesEditorialLength(frame.horizontalLength) / 100),
     ["--ae-max" as string]: SHAPE_MAX[frame.shape][mode],
     ...extra,
   };
@@ -138,7 +162,11 @@ export function accessoriesEditorialFrameLayout(
   if (shape === "canvas") {
     return {
       sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
-      shellClassName: preview ? "w-full" : "w-full px-1 sm:px-1.5",
+      shellClassName: cn(
+        "nd-ae-shell-scale",
+        preview ? "" : "px-1 sm:px-1.5"
+      ),
+      shellStyle: vars,
       stageClassName: cn(
         "relative overflow-hidden bg-beige",
         heightClass
@@ -235,6 +263,49 @@ export function accessoriesEditorialFrameLayout(
       textClassName: preview
         ? "absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-0.5 p-3"
         : "absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-2 p-6 md:gap-2.5 md:p-9",
+    };
+  }
+
+  if (shape === "arch") {
+    return {
+      sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
+      shellClassName: cn("nd-ae-shell-scale", preview ? "px-0" : "px-6 sm:px-10 md:px-16"),
+      shellStyle: vars,
+      stageClassName: cn("relative overflow-hidden bg-beige", heightClass),
+      stageStyle: scaleVars(frame, mode, {
+        borderRadius: "50% 50% 0.75rem 0.75rem / 34% 34% 0.75rem 0.75rem",
+      }),
+      textClassName: preview
+        ? "absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-0.5 p-4"
+        : "absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-2 p-8 md:p-12",
+    };
+  }
+
+  if (shape === "diamond") {
+    return {
+      sectionClassName: preview ? "" : "bg-white py-8 sm:py-10 md:py-12",
+      shellClassName: cn("nd-ae-shell-scale", preview ? "px-0" : "px-8 sm:px-12 md:px-20"),
+      shellStyle: vars,
+      stageClassName: cn("relative aspect-square overflow-hidden bg-beige", heightClass),
+      stageStyle: scaleVars(frame, mode, { clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" }),
+      textClassName: preview
+        ? "absolute inset-x-0 bottom-[18%] z-10 flex flex-col items-center text-center gap-0.5 px-6"
+        : "absolute inset-x-0 bottom-[18%] z-10 flex flex-col items-center text-center gap-2 px-10",
+    };
+  }
+
+  if (shape === "ticket") {
+    return {
+      sectionClassName: preview ? "" : "bg-white pt-8 sm:pt-10 md:pt-12",
+      shellClassName: cn("nd-ae-shell-scale", preview ? "px-0" : "px-4 sm:px-8 md:px-10"),
+      shellStyle: vars,
+      stageClassName: cn("relative overflow-hidden bg-beige rounded-[1.25rem]", heightClass),
+      stageStyle: scaleVars(frame, mode, {
+        clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 76%, 2% 72%, 0 68%)",
+      }),
+      textClassName: preview
+        ? "absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-0.5 p-3"
+        : "absolute inset-x-0 bottom-0 z-10 flex flex-col items-start gap-2 p-5 md:p-8",
     };
   }
 

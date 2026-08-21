@@ -25,9 +25,11 @@ import { AutoLoopVideo } from "@/components/media/AutoLoopVideo";
 
 type WornByYouSectionProps = {
   items: WornByYouItem[];
+  eyebrow?: string;
+  title?: string;
 };
 
-export function WornByYouSection({ items }: WornByYouSectionProps) {
+export function WornByYouSection({ items, eyebrow, title }: WornByYouSectionProps) {
   const { t, dir } = useLocale();
   const reduceMotion = useReducedMotion();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -104,13 +106,13 @@ export function WornByYouSection({ items }: WornByYouSectionProps) {
       <div className="w-full px-1 sm:px-1.5">
         <div className="mb-4 px-2 text-center md:mb-5">
           <p className="font-[family-name:var(--font-cormorant)] text-[10px] tracking-[0.32em] text-gold uppercase md:text-xs">
-            {t.home.wornByYouEyebrow}
+            {eyebrow || t.home.wornByYouEyebrow}
           </p>
           <h2
             id={`${baseId}-title`}
             className="mt-2 font-[family-name:var(--font-cormorant)] text-lg tracking-[0.12em] text-charcoal uppercase md:text-xl"
           >
-            {t.home.wornByYouTitle}
+            {title || t.home.wornByYouTitle}
           </h2>
         </div>
 

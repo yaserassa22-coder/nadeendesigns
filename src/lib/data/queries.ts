@@ -324,7 +324,7 @@ export async function getWornByYouItems(): Promise<WornByYouItem[]> {
   return (data ?? []) as WornByYouItem[];
 }
 
-export async function getSettings(): Promise<SiteSettings> {
+export const getSettings = cache(async function getSettings(): Promise<SiteSettings> {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -337,7 +337,7 @@ export async function getSettings(): Promise<SiteSettings> {
     }
   }
   return normalizeSiteSettings(DEFAULT_SETTINGS);
-}
+});
 
 export async function getFeaturedDresses(limit = 3): Promise<Dress[]> {
   const dresses = await getDresses({ featured: true });

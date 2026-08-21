@@ -25,7 +25,8 @@ ALTER TABLE categories
       'dress',
       'veil',
       'bridal_robe',
-      'accessories_group'
+      'accessories_group',
+      'accessory_item'
     )
   );
 

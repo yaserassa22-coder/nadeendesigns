@@ -64,7 +64,35 @@ export interface BridalRobe {
   updated_at: string;
 }
 
-export type ShopProductType = "veil" | "bridal_robe" | "dress";
+export type ShopProductType = "veil" | "bridal_robe" | "dress" | "accessory_item";
+
+/** Generic bridal-accessory type — any NEW sub-category beyond veils/robes. */
+export interface AccessoryItem {
+  id: string;
+  category_id: string;
+  name_ar: string;
+  name_en?: string | null;
+  name_he?: string | null;
+  description_ar: string;
+  price: number;
+  sale_price?: number | null;
+  images: string[];
+  color: string | null;
+  material: string | null;
+  size: string | null;
+  stock_quantity: number;
+  is_available: boolean;
+  is_featured: boolean;
+  /** Always bridal_accessory — storefront CTA source of truth */
+  product_type?: "bridal_accessory" | null;
+  sku?: string | null;
+  order_options_config?: import("@/lib/products/order-experience").ProductOrderOptionsConfig | null;
+  extra_services_config?: import("@/lib/products/order-experience").ProductExtraServicesConfig | null;
+  experience_config?: import("@/lib/products/experience-designer").ProductExperienceConfig | null;
+  features_config?: import("@/lib/products/experience-features").ProductFeaturesConfig | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface CartItem {
   line_id: string;

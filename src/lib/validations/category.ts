@@ -26,7 +26,7 @@ const optionalSeoText = z
 
 const productKindSchema = z
   .union([
-    z.enum(["dress", "veil", "bridal_robe", "accessories_group"]),
+    z.enum(["dress", "veil", "bridal_robe", "accessories_group", "accessory_item"]),
     z.literal(""),
     z.null(),
   ])

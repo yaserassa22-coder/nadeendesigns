@@ -13,13 +13,14 @@ export type LifecycleActor = {
   email?: string | null;
 };
 
-const PRODUCT_MODULES: LifecycleModule[] = ["dresses", "veils", "bridal_robes"];
+const PRODUCT_MODULES: LifecycleModule[] = ["dresses", "veils", "bridal_robes", "accessory_items"];
 
 /** Modules eligible for automatic trash cleanup (never orders/bookings). */
 export const CLEANUP_ELIGIBLE_MODULES: LifecycleModule[] = [
   "dresses",
   "veils",
   "bridal_robes",
+  "accessory_items",
   "categories",
   "messages",
   "notification_logs",

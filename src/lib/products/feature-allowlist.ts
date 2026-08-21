@@ -77,6 +77,9 @@ export function allowedFeatureIdsForProduct(input: {
   }
   // bridal_accessory | ready_to_buy — purchase flow, no appointment/design request.
   return [
+    "accessory_writing",
+    "font_selection",
+    "color_selection",
     "gift_wrap",
     "gift_message",
     "luxury_box",

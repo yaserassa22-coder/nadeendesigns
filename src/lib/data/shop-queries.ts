@@ -2,7 +2,7 @@ import { cache } from "react";
 import { SEED_BRIDAL_ROBES, SEED_VEILS } from "@/lib/data/shop-seed";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
-import type { BridalRobe, Veil } from "@/types/shop";
+import type { AccessoryItem, BridalRobe, Veil } from "@/types/shop";
 
 type LifecycleRow = {
   is_deleted?: boolean | null;
@@ -209,7 +209,7 @@ export type AccessoryShopItem = {
   category: string;
   size?: string | null;
   href: string;
-  kind: "veil" | "bridal_robe";
+  kind: "veil" | "bridal_robe" | "accessory_item";
   /** Always bridal_accessory — storefront CTA source of truth */
   product_type: "bridal_accessory";
   created_at: string;
@@ -217,11 +217,23 @@ export type AccessoryShopItem = {
 
 /**
  * All published accessory products for the Bridal Accessories collection.
- * Veils and robes live in separate tables — this is the storefront union.
+ * Veils and robes live in separate tables; any custom sub-category product
+ * (accessory_items) is unioned in too — this is the full storefront collection.
  * Ordering: featured first, then newest (existing product flags / timestamps).
  */
 export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[]> {
-  const [veils, robes] = await Promise.all([getVeils(), getBridalRobes()]);
+  const [veils, robes, items] = await Promise.all([
+    getVeils(),
+    getBridalRobes(),
+    getAllAccessoryItems(),
+  ]);
+
+  let categoryNames = new Map<string, string>();
+  if (items.length) {
+    const { getCategories } = await import("@/lib/data/categories");
+    const categories = await getCategories();
+    categoryNames = new Map(categories.map((c) => [c.id, c.name_ar]));
+  }
 
   const fromVeils: AccessoryShopItem[] = veils.map((v) => ({
     id: v.id,
@@ -263,8 +275,112 @@ export async function getBridalAccessoriesProducts(): Promise<AccessoryShopItem[
     created_at: r.created_at,
   }));
 
-  return [...fromVeils, ...fromRobes].sort((a, b) => {
+  const fromAccessoryItems: AccessoryShopItem[] = items.map((i) => ({
+    id: i.id,
+    name_ar: i.name_ar,
+    name_en: i.name_en,
+    name_he: i.name_he,
+    price: i.price,
+    sale_price: i.sale_price ?? null,
+    images: i.images ?? [],
+    color: i.color,
+    material: i.material,
+    is_available: i.is_available,
+    is_featured: Boolean(i.is_featured),
+    category: categoryNames.get(i.category_id) ?? "",
+    size: i.size,
+    href: `/accessories/${i.id}`,
+    kind: "accessory_item",
+    product_type: "bridal_accessory" as const,
+    created_at: i.created_at,
+  }));
+
+  return [...fromVeils, ...fromRobes, ...fromAccessoryItems].sort((a, b) => {
     if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1;
     return b.created_at.localeCompare(a.created_at);
   });
+}
+
+/** Generic bridal-accessory rows for one category (migration 056). */
+export async function getAccessoryItemsForCategory(
+  categoryId: string
+): Promise<AccessoryItem[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+  let query = supabase
+    .from("accessory_items")
+    .select("*")
+    .eq("category_id", categoryId)
+    .order("created_at", { ascending: false });
+  query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+  let { data, error } = await query;
+  if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+    const retry = await supabase
+      .from("accessory_items")
+      .select("*")
+      .eq("category_id", categoryId)
+      .order("created_at", { ascending: false });
+    data = retry.data;
+    error = retry.error;
+  }
+  if (error || !data) return [];
+  return (data as (AccessoryItem & LifecycleRow)[]).filter(
+    (row) => isPublicRow(row) && isShopPublic(row)
+  );
+}
+
+export const getAccessoryItemById = cache(async function getAccessoryItemById(
+  id: string
+): Promise<AccessoryItem | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await createClient();
+  let query = supabase.from("accessory_items").select("*").eq("id", id);
+  query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+  let { data, error } = await query.maybeSingle();
+  if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+    const retry = await supabase
+      .from("accessory_items")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    data = retry.data;
+    error = retry.error;
+  }
+  if (error || !data) return null;
+  const row = data as AccessoryItem & LifecycleRow;
+  if (!isPublicRow(row) || !isShopPublic(row)) return null;
+  return row;
+});
+
+export async function getRelatedAccessoryItems(
+  categoryId: string,
+  excludeId: string,
+  limit = 3
+): Promise<AccessoryItem[]> {
+  const items = await getAccessoryItemsForCategory(categoryId);
+  return items.filter((i) => i.id !== excludeId).slice(0, Math.max(1, limit));
+}
+
+/** All published generic accessory rows, across every custom sub-category. */
+export async function getAllAccessoryItems(): Promise<AccessoryItem[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+  let query = supabase
+    .from("accessory_items")
+    .select("*")
+    .order("created_at", { ascending: false });
+  query = query.eq("is_deleted", false).is("archived_at", null) as typeof query;
+  let { data, error } = await query;
+  if (error && /is_deleted|archived_at|PGRST204|42703/i.test(error.message ?? "")) {
+    const retry = await supabase
+      .from("accessory_items")
+      .select("*")
+      .order("created_at", { ascending: false });
+    data = retry.data;
+    error = retry.error;
+  }
+  if (error || !data) return [];
+  return (data as (AccessoryItem & LifecycleRow)[]).filter(
+    (row) => isPublicRow(row) && isShopPublic(row)
+  );
 }

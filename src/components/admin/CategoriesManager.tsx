@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Eye, EyeOff, Pencil, Plus, X } from "lucide-react";
 import {
   buildCategoryTree,
+  isAccessorySidebarCategory,
   slugifyCategory,
   type Category,
 } from "@/types/category";
@@ -29,6 +30,8 @@ type CategoryRow = Category & {
 
 interface CategoriesManagerProps {
   initialCategories: Category[];
+  /** "accessories" scopes the list/form to veils, robes, and the accessories group only. */
+  scope?: "all" | "accessories";
 }
 
 const emptyForm = {
@@ -52,19 +55,28 @@ const emptyForm = {
   seo_og_image_url: "" as string,
 };
 
+const emptyAccessoriesForm = { ...emptyForm, product_kind: "veil" as string };
+
 /** accessories_group is container-only; leaf rows stay product-assignable. */
 function coerceLeafProductKind(
   productKind: string,
-  parentId: string
+  parentId: string,
+  scope: "all" | "accessories" = "all"
 ): string {
-  if (productKind === "accessories_group" && parentId) return "dress";
-  return productKind || "dress";
+  if (productKind === "accessories_group" && parentId) {
+    return scope === "accessories" ? "veil" : "dress";
+  }
+  return productKind || (scope === "accessories" ? "veil" : "dress");
 }
 
-export function CategoriesManager({ initialCategories }: CategoriesManagerProps) {
+export function CategoriesManager({
+  initialCategories,
+  scope = "all",
+}: CategoriesManagerProps) {
   const { t, locale, dir } = useLocale();
   const c = t.admin.categoriesUi;
   const router = useRouter();
+  const defaultForm = scope === "accessories" ? emptyAccessoriesForm : emptyForm;
   const [categories, setCategories] = useState<CategoryRow[]>(initialCategories);
   const [categoriesProp, setCategoriesProp] = useState(initialCategories);
   if (initialCategories !== categoriesProp) {
@@ -75,7 +87,7 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
   const [caps, setCaps] = useState<LifecycleCapabilities | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(defaultForm);
   const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -92,9 +104,27 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
     return () => window.clearTimeout(timer);
   }, []);
 
+  /** In accessories scope, only the accessories group + its veil/robe descendants apply. */
+  const scopedCategories = useMemo(
+    () =>
+      scope === "accessories"
+        ? categories.filter(isAccessorySidebarCategory)
+        : categories,
+    [categories, scope]
+  );
+
+  const accessoriesParentId = useMemo(() => {
+    if (scope !== "accessories") return "";
+    return (
+      scopedCategories.find(
+        (cat) => !cat.parent_id && isAccessorySidebarCategory(cat)
+      )?.id ?? ""
+    );
+  }, [scope, scopedCategories]);
+
   const visibleCategories = useMemo(
-    () => filterLifecycleRows(categories, visibility),
-    [categories, visibility]
+    () => filterLifecycleRows(scopedCategories, visibility),
+    [scopedCategories, visibility]
   );
 
   const tree = useMemo(
@@ -104,16 +134,16 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
 
   const parentOptions = useMemo(() => {
     const opts = [{ value: "", label: c.noParent }];
-    for (const cat of categories) {
+    for (const cat of scopedCategories) {
       if (editing && cat.id === editing.id) continue;
       opts.push({ value: cat.id, label: resolveCategoryLabel(cat, locale) });
     }
     return opts;
-  }, [categories, editing, c.noParent, locale]);
+  }, [scopedCategories, editing, c.noParent, locale]);
 
   const reset = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...defaultForm, parent_id: accessoriesParentId });
     setSlugTouched(false);
     setError("");
   };
@@ -184,7 +214,8 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
         href: form.href.trim() || `/${form.slug.trim().toLowerCase()}`,
         product_kind: coerceLeafProductKind(
           form.product_kind,
-          form.parent_id
+          form.parent_id,
+          scope
         ),
         seo_title_ar: form.seo_title_ar.trim() || null,
         seo_description_ar: form.seo_description_ar.trim() || null,
@@ -351,8 +382,12 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
   return (
     <div className="space-y-6" dir={dir}>
       <div>
-        <h1 className="text-3xl font-bold text-charcoal">{c.pageTitle}</h1>
-        <p className="mt-2 text-muted">{c.pageSubtitle}</p>
+        <h1 className="text-3xl font-bold text-charcoal">
+          {scope === "accessories" ? c.pageTitleAccessories : c.pageTitle}
+        </h1>
+        <p className="mt-2 text-muted">
+          {scope === "accessories" ? c.pageSubtitleAccessories : c.pageSubtitle}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -473,12 +508,24 @@ export function CategoriesManager({ initialCategories }: CategoriesManagerProps)
                 onChange={(e) =>
                   setForm((p) => ({ ...p, product_kind: e.target.value }))
                 }
-                options={[
-                  { value: "dress", label: c.kindDress },
-                  { value: "veil", label: c.kindVeil },
-                  { value: "bridal_robe", label: c.kindRobe },
-                  { value: "accessories_group", label: c.kindAccessories },
-                ]}
+                options={
+                  scope === "accessories"
+                    ? [
+                        { value: "veil", label: c.kindVeil },
+                        { value: "bridal_robe", label: c.kindRobe },
+                        { value: "accessory_item", label: c.kindAccessoryItem },
+                        ...(editing?.product_kind === "accessories_group"
+                          ? [{ value: "accessories_group", label: c.kindAccessories }]
+                          : []),
+                      ]
+                    : [
+                        { value: "dress", label: c.kindDress },
+                        { value: "veil", label: c.kindVeil },
+                        { value: "bridal_robe", label: c.kindRobe },
+                        { value: "accessory_item", label: c.kindAccessoryItem },
+                        { value: "accessories_group", label: c.kindAccessories },
+                      ]
+                }
               />
               <div className="space-y-3 rounded-xl border border-beige-dark/70 bg-beige/30 p-4">
                 <p className="text-sm font-medium text-charcoal">{c.displaySettings}</p>

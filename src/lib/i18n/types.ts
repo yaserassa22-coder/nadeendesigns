@@ -1760,6 +1760,8 @@ export type Dictionary = {
     categoriesUi: {
       pageTitle: string;
       pageSubtitle: string;
+      pageTitleAccessories: string;
+      pageSubtitleAccessories: string;
       addCategory: string;
       colCategory: string;
       colParent: string;
@@ -1785,6 +1787,7 @@ export type Dictionary = {
       kindVeil: string;
       kindRobe: string;
       kindAccessories: string;
+      kindAccessoryItem: string;
       displaySettings: string;
       published: string;
       inNav: string;
@@ -2652,10 +2655,23 @@ export type Dictionary = {
         previewLabel: string;
         previewEyebrow: string;
         previewTitle: string;
+        gridEnabledLabel: string;
+        gridEnabledHint: string;
+        gridColumnsLabel: string;
+        gridScrollLabel: string;
+        gridScrollHint: string;
+        gridStyleLabel: string;
+        gridStyles: {
+          editorial: { label: string; hint: string };
+          cards: { label: string; hint: string };
+          minimal: { label: string; hint: string };
+        };
         sizeLabel: string;
         sizeHint: string;
         scaleLabel: string;
         scaleHint: string;
+        lengthLabel: string;
+        lengthHint: string;
         shapeLabel: string;
         shapeHint: string;
         reset: string;
@@ -2672,6 +2688,9 @@ export type Dictionary = {
           cinema: { label: string; hint: string };
           portrait: { label: string; hint: string };
           oval: { label: string; hint: string };
+          arch: { label: string; hint: string };
+          diamond: { label: string; hint: string };
+          ticket: { label: string; hint: string };
         };
       };
     };

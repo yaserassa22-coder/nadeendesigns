@@ -451,9 +451,31 @@ function normalizeHomepage(raw: unknown): StoreHomepageSettings {
     accessories_editorial_frame: normalizeAccessoriesEditorialFrame(
       s.accessories_editorial_frame
     ),
+    accessories_editorial_grid_enabled: bool(
+      s.accessories_editorial_grid_enabled,
+      d.accessories_editorial_grid_enabled
+    ),
+    accessories_editorial_grid_columns:
+      Number(s.accessories_editorial_grid_columns) === 2 ||
+      Number(s.accessories_editorial_grid_columns) === 4 ||
+      Number(s.accessories_editorial_grid_columns) === 6
+        ? (Number(s.accessories_editorial_grid_columns) as 2 | 4 | 6)
+        : d.accessories_editorial_grid_columns,
+    accessories_editorial_grid_scroll: bool(
+      s.accessories_editorial_grid_scroll,
+      d.accessories_editorial_grid_scroll
+    ),
+    accessories_editorial_grid_style:
+      s.accessories_editorial_grid_style === "cards" ||
+      s.accessories_editorial_grid_style === "minimal" ||
+      s.accessories_editorial_grid_style === "editorial"
+        ? s.accessories_editorial_grid_style
+        : d.accessories_editorial_grid_style,
     collections: bool(s.collections, d.collections),
     testimonials: bool(s.testimonials, d.testimonials),
     worn_by_you: bool(s.worn_by_you, d.worn_by_you),
+    worn_by_you_eyebrow: str(s.worn_by_you_eyebrow, d.worn_by_you_eyebrow),
+    worn_by_you_title: str(s.worn_by_you_title, d.worn_by_you_title),
     instagram: bool(s.instagram, d.instagram),
     newsletter: bool(s.newsletter, d.newsletter),
     editorial_order,

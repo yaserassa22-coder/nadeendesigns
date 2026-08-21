@@ -30,6 +30,8 @@ export function wishlistProductHref(
       return `/veils/${key}`;
     case "bridal_robe":
       return `/robes/${key}`;
+    case "accessory_item":
+      return `/accessories/${key}`;
     default:
       return `/dresses/${key}`;
   }
@@ -57,6 +59,8 @@ export function wishlistKindLabel(
       return L.productRobe;
     case "dress":
       return L.productDress;
+    case "accessory_item":
+      return L.productGeneric;
     default:
       return productKind || L.productGeneric;
   }
@@ -72,6 +76,7 @@ export function inferWishlistKind(opts: {
   const href = opts.href?.trim() || "";
   if (href.startsWith("/veils")) return "veil";
   if (href.startsWith("/robes")) return "bridal_robe";
+  if (href.startsWith("/accessories")) return "accessory_item";
   if (href.startsWith("/dresses")) return "dress";
   if (opts.basePath === "/veils") return "veil";
   if (opts.basePath === "/robes") return "bridal_robe";

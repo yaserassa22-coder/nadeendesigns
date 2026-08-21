@@ -13,16 +13,19 @@ export function generateProductSlug(
   return fallback;
 }
 
-/** SKU: ND- + uppercase slug fragment (max 12) + short random suffix. */
+/** SKU: ND- + uppercase slug fragment (max 12) + high-entropy random suffix. */
 export function generateProductSku(slug: string): string {
   const base = slug
     .replace(/[^a-z0-9\u0600-\u06FF-]/gi, "")
     .replace(/-/g, "")
     .slice(0, 12)
     .toUpperCase();
-  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  // Timestamp + random combo — short base slugs (e.g. single-letter) would
+  // otherwise collide often with only a 4-char random tail.
+  const timePart = Date.now().toString(36).slice(-4).toUpperCase();
+  const randPart = Math.random().toString(36).slice(2, 6).toUpperCase();
   const core = base || "ITEM";
-  return `ND-${core}-${suffix}`;
+  return `ND-${core}-${timePart}${randPart}`;
 }
 
 /** @deprecated Prefer `@/lib/products/pricing` — kept for existing admin imports. */

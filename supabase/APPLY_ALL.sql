@@ -1,5 +1,5 @@
-- =============================================================================
--- APPLY_ALL.sql ? SINGLE-FILE master setup for NadEEN Designs
+-- =============================================================================
+-- APPLY_ALL.sql — SINGLE-FILE master setup for NadEEN Designs
 --
 -- ONE FILE. Run once or repeatedly. No other APPLY_*.sql required.
 -- Paste this entire file into Supabase ? SQL Editor ? Run.
@@ -2282,7 +2282,8 @@ ALTER TABLE categories
       'dress',
       'veil',
       'bridal_robe',
-      'accessories_group'
+      'accessories_group',
+      'accessory_item'
     )
   );
 
@@ -3029,7 +3030,7 @@ CREATE INDEX IF NOT EXISTS idx_recently_viewed_customer
   ON recently_viewed (customer_id, viewed_at DESC)
   WHERE customer_id IS NOT NULL;
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
@@ -3063,7 +3064,7 @@ CREATE INDEX IF NOT EXISTS idx_wishlist_items_guest
   ON wishlist_items (guest_id, created_at DESC)
   WHERE guest_id IS NOT NULL;
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
@@ -4263,6 +4264,7 @@ INSERT INTO experience_features (
 VALUES
   ('veil_writing', 'Writing on Veil', 'كتابة على الطرحة', 'تخصيص كتابة الطرحة', 'personalization', 'personalization', TRUE, TRUE, 10),
   ('robe_writing', 'Writing on Robe', 'كتابة على البرنص', 'تخصيص كتابة البرنص', 'personalization', 'personalization', TRUE, TRUE, 20),
+  ('accessory_writing', 'Writing on Accessory', 'إضافة كتابة', 'إضافة كتابة مخصصة على المنتج', 'personalization', 'personalization', TRUE, TRUE, 25),
   ('font_selection', 'Font Selection', 'اختيار الخط', 'اختيار خط الكتابة', 'personalization', 'personalization', TRUE, TRUE, 30),
   ('color_selection', 'Color Selection', 'اختيار اللون', 'اختيار لون الكتابة', 'personalization', 'personalization', TRUE, TRUE, 40),
   ('gift_wrap', 'Gift Wrap', 'تغليف هدية', 'تغليف فاخر للهدايا', 'gift', 'gift_wrap', TRUE, TRUE, 50),
@@ -4603,6 +4605,62 @@ BEGIN
   SET value = current_val, updated_at = now()
   WHERE key = 'store';
 END $$;
+
+
+-- =============================================================================
+-- 56 - Generic accessory_items table (= 056_generic_accessory_items.sql)
+-- Any NEW bridal-accessory sub-category (beyond veils/robes) uses this single
+-- table instead of requiring a dedicated table/API/admin manager per type.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS accessory_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+  name_ar TEXT NOT NULL,
+  name_en TEXT,
+  name_he TEXT,
+  description_ar TEXT NOT NULL DEFAULT '',
+  price NUMERIC NOT NULL DEFAULT 0,
+  sale_price NUMERIC,
+  images JSONB DEFAULT '[]'::jsonb,
+  color TEXT,
+  material TEXT,
+  size TEXT,
+  stock_quantity INT NOT NULL DEFAULT 0,
+  is_available BOOLEAN NOT NULL DEFAULT true,
+  is_featured BOOLEAN NOT NULL DEFAULT false,
+  product_type TEXT NOT NULL DEFAULT 'bridal_accessory'
+    CHECK (product_type = 'bridal_accessory'),
+  sku TEXT,
+  order_options_config JSONB,
+  extra_services_config JSONB,
+  experience_config JSONB,
+  features_config JSONB,
+  is_deleted BOOLEAN NOT NULL DEFAULT false,
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID,
+  archived_at TIMESTAMPTZ,
+  archived_by UUID,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_accessory_items_sku_unique
+  ON accessory_items (sku) WHERE sku IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_accessory_items_category_id ON accessory_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_accessory_items_featured ON accessory_items(is_featured);
+CREATE INDEX IF NOT EXISTS idx_accessory_items_is_deleted ON accessory_items(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_accessory_items_archived_at ON accessory_items(archived_at);
+
+ALTER TABLE accessory_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read accessory_items" ON accessory_items;
+CREATE POLICY "Public read accessory_items" ON accessory_items FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin all accessory_items" ON accessory_items;
+CREATE POLICY "Admin all accessory_items" ON accessory_items FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
 
 
 NOTIFY pgrst, 'reload schema';

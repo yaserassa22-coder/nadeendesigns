@@ -23,9 +23,15 @@ type ProductOption = { id: string; label: string };
 
 interface WornByYouManagerProps {
   initialItems: WornByYouItem[];
+  initialEyebrow: string;
+  initialTitle: string;
 }
 
-export function WornByYouManager({ initialItems }: WornByYouManagerProps) {
+export function WornByYouManager({
+  initialItems,
+  initialEyebrow,
+  initialTitle,
+}: WornByYouManagerProps) {
   const { t, dir } = useLocale();
   const w = t.admin.wornByYouAdmin;
 
@@ -51,6 +57,10 @@ export function WornByYouManager({ initialItems }: WornByYouManagerProps) {
   const [sortOrder, setSortOrder] = useState("0");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [eyebrow, setEyebrow] = useState(initialEyebrow);
+  const [title, setTitle] = useState(initialTitle);
+  const [savingHeadings, setSavingHeadings] = useState(false);
+  const [headingMessage, setHeadingMessage] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -204,6 +214,68 @@ export function WornByYouManager({ initialItems }: WornByYouManagerProps) {
 
   return (
     <div className="space-y-6" dir={dir}>
+      <section className="rounded-2xl border border-beige-dark bg-white p-5 md:p-6">
+        <div>
+          <h2 className="text-lg font-semibold text-charcoal">
+            Homepage heading
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Edit both texts shown above the gallery. Empty fields use the language default.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <Input
+            label="Eyebrow"
+            value={eyebrow}
+            onChange={(event) => setEyebrow(event.target.value)}
+            placeholder={t.home.wornByYouEyebrow}
+            maxLength={80}
+          />
+          <Input
+            label="Title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder={t.home.wornByYouTitle}
+            maxLength={80}
+          />
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <Button
+            type="button"
+            loading={savingHeadings}
+            onClick={async () => {
+              setSavingHeadings(true);
+              setHeadingMessage("");
+              try {
+                const response = await fetch("/api/admin/store-settings", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    settings: {
+                      homepage: {
+                        worn_by_you_eyebrow: eyebrow.trim(),
+                        worn_by_you_title: title.trim(),
+                      },
+                    },
+                    sections: ["homepage"],
+                  }),
+                });
+                if (!response.ok) throw new Error("save failed");
+                setHeadingMessage("Saved");
+              } catch {
+                setHeadingMessage("Could not save");
+              } finally {
+                setSavingHeadings(false);
+              }
+            }}
+          >
+            Save headings
+          </Button>
+          {headingMessage ? (
+            <span className="text-sm text-gold">{headingMessage}</span>
+          ) : null}
+        </div>
+      </section>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-1.5 text-sm text-muted">

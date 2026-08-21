@@ -1,7 +1,9 @@
 "use client";
 
 import { Heart } from "lucide-react";
+import { useMemo } from "react";
 import { ProductPrimaryCta } from "@/components/product/ProductPrimaryCta";
+import { CartContext, type CartContextValue } from "@/components/shop/cart-context";
 import {
   EXPERIENCE_SECTION_LABELS_AR,
   storefrontExperienceSections,
@@ -89,6 +91,22 @@ export function ProductExperienceLivePreview({
     </span>
   ) : null;
 
+  // Preview is non-interactive/disabled — stub cart context avoids requiring
+  // a real CartProvider (and its network hydration) in the Admin tree.
+  const stubCart = useMemo<CartContextValue>(
+    () => ({
+      items: [],
+      count: 0,
+      subtotal: 0,
+      needsShipping: false,
+      addItem: () => {},
+      updateQuantity: () => {},
+      removeItem: () => {},
+      clearCart: () => {},
+    }),
+    []
+  );
+
   return (
     <div
       className={cn(
@@ -133,23 +151,25 @@ export function ProductExperienceLivePreview({
 
       {/* Same storefront CTA component — blocked from interaction in Admin */}
       <div className="pointer-events-none select-none" aria-hidden>
-        <ProductPrimaryCta
-          productType={commerceType}
-          featuresConfig={featuresConfig}
-          enabledFeatureIds={enabledFeatures}
-          primaryAction={action}
-          experienceConfig={experienceConfig}
-          sections={sections}
-          extraServices={extraServices}
-          shopProductType="dress"
-          productId="admin-preview"
-          nameAr={productNameAr}
-          price={purchasable ? unitPrice : null}
-          wishlist={wishlistSlot}
-          disabled
-          size="md"
-          className="w-full"
-        />
+        <CartContext.Provider value={stubCart}>
+          <ProductPrimaryCta
+            productType={commerceType}
+            featuresConfig={featuresConfig}
+            enabledFeatureIds={enabledFeatures}
+            primaryAction={action}
+            experienceConfig={experienceConfig}
+            sections={sections}
+            extraServices={extraServices}
+            shopProductType="dress"
+            productId="admin-preview"
+            nameAr={productNameAr}
+            price={purchasable ? unitPrice : null}
+            wishlist={wishlistSlot}
+            disabled
+            size="md"
+            className="w-full"
+          />
+        </CartContext.Provider>
       </div>
     </div>
   );

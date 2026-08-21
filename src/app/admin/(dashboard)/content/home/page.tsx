@@ -165,6 +165,10 @@ export default async function AdminHomeContentPage() {
       <div id="accessories">
       <HomeAccessoriesEditorialCmsForm
         initialFrame={hp.accessories_editorial_frame}
+        initialGridEnabled={hp.accessories_editorial_grid_enabled}
+        initialGridColumns={hp.accessories_editorial_grid_columns}
+        initialGridScroll={hp.accessories_editorial_grid_scroll}
+        initialGridStyle={hp.accessories_editorial_grid_style}
         previewImageUrl={accessoriesSlides[0]?.imageUrl}
       />
       </div>

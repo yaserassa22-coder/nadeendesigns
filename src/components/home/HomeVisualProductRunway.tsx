@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { HomeEditorialTile } from "@/components/home/HomeEditorialTile";
@@ -41,6 +42,8 @@ export function HomeVisualProductRunway({
 }: Props) {
   const { t, dir } = useLocale();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ x: number; scrollLeft: number } | null>(null);
+  const draggedRef = useRef(false);
   const baseId = useId();
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
@@ -98,6 +101,33 @@ export function HomeVisualProductRunway({
       event.preventDefault();
       scrollByCard(dir === "rtl" ? 1 : -1);
     }
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!scrollable || event.pointerType !== "mouse" || event.button !== 0) return;
+    event.preventDefault();
+    dragRef.current = {
+      x: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+    };
+    draggedRef.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const delta = event.clientX - dragRef.current.x;
+    if (Math.abs(delta) > 4) draggedRef.current = true;
+    if (!draggedRef.current) return;
+    event.preventDefault();
+    event.currentTarget.scrollLeft = dragRef.current.scrollLeft - delta;
+  };
+
+  const stopPointerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragRef.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragRef.current = null;
   };
 
   if (tiles.length === 0) return null;
@@ -165,8 +195,18 @@ export function HomeVisualProductRunway({
           aria-label={label}
           tabIndex={0}
           onKeyDown={onKeyDown}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={stopPointerDrag}
+          onPointerCancel={stopPointerDrag}
+          onClickCapture={(event) => {
+            if (!draggedRef.current) return;
+            event.preventDefault();
+            event.stopPropagation();
+            draggedRef.current = false;
+          }}
             className={cn(
-              "flex gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-4 [&::-webkit-scrollbar]:hidden",
+              "nd-hide-scrollbar flex cursor-grab select-none gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-2 pt-1 active:cursor-grabbing sm:gap-4",
               "snap-x snap-mandatory",
               unifiedOn &&
                 cn(
@@ -175,7 +215,10 @@ export function HomeVisualProductRunway({
                 )
             )}
             data-swipe-own
-          style={unifiedOn && unified ? unifiedBackgroundStyle(unified) : undefined}
+          style={{
+            ...(unifiedOn && unified ? unifiedBackgroundStyle(unified) : {}),
+            touchAction: "pan-x",
+          }}
         >
           {tiles.map((tile) => {
             const isCustom = tile.variant === "custom";

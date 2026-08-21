@@ -161,7 +161,8 @@ export function ProductExperienceModal({
   );
   const personalizationType = shopTypeToPersonalizationType(shopProductType);
   const persUi = experienceConfig?.personalization_ui;
-  const personalizationRequired = Boolean(persUi?.required);
+  const personalizationRequired =
+    shopProductType !== "accessory_item" && Boolean(persUi?.required);
   const personalizationMaxChars = Math.max(
     1,
     Math.min(200, Math.floor(persUi?.max_characters ?? 25) || 25)

@@ -9,6 +9,7 @@ const PRODUCT_TYPES = new Set<ShopProductType>([
   "veil",
   "bridal_robe",
   "dress",
+  "accessory_item",
 ]);
 
 function sanitizeOrderOptions(raw: unknown): LineOrderOptionValue[] | null {

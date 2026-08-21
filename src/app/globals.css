@@ -117,10 +117,20 @@ body[data-storefront] [data-announcement-bar] {
 }
 .nd-ae-shell-scale {
   --ae-s: 1;
+  --ae-w: 1;
   --ae-max: 72rem;
-  width: 100%;
-  max-width: calc(var(--ae-max) * var(--ae-s));
+  width: min(100%, calc(100% * var(--ae-w)));
+  max-width: calc(var(--ae-max) * var(--ae-s) * var(--ae-w));
   margin-inline: auto;
+}
+
+.nd-hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.nd-hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 ::selection {

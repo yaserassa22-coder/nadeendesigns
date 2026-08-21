@@ -388,7 +388,7 @@ function ProductsNavSection({
   }, [categories]);
 
   const rentalChildActive = grouped.rentalChildren.some((c) =>
-    isAdminCategoryNavActive(c, pathname, categoryParam)
+    isAdminCategoryNavActive(c, pathname, categoryParam, grouped.accessoriesParent?.id)
   );
   const [rentalOpen, setRentalOpen] = useState(true);
   const [rentalRouteKey, setRentalRouteKey] = useState(routeKey);
@@ -398,7 +398,7 @@ function ProductsNavSection({
   }
 
   const accessoriesChildActive = grouped.accessoriesChildren.some((c) =>
-    isAdminCategoryNavActive(c, pathname, categoryParam)
+    isAdminCategoryNavActive(c, pathname, categoryParam, grouped.accessoriesParent?.id)
   );
   const [accessoriesOpen, setAccessoriesOpen] = useState(true);
   const [accessoriesRouteKey, setAccessoriesRouteKey] = useState(routeKey);
@@ -414,13 +414,23 @@ function ProductsNavSection({
     collectionParam,
     serviceParam
   );
-  const manageActive = pathname.startsWith("/admin/categories");
+  const manageActive =
+    pathname.startsWith("/admin/categories") &&
+    !pathname.startsWith("/admin/categories/accessories");
+  const manageAccessoriesActive = pathname.startsWith(
+    "/admin/categories/accessories"
+  );
   const collectionsActive =
     pathname === "/admin/dresses" && collectionParam === "1";
 
   const renderCategoryLink = (c: CategoryWithCount) => {
-    const href = adminCategoryProductsHref(c);
-    const active = isAdminCategoryNavActive(c, pathname, categoryParam);
+    const href = adminCategoryProductsHref(c, grouped.accessoriesParent?.id);
+    const active = isAdminCategoryNavActive(
+      c,
+      pathname,
+      categoryParam,
+      grouped.accessoriesParent?.id
+    );
     const count = c.product_count ?? 0;
     const label = (
       <>
@@ -545,6 +555,22 @@ function ProductsNavSection({
                 open={accessoriesOpen}
                 onToggle={() => setAccessoriesOpen((o) => !o)}
                 active={accessoriesChildActive}
+                trailing={
+                  <Link
+                    href="/admin/categories/accessories"
+                    onClick={onNavigate}
+                    title={t.admin.manageCategories}
+                    aria-label={t.admin.manageCategories}
+                    className={cn(
+                      "me-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors",
+                      manageAccessoriesActive
+                        ? "bg-gold text-white"
+                        : "text-muted hover:bg-beige hover:text-charcoal"
+                    )}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" />
+                  </Link>
+                }
               />
               {accessoriesOpen && (
                 <div className="ms-1 space-y-0.5 border-r border-beige-dark/50 pe-1">

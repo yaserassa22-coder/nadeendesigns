@@ -8,6 +8,12 @@ export type AccessoriesEditorialSlide = {
   href: string;
   name: string;
   imageUrl: string;
+  productType: "veil" | "bridal_robe" | "accessory_item";
+  price: number;
+  salePrice: number | null;
+  nameAr: string;
+  nameEn: string | null;
+  nameHe: string | null;
 };
 
 /**
@@ -29,6 +35,12 @@ export async function getAccessoriesEditorialSlides(
       href: product.href,
       name: localizedName(product, locale, product.name_ar),
       imageUrl,
+      productType: product.kind,
+      price: product.price,
+      salePrice: product.sale_price ?? null,
+      nameAr: product.name_ar,
+      nameEn: product.name_en ?? null,
+      nameHe: product.name_he ?? null,
     });
   }
 

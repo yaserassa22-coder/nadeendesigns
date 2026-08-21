@@ -44,6 +44,7 @@ export const FEATURE_GROUP_LABELS: Record<FeatureGroupKey, string> = {
 export const SYSTEM_FEATURE_IDS = [
   "veil_writing",
   "robe_writing",
+  "accessory_writing",
   "font_selection",
   "color_selection",
   "gift_wrap",
@@ -96,6 +97,18 @@ const FALLBACK_FEATURES: ExperienceFeature[] = [
     is_system: true,
     enabled: true,
     sort_order: 20,
+  },
+  {
+    id: "accessory_writing",
+    name: "Writing on Accessory",
+    name_ar: "إضافة كتابة",
+    description: "Personalize the accessory with writing",
+    description_ar: "إضافة كتابة مخصصة على المنتج",
+    group_key: "personalization",
+    maps_to: "personalization",
+    is_system: true,
+    enabled: true,
+    sort_order: 25,
   },
   {
     id: "font_selection",
@@ -260,7 +273,7 @@ export function isFeatureEnabled(
   return enabledIds.includes(featureId);
 }
 
-/** Personalization writing is on when veil/robe writing + font/color allow it. */
+/** Personalization writing is enabled by the product-specific writing feature. */
 export function featuresAllowPersonalization(
   enabledIds: readonly string[],
   shopProductType?: ShopProductType | null
@@ -271,9 +284,13 @@ export function featuresAllowPersonalization(
   if (shopProductType === "bridal_robe") {
     return isFeatureEnabled(enabledIds, "robe_writing");
   }
+  if (shopProductType === "accessory_item") {
+    return isFeatureEnabled(enabledIds, "accessory_writing");
+  }
   return (
     isFeatureEnabled(enabledIds, "veil_writing") ||
-    isFeatureEnabled(enabledIds, "robe_writing")
+    isFeatureEnabled(enabledIds, "robe_writing") ||
+    isFeatureEnabled(enabledIds, "accessory_writing")
   );
 }
 

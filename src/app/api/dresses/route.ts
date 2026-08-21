@@ -20,6 +20,28 @@ import {
 import type { Dress } from "@/types";
 import { sanitizeProductFeaturesConfig } from "@/lib/products/experience-features";
 import { resolveProductCommerceType } from "@/lib/products/primary-action";
+import { generateProductSku } from "@/lib/products/slug-sku";
+
+/** True when a Postgres unique-violation is on the SKU index. */
+function isSkuConflict(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "23505" &&
+    /sku/i.test(error.message ?? "")
+  );
+}
+
+/** True when a Postgres unique-violation is on the slug index. */
+function isSlugConflict(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "23505" && /slug/i.test(error.message ?? "");
+}
+
+/** Append a short random suffix so a retried slug can't collide again. */
+function withRandomSlugSuffix(slug: string): string {
+  const base = (slug || "item").trim().toLowerCase();
+  return `${base}-${Math.random().toString(36).slice(2, 6)}`;
+}
 
 /** Columns introduced in migration 035 / 036 — strip on PGRST204 retry. */
 const P11_COLUMNS = [
@@ -291,6 +313,40 @@ export async function POST(request: Request) {
       error = retry.error;
     }
 
+    // Regenerate SKU and retry a few times on unique-index collision.
+    let skuAttempts = 0;
+    while (isSkuConflict(error) && skuAttempts < 3) {
+      skuAttempts += 1;
+      const retryRow = {
+        ...insertRow,
+        sku: generateProductSku(String(insertRow.slug ?? insertRow.name_ar ?? "item")),
+      };
+      const retry = await supabase
+        .from("dresses")
+        .insert(retryRow)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    // Regenerate slug and retry a few times on unique-index collision.
+    let slugAttempts = 0;
+    while (isSlugConflict(error) && slugAttempts < 3) {
+      slugAttempts += 1;
+      const retryRow = {
+        ...insertRow,
+        slug: withRandomSlugSuffix(String(insertRow.slug ?? insertRow.name_ar ?? "item")),
+      };
+      const retry = await supabase
+        .from("dresses")
+        .insert(retryRow)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
       const mapped = mapDressWriteError(error);
       return NextResponse.json({ error: mapped.message }, { status: mapped.status });
@@ -428,6 +484,26 @@ export async function PUT(request: Request) {
       const retry = await supabase
         .from("dresses")
         .update(withoutNew)
+        .eq("id", id)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    // Regenerate slug and retry a few times on unique-index collision.
+    let slugUpdateAttempts = 0;
+    while (isSlugConflict(error) && slugUpdateAttempts < 3) {
+      slugUpdateAttempts += 1;
+      const retryUpdate = {
+        ...update,
+        slug: withRandomSlugSuffix(
+          String(update.slug ?? update.name_ar ?? "item")
+        ),
+      };
+      const retry = await supabase
+        .from("dresses")
+        .update(retryUpdate)
         .eq("id", id)
         .select()
         .single();

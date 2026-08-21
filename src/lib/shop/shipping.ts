@@ -8,6 +8,7 @@
 export const ACCESSORY_SHOP_PRODUCT_TYPES = new Set<string>([
   "veil",
   "bridal_robe",
+  "accessory_item",
 ]);
 
 export type ShippingSettings = {

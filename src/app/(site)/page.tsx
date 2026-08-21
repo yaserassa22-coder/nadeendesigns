@@ -229,13 +229,21 @@ export default async function HomePage() {
           />
         ) : null}
         {hp.worn_by_you && wornByYouStorefrontItems(wornByYou).length > 0 ? (
-          <WornByYouSection items={wornByYou} />
+          <WornByYouSection
+            items={wornByYou}
+            eyebrow={hp.worn_by_you_eyebrow || undefined}
+            title={hp.worn_by_you_title || undefined}
+          />
         ) : null}
         {hp.accessories_editorial ? (
           <AccessoriesEditorialSlideshow
             slides={accessoriesSlides}
             categoryLabel={accessoriesLabel}
             frame={hp.accessories_editorial_frame}
+            gridEnabled={hp.accessories_editorial_grid_enabled}
+            gridColumns={hp.accessories_editorial_grid_columns}
+            gridScrollable={hp.accessories_editorial_grid_scroll}
+            gridStyle={hp.accessories_editorial_grid_style}
           />
         ) : null}
         {hp.instagram ? (

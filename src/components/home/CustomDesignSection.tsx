@@ -26,7 +26,6 @@ export type CustomDesignSectionProps = {
   imageTransition?: boolean;
 };
 
-const STAGES = ["01", "02", "03", "04", "05"] as const;
 const MAX_IMAGES = 5;
 
 function WordReveal({
@@ -131,9 +130,6 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
   const ctaBRef = useRef<HTMLAnchorElement | null>(null);
 
   const leadWordsRef = useRef<HTMLSpanElement[]>([]);
-  const progressFillRef = useRef<HTMLDivElement | null>(null);
-  const stageLabelRef = useRef<HTMLSpanElement | null>(null);
-  const stageNumRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const finaleLockedRef = useRef(false);
 
   const defaultSteps = useMemo(
@@ -173,19 +169,6 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
     const setStage = (idx: number) => {
       if (currentStage === idx) return;
       currentStage = idx;
-      stageNumRefs.current.forEach((el, i) => {
-        if (!el) return;
-        const on = i === idx;
-        el.classList.toggle("text-gold", on);
-        el.classList.toggle("opacity-100", on);
-        el.classList.toggle("scale-125", on);
-        el.classList.toggle("text-ivory", !on);
-        el.classList.toggle("opacity-30", !on);
-        el.classList.toggle("scale-100", !on);
-      });
-      if (stageLabelRef.current) {
-        stageLabelRef.current.textContent = STAGES[idx] ?? "01";
-      }
       setActiveStage(idx);
     };
 
@@ -230,7 +213,6 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
       gsap.set(leadWordsRef.current, { opacity: 1, y: 0, filter: "none" });
       gsap.set([ctaARef.current, ctaBRef.current], { opacity: 1, y: 0, x: 0 });
       gsap.set(eyebrowLineRef.current, { scaleX: 1 });
-      gsap.set(progressFillRef.current, { scaleY: 1 });
       gsap.set(dimRef.current, { opacity: 0.44 });
       setStage(4);
     };
@@ -308,10 +290,6 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
         x: xIn * 0.4,
       });
 
-      gsap.set(progressFillRef.current, {
-        scaleY: 0,
-        transformOrigin: "top center",
-      });
       setStage(0);
 
       let finished = false;
@@ -359,9 +337,6 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
               return;
             }
 
-            if (progressFillRef.current) {
-              gsap.set(progressFillRef.current, { scaleY: p });
-            }
             if (p < 0.18) setStage(0);
             else if (p < 0.36) setStage(1);
             else if (p < 0.54) setStage(2);
@@ -728,39 +703,6 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
             </div>
           </div>
 
-          <div
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute z-[5] flex flex-col items-center gap-3",
-              "top-1/2 -translate-y-1/2 inset-inline-end-3 sm:inset-inline-end-5"
-            )}
-          >
-            <span
-              ref={stageLabelRef}
-              className={cn(displayFont, "text-sm tracking-[0.2em] text-gold/90")}
-            >
-              01
-            </span>
-            <div className="flex flex-col items-center gap-2">
-              {STAGES.map((n, i) => (
-                <span
-                  key={n}
-                  ref={(el) => {
-                    stageNumRefs.current[i] = el;
-                  }}
-                  className="text-[9px] tracking-[0.18em] text-ivory opacity-30 transition-all duration-300"
-                >
-                  {n}
-                </span>
-              ))}
-            </div>
-            <div className="h-20 w-px overflow-hidden bg-ivory/20">
-              <div
-                ref={progressFillRef}
-                className="h-full w-full origin-top bg-gradient-to-b from-gold to-ivory"
-              />
-            </div>
-          </div>
         </div>
       </div>
     </section>

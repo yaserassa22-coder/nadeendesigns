@@ -63,6 +63,7 @@ export function shopTypeToPersonalizationType(
 ): PersonalizationProductType | null {
   if (shopType === "veil") return "veils";
   if (shopType === "bridal_robe") return "robes";
+  if (shopType === "accessory_item") return "veils";
   return null;
 }
 

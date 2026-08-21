@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { WornByYouManager } from "@/components/admin/WornByYouManager";
 import { getAdminWornByYouItems } from "@/lib/admin/data";
+import { getStoreSettings } from "@/lib/store/settings";
 
 export const metadata: Metadata = {
   title: "Worn by You",
 };
 
 export default async function AdminWornByYouPage() {
-  const items = await getAdminWornByYouItems();
+  const [items, store] = await Promise.all([
+    getAdminWornByYouItems(),
+    getStoreSettings(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -18,7 +22,11 @@ export default async function AdminWornByYouPage() {
           Items appear only when enabled — nothing is invented.
         </p>
       </div>
-      <WornByYouManager initialItems={items} />
+      <WornByYouManager
+        initialItems={items}
+        initialEyebrow={store.homepage.worn_by_you_eyebrow}
+        initialTitle={store.homepage.worn_by_you_title}
+      />
     </div>
   );
 }

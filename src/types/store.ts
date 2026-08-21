@@ -247,14 +247,22 @@ export type AccessoriesEditorialShape =
   | "chapel"
   | "cinema"
   | "portrait"
-  | "oval";
+  | "oval"
+  | "arch"
+  | "diamond"
+  | "ticket";
 
 export type AccessoriesEditorialFrameSettings = {
   size: AccessoriesEditorialSize;
   shape: AccessoriesEditorialShape;
   /** Continuous size 40–160. 100 = editorial (original). */
   scale: number;
+  /** Independent horizontal length 40–160. 100 = original width. */
+  horizontalLength: number;
 };
+
+export type AccessoriesEditorialGridColumns = 2 | 3 | 4 | 6;
+export type AccessoriesEditorialGridStyle = "editorial" | "cards" | "minimal";
 
 export type StoreHomepageSettings = {
   hero: boolean;
@@ -264,10 +272,21 @@ export type StoreHomepageSettings = {
   accessories_editorial: boolean;
   /** Size + silhouette of the Accessories editorial block (Admin). */
   accessories_editorial_frame: AccessoriesEditorialFrameSettings;
+  /** Switch the accessory slideshow to a browsable product grid. */
+  accessories_editorial_grid_enabled: boolean;
+  /** Desktop columns for the accessory product grid. */
+  accessories_editorial_grid_columns: AccessoriesEditorialGridColumns;
+  /** Turn the accessory grid into a horizontal scroll runway. */
+  accessories_editorial_grid_scroll: boolean;
+  /** Visual treatment for each accessory grid product. */
+  accessories_editorial_grid_style: AccessoriesEditorialGridStyle;
   collections: boolean;
   testimonials: boolean;
   /** Customer visual gallery — Worn by You */
   worn_by_you: boolean;
+  /** Optional CMS heading copy for the customer visual gallery. */
+  worn_by_you_eyebrow: string;
+  worn_by_you_title: string;
   instagram: boolean;
   newsletter: boolean;
   /**
@@ -833,10 +852,17 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
       size: "editorial",
       shape: "canvas",
       scale: 100,
+      horizontalLength: 100,
     },
+    accessories_editorial_grid_enabled: false,
+    accessories_editorial_grid_columns: 3,
+    accessories_editorial_grid_scroll: false,
+    accessories_editorial_grid_style: "editorial",
     collections: true,
     testimonials: false,
     worn_by_you: true,
+    worn_by_you_eyebrow: "",
+    worn_by_you_title: "",
     instagram: true,
     newsletter: false,
     editorial_order: [],

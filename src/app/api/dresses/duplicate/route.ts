@@ -6,9 +6,28 @@ import {
   withResolvedProductType,
 } from "@/lib/dresses/category";
 import { buildDressDuplicateInsert } from "@/lib/products/duplicate-product";
+import { generateProductSku } from "@/lib/products/slug-sku";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createPrivilegedClient } from "@/lib/supabase/privileged";
 import type { Dress } from "@/types";
+
+/** True when a Postgres unique-violation is on the SKU index. */
+function isSkuConflict(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "23505" && /sku/i.test(error.message ?? "");
+}
+
+/** True when a Postgres unique-violation is on the slug index. */
+function isSlugConflict(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "23505" && /slug/i.test(error.message ?? "");
+}
+
+/** Append a short random suffix so a retried slug can't collide again. */
+function withRandomSlugSuffix(slug: string): string {
+  const base = (slug || "item").trim().toLowerCase();
+  return `${base}-${Math.random().toString(36).slice(2, 6)}`;
+}
 
 const bodySchema = z.object({
   id: z.string().min(1, "معرّف المنتج غير صالح"),
@@ -117,6 +136,40 @@ export async function POST(request: Request) {
       const retry = await supabase
         .from("dresses")
         .insert(withoutNew)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    // Regenerate SKU and retry a few times on unique-index collision.
+    let skuAttempts = 0;
+    while (isSkuConflict(error) && skuAttempts < 3) {
+      skuAttempts += 1;
+      const retryRow = {
+        ...insertRow,
+        sku: generateProductSku(String(insertRow.slug ?? insertRow.name_ar ?? "item")),
+      };
+      const retry = await supabase
+        .from("dresses")
+        .insert(retryRow)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    // Regenerate slug and retry a few times on unique-index collision.
+    let slugAttempts = 0;
+    while (isSlugConflict(error) && slugAttempts < 3) {
+      slugAttempts += 1;
+      const retryRow = {
+        ...insertRow,
+        slug: withRandomSlugSuffix(String(insertRow.slug ?? insertRow.name_ar ?? "item")),
+      };
+      const retry = await supabase
+        .from("dresses")
+        .insert(retryRow)
         .select()
         .single();
       data = retry.data;

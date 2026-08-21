@@ -17,6 +17,8 @@ export const veilPayloadSchema = z.object({
   stock_quantity: z.number().int().min(0).default(0),
   is_available: z.boolean().optional(),
   is_featured: z.boolean().optional(),
+  experience_config: z.any().nullable().optional(),
+  features_config: z.any().nullable().optional(),
 });
 
 export const bridalRobePayloadSchema = z.object({
@@ -31,10 +33,32 @@ export const bridalRobePayloadSchema = z.object({
   stock_quantity: z.number().int().min(0).default(0),
   is_featured: z.boolean().optional(),
   is_available: z.boolean().optional(),
+  experience_config: z.any().nullable().optional(),
+  features_config: z.any().nullable().optional(),
+});
+
+/** Generic bridal-accessory type — any NEW sub-category (beyond veils/robes). */
+export const accessoryItemPayloadSchema = z.object({
+  category_id: z.string().uuid("تصنيف غير صالح"),
+  name_ar: z.string().min(2),
+  name_en: z.string().nullable().optional(),
+  name_he: z.string().nullable().optional(),
+  description_ar: unlimitedDescription,
+  price: z.number().min(0),
+  sale_price: z.number().min(0).nullable().optional(),
+  images: z.array(z.string()).default([]),
+  color: z.string().nullable().optional(),
+  material: z.string().nullable().optional(),
+  size: z.string().nullable().optional(),
+  stock_quantity: z.number().int().min(0).default(0),
+  is_available: z.boolean().optional(),
+  is_featured: z.boolean().optional(),
+  experience_config: z.any().nullable().optional(),
+  features_config: z.any().nullable().optional(),
 });
 
 export const shopOrderItemSchema = z.object({
-  product_type: z.enum(["veil", "bridal_robe", "dress"]),
+  product_type: z.enum(["veil", "bridal_robe", "dress", "accessory_item"]),
   product_id: z.string().min(1, "معرّف المنتج مطلوب"),
   name_ar: z.string().min(1, "اسم المنتج مطلوب"),
   unit_price: z.number().min(0, "سعر المنتج غير صالح"),

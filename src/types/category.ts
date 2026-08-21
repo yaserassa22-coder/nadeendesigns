@@ -2,7 +2,9 @@ export type CategoryProductKind =
   | "dress"
   | "veil"
   | "bridal_robe"
-  | "accessories_group";
+  | "accessories_group"
+  /** Generic bridal-accessory type (migration 056) — any new sub-category */
+  | "accessory_item";
 
 export interface Category {
   id: string;
@@ -449,7 +451,7 @@ export function isAccessorySidebarCategory(
 ): boolean {
   if (isAccessoriesGroupCategory(category)) return true;
   const kind = resolveCategoryProductKind(category);
-  if (kind === "veil" || kind === "bridal_robe") return true;
+  if (kind === "veil" || kind === "bridal_robe" || kind === "accessory_item") return true;
   return categoryMatchesLegacyKeys(category, ACCESSORY_SIDEBAR_CATEGORY_KEYS);
 }
 
@@ -522,6 +524,7 @@ export function buildAdminProductSidebarGroups(
       underParent ||
       kind === "veil" ||
       kind === "bridal_robe" ||
+      kind === "accessory_item" ||
       categoryMatchesLegacyKeys(c, ACCESSORY_SIDEBAR_CATEGORY_KEYS);
     if (accessoryLeaf && !isAccessoriesGroupCategory(c)) {
       accessoriesChildren.push(c);
@@ -594,28 +597,43 @@ export function selectDressAssignableCategories(
  * Admin Products sidebar href for a category — by product_kind / legacy, never by name.
  * - veil → /admin/veils (own table manager)
  * - bridal_robe → /admin/bridal-robes
+ * - accessory_item → /admin/accessories/<id> (generic manager, migration 056)
  * - accessories_group → null (no single admin list; children are the links)
+ * - unset kind but nested directly under Bridal Accessories → generic manager too
+ *   (never silently falls back to /admin/dresses — that would save accessory
+ *   products into the wrong table)
  * - dress / default → /admin/dresses?category=<id>
  */
 export function adminCategoryProductsHref(
-  category: Pick<Category, "id" | "product_kind" | "legacy_key" | "slug">
+  category: Pick<Category, "id" | "product_kind" | "legacy_key" | "slug" | "parent_id">,
+  accessoriesParentId?: string | null
 ): string | null {
   const kind = resolveCategoryProductKind(category);
   if (kind === "veil") return "/admin/veils";
   if (kind === "bridal_robe") return "/admin/bridal-robes";
+  if (kind === "accessory_item") return `/admin/accessories/${category.id}`;
   if (kind === "accessories_group") return null;
+  if (
+    !kind &&
+    accessoriesParentId &&
+    category.parent_id === accessoriesParentId
+  ) {
+    return `/admin/accessories/${category.id}`;
+  }
   return `/admin/dresses?category=${encodeURIComponent(category.id)}`;
 }
 
 /** Whether an Admin Products sidebar category link is active for the current route. */
 export function isAdminCategoryNavActive(
-  category: Pick<Category, "id" | "slug" | "legacy_key" | "product_kind">,
+  category: Pick<Category, "id" | "slug" | "legacy_key" | "product_kind" | "parent_id">,
   pathname: string,
-  categoryParam: string | null
+  categoryParam: string | null,
+  accessoriesParentId?: string | null
 ): boolean {
-  const href = adminCategoryProductsHref(category);
+  const href = adminCategoryProductsHref(category, accessoriesParentId);
   if (href === "/admin/veils") return pathname === "/admin/veils";
   if (href === "/admin/bridal-robes") return pathname === "/admin/bridal-robes";
+  if (href?.startsWith("/admin/accessories/")) return pathname === href;
   if (!href) return false;
   if (pathname !== "/admin/dresses" || !categoryParam) return false;
   return (

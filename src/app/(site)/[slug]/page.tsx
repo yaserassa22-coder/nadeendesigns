@@ -15,7 +15,10 @@ import {
   getCategoryBySlug,
 } from "@/lib/data/categories";
 import { getDressesForCategory } from "@/lib/data/queries";
-import { getBridalAccessoriesProducts } from "@/lib/data/shop-queries";
+import {
+  getAccessoryItemsForCategory,
+  getBridalAccessoriesProducts,
+} from "@/lib/data/shop-queries";
 import {
   isAccessoriesGroupCategory,
   type Category,
@@ -163,6 +166,61 @@ export default async function DynamicCategoryPage({ params }: PageProps) {
   const underAccessories =
     accessoriesNav &&
     isAccessoriesBrowseCategory(category, accessoriesNav.parent.id);
+
+  if (productKindFromCategory(category) === "accessory_item") {
+    const items = await getAccessoryItemsForCategory(category.id);
+    const description =
+      localizedDescription(category, locale, "") ||
+      formatMessage(t.pages.category.exclusiveFallback, { name: catName });
+    const catalogItems = items.map((item) => ({
+      id: item.id,
+      name_ar: item.name_ar,
+      name_en: item.name_en,
+      name_he: item.name_he,
+      price: item.price,
+      sale_price: item.sale_price ?? null,
+      images: item.images ?? [],
+      color: item.color,
+      material: item.material,
+      is_available: item.is_available,
+      is_featured: Boolean(item.is_featured),
+      size: item.size,
+      href: `/accessories/${item.id}`,
+      kind: "accessory_item" as const,
+    }));
+
+    return (
+      <>
+        <CategoryJsonLd category={category} description={description} />
+        <PageHero title={catName} description={description} />
+        <section className="py-16 md:py-24">
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 md:grid-cols-[240px_minmax(0,1fr)] md:gap-12 md:px-8">
+            {accessoriesNav ? (
+              <AccessoriesBrowseSidebar
+                parentLabel={accessoriesNav.parentLabel}
+                parentHref={accessoriesNav.parentHref}
+                parentActive={false}
+                parentCount={accessoriesNav.parentCount}
+                items={accessoriesNav.items}
+                activeId={category.id}
+                navAriaLabel={t.pages.category.accessoriesNavAria}
+                className="md:sticky md:top-28 md:self-start"
+              />
+            ) : null}
+            <div>
+              {catalogItems.length === 0 ? (
+                <p className="py-16 text-center text-muted">
+                  {t.pages.category.emptyAccessories}
+                </p>
+              ) : (
+                <ShopCatalog items={catalogItems} />
+              )}
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
 
   if (isAccessoriesGroupCategory(category)) {
     const products = await getBridalAccessoriesProducts();

@@ -4,6 +4,7 @@ export type LifecycleModule =
   | "dresses"
   | "veils"
   | "bridal_robes"
+  | "accessory_items"
   | "categories"
   | "messages"
   | "notification_logs"
@@ -42,6 +43,7 @@ export const MODULE_TABLE: Record<LifecycleModule, string> = {
   dresses: "dresses",
   veils: "veils",
   bridal_robes: "bridal_robes",
+  accessory_items: "accessory_items",
   categories: "categories",
   messages: "contact_messages",
   notification_logs: "notification_logs",
@@ -60,6 +62,7 @@ export const MODULE_LABEL_AR: Record<LifecycleModule, string> = {
   dresses: "الفساتين",
   veils: "طرحة العروس",
   bridal_robes: "برنص العروس",
+  accessory_items: "إكسسوارات أخرى",
   categories: "التصنيفات",
   messages: "الرسائل",
   notification_logs: "سجل الإشعارات",

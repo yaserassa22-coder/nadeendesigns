@@ -67,6 +67,7 @@ INSERT INTO experience_features (
 VALUES
   ('veil_writing', 'Writing on Veil', 'كتابة على الطرحة', 'تخصيص كتابة الطرحة', 'personalization', 'personalization', TRUE, TRUE, 10),
   ('robe_writing', 'Writing on Robe', 'كتابة على البرنص', 'تخصيص كتابة البرنص', 'personalization', 'personalization', TRUE, TRUE, 20),
+  ('accessory_writing', 'Writing on Accessory', 'إضافة كتابة', 'إضافة كتابة مخصصة على المنتج', 'personalization', 'personalization', TRUE, TRUE, 25),
   ('font_selection', 'Font Selection', 'اختيار الخط', 'اختيار خط الكتابة', 'personalization', 'personalization', TRUE, TRUE, 30),
   ('color_selection', 'Color Selection', 'اختيار اللون', 'اختيار لون الكتابة', 'personalization', 'personalization', TRUE, TRUE, 40),
   ('gift_wrap', 'Gift Wrap', 'تغليف هدية', 'تغليف فاخر للهدايا', 'gift', 'gift_wrap', TRUE, TRUE, 50),
