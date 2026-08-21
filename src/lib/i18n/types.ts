@@ -2511,6 +2511,7 @@ export type Dictionary = {
         dresses: string;
         veils: string;
         bridal_robes: string;
+        accessory_items: string;
         categories: string;
         messages: string;
         shipping_regions: string;
