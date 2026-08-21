@@ -237,9 +237,20 @@ export function HomeEditorialTile({
 
   const floatContent = (
     <div
-      className={cn("grid h-full w-full bg-transparent", aspectClassName)}
+      className={cn(
+        "grid h-full w-full",
+        cardBackgroundEnabled ? "bg-[var(--tile-card-color)]" : "bg-transparent",
+        aspectClassName
+      )}
       style={{
         gridTemplateRows: `minmax(0, 1fr) ${FLOAT_CAPTION_ROW}`,
+        ...(cardBackgroundEnabled
+          ? {
+              ["--tile-card-color" as string]: cardBackgroundColor,
+              borderRadius: cardRadius,
+              padding: cardPadding,
+            }
+          : {}),
       }}
     >
       {floatImage}
@@ -260,6 +271,11 @@ export function HomeEditorialTile({
     </div>
   );
 
+  const cardInset = cardBackgroundEnabled ? Math.max(0, cardPadding) : 0;
+  const cardInnerRadius = cardBackgroundEnabled
+    ? Math.max(0, cardRadius - cardInset)
+    : 0;
+
   const cardMedia = (
     <div
       className={cn("relative w-full overflow-hidden", aspectClassName)}
@@ -268,11 +284,21 @@ export function HomeEditorialTile({
           ? {
               backgroundColor: cardBackgroundColor,
               borderRadius: cardRadius,
-              padding: cardPadding,
             }
           : undefined
       }
     >
+      <div
+        className="absolute overflow-hidden"
+        style={
+          cardBackgroundEnabled
+            ? {
+                inset: cardInset,
+                borderRadius: cardInnerRadius,
+              }
+            : { inset: 0 }
+        }
+      >
       {cover ? (
         <Image
           src={cover}
@@ -360,6 +386,7 @@ export function HomeEditorialTile({
             </span>
           )
         ) : null}
+      </div>
       </div>
     </div>
   );

@@ -40,6 +40,7 @@ import {
   resolveStoreExtraServices,
   syncStoreServicesTable,
 } from "@/lib/products/store-services";
+import { normalizeHexColor } from "@/lib/home/visual-unified-background";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {

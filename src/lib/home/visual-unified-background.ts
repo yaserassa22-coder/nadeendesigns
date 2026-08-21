@@ -56,6 +56,14 @@ export const DEFAULT_UNIFIED_BACKGROUND: VisualUnifiedBackgroundSettings = {
   product_shadow_intensity: 28,
   isolate_products: true,
   keep_product_grids: false,
+  card_background_enabled: false,
+  card_background_color: "#FFFFFF",
+  card_radius: 0,
+  card_padding: 0,
+  show_product_name: true,
+  show_action_link: true,
+  show_collection_badge: false,
+  hover_zoom: true,
 };
 
 export function normalizeHexColor(value: unknown, fallback: string): string {
