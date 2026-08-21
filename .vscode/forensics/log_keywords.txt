@@ -1,0 +1,38 @@
+c71f4b52ab660850646dbe45c741027d3642b196|2026-08-21 19:04:27 +0300||Apply today's storefront and admin updates
+8ff06ecaf4088bf5c22cea263cb78e9c6724d3de|2026-08-13 14:53:16 +0300||Preserve pre-PayPlus homepage, gallery, and social storefront work.
+b2a977691b761ca34f940a7abefa21b391de1957|2026-08-13 13:48:45 +0300||Add PayPlus as a disabled payment and invoice provider.
+dcdb1bd0efb1ecdbb6fef5428c4950f4b7118d5a|2026-08-12 23:59:17 +0300||Merge branch 'cursor/unified-post-grid-isolation'
+076ec7d8fba199c10b65e3fae9058b8dc5439559|2026-08-12 23:55:55 +0300|origin/cursor/unified-post-grid-isolation, cursor/unified-post-grid-isolation|Speed up product pages and add admin-managed accessories frames, a white storefront canvas, and gallery video.
+c6bf0389828e2a3825ecbfd66388bfa9a6739844|2026-08-12 21:05:02 +0300||Add unified post-grid background with Cloudinary product isolation.
+26d0960ac6eda769249004ef424a1aadde0f9da2|2026-08-10 23:20:17 +0300|origin/cursor/hero-video-cms-upload, cursor/hero-video-cms-upload|Add admin-managed homepage editorial grid and 5-image Custom Design CMS.
+50ed31bb80a7bac8f9a5e2f2e48271fba4aecc92|2026-08-10 12:24:15 +0300||Add admin-managed hero video slides with quality-focused upload and playback.
+697bb81c484b8a83140eb00f8b21300023c917db|2026-08-09 22:50:15 +0300||Refine homepage editorial grid and Worn by You video UX.
+88108a4098778280dacfc43aec4099057d883451|2026-08-09 20:39:12 +0300||???checkpoint: homepage before Prada-inspired visual experiment
+4d35f876f357bdc8a26452046ea4b9cc5140480c|2026-08-09 09:03:31 +0300|cursor/cookie-banner-analytics-controls|feat(admin): control cookie banner and analytics scripts from store settings
+044e3e7b19fbbe9955f40624e56b7fab6b09efa8|2026-08-08 15:52:52 +0300||fix(store): enforce maintenance mode and add accessories sidebar
+82468ff11addeff357c5b5a1388b346fded90de5|2026-08-08 09:55:36 +0300||feat(admin): complete archive/trash lifecycle gaps
+0214087cdc8e370b88219f691d48f1bd3b24d4bf|2026-08-06 20:33:05 +0300||feat(admin): add in-app administrator management
+8afc78870802d588cb0c36f74f9cc2b5e8a87025|2026-08-06 14:36:11 +0300||fix(admin): sync product live preview CTAs with storefront Product Type
+86bbeb4e0294f7b61fc6629ec2aeb73599816b10|2026-08-06 13:38:24 +0300||feat(admin): dynamic rental category tree and PE visibility gates
+1894a11e0316a4a13a0f4cbed780ba9c58455f7f|2026-08-06 01:41:21 +0300||polish(experience): luxury Shopify-style Product Experience Admin v2 UX
+c2e22fef908fec136f29900675b4dcd966ea0cc1|2026-08-06 00:42:55 +0300||fix(release): close Admin-storefront gaps for production readiness
+b1594f32214df2961c329b7363b951b2f4859472|2026-08-06 00:30:25 +0300||fix(sync): wire Admin purchase flows, features, and visibility to storefront
+bbe3c9dcc67eeb7f0037ea7e5013c3e73da225c1|2026-08-06 00:11:21 +0300||polish: refine storefront and admin UX without new features
+a4f6aa51f25cbe02563a6a3d995b50ef51f9a62b|2026-08-05 23:47:41 +0300||feat(admin): Enterprise Experience Engine hub wrapping Sprint 2A
+20d938a1ed12929e0bb0ef20a2844a7e863d9155|2026-08-05 23:17:51 +0300||feat(storefront): Sprint 2A.1 luxury PDP purchase-focused refinement
+3b3835d5a5b526d4ca56b6778c8c219f3e448f5a|2026-08-05 22:55:25 +0300||feat(products): Sprint 2A V3 luxury experience design system
+e04f2ddd3501eae93371d07f74b9cf89042a71c6|2026-08-05 20:27:43 +0300||feat(products): Sprint 2A Master product experience engine
+78a1477c4501474d67620ec302f76abfac320088|2026-08-05 13:32:37 +0300||feat(storefront): unify luxury product card overlay layout
+9872d6531847fc88dcd615b429174289a8579d63|2026-08-05 13:24:32 +0300||fix(storefront): show sale prices via shared ProductPrice
+94fc915a2048c0d883ec209125d92ec814380f1b|2026-08-05 12:28:35 +0300||feat(admin): tabbed product editor with autosave (P1.1)
+e75df9a02a205174175226f2f5532b9e4f98c4f5|2026-08-05 11:56:03 +0300||feat(admin): centralized store settings module (S1)
+16ce36e8f1ca2c39533823cb551271b5ce8edd1a|2026-08-04 22:14:11 +0300||refactor(header): luxury 3-column grid layout without logo overlap
+36141a4e88da4f09044f7a3fa8f09c0f1500d312|2026-08-04 21:42:28 +0300||feat(nav): DB-driven luxury parent/child navigation
+f3adb3699046c66df5ea24b6a8d868308208c1ec|2026-08-04 21:33:15 +0300||fix(guest): allow cart durability without SERVICE_ROLE via storefront RLS
+a192ffa0dab7f2e775d7b22b1d6d5626ad1c7491|2026-08-04 20:01:33 +0300||fix(catalog): dynamic categories on storefront and admin selectors
+2e947ed8a46843766cd4e80eb20d5a751b1b56c2|2026-08-04 19:54:24 +0300||fix(shop): union veils and robes for Bridal Accessories listings
+d7ff81198c0daf9c5f0ebf0ffe6bc71d552aafc9|2026-08-04 15:17:52 +0300||fix(home): resolve P0 header collision, mobile clip, guest cart, category visibility
+e9488e91641775e625078010c0962930bfb17cca|2026-08-03 23:47:37 +0300||feat(admin): Phase D smart appointments and lifecycle permissions
+7c02937c025b78852b1601794a2a322b0386efd9|2026-08-03 21:24:15 +0300||feat(admin): archive, trash, restore, and audit lifecycle system
+ba5d2e03654625b3cc0458b160883ca0ce482de5|2026-08-03 11:54:34 +0300||feat(M8): production readiness and final QA polish
+77c3c834ee5a84731e1548acc7e3eecdcbae5a6b|2026-08-03 11:42:13 +0300||feat(M7): premium product experience (gallery, descriptions, shared PDP)

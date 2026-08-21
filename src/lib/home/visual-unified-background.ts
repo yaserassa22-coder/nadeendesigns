@@ -187,9 +187,27 @@ export function unifiedTilePresentation(
   imageOffsetY?: number;
   dropShadow?: boolean;
   shadowIntensity?: number;
+  cardBackgroundEnabled?: boolean;
+  cardBackgroundColor?: string;
+  cardRadius?: number;
+  cardPadding?: number;
+  showProductName?: boolean;
+  showActionLink?: boolean;
+  showCollectionBadge?: boolean;
+  hoverZoom?: boolean;
 } {
   if (!settings?.enabled) return { presentation: "card" };
   const canvasColor = resolveUnifiedCanvasColor(settings.color);
+  const cardProps = {
+    cardBackgroundEnabled: settings.card_background_enabled,
+    cardBackgroundColor: settings.card_background_color,
+    cardRadius: settings.card_radius,
+    cardPadding: settings.card_padding,
+    showProductName: settings.show_product_name,
+    showActionLink: settings.show_action_link,
+    showCollectionBadge: settings.show_collection_badge,
+    hoverZoom: settings.hover_zoom,
+  };
 
   // Keep each product in its own card frame on the unified canvas color.
   if (settings.keep_product_grids) {
@@ -197,6 +215,7 @@ export function unifiedTilePresentation(
       presentation: "card",
       productIsolation: false,
       canvasColor,
+      ...cardProps,
     };
   }
 
@@ -209,6 +228,7 @@ export function unifiedTilePresentation(
     imageOffsetY: settings.product_offset_y,
     dropShadow: settings.product_shadow,
     shadowIntensity: settings.product_shadow_intensity,
+    ...cardProps,
   };
 }
 

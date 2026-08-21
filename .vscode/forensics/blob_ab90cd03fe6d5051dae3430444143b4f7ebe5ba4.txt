@@ -1,0 +1,126 @@
+warning: in the working copy of 'src/app/layout.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/app/layout.tsx b/src/app/layout.tsx[m
+[1mindex ea69706..867dbab 100644[m
+[1m--- a/src/app/layout.tsx[m
+[1m+++ b/src/app/layout.tsx[m
+[36m@@ -1,11 +1,18 @@[m
+[31m-import type { Metadata } from "next";[m
+[32m+[m[32mimport type { Metadata, Viewport } from "next";[m
+ import {[m
+   Amiri,[m
+   Cormorant_Garamond,[m
+   Noto_Sans_Arabic,[m
+[32m+[m[32m  Noto_Sans_Hebrew,[m
+ } from "next/font/google";[m
+ import { OFFICIAL_INSTAGRAM_URL, SITE_NAME } from "@/lib/constants";[m
+ import { getStoreSettings } from "@/lib/store/settings";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  getStorefrontLocale,[m
+[32m+[m[32m  getStorefrontLocales,[m
+[32m+[m[32m} from "@/lib/i18n/server";[m
+[32m+[m[32mimport { localeDir, localeHtmlLang, parseLocale } from "@/lib/i18n";[m
+[32m+[m[32mimport { LocaleProvider } from "@/components/i18n/LocaleProvider";[m
+ import "./globals.css";[m
+ [m
+ const cormorant = Cormorant_Garamond({[m
+[36m@@ -30,9 +37,21 @@[m [mconst notoArabic = Noto_Sans_Arabic({[m
+   display: "swap",[m
+ });[m
+ [m
+[32m+[m[32mconst notoHebrew = Noto_Sans_Hebrew({[m
+[32m+[m[32m  variable: "--font-noto-hebrew",[m
+[32m+[m[32m  subsets: ["hebrew"],[m
+[32m+[m[32m  weight: ["300", "400", "500", "600", "700"],[m
+[32m+[m[32m  display: "swap",[m
+[32m+[m[32m});[m
+[32m+[m
+ const FALLBACK_DESCRIPTION =[m
+   "Nadeen Designs ??? ?????????? ???????? ?????????????? ???????????? ???????????????? ?????????? ???????????? ?????????? ???????????? ???????????? ???????????????? ????????????. ?????????? ?????????? ?????????? ?????????????? ???????????????? ??????????????.";[m
+ [m
+[32m+[m[32m/** Brand gold status bar / chrome; keeps default Next viewport sizing. */[m
+[32m+[m[32mexport const viewport: Viewport = {[m
+[32m+[m[32m  themeColor: "#c9a96e",[m
+[32m+[m[32m};[m
+[32m+[m
+ export async function generateMetadata(): Promise<Metadata> {[m
+   const store = await getStoreSettings();[m
+   const seo = store.seo;[m
+[36m@@ -63,6 +82,25 @@[m [mexport async function generateMetadata(): Promise<Metadata> {[m
+     },[m
+     description,[m
+     keywords,[m
+[32m+[m[32m    applicationName: "Nadeen Designs",[m
+[32m+[m[32m    appleWebApp: {[m
+[32m+[m[32m      capable: true,[m
+[32m+[m[32m      title: "Nadeen Designs",[m
+[32m+[m[32m      statusBarStyle: "default",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    icons: {[m
+[32m+[m[32m      icon: [[m
+[32m+[m[32m        { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },[m
+[32m+[m[32m        { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },[m
+[32m+[m[32m      ],[m
+[32m+[m[32m      apple: [[m
+[32m+[m[32m        {[m
+[32m+[m[32m          url: "/icons/apple-touch-icon.png",[m
+[32m+[m[32m          sizes: "180x180",[m
+[32m+[m[32m          type: "image/png",[m
+[32m+[m[32m        },[m
+[32m+[m[32m      ],[m
+[32m+[m[32m    },[m
+     openGraph: {[m
+       type: "website",[m
+       locale: "ar_SA",[m
+[36m@@ -78,6 +116,7 @@[m [mexport async function generateMetadata(): Promise<Metadata> {[m
+     },[m
+     other: {[m
+       "instagram:profile": OFFICIAL_INSTAGRAM_URL,[m
+[32m+[m[32m      "mobile-web-app-capable": "yes",[m
+     },[m
+     robots: {[m
+       index: seo.robots_index !== false,[m
+[36m@@ -86,9 +125,15 @@[m [mexport async function generateMetadata(): Promise<Metadata> {[m
+   };[m
+ }[m
+ [m
+[31m-export default function RootLayout({[m
+[32m+[m[32mexport default async function RootLayout({[m
+   children,[m
+ }: Readonly<{ children: React.ReactNode }>) {[m
+[32m+[m[32m  const [locale, storefrontLocales, store] = await Promise.all([[m
+[32m+[m[32m    getStorefrontLocale(),[m
+[32m+[m[32m    getStorefrontLocales(),[m
+[32m+[m[32m    getStoreSettings(),[m
+[32m+[m[32m  ]);[m
+[32m+[m[32m  const storeDefault = parseLocale(store.general.language);[m
+   const jsonLd = {[m
+     "@context": "https://schema.org",[m
+     "@type": "BridalShop",[m
+[36m@@ -99,16 +144,23 @@[m [mexport default function RootLayout({[m
+ [m
+   return ([m
+     <html[m
+[31m-      lang="ar"[m
+[31m-      dir="rtl"[m
+[31m-      className={`${cormorant.variable} ${amiri.variable} ${notoArabic.variable} h-full antialiased`}[m
+[32m+[m[32m      lang={localeHtmlLang(locale)}[m
+[32m+[m[32m      dir={localeDir(locale)}[m
+[32m+[m[32m      data-locale={locale}[m
+[32m+[m[32m      className={`${cormorant.variable} ${amiri.variable} ${notoArabic.variable} ${notoHebrew.variable} h-full antialiased`}[m
+     >[m
+       <body className="min-h-full bg-ivory text-charcoal">[m
+         <script[m
+           type="application/ld+json"[m
+           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}[m
+         />[m
+[31m-        {children}[m
+[32m+[m[32m        <LocaleProvider[m
+[32m+[m[32m          initialLocale={locale}[m
+[32m+[m[32m          allowedLocales={storefrontLocales}[m
+[32m+[m[32m          storeDefaultLocale={storeDefault}[m
+[32m+[m[32m        >[m
+[32m+[m[32m          {children}[m
+[32m+[m[32m        </LocaleProvider>[m
+       </body>[m
+     </html>[m
+   );[m

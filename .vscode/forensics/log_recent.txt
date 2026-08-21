@@ -1,0 +1,150 @@
+fb1006b9ea5eebfc5374812fac8aa984b500a6a1|2026-08-21 21:08:00 +0300|HEAD -> main, origin/main, origin/HEAD|Fix accessory trash translation type
+c71f4b52ab660850646dbe45c741027d3642b196|2026-08-21 19:04:27 +0300||Apply today's storefront and admin updates
+438f49fe71c003fd16657eea593c67e20f2121ad|2026-08-15 21:29:27 +0300|origin/feature/admin-shipping-updates, feature/admin-shipping-updates|Improve admin and shipping features
+4640f468f7cc66d03ccf4a8399e945eccbd773f7|2026-08-13 15:42:29 +0300||Merge branch 'cursor/payplus-payment-invoice-provider'
+bf034d23fa6391bbdf277b90af73ed4fc0b7685f|2026-08-13 15:28:13 +0300|origin/cursor/payplus-payment-invoice-provider, cursor/payplus-payment-invoice-provider|Load Cinzel from local fonts so production builds do not fetch Google Fonts.
+8ff06ecaf4088bf5c22cea263cb78e9c6724d3de|2026-08-13 14:53:16 +0300||Preserve pre-PayPlus homepage, gallery, and social storefront work.
+9efb2bc3db06fce5a9184ff136bfcbc114c807b8|2026-08-13 14:01:07 +0300|backup-before-recovering-pre-payplus-work|Include payplus in the store payment provider id union.
+b2a977691b761ca34f940a7abefa21b391de1957|2026-08-13 13:48:45 +0300||Add PayPlus as a disabled payment and invoice provider.
+ac57c725c421a9cfa2613919128717d8d0bfaeaf|2026-08-13 00:27:12 +0300||Fix related item lifecycle typing
+dcdb1bd0efb1ecdbb6fef5428c4950f4b7118d5a|2026-08-12 23:59:17 +0300||Merge branch 'cursor/unified-post-grid-isolation'
+076ec7d8fba199c10b65e3fae9058b8dc5439559|2026-08-12 23:55:55 +0300|origin/cursor/unified-post-grid-isolation, cursor/unified-post-grid-isolation|Speed up product pages and add admin-managed accessories frames, a white storefront canvas, and gallery video.
+c6bf0389828e2a3825ecbfd66388bfa9a6739844|2026-08-12 21:05:02 +0300||Add unified post-grid background with Cloudinary product isolation.
+26d0960ac6eda769249004ef424a1aadde0f9da2|2026-08-10 23:20:17 +0300|origin/cursor/hero-video-cms-upload, cursor/hero-video-cms-upload|Add admin-managed homepage editorial grid and 5-image Custom Design CMS.
+31cb13b50bf2cfb80e4939b58023e2060212426f|2026-08-10 14:32:41 +0300||Simplify homepage Instagram band to a single logo link.
+5b134360e42c2cb82d4703eb4c4e3be4c7a4e4e1|2026-08-10 14:21:50 +0300||Add admin-managed announcement bar with multi-message marquee rotation.
+50ed31bb80a7bac8f9a5e2f2e48271fba4aecc92|2026-08-10 12:24:15 +0300||Add admin-managed hero video slides with quality-focused upload and playback.
+9680f6f4aead36853d4a3fcb6e2606aae1d25cfe|2026-08-10 00:18:05 +0300||Fix mobile header so utility icons stay in one compact row.
+db5e0c8b1eb462862599d82826dc80f705ed1ecc|2026-08-09 23:18:01 +0300||merge: Nadeen Designs homepage and feature updates
+1d2247bc71a5fc13be7e74ab164616bb07cf32b1|2026-08-09 23:14:18 +0300|origin/feature/prada-inspired-homepage, feature/prada-inspired-homepage|Refine hero copy to a quieter corner placement.
+d0019af7fabc70413a424f325dc069aa69dd2ed0|2026-08-09 23:04:10 +0300||Add homepage PWA install prompt for iPhone and Android.
+697bb81c484b8a83140eb00f8b21300023c917db|2026-08-09 22:50:15 +0300||Refine homepage editorial grid and Worn by You video UX.
+e2ea16675f40c088c0863a23554bb8aec9b0f523|2026-08-09 21:03:00 +0300||feat: preserve Nadeen Designs pre-Prada homepage
+88108a4098778280dacfc43aec4099057d883451|2026-08-09 20:39:12 +0300||???checkpoint: homepage before Prada-inspired visual experiment
+4d35f876f357bdc8a26452046ea4b9cc5140480c|2026-08-09 09:03:31 +0300|cursor/cookie-banner-analytics-controls|feat(admin): control cookie banner and analytics scripts from store settings
+c222aff8111f9677b4e0ab55d3f2d26bf3cb5b83|2026-08-08 17:08:40 +0300|origin/cursor/security-session-backup, cursor/security-session-backup|feat: deploy latest Nadeen Designs updates
+522d5dd8a31502b6734e7804a24554cc08d293ac|2026-08-08 16:38:03 +0300||feat: add Nadeen Designs PWA manifest and icons
+ae66e37be04caac22cf1996391bc3656385ec13a|2026-08-08 16:05:46 +0300||feat(admin): activate Security settings UI for maintenance and backup
+0f347390105c3503608b698698daf78446a8152c|2026-08-08 15:59:43 +0300||feat(security): persist maintenance messages and expose session timeout
+c8bd3bb5de36b7c6b5c22b76358d73f7e673d8bf|2026-08-08 15:56:30 +0300||feat(security): apply session timeout for logged-in customers
+7dfbf12009b8ba57344a15f919b66d792b97a550|2026-08-08 15:54:40 +0300||feat(security): wire session timeout and live backup status
+044e3e7b19fbbe9955f40624e56b7fab6b09efa8|2026-08-08 15:52:52 +0300||fix(store): enforce maintenance mode and add accessories sidebar
+82468ff11addeff357c5b5a1388b346fded90de5|2026-08-08 09:55:36 +0300||feat(admin): complete archive/trash lifecycle gaps
+b6b7caef4e8af77b637eb16db72bfd84a6407c07|2026-08-07 12:19:07 +0300||feat(store): auth channels, credit card, cart keys, message bell
+e841414b91d49a26611a9000d2a01bf3eee30e95|2026-08-07 11:02:50 +0300||fix(auth): harden signup session handoff without Resend domain
+ae68709d135a738c867daadfd5846900d2f4cbab|2026-08-06 22:10:33 +0300|tag: v1.0-local-stable, origin/feature/admin-improvements, feature/admin-improvements|feat(admin): unify messaging, email provider, booking notify, soft-delete
+1da54609138df11d6dc9fba591111a7c9dfb620e|2026-08-06 21:00:04 +0300||feat(admin): enforce staff roles system-wide with promote UX
+0214087cdc8e370b88219f691d48f1bd3b24d4bf|2026-08-06 20:33:05 +0300||feat(admin): add in-app administrator management
+25a709c001e25707e9e3020372c82cc976c9216b|2026-08-06 19:00:32 +0300||feat(auth): fix email signup and add forgot-password reset flow
+3b3da1b467ed4cc4458968d4299b106705bccf79|2026-08-06 18:50:29 +0300||fix(auth): exchange email/recovery tokens and persist callback session cookies
+1a8b9b1cd958ce93648e5292b7aa7b7ee2f572f8|2026-08-06 18:14:06 +0300||fix(auth): stop infinite guest loading and restore session cookies
+1986eaece2c567818e0c97566e649c72840b0077|2026-08-06 18:01:34 +0300||fix(cart): stabilize CartContext identity across Turbopack chunks
+dbf1d272e6eba797abfd755b8417bb9626bef08d|2026-08-06 17:47:03 +0300||fix(auth): restore visible email/guest login modal UI
+d8570a6d8b5918450cfa80df7627ca9d6a87c9b4|2026-08-06 17:31:59 +0300||fix(auth): stop login modal closing on open from backdrop ghost-click
+315ee7c416ac3378ac9d4b4754d461d8aa7a5332|2026-08-06 16:57:13 +0300||feat(notifications): enable Resend delivery for admin email flows
+9de588b629c3655d0120ae894cd546d29bee2b1e|2026-08-06 15:36:58 +0300||fix(bookings): use relative imports in status-actions for unit tests
+b487597c95d256efabdfab353893168911ba13ea|2026-08-06 15:36:06 +0300||feat(admin): booking status actions with customer email replies
+8afc78870802d588cb0c36f74f9cc2b5e8a87025|2026-08-06 14:36:11 +0300||fix(admin): sync product live preview CTAs with storefront Product Type
+1a7d303813a6d0a932b563bd627ae0d851a2c040|2026-08-06 14:21:38 +0300||fix(admin): gate product experience actions by product type
+86bbeb4e0294f7b61fc6629ec2aeb73599816b10|2026-08-06 13:38:24 +0300||feat(admin): dynamic rental category tree and PE visibility gates
+7df9eee154930e9b50b375d917419e2d374924ec|2026-08-06 09:31:15 +0300||feat(admin): reply to contact messages via Resend from Messages
+0e2db409d295b11fead4d83afbd06441e8d9ab33|2026-08-06 02:00:42 +0300||fix(admin): load contact messages with privileged client, not anon
+29c0b120491d719832364265308a5e06d0ab049e|2026-08-06 01:49:09 +0300||fix(contact): stop RLS failure on insert+select without public SELECT
+1894a11e0316a4a13a0f4cbed780ba9c58455f7f|2026-08-06 01:41:21 +0300||polish(experience): luxury Shopify-style Product Experience Admin v2 UX
+be51ffe7dac75d075f557452087c6f15421f97af|2026-08-06 01:25:16 +0300||fix(build): export isLifecycleSchemaError from supabase errors utils
+f9171e13ec28c8eedcf04b0f4e7e47763d1b0688|2026-08-06 01:16:59 +0300||fix(intake): stabilize customer requests to Admin with alerts and badges
+735a3af927f5bc28c6b345a3431f7f4dae37fd54|2026-08-06 01:05:53 +0300||fix(admin): infer product_kind from category slug when legacy_key missing
+9d77e488135444c720097cfb041d494a5f927162|2026-08-06 00:53:46 +0300||fix(admin): route Products sidebar by product_kind, not dresses-only
+c2e22fef908fec136f29900675b4dcd966ea0cc1|2026-08-06 00:42:55 +0300||fix(release): close Admin-storefront gaps for production readiness
+b1594f32214df2961c329b7363b951b2f4859472|2026-08-06 00:30:25 +0300||fix(sync): wire Admin purchase flows, features, and visibility to storefront
+bbe3c9dcc67eeb7f0037ea7e5013c3e73da225c1|2026-08-06 00:11:21 +0300||polish: refine storefront and admin UX without new features
+a4f6aa51f25cbe02563a6a3d995b50ef51f9a62b|2026-08-05 23:47:41 +0300||feat(admin): Enterprise Experience Engine hub wrapping Sprint 2A
+20d938a1ed12929e0bb0ef20a2844a7e863d9155|2026-08-05 23:17:51 +0300||feat(storefront): Sprint 2A.1 luxury PDP purchase-focused refinement
+3b3835d5a5b526d4ca56b6778c8c219f3e448f5a|2026-08-05 22:55:25 +0300||feat(products): Sprint 2A V3 luxury experience design system
+fbae94d4b9d0eb4f18f323f7c3916bd4920bfb93|2026-08-05 21:43:31 +0300||feat(admin): redesign Product Experience editor to luxury Shopify-style v2
+ddc8a60994bed2ffbf99f235440e2f5d8a870cda|2026-08-05 21:03:27 +0300||fix(products): drop unused orderOptions props from PDP purchase path
+d53532f3e68bc23fbd9f95d43fd8035394b0d8e3|2026-08-05 21:02:44 +0300||feat(products): keep delivery and notes checkout-only on PDP
+e04f2ddd3501eae93371d07f74b9cf89042a71c6|2026-08-05 20:27:43 +0300||feat(products): Sprint 2A Master product experience engine
+2bf681fee347ac2a0faf304de66d74d4300edb93|2026-08-05 20:09:37 +0300||feat(products): complete Sprint 2A Buy Now modal and service pricing modes
+0f9595ce8e0bd71c9d113c63fe16882e9bb53b72|2026-08-05 16:26:09 +0300||feat(products): Sprint 2A end-to-end product experience pipeline
+0b0c76d3697550de7ba0583b2c41ca485e116b45|2026-08-05 15:59:33 +0300||fix(db): drop product_type CHECK before normalizing Sprint 2 enums
+22f70d8c398dc22fa93bc963074b34ca58a6aef9|2026-08-05 15:53:33 +0300||feat(products): Sprint 2 Phase 1 smart product experience foundation
+fae4c56112008a30d01983f8b12c243adf39cd3e|2026-08-05 14:53:29 +0300|tag: v1.0-stable|fix(rsc): stop passing overlay render functions Server???Client
+4fc78c2c985b4a3ee635e15d2cb5bcc97ed02835|2026-08-05 14:29:48 +0300||feat(admin): flat Products sidebar and separate Custom Design module
+12fbf3d1bbf93063902568113355a7abfa9c8b43|2026-08-05 14:18:07 +0300||feat(admin): replace hardcoded category sidebar with dynamic Products tree
+78a1477c4501474d67620ec302f76abfac320088|2026-08-05 13:32:37 +0300||feat(storefront): unify luxury product card overlay layout
+9872d6531847fc88dcd615b429174289a8579d63|2026-08-05 13:24:32 +0300||fix(storefront): show sale prices via shared ProductPrice
+4572193961989c0fb3c7e08be1aabbccefdc2a7a|2026-08-05 13:04:36 +0300||fix(admin): unify Create/Edit product category selector on live API
+94fc915a2048c0d883ec209125d92ec814380f1b|2026-08-05 12:28:35 +0300||feat(admin): tabbed product editor with autosave (P1.1)
+a4cb7ee7ddfafdee48b2c6ba66f2993d13294c55|2026-08-05 12:17:29 +0300||docs: add NadEEN Designs project constitution as Cursor rule
+88e3dd1da0203c57f79854fcc554e0d1f021e1a2|2026-08-05 12:04:35 +0300||fix(wishlist): restore guest and account wishlist end-to-end flow
+e75df9a02a205174175226f2f5532b9e4f98c4f5|2026-08-05 11:56:03 +0300||feat(admin): centralized store settings module (S1)
+16ce36e8f1ca2c39533823cb551271b5ce8edd1a|2026-08-04 22:14:11 +0300||refactor(header): luxury 3-column grid layout without logo overlap
+61fad2c12de4a938368f3747d3b9d161bc22baaa|2026-08-04 22:03:47 +0300||feat(nav): luxury capped mega-menu redesign
+36141a4e88da4f09044f7a3fa8f09c0f1500d312|2026-08-04 21:42:28 +0300||feat(nav): DB-driven luxury parent/child navigation
+f3adb3699046c66df5ea24b6a8d868308208c1ec|2026-08-04 21:33:15 +0300||fix(guest): allow cart durability without SERVICE_ROLE via storefront RLS
+0161f810ef1c679b74d356f8a9e67964d2712b2e|2026-08-04 21:13:54 +0300||feat(admin): expandable DB-driven category tree in sidebar
+70e2e434f3d27435b9a9e70535dc757bdd917924|2026-08-04 20:54:35 +0300||fix(admin): live product category dropdown from DB
+c2cde5426f58eaae069851dd63d2a8ea25e97971|2026-08-04 20:27:14 +0300||fix(catalog): complete dynamic category routes and listing unions
+a192ffa0dab7f2e775d7b22b1d6d5626ad1c7491|2026-08-04 20:01:33 +0300||fix(catalog): dynamic categories on storefront and admin selectors
+2e947ed8a46843766cd4e80eb20d5a751b1b56c2|2026-08-04 19:54:24 +0300||fix(shop): union veils and robes for Bridal Accessories listings
+d7ff81198c0daf9c5f0ebf0ffe6bc71d552aafc9|2026-08-04 15:17:52 +0300||fix(home): resolve P0 header collision, mobile clip, guest cart, category visibility
+ff008c6ed0f8c5e5a6e7cd76473eb6e566c7d913|2026-08-04 14:45:50 +0300||feat(auth): Phase G guest sessions with cookie identity and OAuth UX
+9be872277448b149f205750eb1668b3864c5fe34|2026-08-04 13:52:17 +0300||refactor(auth): modular auth provider registry for Google Apple Guest WhatsApp
+dd20e196f825a2e793fe30065de51e49afda6f0d|2026-08-04 13:30:14 +0300||feat(auth): replace SMS OTP with WhatsApp Business OTP login.
+44b54722ec989fdedb57752b45cde8419e0bdb33|2026-08-04 12:37:01 +0300||fix(db): make APPLY_ALL fully standalone with migrations 004-007 inlined
+5668f27aafde9750ca40c16c0b700abfb7b5a1e8|2026-08-04 12:14:07 +0300||fix(db): ensure customer auth runs before guest and repair APPLY_ALL DO quotes
+c5a72b25f334df152074583d942b694c2e67508d|2026-08-04 12:09:38 +0300||feat(auth): complete dual-flow guest checkout and account linking
+90052f0582a4418d5f6c033d6543406bbb937e1c|2026-08-04 11:51:47 +0300||fix(admin): stop sending real admins from /admin to homepage
+982ce455e1acd7dc6152fe7edeafbef9bff1b3c3|2026-08-04 11:28:29 +0300||feat(auth): add premium customer accounts with phone OTP and OAuth
+7ae462b0a7c08efc30897899d32eeb8ed41d2c76|2026-08-04 10:37:21 +0300||feat(categories): complete dynamic categories migration with category_id
+07cb4795d5f81a864af80edc4e508b4970dbc31f|2026-08-04 09:55:23 +0300||fix(categories): serve Admin-created category pages via dynamic slug route
+5a8b347879199240cf5faa667c29ccfe6261e675|2026-08-04 00:51:36 +0300||fix(categories): show new visible categories on homepage immediately
+5f6b7b913de79a5d7b6b158dd9d92fba7b3ce231|2026-08-04 00:39:01 +0300||fix(sql): make all RLS policies idempotent in APPLY_ALL
+406f41dc01e2d7ab8f6d393c6f054926882a4134|2026-08-04 00:20:47 +0300||fix(db): drop obsolete bookings_service_type_check
+21a1a46bc9bc15d057485c9bb3d8d93039bfadfc|2026-08-04 00:08:04 +0300||fix(db): harden APPLY_ALL against stale category CHECK re-add
+9fd8b6473164b899a60ca49478120722c555d045|2026-08-03 23:57:45 +0300||fix(db): drop obsolete dresses_category_check for dynamic categories
+e9488e91641775e625078010c0962930bfb17cca|2026-08-03 23:47:37 +0300||feat(admin): Phase D smart appointments and lifecycle permissions
+94971d8b685978383b71a925d3f7f5d96a32d69b|2026-08-03 21:47:20 +0300||feat(admin): add Report Center with BI analytics and exports
+7c02937c025b78852b1601794a2a322b0386efd9|2026-08-03 21:24:15 +0300||feat(admin): archive, trash, restore, and audit lifecycle system
+504c3fb6ac320a09c3f8f21ce1f509410920fd27|2026-08-03 20:38:09 +0300||feat(M11-B): executive dashboard with real KPIs and analytics charts
+b06324f09e9ad07a875b2e2de64195f2998189f5|2026-08-03 15:54:20 +0300||fix: resolve order status update constraint / false migration warning
+e7790bcb7dee1c144d1c7492744a8a041f648689|2026-08-03 15:44:00 +0300||fix: hide shipping QR site URL warning in production
+7f80d56e1c28c3570be22d78dfe64b525f8bc905|2026-08-03 15:32:23 +0300||feat: add Code-128 barcode and larger QR on shipping slip
+3f8e917ec55b7a6e966b88c3f3a6af46a552f597|2026-08-03 15:28:16 +0300||feat(M12): shipping QR encodes public order tracking URL
+e377ee11732eca9c2f54bd02c769a50d867e7a25|2026-08-03 15:07:39 +0300||fix: add APPLY_MISSING_MIGRATIONS and align shipping schema checks
+8e3dde5226039c18ad908cbc06a65e01cfdc78aa|2026-08-03 15:00:42 +0300||fix: checkout name and phone validation and city label
+080d7e70419e09aa141db5d5ad4e3ced0b174d16|2026-08-03 14:52:44 +0300||fix: persist delivery shipping fee and method through order create
+0fb98851fd24e1dc4edcc48d34979195a0914495|2026-08-03 14:39:46 +0300||fix: treat delivery_method=delivery as shipping in admin orders
+808091699245f1c8aa01085e0672c77140600e39|2026-08-03 14:26:52 +0300||feat(M11-A): homepage hero and about CMS via settings JSON
+4c543df4f609ef57e030aa05585854a9ddadc93b|2026-08-03 14:12:51 +0300||fix: display all dates with Western numerals via shared formatter
+889aa1c10d29d7ae5646a3ad6b6bf2fa9b4d9721|2026-08-03 14:09:30 +0300||fix: restore admin order list and delivery shipping slip print button
+86a88f147296de87f46ebd192aab56df0ab9fc26|2026-08-03 13:27:41 +0300||feat(M10): smart region autocomplete, unknown regions, and pending shipping fees
+2afcbc8c8ecb79e8b3c00843c0746fe053811ccd|2026-08-03 13:06:29 +0300||feat(M9): delivery method, regional shipping, and printable shipping slip
+6f5e9ffe6a29d789770eac3838e91f9c81f18a37|2026-08-03 12:44:09 +0300||fix: stop false stale-cache warning on order confirmation
+a6fc9c4d7f58e93bc94af524ec21fe2031d44d32|2026-08-03 12:28:43 +0300||feat: notification channel preferences on checkout and booking
+5d237853ff6097c263b38292ed0e0cbc0bc30c64|2026-08-03 12:21:11 +0300||fix: hero typography, unlimited descriptions, accessory orders in admin
+ba5d2e03654625b3cc0458b160883ca0ce482de5|2026-08-03 11:54:34 +0300||feat(M8): production readiness and final QA polish
+77c3c834ee5a84731e1548acc7e3eecdcbae5a6b|2026-08-03 11:42:13 +0300||feat(M7): premium product experience (gallery, descriptions, shared PDP)
+089d0fffc471846806e38bb255a68c2c0f0b4826|2026-08-03 11:34:09 +0300||feat(M6): customer in-app notification center alongside email/WhatsApp
+a895c0255ef439a659a3003700d44129080fea98|2026-08-03 11:26:50 +0300||feat(shipping): free threshold, checkout summary, order detail pages
+9906d2fb110cfa7cac1b5f96bec4e496408d162d|2026-08-03 11:12:00 +0300||feat(M5): accessory-only shipping with DB-backed flat fee
+28584937f4e4cf6155cd52e73087df5af21fe03e|2026-08-03 11:04:42 +0300||chore: start M5 ??? accessory shipping and checkout
+b7d7a7dc753c1e296b45731f893a0ddcdfbe5680|2026-08-03 10:58:59 +0300||feat(M4): polish hero typography and make mobile menu opaque
+5d64ba2c1813c4499d83779bb7546b9faa657e05|2026-08-03 10:57:52 +0300||chore: start M4 ??? hero typography and opaque mobile menu
+f8020ca9b058b94b50bbac6cd1fc14b5149f4ade|2026-08-03 10:57:46 +0300||feat(M3): wire categories nav, featured images, and card carousels
+191a6d0ed5f94c41c8a6dc1d113c44994010d9fe|2026-08-03 10:46:48 +0300||chore: start M3 ??? wire categories nav and featured image
+883754eb6ae341f51c4962bc2fe95739690d3cff|2026-08-03 10:46:29 +0300||chore(M2): mark dynamic categories CRUD as complete after Admin QA
+3fb6e66a55c1deae0617e93ad903d83d94b2957c|2026-08-03 10:32:25 +0300||fix: standardize bridal robe naming to ???????? ????????????
+9b3fb04e122fa15484cc014db8da772a4de2e6af|2026-08-03 10:23:26 +0300||fix(M2): prevent ServicesSection hydration mismatch
+c7cb7184e2bf4207b5bb7e4b00736669984aeaa4|2026-08-03 10:12:34 +0300||feat(M2): add dynamic categories CRUD in admin
+992fd0e5752d40d9184a8ea6f3108a6aa087d568|2026-08-03 10:10:31 +0300||chore: start M2 ??? dynamic categories CRUD
+9e217902dddeb92c568caaf1dd3adebe90ad424e|2026-08-03 10:10:31 +0300||docs: update Phase 1 plan with approved additions
+d9c1d1924ad21b17c8eb49ef8e0c5e5063f09952|2026-08-03 10:08:53 +0300||feat(M1): rename bridal accessories and group under parent category
+940e67e7edeabb3e4d95dd1f63dbcf90c084023d|2026-08-03 10:05:22 +0300||chore: start M1 ??? rename categories and accessories parent
+92a4b32c06745e5cf62457b7b42974b6be07e329|2026-08-03 10:04:58 +0300|refs/stash|On feature/admin-improvements: wip: wedding reminders (parked before admin-improvements M1)
+b9a9b6e241f086c3de20b3db0eb59d5fa6c3365e|2026-08-03 10:04:58 +0300||index on feature/admin-improvements: 1eccfbf Initial commit
+a0c505e067f9bbd31a448d70ecc0c3cb07a2e980|2026-08-03 10:04:58 +0300||untracked files on feature/admin-improvements: 1eccfbf Initial commit
+1eccfbf832181d0bf55ccf75fa20dc226a307199|2026-08-03 01:13:23 +0300||Initial commit
+fe5e4542d27aa64bcc8f332287e435ce23448c91|2026-08-02 20:48:57 +0300||Add protected admin panel with Supabase auth, CRUD, and Cloudinary uploads.
+42ede12fa365d90a6a105f11a0cf5a80614c17d7|2026-08-02 15:06:01 +0300||Add Nadeen Designs luxury bridal boutique site with Arabic RTL pages, booking, and Supabase-ready APIs.

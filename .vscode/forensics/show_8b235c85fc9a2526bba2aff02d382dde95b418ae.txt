@@ -1,0 +1,9 @@
+commit 8b235c85fc9a2526bba2aff02d382dde95b418ae
+Merge: 1d2247b 3687f7f 644b9dc
+Author:     YASER ABU ASA <YASERASSA22@GMAIL.COM>
+AuthorDate: Sun Aug 9 23:17:31 2026 +0300
+Commit:     YASER ABU ASA <YASERASSA22@GMAIL.COM>
+CommitDate: Sun Aug 9 23:17:31 2026 +0300
+
+    On feature/prada-inspired-homepage: temp: CRLF-only protect during main merge
+

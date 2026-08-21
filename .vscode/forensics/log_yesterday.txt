@@ -1,0 +1,2 @@
+fb1006b9ea5eebfc5374812fac8aa984b500a6a1|2026-08-21 21:08:00 +0300|HEAD -> main, origin/main, origin/HEAD|Fix accessory trash translation type
+c71f4b52ab660850646dbe45c741027d3642b196|2026-08-21 19:04:27 +0300||Apply today's storefront and admin updates

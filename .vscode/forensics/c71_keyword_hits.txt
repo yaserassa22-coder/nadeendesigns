@@ -1,0 +1,673 @@
+
+    Apply today's storefront and admin 
+updates
++import { shopStockAvailability } from 
+"@/lib/products/storefront-availability
+";
++import { 
+resolveStorefrontProductExperience } 
+from "@/lib/products/resolve-storefront
+-experience";
++import { getStorefrontLocale } from 
+"@/lib/i18n/server";
++    getStorefrontLocale(),
++    getStorefrontLocale(),
++    
+resolveStorefrontProductExperience({
++export default function 
+StorefrontLoading() {
+         {hp.worn_by_you && wornByYouSt
+orefrontItems(wornByYou).length > 0 ? (
+diff --git a/src/app/admin/(dashboard)/
+accessories/[categoryId]/page.tsx b/src
+/app/admin/(dashboard)/accessories/[cat
+egoryId]/page.tsx
++++ b/src/app/admin/(dashboard)/accesso
+ries/[categoryId]/page.tsx
++import { ShopProductsManager } from "@
+/components/admin/ShopProductsManager";
++import { getAdminAccessoryItems } 
+from "@/lib/admin/shop-data";
++/** Generic bridal-accessory admin 
+manager ??? one page per custom 
+sub-category. */
++export default async function 
+AdminAccessoryCategoryPage({ params }: 
+PageProps) {
++  const items = await 
+getAdminAccessoryItems(categoryId);
+diff --git a/src/app/admin/(dashboard)/
+categories/accessories/page.tsx b/src/a
+pp/admin/(dashboard)/categories/accesso
+ries/page.tsx
++++ b/src/app/admin/(dashboard)/categor
+ies/accessories/page.tsx
++import { CategoriesManager } from 
+"@/components/admin/CategoriesManager";
++import { getAdminCategories } from 
+"@/lib/admin/categories-data";
++  return { title: getDictionary(locale
+).admin.categoriesUi.pageTitleAccessori
+es };
++export default async function 
+AdminAccessoriesCategoriesPage() {
++  const categories = await 
+getAdminCategories();
+diff --git a/src/app/admin/(dashboard)/
+content/home/page.tsx b/src/app/admin/(
+dashboard)/content/home/page.tsx
+--- a/src/app/admin/(dashboard)/content
+/home/page.tsx
++++ b/src/app/admin/(dashboard)/content
+/home/page.tsx
+@@ -165,6 +165,10 @@ export default 
+async function AdminHomeContentPage() {
+         previewImageUrl={accessoriesSl
+ides[0]?.imageUrl}
+diff --git a/src/app/admin/(dashboard)/
+content/worn-by-you/page.tsx b/src/app/
+admin/(dashboard)/content/worn-by-you/p
+age.tsx
+--- a/src/app/admin/(dashboard)/content
+/worn-by-you/page.tsx
++++ b/src/app/admin/(dashboard)/content
+/worn-by-you/page.tsx
+ import { WornByYouManager } from 
+"@/components/admin/WornByYouManager";
+ import { getAdminWornByYouItems } 
+from "@/lib/admin/data";
+ export default async function 
+AdminWornByYouPage() {
+-  const items = await 
+getAdminWornByYouItems();
++    getAdminWornByYouItems(),
+@@ -18,7 +22,11 @@ export default 
+async function AdminWornByYouPage() {
++import { requireAdminApi } from 
+"@/lib/auth";
++  const { error: authError } = await 
+requireAdminApi("canMutateStore");
++import { requireAdminApi } from 
+"@/lib/auth";
++import { createAdminClient } from 
+"@/lib/supabase/admin";
++/** GET /api/accessory-items?category_
+id=<uuid> ??? public storefront + 
+admin list. */
++  const categoryId = new URL(request.u
+rl).searchParams.get("category_id");
++  const supabase = 
+createAdminClient();
++  const { error: authError } = await 
+requireAdminApi("canMutateStore");
++  const { error: authError } = await 
+requireAdminApi("canMutateStore");
++  const { user, error: authError } = 
+await 
+requireAdminApi("canMutateStore");
++  const { handleModuleDelete } = 
+await 
+import("@/lib/admin/soft-delete-api");
+@@ -117,12 +117,22 @@ 
+body[data-storefront] 
+[data-announcement-bar] {
+   background: var(--gold-light);
+diff --git a/src/components/admin/Admin
+Sidebar.tsx 
+b/src/components/admin/AdminSidebar.tsx
+--- 
+a/src/components/admin/AdminSidebar.tsx
++++ 
+b/src/components/admin/AdminSidebar.tsx
+-    isAdminCategoryNavActive(c, 
+pathname, categoryParam)
++    isAdminCategoryNavActive(c, 
+pathname, categoryParam, 
+grouped.accessoriesParent?.id)
+-    isAdminCategoryNavActive(c, 
+pathname, categoryParam)
++    isAdminCategoryNavActive(c, 
+pathname, categoryParam, 
+grouped.accessoriesParent?.id)
+-  const manageActive = pathname.starts
+With("/admin/categories");
++    pathname.startsWith("/admin/catego
+ries") &&
++    !pathname.startsWith("/admin/categ
+ories/accessories");
++    "/admin/categories/accessories"
+     pathname === "/admin/dresses" && 
+collectionParam === "1";
+-    const href = 
+adminCategoryProductsHref(c);
+-    const active = 
+isAdminCategoryNavActive(c, pathname, 
+categoryParam);
++    const href = 
+adminCategoryProductsHref(c, 
+grouped.accessoriesParent?.id);
++    const active = 
+isAdminCategoryNavActive(
+                 onToggle={() => 
+setAccessoriesOpen((o) => !o)}
++                    
+href="/admin/categories/accessories"
++                    
+title={t.admin.manageCategories}
++                    
+aria-label={t.admin.manageCategories}
++                        : "text-muted 
+hover:bg-beige hover:text-charcoal"
+diff --git a/src/components/admin/Categ
+oriesManager.tsx b/src/components/admin
+/CategoriesManager.tsx
+--- a/src/components/admin/CategoriesMa
+nager.tsx
++++ b/src/components/admin/CategoriesMa
+nager.tsx
+   const c = t.admin.categoriesUi;
+diff --git a/src/components/admin/ShopP
+roductsManager.tsx b/src/components/adm
+in/ShopProductsManager.tsx
+--- a/src/components/admin/ShopProducts
+Manager.tsx
++++ b/src/components/admin/ShopProducts
+Manager.tsx
+ import type { ListVisibility } from 
+"@/lib/admin/lifecycle-types";
+@@ -23,8 +23,21 @@ import { 
+ImageUpload } from 
+"@/components/admin/ImageUpload";
+ import { useAdminCapabilities } from 
+"@/hooks/useAdminCapabilities";
+ import { RowLifecycleActions } from "@
+/components/admin/lifecycle/RowLifecycl
+eActions";
+ import { VisibilityFilter } from "@/co
+mponents/admin/lifecycle/VisibilityFilt
+er";
++import { ExperienceDesignerPanel } 
+from "@/components/admin/product-editor
+/ExperienceDesignerPanel";
++import { ProductFeaturesPanel } from "
+@/components/admin/product-editor/Produ
+ctFeaturesPanel";
+   const p = t.admin.productsUi;
+   const { caps } = 
+useAdminCapabilities();
+   const [search, setSearch] = 
+useState("");
+     const q = 
+search.trim().toLowerCase();
+           archived_at?: string | null;
+                           
+archived={Boolean(
+                                 
+archived_at?: string | null;
+                             
+).archived_at
+                                       
+  kind === "archive"
++                      : "text-muted 
+hover:text-charcoal"
+diff --git a/src/components/admin/WornB
+yYouManager.tsx b/src/components/admin/
+WornByYouManager.tsx
+--- a/src/components/admin/WornByYouMan
+ager.tsx
++++ b/src/components/admin/WornByYouMan
+ager.tsx
+   const w = t.admin.wornByYouAdmin;
++                const response = 
+await 
+fetch("/api/admin/store-settings", {
+diff --git a/src/components/admin/cms/H
+omeAccessoriesEditorialCmsForm.tsx b/sr
+c/components/admin/cms/HomeAccessoriesE
+ditorialCmsForm.tsx
+--- a/src/components/admin/cms/HomeAcce
+ssoriesEditorialCmsForm.tsx
++++ b/src/components/admin/cms/HomeAcce
+ssoriesEditorialCmsForm.tsx
+   previewImageUrl?: string | null;
++  arch: "rounded-t-[50%] rounded-b-sm 
+w-[72%]",
++  diamond: "w-10 rotate-45 
+rounded-sm",
++function 
+scrollPreviewWithWheel(event: 
+ReactWheelEvent<HTMLDivElement>) {
+   previewImageUrl,
++  const previewDragRef = useRef<{ x: 
+number; scrollLeft: number } | 
+null>(null);
+     () => 
+accessoriesEditorialFrameLayout(frame, 
+"preview"),
++  const onPreviewPointerDown = 
+(event: 
+ReactPointerEvent<HTMLDivElement>) => {
++    previewDragRef.current = {
++  const onPreviewPointerMove = 
+(event: 
+ReactPointerEvent<HTMLDivElement>) => {
++    if (!previewDragRef.current) 
+return;
++    const delta = event.clientX - 
+previewDragRef.current.x;
++    event.currentTarget.scrollLeft = 
+previewDragRef.current.scrollLeft - 
+delta;
++  const stopPreviewDrag = (event: 
+ReactPointerEvent<HTMLDivElement>) => {
++    if (previewDragRef.current && even
+t.currentTarget.hasPointerCapture(event
+.pointerId)) {
++    previewDragRef.current = null;
+           {copy.previewLabel}
+-            {previewImageUrl ? (
+-                src={previewImageUrl}
++              onWheel={gridScroll ? 
+scrollPreviewWithWheel : undefined}
++              
+onPointerDown={gridScroll ? 
+onPreviewPointerDown : undefined}
++              
+onPointerMove={gridScroll ? 
+onPreviewPointerMove : undefined}
++              onPointerUp={gridScroll 
+? stopPreviewDrag : undefined}
++              
+onPointerCancel={gridScroll ? 
+stopPreviewDrag : undefined}
++                    {previewImageUrl 
+? (
++                        
+src={previewImageUrl}
++                          
+{copy.previewTitle}
++                      
+{copy.previewTitle}
++              {previewImageUrl ? (
++                  
+src={previewImageUrl}
++                  
+{copy.previewEyebrow}
++                  {copy.previewTitle}
+-                {copy.previewEyebrow}
+-                {copy.previewTitle}
++                        : 
+"border-beige-dark bg-white/60 
+text-charcoal hover:border-gold/50"
++                    : 
+"border-beige-dark bg-white/60 
+hover:border-gold/50"
++                          : 
+"border-beige-dark bg-white/60 
+hover:border-gold/50"
+                             
+borderRadius:
++                        : shape === 
+"arch"
++                              
+borderRadius:
++                          : shape === 
+"diamond"
+           className="text-sm 
+text-muted underline-offset-4 
+hover:text-charcoal hover:underline"
+diff --git a/src/components/admin/produ
+ct-editor/ProductExperienceLivePreview.
+tsx b/src/components/admin/product-edit
+or/ProductExperienceLivePreview.tsx
+--- a/src/components/admin/product-edit
+or/ProductExperienceLivePreview.tsx
++++ b/src/components/admin/product-edit
+or/ProductExperienceLivePreview.tsx
+   storefrontExperienceSections,
+@@ -89,6 +91,22 @@ export function 
+ProductExperienceLivePreview({
++  // Preview is 
+non-interactive/disabled ??? stub cart 
+context avoids requiring
++  // a real CartProvider (and its 
+network hydration) in the Admin tree.
+@@ -133,23 +151,25 @@ export function 
+ProductExperienceLivePreview({
+       {/* Same storefront CTA 
+component ??? blocked from interaction 
+in Admin */}
+-          productId="admin-preview"
++            productId="admin-preview"
+diff --git a/src/components/admin/produ
+ct-editor/ProductFeaturesPanel.tsx b/sr
+c/components/admin/product-editor/Produ
+ctFeaturesPanel.tsx
+--- a/src/components/admin/product-edit
+or/ProductFeaturesPanel.tsx
++++ b/src/components/admin/product-edit
+or/ProductFeaturesPanel.tsx
++                  
+className="object-cover object-center 
+transition-transform duration-700 
+group-hover:scale-[1.035]"
++                  <p 
+className="truncate text-sm 
+font-medium text-charcoal 
+transition-colors 
+group-hover:text-gold">
++                className="absolute 
+bottom-2 left-2 z-10 inline-flex 
+size-8 items-center justify-center 
+rounded-full bg-gold text-white 
+shadow-sm transition 
+hover:bg-gold-dark 
+focus-visible:outline-none 
+focus-visible:ring-2 
+focus-visible:ring-gold/50"
+-        
+el.classList.toggle("text-gold", on);
+-        
+el.classList.toggle("opacity-100", on);
+-        
+el.classList.toggle("scale-125", on);
+-        
+el.classList.toggle("text-ivory", !on);
+-        
+el.classList.toggle("opacity-30", !on);
+-        
+el.classList.toggle("scale-100", !on);
+diff --git a/src/components/home/HomeVi
+sualProductRunway.tsx b/src/components/
+home/HomeVisualProductRunway.tsx
+--- a/src/components/home/HomeVisualPro
+ductRunway.tsx
++++ b/src/components/home/HomeVisualPro
+ductRunway.tsx
+@@ -41,6 +42,8 @@ export function 
+HomeVisualProductRunway({
+@@ -100,6 +103,33 @@ export function 
+HomeVisualProductRunway({
+@@ -165,8 +195,18 @@ export function 
+HomeVisualProductRunway({
+@@ -175,7 +215,10 @@ export function 
+HomeVisualProductRunway({
+-          style={unifiedOn && unified 
+? unifiedBackgroundStyle(unified) : 
+undefined}
++            ...(unifiedOn && unified 
+? unifiedBackgroundStyle(unified) : 
+{}),
+diff --git 
+a/src/lib/admin/lifecycle-types.ts 
+b/src/lib/admin/lifecycle-types.ts
+--- a/src/lib/admin/lifecycle-types.ts
++++ b/src/lib/admin/lifecycle-types.ts
+diff --git 
+a/src/lib/admin/lifecycle.ts 
+b/src/lib/admin/lifecycle.ts
+--- a/src/lib/admin/lifecycle.ts
++++ b/src/lib/admin/lifecycle.ts
+diff --git 
+a/src/lib/admin/shop-data.ts 
+b/src/lib/admin/shop-data.ts
+--- a/src/lib/admin/shop-data.ts
++++ b/src/lib/admin/shop-data.ts
+ import { createAdminClient } from 
+"@/lib/supabase/admin";
+ export async function 
+getAdminVeils(): Promise<Veil[]> {
+@@ -52,6 +52,32 @@ export async 
+function getAdminBridalRobes(): 
+Promise<BridalRobe[]> {
++export async function 
+getAdminAccessoryItems(
++  const supabase = 
+createAdminClient();
+ export type AdminOrdersResult = {
++  const supabase = 
+createAdminClient();
+   /** Always bridal_accessory ??? 
+storefront CTA source of truth */
+- * Veils and robes live in separate 
+tables ??? this is the storefront 
+union.
++ * (accessory_items) is unioned in 
+too ??? this is the full storefront 
+collection.
++  query = query.eq("is_deleted", 
+false).is("archived_at", null) as 
+typeof query;
++  if (error && /is_deleted|archived_at
+|PGRST204|42703/i.test(error.message 
+?? "")) {
++  query = query.eq("is_deleted", 
+false).is("archived_at", null) as 
+typeof query;
++  if (error && /is_deleted|archived_at
+|PGRST204|42703/i.test(error.message 
+?? "")) {
++  query = query.eq("is_deleted", 
+false).is("archived_at", null) as 
+typeof query;
++  if (error && /is_deleted|archived_at
+|PGRST204|42703/i.test(error.message 
+?? "")) {
++  "arch",
++  "diamond",
+   cinema: { storefront: "80rem", 
+preview: "32rem" },
+   portrait: { storefront: "36rem", 
+preview: "14rem" },
+   oval: { storefront: "72rem", 
+preview: "30rem" },
++  arch: { storefront: "64rem", 
+preview: "26rem" },
++  diamond: { storefront: "64rem", 
+preview: "26rem" },
++  ticket: { storefront: "72rem", 
+preview: "30rem" },
+       sectionClassName: preview ? "" 
+: "bg-white pt-8 sm:pt-10 md:pt-12",
+-      shellClassName: preview ? 
+"w-full" : "w-full px-1 sm:px-1.5",
++        preview ? "" : "px-1 
+sm:px-1.5"
++  if (shape === "arch") {
++      sectionClassName: preview ? "" 
+: "bg-white pt-8 sm:pt-10 md:pt-12",
++      shellClassName: 
+cn("nd-ae-shell-scale", preview ? 
+"px-0" : "px-6 sm:px-10 md:px-16"),
++        borderRadius: "50% 50% 
+0.75rem 0.75rem / 34% 34% 0.75rem 
+0.75rem",
++      textClassName: preview
++  if (shape === "diamond") {
++      sectionClassName: preview ? "" 
+: "bg-white py-8 sm:py-10 md:py-12",
++      shellClassName: 
+cn("nd-ae-shell-scale", preview ? 
+"px-0" : "px-8 sm:px-12 md:px-20"),
++      textClassName: preview
++      sectionClassName: preview ? "" 
+: "bg-white pt-8 sm:pt-10 md:pt-12",
++      shellClassName: 
+cn("nd-ae-shell-scale", preview ? 
+"px-0" : "px-4 sm:px-8 md:px-10"),
++      textClassName: preview
+     sectionClassName: preview ? "" : 
+"bg-white py-10 sm:py-12 md:py-16",
+         previewLabel: "???????????? 
+??????",
+         previewEyebrow: 
+"?????????????????? ????????????",
+         previewTitle: "????????",
++          arch: { label: "??????", 
+hint: "?????? ???????? ???????? 
+??????????????." },
++          diamond: { label: 
+"????????", hint: "?????? ?????????? 
+????????." },
+         previewLabel: "?????????? 
+??????",
+         previewEyebrow: 
+"???????????????? ????????",
+         previewTitle: "??????????",
++          arch: { label: "??????", 
+hint: "?????? ???????????? ?????????? 
+??????????????." },
++          diamond: { label: 
+"??????????", hint: "???????? 
+?????????????????? ??????????." },
+         previewLabel: "Live preview",
+         previewEyebrow: "Bridal 
+accessories",
+         previewTitle: "Burnous",
++          editorial: { label: 
+"Editorial", hint: "Product name over 
+the image." },
++          arch: { label: "Arch", 
+hint: "A clear, balanced upper arch." 
+},
++          diamond: { label: 
+"Diamond", hint: "A bold geometric 
+silhouette." },
+         previewLabel: string;
+         previewEyebrow: string;
+         previewTitle: string;
++          arch: { label: string; 
+hint: string };
++          diamond: { label: string; 
+hint: string };
+ /** @deprecated Prefer 
+`@/lib/products/pricing` ??? kept for 
+existing admin imports. */
+@@ -522,6 +524,7 @@ export function 
+buildAdminProductSidebarGroups(
+  * Admin Products sidebar href for a 
+category ??? by product_kind / legacy, 
+never by name.
+  * - veil ??? /admin/veils (own table 
+manager)
+  * - bridal_robe ??? 
+/admin/bridal-robes
++ * - accessory_item ??? 
+/admin/accessories/<id> (generic 
+manager, migration 056)
+  * - accessories_group ??? null (no 
+single admin list; children are the 
+links)
++ *   (never silently falls back to 
+/admin/dresses ??? that would save 
+accessory
+  * - dress / default ??? 
+/admin/dresses?category=<id>
+ export function 
+adminCategoryProductsHref(
+   if (kind === "veil") return 
+"/admin/veils";
+   if (kind === "bridal_robe") return 
+"/admin/bridal-robes";
++  if (kind === "accessory_item") 
+return 
+`/admin/accessories/${category.id}`;
++    return 
+`/admin/accessories/${category.id}`;
+   return `/admin/dresses?category=${en
+codeURIComponent(category.id)}`;
+ /** Whether an Admin Products sidebar 
+category link is active for the 
+current route. */
+ export function 
+isAdminCategoryNavActive(
+-  const href = 
+adminCategoryProductsHref(category);
++  const href = 
+adminCategoryProductsHref(category, 
+accessoriesParentId);
+   if (href === "/admin/veils") return 
+pathname === "/admin/veils";
+   if (href === "/admin/bridal-robes") 
+return pathname === 
+"/admin/bridal-robes";
++  if (href?.startsWith("/admin/accesso
+ries/")) return pathname === href;
+   if (pathname !== "/admin/dresses" 
+|| !categoryParam) return false;
++  /** Always bridal_accessory ??? 
+storefront CTA source of truth */
++  | "arch"
++  | "diamond"
+   /** Size + silhouette of the 
+Accessories editorial block (Admin). */
++  /** Turn the accessory grid into a 
+horizontal scroll runway. */
++  /** Visual treatment for each 
+accessory grid product. */
+   /** Customer visual gallery ??? 
+Worn by You */
++  /** Optional CMS heading copy for 
+the customer visual gallery. */
++-- table instead of requiring a 
+dedicated table/API/admin manager per 
+type.
++  archived_at TIMESTAMPTZ,
++  archived_by UUID,
++CREATE INDEX IF NOT EXISTS 
+idx_accessory_items_archived_at ON 
+accessory_items(archived_at);
++DROP POLICY IF EXISTS "Admin all 
+accessory_items" ON accessory_items;
++CREATE POLICY "Admin all 
+accessory_items" ON accessory_items 
+FOR ALL USING (
++  EXISTS (SELECT 1 FROM profiles 
+WHERE id = auth.uid() AND role = 
+'admin')
++  archived_at TIMESTAMPTZ,
++  archived_by UUID,
++CREATE INDEX IF NOT EXISTS 
+idx_accessory_items_archived_at ON 
+accessory_items(archived_at);
++DROP POLICY IF EXISTS "Admin all 
+accessory_items" ON accessory_items;
++CREATE POLICY "Admin all 
+accessory_items" ON accessory_items 
+FOR ALL USING (
++  EXISTS (SELECT 1 FROM profiles 
+WHERE id = auth.uid() AND role = 
+'admin')
++-- storefront can actually read 
+accessory_items rows (RLS check).
++SELECT id, category_id, name_ar, 
+is_available, is_deleted, archived_at
++-- Replace 'WWW' with the actual 
+product name if needed.
++-- admin link fell back to 
+/admin/dresses and the product got 
+saved into the
++-- 1) Preview what will be moved.
++-- requires price NOT NULL). Update 
+the price afterwards in the admin 
+manager.
++-- requiring a dedicated 
+table/API/admin manager per type.
++  -- Always bridal_accessory ??? 
+storefront CTA source of truth 
+(matches veils/bridal_robes)
++  archived_at TIMESTAMPTZ,
++  archived_by UUID,
++CREATE INDEX IF NOT EXISTS 
+idx_accessory_items_archived_at ON 
+accessory_items(archived_at);
++DROP POLICY IF EXISTS "Admin all 
+accessory_items" ON accessory_items;
++CREATE POLICY "Admin all 
+accessory_items" ON accessory_items 
+FOR ALL USING (
++  EXISTS (SELECT 1 FROM profiles 
+WHERE id = auth.uid() AND role = 
+'admin')
+
+

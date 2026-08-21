@@ -1,0 +1,67 @@
+commit c71f4b52ab660850646dbe45c741027d3642b196
+Author:     YASER ABU ASA <YASERASSA22@GMAIL.COM>
+AuthorDate: Fri Aug 21 19:04:27 2026 +0300
+Commit:     YASER ABU ASA <YASERASSA22@GMAIL.COM>
+CommitDate: Fri Aug 21 19:04:27 2026 +0300
+
+    Apply today's storefront and admin updates
+
+M	src/app/(site)/[slug]/page.tsx
+A	src/app/(site)/accessories/[id]/page.tsx
+A	src/app/(site)/loading.tsx
+M	src/app/(site)/page.tsx
+A	src/app/admin/(dashboard)/accessories/[categoryId]/page.tsx
+A	src/app/admin/(dashboard)/categories/accessories/page.tsx
+M	src/app/admin/(dashboard)/content/home/page.tsx
+M	src/app/admin/(dashboard)/content/worn-by-you/page.tsx
+A	src/app/api/accessory-items/duplicate/route.ts
+A	src/app/api/accessory-items/route.ts
+M	src/app/api/dresses/duplicate/route.ts
+M	src/app/api/dresses/route.ts
+M	src/app/globals.css
+M	src/components/admin/AdminSidebar.tsx
+M	src/components/admin/CategoriesManager.tsx
+M	src/components/admin/ShopProductsManager.tsx
+M	src/components/admin/WornByYouManager.tsx
+M	src/components/admin/cms/HomeAccessoriesEditorialCmsForm.tsx
+M	src/components/admin/product-editor/ProductExperienceLivePreview.tsx
+M	src/components/admin/product-editor/ProductFeaturesPanel.tsx
+M	src/components/home/AccessoriesEditorialSlideshow.tsx
+M	src/components/home/CustomDesignSection.tsx
+M	src/components/home/HomeVisualProductRunway.tsx
+M	src/components/home/WornByYouSection.tsx
+M	src/components/product/ProductExperienceModal.tsx
+M	src/lib/admin/lifecycle-types.ts
+M	src/lib/admin/lifecycle.ts
+M	src/lib/admin/shop-data.ts
+M	src/lib/categories/product-counts.ts
+M	src/lib/data/queries.ts
+M	src/lib/data/shop-queries.ts
+M	src/lib/guest/cart-items.ts
+M	src/lib/home/accessories-editorial-frame.ts
+M	src/lib/home/accessories-editorial.ts
+M	src/lib/i18n/dictionaries.ts
+M	src/lib/i18n/types.ts
+M	src/lib/products/experience-features.ts
+M	src/lib/products/feature-allowlist.ts
+M	src/lib/products/personalization/index.ts
+M	src/lib/products/slug-sku.ts
+M	src/lib/shop/shipping.ts
+M	src/lib/shop/wishlist.ts
+M	src/lib/store/settings.ts
+M	src/lib/validations/category.ts
+M	src/lib/validations/shop-product.ts
+M	src/types/category.ts
+M	src/types/shop.ts
+M	src/types/store.ts
+A	supabase/APPLY_ACCESSORY_WRITING_FEATURE.sql
+M	supabase/APPLY_ALL.sql
+A	supabase/APPLY_GENERIC_ACCESSORY_ITEMS.sql
+M	supabase/APPLY_PRODUCT_CATEGORY_ID.sql
+A	supabase/CHECK_ACCESSORY_ITEMS_RLS.sql
+A	supabase/FIND_WWW_PRODUCT.sql
+A	supabase/FIX_WWW_CATEGORY.sql
+A	supabase/MOVE_WWW_PRODUCTS.sql
+M	supabase/migrations/027_product_category_id.sql
+M	supabase/migrations/040_enterprise_experience_engine.sql
+A	supabase/migrations/056_generic_accessory_items.sql

@@ -127,6 +127,20 @@ function normalizeUnifiedBackground(raw: unknown): VisualUnifiedBackgroundSettin
     product_shadow_intensity: Math.min(100, Math.max(0, intensity)),
     isolate_products: bool(s.isolate_products, enabled ? true : d.isolate_products),
     keep_product_grids: bool(s.keep_product_grids, d.keep_product_grids),
+    card_background_enabled: bool(
+      s.card_background_enabled,
+      d.card_background_enabled
+    ),
+    card_background_color: normalizeHexColor(
+      s.card_background_color,
+      d.card_background_color
+    ),
+    card_radius: Math.min(32, Math.max(0, Math.round(num(s.card_radius, d.card_radius)))),
+    card_padding: Math.min(32, Math.max(0, Math.round(num(s.card_padding, d.card_padding)))),
+    show_product_name: bool(s.show_product_name, d.show_product_name),
+    show_action_link: bool(s.show_action_link, d.show_action_link),
+    show_collection_badge: bool(s.show_collection_badge, d.show_collection_badge),
+    hover_zoom: bool(s.hover_zoom, d.hover_zoom),
   };
 }
 

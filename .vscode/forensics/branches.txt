@@ -1,0 +1,19 @@
+  backup-before-recovering-pre-payplus-work              9efb2bc3db06fce5a9184ff136bfcbc114c807b8 Include payplus in the store payment provider id union.
+  cursor/cookie-banner-analytics-controls                4d35f876f357bdc8a26452046ea4b9cc5140480c feat(admin): control cookie banner and analytics scripts from store settings
+  cursor/hero-video-cms-upload                           26d0960ac6eda769249004ef424a1aadde0f9da2 [origin/cursor/hero-video-cms-upload] Add admin-managed homepage editorial grid and 5-image Custom Design CMS.
+  cursor/payplus-payment-invoice-provider                bf034d23fa6391bbdf277b90af73ed4fc0b7685f [origin/cursor/payplus-payment-invoice-provider] Load Cinzel from local fonts so production builds do not fetch Google Fonts.
+  cursor/security-session-backup                         c222aff8111f9677b4e0ab55d3f2d26bf3cb5b83 [origin/cursor/security-session-backup] feat: deploy latest Nadeen Designs updates
+  cursor/unified-post-grid-isolation                     076ec7d8fba199c10b65e3fae9058b8dc5439559 [origin/cursor/unified-post-grid-isolation] Speed up product pages and add admin-managed accessories frames, a white storefront canvas, and gallery video.
+  feature/admin-improvements                             ae68709d135a738c867daadfd5846900d2f4cbab [origin/feature/admin-improvements] feat(admin): unify messaging, email provider, booking notify, soft-delete
+  feature/admin-shipping-updates                         438f49fe71c003fd16657eea593c67e20f2121ad [origin/feature/admin-shipping-updates] Improve admin and shipping features
+  feature/prada-inspired-homepage                        1d2247bc71a5fc13be7e74ab164616bb07cf32b1 [origin/feature/prada-inspired-homepage] Refine hero copy to a quieter corner placement.
+* main                                                   fb1006b9ea5eebfc5374812fac8aa984b500a6a1 [origin/main] Fix accessory trash translation type
+  remotes/origin/HEAD                                    -> origin/main
+  remotes/origin/cursor/hero-video-cms-upload            26d0960ac6eda769249004ef424a1aadde0f9da2 Add admin-managed homepage editorial grid and 5-image Custom Design CMS.
+  remotes/origin/cursor/payplus-payment-invoice-provider bf034d23fa6391bbdf277b90af73ed4fc0b7685f Load Cinzel from local fonts so production builds do not fetch Google Fonts.
+  remotes/origin/cursor/security-session-backup          c222aff8111f9677b4e0ab55d3f2d26bf3cb5b83 feat: deploy latest Nadeen Designs updates
+  remotes/origin/cursor/unified-post-grid-isolation      076ec7d8fba199c10b65e3fae9058b8dc5439559 Speed up product pages and add admin-managed accessories frames, a white storefront canvas, and gallery video.
+  remotes/origin/feature/admin-improvements              ae68709d135a738c867daadfd5846900d2f4cbab feat(admin): unify messaging, email provider, booking notify, soft-delete
+  remotes/origin/feature/admin-shipping-updates          438f49fe71c003fd16657eea593c67e20f2121ad Improve admin and shipping features
+  remotes/origin/feature/prada-inspired-homepage         1d2247bc71a5fc13be7e74ab164616bb07cf32b1 Refine hero copy to a quieter corner placement.
+  remotes/origin/main                                    fb1006b9ea5eebfc5374812fac8aa984b500a6a1 Fix accessory trash translation type

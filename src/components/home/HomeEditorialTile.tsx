@@ -35,6 +35,14 @@ type HomeEditorialTileProps = {
   imageOffsetY?: number;
   dropShadow?: boolean;
   shadowIntensity?: number;
+  cardBackgroundEnabled?: boolean;
+  cardBackgroundColor?: string;
+  cardRadius?: number;
+  cardPadding?: number;
+  showProductName?: boolean;
+  showActionLink?: boolean;
+  showCollectionBadge?: boolean;
+  hoverZoom?: boolean;
 };
 
 const FLOAT_CAPTION_ROW = "2.75rem";
@@ -50,6 +58,8 @@ function FloatCaption({
   titleSize,
   emphasize,
   dir,
+  showProductName,
+  showActionLink,
 }: {
   title: string;
   eyebrow?: string;
@@ -61,6 +71,8 @@ function FloatCaption({
   titleSize: "sm" | "md" | "lg";
   emphasize: boolean;
   dir: "ltr" | "rtl";
+  showProductName: boolean;
+  showActionLink: boolean;
 }) {
   const hasSecondary = Boolean(secondaryHref && secondaryCtaLabel);
   const showCta = emphasize || hasSecondary;
@@ -80,7 +92,7 @@ function FloatCaption({
           {eyebrow}
         </p>
       ) : null}
-      <h3
+      {showProductName ? <h3
         className={cn(
           "line-clamp-2 max-w-full font-[family-name:var(--font-cormorant)] font-normal leading-[1.3] text-charcoal",
           titleSize === "lg" && "text-sm md:text-[15px]",
@@ -89,8 +101,8 @@ function FloatCaption({
         )}
       >
         {title}
-      </h3>
-      {showCta && hasSecondary ? (
+      </h3> : null}
+      {showActionLink && showCta && hasSecondary ? (
         <div className="mt-0.5 flex flex-wrap justify-center gap-x-3 gap-y-1">
           {ctaLabel ? (
             <Link
@@ -107,7 +119,7 @@ function FloatCaption({
             {secondaryCtaLabel}
           </Link>
         </div>
-      ) : showCta && ctaLabel ? (
+      ) : showActionLink && showCta && ctaLabel ? (
         ctaVariant === "outline" ? (
           <span className="mt-0.5 inline-flex border border-charcoal/70 bg-transparent px-2.5 py-1 text-[9px] font-medium tracking-[0.14em] text-charcoal uppercase md:text-[10px]">
             {ctaLabel}
@@ -150,6 +162,14 @@ export function HomeEditorialTile({
   imageOffsetY = 0,
   dropShadow = false,
   shadowIntensity = 28,
+  cardBackgroundEnabled = false,
+  cardBackgroundColor = "#FFFFFF",
+  cardRadius = 0,
+  cardPadding = 0,
+  showProductName = true,
+  showActionLink = true,
+  showCollectionBadge = false,
+  hoverZoom = true,
 }: HomeEditorialTileProps) {
   const { dir } = useLocale();
   const cover = imageUrl?.trim() || "";
@@ -176,7 +196,10 @@ export function HomeEditorialTile({
       {cover ? (
         <div className="absolute inset-0 flex items-end justify-center">
           <div
-            className="relative h-full w-full origin-bottom transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+            className={cn(
+              "relative h-full w-full origin-bottom transition-transform duration-700 ease-out",
+              hoverZoom && "group-hover:scale-[1.02]"
+            )}
             style={{
               transform: `translate(${ox}%, ${oy}%) scale(${scale})`,
             }}
@@ -231,12 +254,25 @@ export function HomeEditorialTile({
         titleSize={titleSize}
         emphasize={emphasize}
         dir={dir}
+        showProductName={showProductName}
+        showActionLink={showActionLink}
       />
     </div>
   );
 
   const cardMedia = (
-    <div className={cn("relative w-full overflow-hidden", aspectClassName)}>
+    <div
+      className={cn("relative w-full overflow-hidden", aspectClassName)}
+      style={
+        cardBackgroundEnabled
+          ? {
+              backgroundColor: cardBackgroundColor,
+              borderRadius: cardRadius,
+              padding: cardPadding,
+            }
+          : undefined
+      }
+    >
       {cover ? (
         <Image
           src={cover}
@@ -245,7 +281,10 @@ export function HomeEditorialTile({
           priority={priority}
           quality={85}
           sizes={sizes}
-          className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+          className={cn(
+            "object-cover object-center transition-transform duration-700 ease-out",
+            hoverZoom && "group-hover:scale-[1.03]"
+          )}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-b from-beige via-beige-dark/70 to-beige-dark" />
@@ -268,12 +307,17 @@ export function HomeEditorialTile({
             : "gap-1 p-3.5 md:gap-1.5 md:p-4 lg:p-5"
         )}
       >
-        {eyebrow ? (
+        {showCollectionBadge && eyebrow ? (
+          <span className="mb-1 inline-flex rounded-full bg-gold px-2 py-1 text-[8px] font-medium text-white">
+            {eyebrow}
+          </span>
+        ) : null}
+        {showProductName && eyebrow ? (
           <p className="text-[9px] font-medium tracking-[0.3em] text-ivory/70 uppercase md:text-[10px]">
             {eyebrow}
           </p>
         ) : null}
-        <h3
+        {showProductName ? <h3
           className={cn(
             "max-w-[20ch] font-[family-name:var(--font-cormorant)] leading-tight tracking-[0.08em] text-ivory uppercase",
             titleSize === "lg" && "text-xl md:text-2xl lg:text-[1.85rem]",
@@ -282,8 +326,8 @@ export function HomeEditorialTile({
           )}
         >
           {title}
-        </h3>
-        {hasSecondary ? (
+        </h3> : null}
+        {showActionLink && hasSecondary ? (
           <div className="mt-1 flex flex-wrap gap-x-5 gap-y-2">
             {ctaLabel ? (
               <Link
@@ -300,7 +344,7 @@ export function HomeEditorialTile({
               {secondaryCtaLabel}
             </Link>
           </div>
-        ) : ctaLabel ? (
+        ) : showActionLink && ctaLabel ? (
           ctaVariant === "outline" ? (
             <span className="mt-1 inline-flex border border-ivory/90 bg-ivory/95 px-4 py-2 text-[10px] font-medium tracking-[0.2em] text-charcoal uppercase transition-colors duration-300 group-hover:bg-ivory md:text-[11px]">
               {ctaLabel}

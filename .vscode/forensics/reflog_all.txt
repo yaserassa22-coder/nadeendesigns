@@ -1,0 +1,442 @@
+fb1006b refs/remotes/origin/main@{2026-08-21 21:08:09 +0300}: update by push
+fb1006b refs/heads/main@{2026-08-21 21:08:00 +0300}: commit: Fix accessory trash translation type
+fb1006b HEAD@{2026-08-21 21:08:00 +0300}: commit: Fix accessory trash translation type
+c71f4b5 refs/remotes/origin/main@{2026-08-21 19:04:40 +0300}: update by push
+c71f4b5 refs/heads/main@{2026-08-21 19:04:27 +0300}: commit: Apply today's storefront and admin updates
+c71f4b5 HEAD@{2026-08-21 19:04:27 +0300}: commit: Apply today's storefront and admin updates
+438f49f refs/remotes/origin/main@{2026-08-15 21:31:05 +0300}: update by push
+438f49f refs/heads/main@{2026-08-15 21:30:37 +0300}: merge feature/admin-shipping-updates: Fast-forward
+438f49f HEAD@{2026-08-15 21:30:37 +0300}: merge feature/admin-shipping-updates: Fast-forward
+4640f46 HEAD@{2026-08-15 21:30:21 +0300}: checkout: moving from feature/admin-shipping-updates to main
+438f49f refs/remotes/origin/feature/admin-shipping-updates@{2026-08-15 21:29:49 +0300}: update by push
+438f49f refs/heads/feature/admin-shipping-updates@{2026-08-15 21:29:27 +0300}: commit: Improve admin and shipping features
+438f49f HEAD@{2026-08-15 21:29:27 +0300}: commit: Improve admin and shipping features
+4640f46 HEAD@{2026-08-15 21:28:19 +0300}: checkout: moving from main to feature/admin-shipping-updates
+4640f46 HEAD@{2026-08-15 21:24:33 +0300}: checkout: moving from feature/admin-shipping-updates to main
+4640f46 refs/remotes/origin/feature/admin-shipping-updates@{2026-08-15 21:24:12 +0300}: update by push
+4640f46 refs/heads/feature/admin-shipping-updates@{2026-08-15 21:19:52 +0300}: branch: Created from HEAD
+4640f46 HEAD@{2026-08-15 21:19:52 +0300}: checkout: moving from main to feature/admin-shipping-updates
+4640f46 refs/remotes/origin/main@{2026-08-13 15:45:17 +0300}: update by push
+4640f46 refs/heads/main@{2026-08-13 15:42:29 +0300}: merge cursor/payplus-payment-invoice-provider: Merge made by the 'ort' strategy.
+4640f46 HEAD@{2026-08-13 15:42:29 +0300}: merge cursor/payplus-payment-invoice-provider: Merge made by the 'ort' strategy.
+ac57c72 HEAD@{2026-08-13 15:35:51 +0300}: checkout: moving from cursor/payplus-payment-invoice-provider to main
+bf034d2 refs/remotes/origin/cursor/payplus-payment-invoice-provider@{2026-08-13 15:28:30 +0300}: update by push
+bf034d2 refs/heads/cursor/payplus-payment-invoice-provider@{2026-08-13 15:28:13 +0300}: commit: Load Cinzel from local fonts so production builds do not fetch Google Fonts.
+bf034d2 HEAD@{2026-08-13 15:28:13 +0300}: commit: Load Cinzel from local fonts so production builds do not fetch Google Fonts.
+8ff06ec refs/remotes/origin/cursor/payplus-payment-invoice-provider@{2026-08-13 15:02:53 +0300}: update by push
+8ff06ec refs/heads/cursor/payplus-payment-invoice-provider@{2026-08-13 14:53:16 +0300}: commit: Preserve pre-PayPlus homepage, gallery, and social storefront work.
+8ff06ec HEAD@{2026-08-13 14:53:16 +0300}: commit: Preserve pre-PayPlus homepage, gallery, and social storefront work.
+9efb2bc refs/heads/backup-before-recovering-pre-payplus-work@{2026-08-13 14:52:21 +0300}: branch: Created from cursor/payplus-payment-invoice-provider
+9efb2bc refs/remotes/origin/cursor/payplus-payment-invoice-provider@{2026-08-13 14:01:19 +0300}: update by push
+9efb2bc refs/heads/cursor/payplus-payment-invoice-provider@{2026-08-13 14:01:07 +0300}: commit: Include payplus in the store payment provider id union.
+9efb2bc HEAD@{2026-08-13 14:01:07 +0300}: commit: Include payplus in the store payment provider id union.
+b2a9776 refs/remotes/origin/cursor/payplus-payment-invoice-provider@{2026-08-13 13:49:17 +0300}: update by push
+b2a9776 refs/heads/cursor/payplus-payment-invoice-provider@{2026-08-13 13:48:45 +0300}: commit: Add PayPlus as a disabled payment and invoice provider.
+b2a9776 HEAD@{2026-08-13 13:48:45 +0300}: commit: Add PayPlus as a disabled payment and invoice provider.
+ac57c72 refs/heads/cursor/payplus-payment-invoice-provider@{2026-08-13 13:46:09 +0300}: branch: Created from HEAD
+ac57c72 HEAD@{2026-08-13 13:46:09 +0300}: checkout: moving from main to cursor/payplus-payment-invoice-provider
+ac57c72 refs/remotes/origin/main@{2026-08-13 00:27:47 +0300}: update by push
+ac57c72 refs/heads/main@{2026-08-13 00:27:12 +0300}: commit: Fix related item lifecycle typing
+ac57c72 HEAD@{2026-08-13 00:27:12 +0300}: commit: Fix related item lifecycle typing
+dcdb1bd refs/remotes/origin/main@{2026-08-12 23:59:20 +0300}: update by push
+dcdb1bd refs/heads/main@{2026-08-12 23:59:17 +0300}: merge cursor/unified-post-grid-isolation: Merge made by the 'ort' strategy.
+dcdb1bd HEAD@{2026-08-12 23:59:17 +0300}: merge cursor/unified-post-grid-isolation: Merge made by the 'ort' strategy.
+26d0960 HEAD@{2026-08-12 23:59:17 +0300}: checkout: moving from cursor/unified-post-grid-isolation to main
+076ec7d refs/remotes/origin/cursor/unified-post-grid-isolation@{2026-08-12 23:56:13 +0300}: update by push
+076ec7d refs/heads/cursor/unified-post-grid-isolation@{2026-08-12 23:55:55 +0300}: commit: Speed up product pages and add admin-managed accessories frames, a white storefront canvas, and gallery video.
+076ec7d HEAD@{2026-08-12 23:55:55 +0300}: commit: Speed up product pages and add admin-managed accessories frames, a white storefront canvas, and gallery video.
+c6bf038 refs/heads/cursor/unified-post-grid-isolation@{2026-08-12 21:05:02 +0300}: commit: Add unified post-grid background with Cloudinary product isolation.
+c6bf038 HEAD@{2026-08-12 21:05:02 +0300}: commit: Add unified post-grid background with Cloudinary product isolation.
+26d0960 refs/heads/cursor/unified-post-grid-isolation@{2026-08-12 21:04:54 +0300}: branch: Created from HEAD
+26d0960 HEAD@{2026-08-12 21:04:54 +0300}: checkout: moving from main to cursor/unified-post-grid-isolation
+26d0960 refs/remotes/origin/main@{2026-08-10 23:37:13 +0300}: update by push
+26d0960 refs/heads/main@{2026-08-10 23:33:54 +0300}: merge cursor/hero-video-cms-upload: Fast-forward
+26d0960 HEAD@{2026-08-10 23:33:54 +0300}: merge cursor/hero-video-cms-upload: Fast-forward
+9680f6f HEAD@{2026-08-10 23:33:41 +0300}: checkout: moving from cursor/hero-video-cms-upload to main
+26d0960 refs/remotes/origin/cursor/hero-video-cms-upload@{2026-08-10 23:20:53 +0300}: update by push
+26d0960 refs/heads/cursor/hero-video-cms-upload@{2026-08-10 23:20:17 +0300}: commit: Add admin-managed homepage editorial grid and 5-image Custom Design CMS.
+26d0960 HEAD@{2026-08-10 23:20:17 +0300}: commit: Add admin-managed homepage editorial grid and 5-image Custom Design CMS.
+31cb13b refs/remotes/origin/cursor/hero-video-cms-upload@{2026-08-10 14:32:46 +0300}: update by push
+31cb13b refs/heads/cursor/hero-video-cms-upload@{2026-08-10 14:32:41 +0300}: commit: Simplify homepage Instagram band to a single logo link.
+31cb13b HEAD@{2026-08-10 14:32:41 +0300}: commit: Simplify homepage Instagram band to a single logo link.
+5b13436 refs/remotes/origin/cursor/hero-video-cms-upload@{2026-08-10 14:21:53 +0300}: update by push
+5b13436 refs/heads/cursor/hero-video-cms-upload@{2026-08-10 14:21:50 +0300}: commit: Add admin-managed announcement bar with multi-message marquee rotation.
+5b13436 HEAD@{2026-08-10 14:21:50 +0300}: commit: Add admin-managed announcement bar with multi-message marquee rotation.
+50ed31b refs/remotes/origin/cursor/hero-video-cms-upload@{2026-08-10 12:30:29 +0300}: update by push
+50ed31b refs/heads/cursor/hero-video-cms-upload@{2026-08-10 12:24:15 +0300}: commit: Add admin-managed hero video slides with quality-focused upload and playback.
+50ed31b HEAD@{2026-08-10 12:24:15 +0300}: commit: Add admin-managed hero video slides with quality-focused upload and playback.
+9680f6f refs/heads/cursor/hero-video-cms-upload@{2026-08-10 12:24:00 +0300}: branch: Created from HEAD
+9680f6f HEAD@{2026-08-10 12:24:00 +0300}: checkout: moving from main to cursor/hero-video-cms-upload
+9680f6f refs/remotes/origin/main@{2026-08-10 00:18:13 +0300}: update by push
+9680f6f refs/heads/main@{2026-08-10 00:18:05 +0300}: commit: Fix mobile header so utility icons stay in one compact row.
+9680f6f HEAD@{2026-08-10 00:18:05 +0300}: commit: Fix mobile header so utility icons stay in one compact row.
+db5e0c8 refs/remotes/origin/main@{2026-08-09 23:25:37 +0300}: update by push
+db5e0c8 refs/heads/main@{2026-08-09 23:18:01 +0300}: merge feature/prada-inspired-homepage: Merge made by the 'ort' strategy.
+db5e0c8 HEAD@{2026-08-09 23:18:01 +0300}: merge feature/prada-inspired-homepage: Merge made by the 'ort' strategy.
+c222aff HEAD@{2026-08-09 23:17:43 +0300}: checkout: moving from feature/prada-inspired-homepage to main
+1d2247b HEAD@{2026-08-09 23:17:31 +0300}: reset: moving to HEAD
+1d2247b refs/remotes/origin/feature/prada-inspired-homepage@{2026-08-09 23:14:22 +0300}: update by push
+1d2247b refs/heads/feature/prada-inspired-homepage@{2026-08-09 23:14:18 +0300}: commit: Refine hero copy to a quieter corner placement.
+1d2247b HEAD@{2026-08-09 23:14:18 +0300}: commit: Refine hero copy to a quieter corner placement.
+d0019af refs/remotes/origin/feature/prada-inspired-homepage@{2026-08-09 23:04:14 +0300}: update by push
+d0019af refs/heads/feature/prada-inspired-homepage@{2026-08-09 23:04:10 +0300}: commit: Add homepage PWA install prompt for iPhone and Android.
+d0019af HEAD@{2026-08-09 23:04:10 +0300}: commit: Add homepage PWA install prompt for iPhone and Android.
+697bb81 refs/remotes/origin/feature/prada-inspired-homepage@{2026-08-09 22:50:20 +0300}: update by push
+697bb81 refs/heads/feature/prada-inspired-homepage@{2026-08-09 22:50:15 +0300}: commit: Refine homepage editorial grid and Worn by You video UX.
+697bb81 HEAD@{2026-08-09 22:50:15 +0300}: commit: Refine homepage editorial grid and Worn by You video UX.
+e2ea166 refs/heads/feature/prada-inspired-homepage@{2026-08-09 21:03:00 +0300}: commit: feat: preserve Nadeen Designs pre-Prada homepage
+e2ea166 HEAD@{2026-08-09 21:03:00 +0300}: commit: feat: preserve Nadeen Designs pre-Prada homepage
+88108a4 refs/heads/feature/prada-inspired-homepage@{2026-08-09 20:39:12 +0300}: commit: ???checkpoint: homepage before Prada-inspired visual experiment
+88108a4 HEAD@{2026-08-09 20:39:12 +0300}: commit: ???checkpoint: homepage before Prada-inspired visual experiment
+4d35f87 refs/heads/feature/prada-inspired-homepage@{2026-08-09 20:38:48 +0300}: branch: Created from HEAD
+4d35f87 HEAD@{2026-08-09 20:38:48 +0300}: checkout: moving from cursor/cookie-banner-analytics-controls to feature/prada-inspired-homepage
+4d35f87 refs/heads/cursor/cookie-banner-analytics-controls@{2026-08-09 09:03:31 +0300}: commit: feat(admin): control cookie banner and analytics scripts from store settings
+c222aff refs/heads/cursor/cookie-banner-analytics-controls@{2026-08-09 09:03:31 +0300}: branch: Created from HEAD
+4d35f87 HEAD@{2026-08-09 09:03:31 +0300}: commit: feat(admin): control cookie banner and analytics scripts from store settings
+c222aff HEAD@{2026-08-09 09:03:31 +0300}: checkout: moving from main to cursor/cookie-banner-analytics-controls
+c222aff refs/remotes/origin/main@{2026-08-08 17:23:00 +0300}: update by push
+c222aff refs/heads/main@{2026-08-08 17:21:15 +0300}: merge cursor/security-session-backup: Fast-forward
+c222aff HEAD@{2026-08-08 17:21:15 +0300}: merge cursor/security-session-backup: Fast-forward
+044e3e7 HEAD@{2026-08-08 17:20:16 +0300}: checkout: moving from cursor/security-session-backup to main
+c222aff refs/remotes/origin/cursor/security-session-backup@{2026-08-08 17:09:16 +0300}: update by push
+c222aff refs/heads/cursor/security-session-backup@{2026-08-08 17:08:40 +0300}: commit: feat: deploy latest Nadeen Designs updates
+c222aff HEAD@{2026-08-08 17:08:40 +0300}: commit: feat: deploy latest Nadeen Designs updates
+522d5dd refs/remotes/origin/cursor/security-session-backup@{2026-08-08 16:48:49 +0300}: update by push
+522d5dd refs/heads/cursor/security-session-backup@{2026-08-08 16:38:03 +0300}: commit: feat: add Nadeen Designs PWA manifest and icons
+522d5dd HEAD@{2026-08-08 16:38:03 +0300}: commit: feat: add Nadeen Designs PWA manifest and icons
+ae66e37 refs/remotes/origin/cursor/security-session-backup@{2026-08-08 16:05:50 +0300}: update by push
+ae66e37 refs/heads/cursor/security-session-backup@{2026-08-08 16:05:46 +0300}: commit: feat(admin): activate Security settings UI for maintenance and backup
+ae66e37 HEAD@{2026-08-08 16:05:46 +0300}: commit: feat(admin): activate Security settings UI for maintenance and backup
+0f34739 refs/remotes/origin/cursor/security-session-backup@{2026-08-08 16:00:04 +0300}: update by push
+0f34739 refs/heads/cursor/security-session-backup@{2026-08-08 15:59:43 +0300}: commit: feat(security): persist maintenance messages and expose session timeout
+0f34739 HEAD@{2026-08-08 15:59:43 +0300}: commit: feat(security): persist maintenance messages and expose session timeout
+c8bd3bb refs/remotes/origin/cursor/security-session-backup@{2026-08-08 15:56:50 +0300}: update by push
+c8bd3bb refs/heads/cursor/security-session-backup@{2026-08-08 15:56:30 +0300}: commit: feat(security): apply session timeout for logged-in customers
+c8bd3bb HEAD@{2026-08-08 15:56:30 +0300}: commit: feat(security): apply session timeout for logged-in customers
+7dfbf12 refs/heads/cursor/security-session-backup@{2026-08-08 15:54:40 +0300}: commit: feat(security): wire session timeout and live backup status
+7dfbf12 HEAD@{2026-08-08 15:54:40 +0300}: commit: feat(security): wire session timeout and live backup status
+044e3e7 refs/heads/cursor/security-session-backup@{2026-08-08 15:54:31 +0300}: branch: Created from HEAD
+044e3e7 HEAD@{2026-08-08 15:54:31 +0300}: checkout: moving from main to cursor/security-session-backup
+044e3e7 refs/remotes/origin/main@{2026-08-08 15:53:07 +0300}: update by push
+044e3e7 refs/heads/main@{2026-08-08 15:52:52 +0300}: commit: fix(store): enforce maintenance mode and add accessories sidebar
+044e3e7 HEAD@{2026-08-08 15:52:52 +0300}: commit: fix(store): enforce maintenance mode and add accessories sidebar
+82468ff refs/heads/main@{2026-08-08 09:55:36 +0300}: commit: feat(admin): complete archive/trash lifecycle gaps
+82468ff HEAD@{2026-08-08 09:55:36 +0300}: commit: feat(admin): complete archive/trash lifecycle gaps
+b6b7cae refs/remotes/origin/main@{2026-08-07 12:19:15 +0300}: update by push
+b6b7cae refs/heads/main@{2026-08-07 12:19:07 +0300}: commit: feat(store): auth channels, credit card, cart keys, message bell
+b6b7cae HEAD@{2026-08-07 12:19:07 +0300}: commit: feat(store): auth channels, credit card, cart keys, message bell
+e841414 refs/heads/main@{2026-08-07 11:02:50 +0300}: commit: fix(auth): harden signup session handoff without Resend domain
+e841414 HEAD@{2026-08-07 11:02:50 +0300}: commit: fix(auth): harden signup session handoff without Resend domain
+ae68709 refs/remotes/origin/main@{2026-08-06 22:31:46 +0300}: update by push
+ae68709 refs/heads/main@{2026-08-06 22:31:43 +0300}: merge feature/admin-improvements: Fast-forward
+ae68709 HEAD@{2026-08-06 22:31:43 +0300}: merge feature/admin-improvements: Fast-forward
+1eccfbf HEAD@{2026-08-06 22:31:40 +0300}: checkout: moving from feature/admin-improvements to main
+ae68709 refs/remotes/origin/feature/admin-improvements@{2026-08-06 22:10:41 +0300}: update by push
+ae68709 refs/heads/feature/admin-improvements@{2026-08-06 22:10:33 +0300}: commit: feat(admin): unify messaging, email provider, booking notify, soft-delete
+ae68709 HEAD@{2026-08-06 22:10:33 +0300}: commit: feat(admin): unify messaging, email provider, booking notify, soft-delete
+1da5460 refs/heads/feature/admin-improvements@{2026-08-06 21:00:04 +0300}: commit: feat(admin): enforce staff roles system-wide with promote UX
+1da5460 HEAD@{2026-08-06 21:00:04 +0300}: commit: feat(admin): enforce staff roles system-wide with promote UX
+0214087 refs/heads/feature/admin-improvements@{2026-08-06 20:33:05 +0300}: commit: feat(admin): add in-app administrator management
+0214087 HEAD@{2026-08-06 20:33:05 +0300}: commit: feat(admin): add in-app administrator management
+25a709c refs/heads/feature/admin-improvements@{2026-08-06 19:00:32 +0300}: commit: feat(auth): fix email signup and add forgot-password reset flow
+25a709c HEAD@{2026-08-06 19:00:32 +0300}: commit: feat(auth): fix email signup and add forgot-password reset flow
+3b3da1b refs/heads/feature/admin-improvements@{2026-08-06 18:50:29 +0300}: commit: fix(auth): exchange email/recovery tokens and persist callback session cookies
+3b3da1b HEAD@{2026-08-06 18:50:29 +0300}: commit: fix(auth): exchange email/recovery tokens and persist callback session cookies
+1a8b9b1 refs/heads/feature/admin-improvements@{2026-08-06 18:14:06 +0300}: commit: fix(auth): stop infinite guest loading and restore session cookies
+1a8b9b1 HEAD@{2026-08-06 18:14:06 +0300}: commit: fix(auth): stop infinite guest loading and restore session cookies
+1986eae refs/heads/feature/admin-improvements@{2026-08-06 18:01:34 +0300}: commit: fix(cart): stabilize CartContext identity across Turbopack chunks
+1986eae HEAD@{2026-08-06 18:01:34 +0300}: commit: fix(cart): stabilize CartContext identity across Turbopack chunks
+dbf1d27 refs/heads/feature/admin-improvements@{2026-08-06 17:47:03 +0300}: commit: fix(auth): restore visible email/guest login modal UI
+dbf1d27 HEAD@{2026-08-06 17:47:03 +0300}: commit: fix(auth): restore visible email/guest login modal UI
+d8570a6 refs/heads/feature/admin-improvements@{2026-08-06 17:31:59 +0300}: commit: fix(auth): stop login modal closing on open from backdrop ghost-click
+d8570a6 HEAD@{2026-08-06 17:31:59 +0300}: commit: fix(auth): stop login modal closing on open from backdrop ghost-click
+315ee7c refs/heads/feature/admin-improvements@{2026-08-06 16:57:13 +0300}: commit: feat(notifications): enable Resend delivery for admin email flows
+315ee7c HEAD@{2026-08-06 16:57:13 +0300}: commit: feat(notifications): enable Resend delivery for admin email flows
+9de588b refs/heads/feature/admin-improvements@{2026-08-06 15:36:58 +0300}: commit: fix(bookings): use relative imports in status-actions for unit tests
+9de588b HEAD@{2026-08-06 15:36:58 +0300}: commit: fix(bookings): use relative imports in status-actions for unit tests
+b487597 refs/heads/feature/admin-improvements@{2026-08-06 15:36:06 +0300}: commit: feat(admin): booking status actions with customer email replies
+b487597 HEAD@{2026-08-06 15:36:06 +0300}: commit: feat(admin): booking status actions with customer email replies
+8afc788 refs/heads/feature/admin-improvements@{2026-08-06 14:36:11 +0300}: commit: fix(admin): sync product live preview CTAs with storefront Product Type
+8afc788 HEAD@{2026-08-06 14:36:11 +0300}: commit: fix(admin): sync product live preview CTAs with storefront Product Type
+1a7d303 refs/heads/feature/admin-improvements@{2026-08-06 14:21:38 +0300}: commit: fix(admin): gate product experience actions by product type
+1a7d303 HEAD@{2026-08-06 14:21:38 +0300}: commit: fix(admin): gate product experience actions by product type
+86bbeb4 refs/heads/feature/admin-improvements@{2026-08-06 13:38:24 +0300}: commit: feat(admin): dynamic rental category tree and PE visibility gates
+86bbeb4 HEAD@{2026-08-06 13:38:24 +0300}: commit: feat(admin): dynamic rental category tree and PE visibility gates
+7df9eee refs/heads/feature/admin-improvements@{2026-08-06 09:31:15 +0300}: commit: feat(admin): reply to contact messages via Resend from Messages
+7df9eee HEAD@{2026-08-06 09:31:15 +0300}: commit: feat(admin): reply to contact messages via Resend from Messages
+0e2db40 refs/remotes/origin/feature/admin-improvements@{2026-08-06 02:03:33 +0300}: update by push
+0e2db40 refs/heads/feature/admin-improvements@{2026-08-06 02:00:42 +0300}: commit: fix(admin): load contact messages with privileged client, not anon
+0e2db40 HEAD@{2026-08-06 02:00:42 +0300}: commit: fix(admin): load contact messages with privileged client, not anon
+29c0b12 refs/heads/feature/admin-improvements@{2026-08-06 01:49:09 +0300}: commit: fix(contact): stop RLS failure on insert+select without public SELECT
+29c0b12 HEAD@{2026-08-06 01:49:09 +0300}: commit: fix(contact): stop RLS failure on insert+select without public SELECT
+1894a11 refs/heads/feature/admin-improvements@{2026-08-06 01:41:21 +0300}: commit: polish(experience): luxury Shopify-style Product Experience Admin v2 UX
+1894a11 HEAD@{2026-08-06 01:41:21 +0300}: commit: polish(experience): luxury Shopify-style Product Experience Admin v2 UX
+be51ffe refs/heads/feature/admin-improvements@{2026-08-06 01:25:16 +0300}: commit: fix(build): export isLifecycleSchemaError from supabase errors utils
+be51ffe HEAD@{2026-08-06 01:25:16 +0300}: commit: fix(build): export isLifecycleSchemaError from supabase errors utils
+f9171e1 refs/heads/feature/admin-improvements@{2026-08-06 01:16:59 +0300}: commit: fix(intake): stabilize customer requests to Admin with alerts and badges
+f9171e1 HEAD@{2026-08-06 01:16:59 +0300}: commit: fix(intake): stabilize customer requests to Admin with alerts and badges
+735a3af refs/heads/feature/admin-improvements@{2026-08-06 01:05:53 +0300}: commit: fix(admin): infer product_kind from category slug when legacy_key missing
+735a3af HEAD@{2026-08-06 01:05:53 +0300}: commit: fix(admin): infer product_kind from category slug when legacy_key missing
+9d77e48 refs/heads/feature/admin-improvements@{2026-08-06 00:53:46 +0300}: commit: fix(admin): route Products sidebar by product_kind, not dresses-only
+9d77e48 HEAD@{2026-08-06 00:53:46 +0300}: commit: fix(admin): route Products sidebar by product_kind, not dresses-only
+c2e22fe refs/remotes/origin/feature/admin-improvements@{2026-08-06 00:42:59 +0300}: update by push
+c2e22fe refs/heads/feature/admin-improvements@{2026-08-06 00:42:55 +0300}: commit: fix(release): close Admin-storefront gaps for production readiness
+c2e22fe HEAD@{2026-08-06 00:42:55 +0300}: commit: fix(release): close Admin-storefront gaps for production readiness
+b1594f3 refs/remotes/origin/feature/admin-improvements@{2026-08-06 00:30:28 +0300}: update by push
+b1594f3 refs/heads/feature/admin-improvements@{2026-08-06 00:30:25 +0300}: commit: fix(sync): wire Admin purchase flows, features, and visibility to storefront
+b1594f3 HEAD@{2026-08-06 00:30:25 +0300}: commit: fix(sync): wire Admin purchase flows, features, and visibility to storefront
+bbe3c9d refs/remotes/origin/feature/admin-improvements@{2026-08-06 00:11:23 +0300}: update by push
+bbe3c9d refs/heads/feature/admin-improvements@{2026-08-06 00:11:21 +0300}: commit: polish: refine storefront and admin UX without new features
+bbe3c9d HEAD@{2026-08-06 00:11:21 +0300}: commit: polish: refine storefront and admin UX without new features
+a4f6aa5 refs/remotes/origin/feature/admin-improvements@{2026-08-05 23:47:45 +0300}: update by push
+a4f6aa5 refs/heads/feature/admin-improvements@{2026-08-05 23:47:41 +0300}: commit: feat(admin): Enterprise Experience Engine hub wrapping Sprint 2A
+a4f6aa5 HEAD@{2026-08-05 23:47:41 +0300}: commit: feat(admin): Enterprise Experience Engine hub wrapping Sprint 2A
+20d938a refs/remotes/origin/feature/admin-improvements@{2026-08-05 23:17:54 +0300}: update by push
+20d938a refs/heads/feature/admin-improvements@{2026-08-05 23:17:51 +0300}: commit: feat(storefront): Sprint 2A.1 luxury PDP purchase-focused refinement
+20d938a HEAD@{2026-08-05 23:17:51 +0300}: commit: feat(storefront): Sprint 2A.1 luxury PDP purchase-focused refinement
+3b3835d refs/remotes/origin/feature/admin-improvements@{2026-08-05 22:55:51 +0300}: update by push
+3b3835d refs/heads/feature/admin-improvements@{2026-08-05 22:55:25 +0300}: commit: feat(products): Sprint 2A V3 luxury experience design system
+3b3835d HEAD@{2026-08-05 22:55:25 +0300}: commit: feat(products): Sprint 2A V3 luxury experience design system
+fbae94d refs/remotes/origin/feature/admin-improvements@{2026-08-05 21:43:35 +0300}: update by push
+fbae94d refs/heads/feature/admin-improvements@{2026-08-05 21:43:31 +0300}: commit: feat(admin): redesign Product Experience editor to luxury Shopify-style v2
+fbae94d HEAD@{2026-08-05 21:43:31 +0300}: commit: feat(admin): redesign Product Experience editor to luxury Shopify-style v2
+ddc8a60 refs/remotes/origin/feature/admin-improvements@{2026-08-05 21:03:30 +0300}: update by push
+ddc8a60 refs/heads/feature/admin-improvements@{2026-08-05 21:03:27 +0300}: commit: fix(products): drop unused orderOptions props from PDP purchase path
+ddc8a60 HEAD@{2026-08-05 21:03:27 +0300}: commit: fix(products): drop unused orderOptions props from PDP purchase path
+d53532f refs/remotes/origin/feature/admin-improvements@{2026-08-05 21:02:47 +0300}: update by push
+d53532f refs/heads/feature/admin-improvements@{2026-08-05 21:02:44 +0300}: commit: feat(products): keep delivery and notes checkout-only on PDP
+d53532f HEAD@{2026-08-05 21:02:44 +0300}: commit: feat(products): keep delivery and notes checkout-only on PDP
+e04f2dd refs/remotes/origin/feature/admin-improvements@{2026-08-05 20:27:51 +0300}: update by push
+e04f2dd refs/heads/feature/admin-improvements@{2026-08-05 20:27:43 +0300}: commit: feat(products): Sprint 2A Master product experience engine
+e04f2dd HEAD@{2026-08-05 20:27:43 +0300}: commit: feat(products): Sprint 2A Master product experience engine
+2bf681f refs/remotes/origin/feature/admin-improvements@{2026-08-05 20:09:47 +0300}: update by push
+2bf681f refs/heads/feature/admin-improvements@{2026-08-05 20:09:37 +0300}: commit: feat(products): complete Sprint 2A Buy Now modal and service pricing modes
+2bf681f HEAD@{2026-08-05 20:09:37 +0300}: commit: feat(products): complete Sprint 2A Buy Now modal and service pricing modes
+0f9595c refs/remotes/origin/feature/admin-improvements@{2026-08-05 16:26:13 +0300}: update by push
+0f9595c refs/heads/feature/admin-improvements@{2026-08-05 16:26:09 +0300}: commit: feat(products): Sprint 2A end-to-end product experience pipeline
+0f9595c HEAD@{2026-08-05 16:26:09 +0300}: commit: feat(products): Sprint 2A end-to-end product experience pipeline
+1eccfbf refs/remotes/origin/HEAD@{2026-08-05 16:01:41 +0300}: fetch
+0b0c76d refs/remotes/origin/feature/admin-improvements@{2026-08-05 15:59:35 +0300}: update by push
+0b0c76d refs/heads/feature/admin-improvements@{2026-08-05 15:59:33 +0300}: commit: fix(db): drop product_type CHECK before normalizing Sprint 2 enums
+0b0c76d HEAD@{2026-08-05 15:59:33 +0300}: commit: fix(db): drop product_type CHECK before normalizing Sprint 2 enums
+22f70d8 refs/remotes/origin/feature/admin-improvements@{2026-08-05 15:53:37 +0300}: update by push
+22f70d8 refs/heads/feature/admin-improvements@{2026-08-05 15:53:33 +0300}: commit: feat(products): Sprint 2 Phase 1 smart product experience foundation
+22f70d8 HEAD@{2026-08-05 15:53:33 +0300}: commit: feat(products): Sprint 2 Phase 1 smart product experience foundation
+fae4c56 refs/remotes/origin/feature/admin-improvements@{2026-08-05 14:53:32 +0300}: update by push
+fae4c56 refs/heads/feature/admin-improvements@{2026-08-05 14:53:29 +0300}: commit: fix(rsc): stop passing overlay render functions Server???Client
+fae4c56 HEAD@{2026-08-05 14:53:29 +0300}: commit: fix(rsc): stop passing overlay render functions Server???Client
+4fc78c2 refs/remotes/origin/feature/admin-improvements@{2026-08-05 14:29:50 +0300}: update by push
+4fc78c2 refs/heads/feature/admin-improvements@{2026-08-05 14:29:48 +0300}: commit: feat(admin): flat Products sidebar and separate Custom Design module
+4fc78c2 HEAD@{2026-08-05 14:29:48 +0300}: commit: feat(admin): flat Products sidebar and separate Custom Design module
+12fbf3d refs/remotes/origin/feature/admin-improvements@{2026-08-05 14:18:17 +0300}: update by push
+12fbf3d refs/heads/feature/admin-improvements@{2026-08-05 14:18:07 +0300}: commit: feat(admin): replace hardcoded category sidebar with dynamic Products tree
+12fbf3d HEAD@{2026-08-05 14:18:07 +0300}: commit: feat(admin): replace hardcoded category sidebar with dynamic Products tree
+78a1477 refs/remotes/origin/feature/admin-improvements@{2026-08-05 13:32:40 +0300}: update by push
+78a1477 refs/heads/feature/admin-improvements@{2026-08-05 13:32:37 +0300}: commit: feat(storefront): unify luxury product card overlay layout
+78a1477 HEAD@{2026-08-05 13:32:37 +0300}: commit: feat(storefront): unify luxury product card overlay layout
+9872d65 HEAD@{2026-08-05 13:29:11 +0300}: checkout: moving from feature/admin-improvements to feature/admin-improvements
+9872d65 refs/remotes/origin/feature/admin-improvements@{2026-08-05 13:24:34 +0300}: update by push
+9872d65 refs/heads/feature/admin-improvements@{2026-08-05 13:24:32 +0300}: commit: fix(storefront): show sale prices via shared ProductPrice
+9872d65 HEAD@{2026-08-05 13:24:32 +0300}: commit: fix(storefront): show sale prices via shared ProductPrice
+4572193 refs/remotes/origin/feature/admin-improvements@{2026-08-05 13:04:39 +0300}: update by push
+4572193 refs/heads/feature/admin-improvements@{2026-08-05 13:04:36 +0300}: commit: fix(admin): unify Create/Edit product category selector on live API
+4572193 HEAD@{2026-08-05 13:04:36 +0300}: commit: fix(admin): unify Create/Edit product category selector on live API
+94fc915 refs/remotes/origin/feature/admin-improvements@{2026-08-05 12:28:38 +0300}: update by push
+94fc915 refs/heads/feature/admin-improvements@{2026-08-05 12:28:35 +0300}: commit: feat(admin): tabbed product editor with autosave (P1.1)
+94fc915 HEAD@{2026-08-05 12:28:35 +0300}: commit: feat(admin): tabbed product editor with autosave (P1.1)
+a4cb7ee refs/remotes/origin/feature/admin-improvements@{2026-08-05 12:17:32 +0300}: update by push
+a4cb7ee refs/heads/feature/admin-improvements@{2026-08-05 12:17:29 +0300}: commit: docs: add NadEEN Designs project constitution as Cursor rule
+a4cb7ee HEAD@{2026-08-05 12:17:29 +0300}: commit: docs: add NadEEN Designs project constitution as Cursor rule
+88e3dd1 refs/remotes/origin/feature/admin-improvements@{2026-08-05 12:04:38 +0300}: update by push
+88e3dd1 refs/heads/feature/admin-improvements@{2026-08-05 12:04:35 +0300}: commit: fix(wishlist): restore guest and account wishlist end-to-end flow
+88e3dd1 HEAD@{2026-08-05 12:04:35 +0300}: commit: fix(wishlist): restore guest and account wishlist end-to-end flow
+e75df9a refs/remotes/origin/feature/admin-improvements@{2026-08-05 11:56:11 +0300}: update by push
+e75df9a refs/heads/feature/admin-improvements@{2026-08-05 11:56:03 +0300}: commit: feat(admin): centralized store settings module (S1)
+e75df9a HEAD@{2026-08-05 11:56:03 +0300}: commit: feat(admin): centralized store settings module (S1)
+16ce36e refs/remotes/origin/feature/admin-improvements@{2026-08-04 22:14:18 +0300}: update by push
+16ce36e refs/heads/feature/admin-improvements@{2026-08-04 22:14:11 +0300}: commit: refactor(header): luxury 3-column grid layout without logo overlap
+16ce36e HEAD@{2026-08-04 22:14:11 +0300}: commit: refactor(header): luxury 3-column grid layout without logo overlap
+61fad2c refs/remotes/origin/feature/admin-improvements@{2026-08-04 22:03:56 +0300}: update by push
+61fad2c refs/heads/feature/admin-improvements@{2026-08-04 22:03:47 +0300}: commit: feat(nav): luxury capped mega-menu redesign
+61fad2c HEAD@{2026-08-04 22:03:47 +0300}: commit: feat(nav): luxury capped mega-menu redesign
+36141a4 refs/remotes/origin/feature/admin-improvements@{2026-08-04 21:42:40 +0300}: update by push
+36141a4 refs/heads/feature/admin-improvements@{2026-08-04 21:42:28 +0300}: commit: feat(nav): DB-driven luxury parent/child navigation
+36141a4 HEAD@{2026-08-04 21:42:28 +0300}: commit: feat(nav): DB-driven luxury parent/child navigation
+f3adb36 refs/remotes/origin/feature/admin-improvements@{2026-08-04 21:33:26 +0300}: update by push
+f3adb36 refs/heads/feature/admin-improvements@{2026-08-04 21:33:15 +0300}: commit: fix(guest): allow cart durability without SERVICE_ROLE via storefront RLS
+f3adb36 HEAD@{2026-08-04 21:33:15 +0300}: commit: fix(guest): allow cart durability without SERVICE_ROLE via storefront RLS
+0161f81 refs/remotes/origin/feature/admin-improvements@{2026-08-04 21:14:03 +0300}: update by push
+0161f81 refs/heads/feature/admin-improvements@{2026-08-04 21:13:54 +0300}: commit: feat(admin): expandable DB-driven category tree in sidebar
+0161f81 HEAD@{2026-08-04 21:13:54 +0300}: commit: feat(admin): expandable DB-driven category tree in sidebar
+70e2e43 refs/remotes/origin/feature/admin-improvements@{2026-08-04 20:54:57 +0300}: update by push
+70e2e43 refs/heads/feature/admin-improvements@{2026-08-04 20:54:35 +0300}: commit: fix(admin): live product category dropdown from DB
+70e2e43 HEAD@{2026-08-04 20:54:35 +0300}: commit: fix(admin): live product category dropdown from DB
+c2cde54 refs/remotes/origin/feature/admin-improvements@{2026-08-04 20:27:24 +0300}: update by push
+c2cde54 refs/heads/feature/admin-improvements@{2026-08-04 20:27:14 +0300}: commit: fix(catalog): complete dynamic category routes and listing unions
+c2cde54 HEAD@{2026-08-04 20:27:14 +0300}: commit: fix(catalog): complete dynamic category routes and listing unions
+a192ffa refs/remotes/origin/feature/admin-improvements@{2026-08-04 20:01:46 +0300}: update by push
+a192ffa refs/heads/feature/admin-improvements@{2026-08-04 20:01:33 +0300}: commit: fix(catalog): dynamic categories on storefront and admin selectors
+a192ffa HEAD@{2026-08-04 20:01:33 +0300}: commit: fix(catalog): dynamic categories on storefront and admin selectors
+2e947ed refs/remotes/origin/feature/admin-improvements@{2026-08-04 19:54:28 +0300}: update by push
+2e947ed refs/heads/feature/admin-improvements@{2026-08-04 19:54:24 +0300}: commit: fix(shop): union veils and robes for Bridal Accessories listings
+2e947ed HEAD@{2026-08-04 19:54:24 +0300}: commit: fix(shop): union veils and robes for Bridal Accessories listings
+d7ff811 refs/remotes/origin/feature/admin-improvements@{2026-08-04 15:18:05 +0300}: update by push
+d7ff811 refs/heads/feature/admin-improvements@{2026-08-04 15:17:52 +0300}: commit: fix(home): resolve P0 header collision, mobile clip, guest cart, category visibility
+d7ff811 HEAD@{2026-08-04 15:17:52 +0300}: commit: fix(home): resolve P0 header collision, mobile clip, guest cart, category visibility
+ff008c6 refs/remotes/origin/feature/admin-improvements@{2026-08-04 14:45:55 +0300}: update by push
+ff008c6 refs/heads/feature/admin-improvements@{2026-08-04 14:45:50 +0300}: commit: feat(auth): Phase G guest sessions with cookie identity and OAuth UX
+ff008c6 HEAD@{2026-08-04 14:45:50 +0300}: commit: feat(auth): Phase G guest sessions with cookie identity and OAuth UX
+9be8722 refs/remotes/origin/feature/admin-improvements@{2026-08-04 13:52:26 +0300}: update by push
+9be8722 refs/heads/feature/admin-improvements@{2026-08-04 13:52:17 +0300}: commit: refactor(auth): modular auth provider registry for Google Apple Guest WhatsApp
+9be8722 HEAD@{2026-08-04 13:52:17 +0300}: commit: refactor(auth): modular auth provider registry for Google Apple Guest WhatsApp
+dd20e19 refs/remotes/origin/feature/admin-improvements@{2026-08-04 13:30:22 +0300}: update by push
+dd20e19 refs/heads/feature/admin-improvements@{2026-08-04 13:30:14 +0300}: commit: feat(auth): replace SMS OTP with WhatsApp Business OTP login.
+dd20e19 HEAD@{2026-08-04 13:30:14 +0300}: commit: feat(auth): replace SMS OTP with WhatsApp Business OTP login.
+44b5472 refs/remotes/origin/feature/admin-improvements@{2026-08-04 12:37:08 +0300}: update by push
+44b5472 refs/heads/feature/admin-improvements@{2026-08-04 12:37:01 +0300}: commit: fix(db): make APPLY_ALL fully standalone with migrations 004-007 inlined
+44b5472 HEAD@{2026-08-04 12:37:01 +0300}: commit: fix(db): make APPLY_ALL fully standalone with migrations 004-007 inlined
+5668f27 refs/remotes/origin/feature/admin-improvements@{2026-08-04 12:14:10 +0300}: update by push
+5668f27 refs/heads/feature/admin-improvements@{2026-08-04 12:14:07 +0300}: commit: fix(db): ensure customer auth runs before guest and repair APPLY_ALL DO quotes
+5668f27 HEAD@{2026-08-04 12:14:07 +0300}: commit: fix(db): ensure customer auth runs before guest and repair APPLY_ALL DO quotes
+c5a72b2 refs/remotes/origin/feature/admin-improvements@{2026-08-04 12:09:41 +0300}: update by push
+c5a72b2 refs/heads/feature/admin-improvements@{2026-08-04 12:09:38 +0300}: commit: feat(auth): complete dual-flow guest checkout and account linking
+c5a72b2 HEAD@{2026-08-04 12:09:38 +0300}: commit: feat(auth): complete dual-flow guest checkout and account linking
+90052f0 refs/remotes/origin/feature/admin-improvements@{2026-08-04 11:51:53 +0300}: update by push
+90052f0 refs/heads/feature/admin-improvements@{2026-08-04 11:51:47 +0300}: commit: fix(admin): stop sending real admins from /admin to homepage
+90052f0 HEAD@{2026-08-04 11:51:47 +0300}: commit: fix(admin): stop sending real admins from /admin to homepage
+982ce45 refs/remotes/origin/feature/admin-improvements@{2026-08-04 11:28:39 +0300}: update by push
+982ce45 refs/heads/feature/admin-improvements@{2026-08-04 11:28:29 +0300}: commit: feat(auth): add premium customer accounts with phone OTP and OAuth
+982ce45 HEAD@{2026-08-04 11:28:29 +0300}: commit: feat(auth): add premium customer accounts with phone OTP and OAuth
+7ae462b refs/remotes/origin/feature/admin-improvements@{2026-08-04 10:37:28 +0300}: update by push
+7ae462b refs/heads/feature/admin-improvements@{2026-08-04 10:37:21 +0300}: commit: feat(categories): complete dynamic categories migration with category_id
+7ae462b HEAD@{2026-08-04 10:37:21 +0300}: commit: feat(categories): complete dynamic categories migration with category_id
+07cb479 refs/remotes/origin/feature/admin-improvements@{2026-08-04 09:55:26 +0300}: update by push
+07cb479 refs/heads/feature/admin-improvements@{2026-08-04 09:55:23 +0300}: commit: fix(categories): serve Admin-created category pages via dynamic slug route
+07cb479 HEAD@{2026-08-04 09:55:23 +0300}: commit: fix(categories): serve Admin-created category pages via dynamic slug route
+5a8b347 refs/remotes/origin/feature/admin-improvements@{2026-08-04 00:51:43 +0300}: update by push
+5a8b347 refs/heads/feature/admin-improvements@{2026-08-04 00:51:36 +0300}: commit: fix(categories): show new visible categories on homepage immediately
+5a8b347 HEAD@{2026-08-04 00:51:36 +0300}: commit: fix(categories): show new visible categories on homepage immediately
+5f6b7b9 refs/remotes/origin/feature/admin-improvements@{2026-08-04 00:39:04 +0300}: update by push
+5f6b7b9 refs/heads/feature/admin-improvements@{2026-08-04 00:39:01 +0300}: commit: fix(sql): make all RLS policies idempotent in APPLY_ALL
+5f6b7b9 HEAD@{2026-08-04 00:39:01 +0300}: commit: fix(sql): make all RLS policies idempotent in APPLY_ALL
+406f41d refs/remotes/origin/feature/admin-improvements@{2026-08-04 00:20:56 +0300}: update by push
+406f41d refs/heads/feature/admin-improvements@{2026-08-04 00:20:47 +0300}: commit: fix(db): drop obsolete bookings_service_type_check
+406f41d HEAD@{2026-08-04 00:20:47 +0300}: commit: fix(db): drop obsolete bookings_service_type_check
+21a1a46 refs/remotes/origin/feature/admin-improvements@{2026-08-04 00:08:07 +0300}: update by push
+21a1a46 refs/heads/feature/admin-improvements@{2026-08-04 00:08:04 +0300}: commit: fix(db): harden APPLY_ALL against stale category CHECK re-add
+21a1a46 HEAD@{2026-08-04 00:08:04 +0300}: commit: fix(db): harden APPLY_ALL against stale category CHECK re-add
+9fd8b64 refs/remotes/origin/feature/admin-improvements@{2026-08-03 23:57:47 +0300}: update by push
+9fd8b64 refs/heads/feature/admin-improvements@{2026-08-03 23:57:45 +0300}: commit: fix(db): drop obsolete dresses_category_check for dynamic categories
+9fd8b64 HEAD@{2026-08-03 23:57:45 +0300}: commit: fix(db): drop obsolete dresses_category_check for dynamic categories
+e9488e9 refs/remotes/origin/feature/admin-improvements@{2026-08-03 23:47:53 +0300}: update by push
+e9488e9 refs/heads/feature/admin-improvements@{2026-08-03 23:47:37 +0300}: commit: feat(admin): Phase D smart appointments and lifecycle permissions
+e9488e9 HEAD@{2026-08-03 23:47:37 +0300}: commit: feat(admin): Phase D smart appointments and lifecycle permissions
+94971d8 refs/remotes/origin/feature/admin-improvements@{2026-08-03 21:47:27 +0300}: update by push
+94971d8 refs/heads/feature/admin-improvements@{2026-08-03 21:47:20 +0300}: commit: feat(admin): add Report Center with BI analytics and exports
+94971d8 HEAD@{2026-08-03 21:47:20 +0300}: commit: feat(admin): add Report Center with BI analytics and exports
+7c02937 refs/remotes/origin/feature/admin-improvements@{2026-08-03 21:24:28 +0300}: update by push
+7c02937 refs/heads/feature/admin-improvements@{2026-08-03 21:24:15 +0300}: commit: feat(admin): archive, trash, restore, and audit lifecycle system
+7c02937 HEAD@{2026-08-03 21:24:15 +0300}: commit: feat(admin): archive, trash, restore, and audit lifecycle system
+504c3fb refs/remotes/origin/feature/admin-improvements@{2026-08-03 20:38:15 +0300}: update by push
+504c3fb refs/heads/feature/admin-improvements@{2026-08-03 20:38:09 +0300}: commit: feat(M11-B): executive dashboard with real KPIs and analytics charts
+504c3fb HEAD@{2026-08-03 20:38:09 +0300}: commit: feat(M11-B): executive dashboard with real KPIs and analytics charts
+b06324f refs/remotes/origin/feature/admin-improvements@{2026-08-03 15:54:24 +0300}: update by push
+b06324f refs/heads/feature/admin-improvements@{2026-08-03 15:54:20 +0300}: commit: fix: resolve order status update constraint / false migration warning
+b06324f HEAD@{2026-08-03 15:54:20 +0300}: commit: fix: resolve order status update constraint / false migration warning
+e7790bc refs/remotes/origin/feature/admin-improvements@{2026-08-03 15:44:02 +0300}: update by push
+e7790bc refs/heads/feature/admin-improvements@{2026-08-03 15:44:00 +0300}: commit: fix: hide shipping QR site URL warning in production
+e7790bc HEAD@{2026-08-03 15:44:00 +0300}: commit: fix: hide shipping QR site URL warning in production
+7f80d56 refs/remotes/origin/feature/admin-improvements@{2026-08-03 15:32:26 +0300}: update by push
+7f80d56 refs/heads/feature/admin-improvements@{2026-08-03 15:32:23 +0300}: commit: feat: add Code-128 barcode and larger QR on shipping slip
+7f80d56 HEAD@{2026-08-03 15:32:23 +0300}: commit: feat: add Code-128 barcode and larger QR on shipping slip
+3f8e917 refs/remotes/origin/feature/admin-improvements@{2026-08-03 15:28:20 +0300}: update by push
+3f8e917 refs/heads/feature/admin-improvements@{2026-08-03 15:28:16 +0300}: commit: feat(M12): shipping QR encodes public order tracking URL
+3f8e917 HEAD@{2026-08-03 15:28:16 +0300}: commit: feat(M12): shipping QR encodes public order tracking URL
+e377ee1 refs/remotes/origin/feature/admin-improvements@{2026-08-03 15:07:42 +0300}: update by push
+e377ee1 refs/heads/feature/admin-improvements@{2026-08-03 15:07:39 +0300}: commit: fix: add APPLY_MISSING_MIGRATIONS and align shipping schema checks
+e377ee1 HEAD@{2026-08-03 15:07:39 +0300}: commit: fix: add APPLY_MISSING_MIGRATIONS and align shipping schema checks
+8e3dde5 refs/remotes/origin/feature/admin-improvements@{2026-08-03 15:00:45 +0300}: update by push
+8e3dde5 refs/heads/feature/admin-improvements@{2026-08-03 15:00:42 +0300}: commit: fix: checkout name and phone validation and city label
+8e3dde5 HEAD@{2026-08-03 15:00:42 +0300}: commit: fix: checkout name and phone validation and city label
+080d7e7 refs/remotes/origin/feature/admin-improvements@{2026-08-03 14:52:47 +0300}: update by push
+080d7e7 refs/heads/feature/admin-improvements@{2026-08-03 14:52:44 +0300}: commit: fix: persist delivery shipping fee and method through order create
+080d7e7 HEAD@{2026-08-03 14:52:44 +0300}: commit: fix: persist delivery shipping fee and method through order create
+0fb9885 refs/remotes/origin/feature/admin-improvements@{2026-08-03 14:39:49 +0300}: update by push
+0fb9885 refs/heads/feature/admin-improvements@{2026-08-03 14:39:46 +0300}: commit: fix: treat delivery_method=delivery as shipping in admin orders
+0fb9885 HEAD@{2026-08-03 14:39:46 +0300}: commit: fix: treat delivery_method=delivery as shipping in admin orders
+8080916 refs/remotes/origin/feature/admin-improvements@{2026-08-03 14:27:10 +0300}: update by push
+8080916 refs/heads/feature/admin-improvements@{2026-08-03 14:26:52 +0300}: commit: feat(M11-A): homepage hero and about CMS via settings JSON
+8080916 HEAD@{2026-08-03 14:26:52 +0300}: commit: feat(M11-A): homepage hero and about CMS via settings JSON
+4c543df refs/remotes/origin/feature/admin-improvements@{2026-08-03 14:12:55 +0300}: update by push
+4c543df refs/heads/feature/admin-improvements@{2026-08-03 14:12:51 +0300}: commit: fix: display all dates with Western numerals via shared formatter
+4c543df HEAD@{2026-08-03 14:12:51 +0300}: commit: fix: display all dates with Western numerals via shared formatter
+889aa1c refs/remotes/origin/feature/admin-improvements@{2026-08-03 14:09:34 +0300}: update by push
+889aa1c refs/heads/feature/admin-improvements@{2026-08-03 14:09:30 +0300}: commit: fix: restore admin order list and delivery shipping slip print button
+889aa1c HEAD@{2026-08-03 14:09:30 +0300}: commit: fix: restore admin order list and delivery shipping slip print button
+86a88f1 refs/remotes/origin/feature/admin-improvements@{2026-08-03 13:27:44 +0300}: update by push
+86a88f1 refs/heads/feature/admin-improvements@{2026-08-03 13:27:41 +0300}: commit: feat(M10): smart region autocomplete, unknown regions, and pending shipping fees
+86a88f1 HEAD@{2026-08-03 13:27:41 +0300}: commit: feat(M10): smart region autocomplete, unknown regions, and pending shipping fees
+2afcbc8 refs/remotes/origin/feature/admin-improvements@{2026-08-03 13:06:33 +0300}: update by push
+2afcbc8 refs/heads/feature/admin-improvements@{2026-08-03 13:06:29 +0300}: commit: feat(M9): delivery method, regional shipping, and printable shipping slip
+2afcbc8 HEAD@{2026-08-03 13:06:29 +0300}: commit: feat(M9): delivery method, regional shipping, and printable shipping slip
+6f5e9ff refs/remotes/origin/feature/admin-improvements@{2026-08-03 12:44:11 +0300}: update by push
+6f5e9ff refs/heads/feature/admin-improvements@{2026-08-03 12:44:09 +0300}: commit: fix: stop false stale-cache warning on order confirmation
+6f5e9ff HEAD@{2026-08-03 12:44:09 +0300}: commit: fix: stop false stale-cache warning on order confirmation
+a6fc9c4 refs/remotes/origin/feature/admin-improvements@{2026-08-03 12:28:46 +0300}: update by push
+a6fc9c4 refs/heads/feature/admin-improvements@{2026-08-03 12:28:43 +0300}: commit: feat: notification channel preferences on checkout and booking
+a6fc9c4 HEAD@{2026-08-03 12:28:43 +0300}: commit: feat: notification channel preferences on checkout and booking
+5d23785 refs/remotes/origin/feature/admin-improvements@{2026-08-03 12:21:27 +0300}: update by push
+5d23785 refs/heads/feature/admin-improvements@{2026-08-03 12:21:11 +0300}: commit: fix: hero typography, unlimited descriptions, accessory orders in admin
+5d23785 HEAD@{2026-08-03 12:21:11 +0300}: commit: fix: hero typography, unlimited descriptions, accessory orders in admin
+ba5d2e0 refs/remotes/origin/feature/admin-improvements@{2026-08-03 11:56:20 +0300}: update by push
+ba5d2e0 refs/heads/feature/admin-improvements@{2026-08-03 11:54:34 +0300}: commit: feat(M8): production readiness and final QA polish
+ba5d2e0 HEAD@{2026-08-03 11:54:34 +0300}: commit: feat(M8): production readiness and final QA polish
+77c3c83 refs/heads/feature/admin-improvements@{2026-08-03 11:42:13 +0300}: commit: feat(M7): premium product experience (gallery, descriptions, shared PDP)
+77c3c83 HEAD@{2026-08-03 11:42:13 +0300}: commit: feat(M7): premium product experience (gallery, descriptions, shared PDP)
+089d0ff refs/heads/feature/admin-improvements@{2026-08-03 11:34:09 +0300}: commit: feat(M6): customer in-app notification center alongside email/WhatsApp
+089d0ff HEAD@{2026-08-03 11:34:09 +0300}: commit: feat(M6): customer in-app notification center alongside email/WhatsApp
+a895c02 refs/heads/feature/admin-improvements@{2026-08-03 11:26:50 +0300}: commit: feat(shipping): free threshold, checkout summary, order detail pages
+a895c02 HEAD@{2026-08-03 11:26:50 +0300}: commit: feat(shipping): free threshold, checkout summary, order detail pages
+9906d2f refs/heads/feature/admin-improvements@{2026-08-03 11:12:00 +0300}: commit: feat(M5): accessory-only shipping with DB-backed flat fee
+9906d2f HEAD@{2026-08-03 11:12:00 +0300}: commit: feat(M5): accessory-only shipping with DB-backed flat fee
+2858493 refs/heads/feature/admin-improvements@{2026-08-03 11:04:42 +0300}: commit: chore: start M5 ??? accessory shipping and checkout
+2858493 HEAD@{2026-08-03 11:04:42 +0300}: commit: chore: start M5 ??? accessory shipping and checkout
+b7d7a7d refs/heads/feature/admin-improvements@{2026-08-03 10:58:59 +0300}: commit: feat(M4): polish hero typography and make mobile menu opaque
+b7d7a7d HEAD@{2026-08-03 10:58:59 +0300}: commit: feat(M4): polish hero typography and make mobile menu opaque
+5d64ba2 refs/heads/feature/admin-improvements@{2026-08-03 10:57:52 +0300}: commit: chore: start M4 ??? hero typography and opaque mobile menu
+5d64ba2 HEAD@{2026-08-03 10:57:52 +0300}: commit: chore: start M4 ??? hero typography and opaque mobile menu
+f8020ca refs/heads/feature/admin-improvements@{2026-08-03 10:57:46 +0300}: commit: feat(M3): wire categories nav, featured images, and card carousels
+f8020ca HEAD@{2026-08-03 10:57:46 +0300}: commit: feat(M3): wire categories nav, featured images, and card carousels
+191a6d0 refs/heads/feature/admin-improvements@{2026-08-03 10:46:48 +0300}: commit: chore: start M3 ??? wire categories nav and featured image
+191a6d0 HEAD@{2026-08-03 10:46:48 +0300}: commit: chore: start M3 ??? wire categories nav and featured image
+883754e refs/heads/feature/admin-improvements@{2026-08-03 10:46:29 +0300}: commit: chore(M2): mark dynamic categories CRUD as complete after Admin QA
+883754e HEAD@{2026-08-03 10:46:29 +0300}: commit: chore(M2): mark dynamic categories CRUD as complete after Admin QA
+3fb6e66 refs/heads/feature/admin-improvements@{2026-08-03 10:32:25 +0300}: commit: fix: standardize bridal robe naming to ???????? ????????????
+3fb6e66 HEAD@{2026-08-03 10:32:25 +0300}: commit: fix: standardize bridal robe naming to ???????? ????????????
+9b3fb04 refs/heads/feature/admin-improvements@{2026-08-03 10:23:26 +0300}: commit: fix(M2): prevent ServicesSection hydration mismatch
+9b3fb04 HEAD@{2026-08-03 10:23:26 +0300}: commit: fix(M2): prevent ServicesSection hydration mismatch
+c7cb718 refs/remotes/origin/feature/admin-improvements@{2026-08-03 10:13:14 +0300}: update by push
+c7cb718 refs/heads/feature/admin-improvements@{2026-08-03 10:12:34 +0300}: commit: feat(M2): add dynamic categories CRUD in admin
+c7cb718 HEAD@{2026-08-03 10:12:34 +0300}: commit: feat(M2): add dynamic categories CRUD in admin
+992fd0e refs/heads/feature/admin-improvements@{2026-08-03 10:10:31 +0300}: commit: chore: start M2 ??? dynamic categories CRUD
+9e21790 refs/heads/feature/admin-improvements@{2026-08-03 10:10:31 +0300}: commit: docs: update Phase 1 plan with approved additions
+992fd0e HEAD@{2026-08-03 10:10:31 +0300}: commit: chore: start M2 ??? dynamic categories CRUD
+9e21790 HEAD@{2026-08-03 10:10:31 +0300}: commit: docs: update Phase 1 plan with approved additions
+d9c1d19 refs/heads/feature/admin-improvements@{2026-08-03 10:08:53 +0300}: commit: feat(M1): rename bridal accessories and group under parent category
+d9c1d19 HEAD@{2026-08-03 10:08:53 +0300}: commit: feat(M1): rename bridal accessories and group under parent category
+940e67e refs/heads/feature/admin-improvements@{2026-08-03 10:05:22 +0300}: commit: chore: start M1 ??? rename categories and accessories parent
+940e67e HEAD@{2026-08-03 10:05:22 +0300}: commit: chore: start M1 ??? rename categories and accessories parent
+1eccfbf HEAD@{2026-08-03 10:04:59 +0300}: reset: moving to HEAD
+92a4b32 refs/stash@{2026-08-03 10:04:58 +0300}: On feature/admin-improvements: wip: wedding reminders (parked before admin-improvements M1)
+1eccfbf refs/heads/feature/admin-improvements@{2026-08-03 09:58:30 +0300}: branch: Created from HEAD
+1eccfbf HEAD@{2026-08-03 09:58:30 +0300}: checkout: moving from main to feature/admin-improvements
+1eccfbf refs/remotes/origin/main@{2026-08-03 01:13:27 +0300}: update by push
+1eccfbf refs/heads/main@{2026-08-03 01:13:23 +0300}: commit: Initial commit
+1eccfbf HEAD@{2026-08-03 01:13:23 +0300}: commit: Initial commit
+fe5e454 refs/heads/main@{2026-08-03 01:10:59 +0300}: Branch: renamed refs/heads/main to refs/heads/main
+fe5e454 HEAD@{2026-08-03 01:10:59 +0300}: Branch: renamed refs/heads/main to refs/heads/main
+fe5e454 refs/remotes/origin/main@{2026-08-02 20:50:08 +0300}: update by push
+fe5e454 refs/heads/main@{2026-08-02 20:48:57 +0300}: commit: Add protected admin panel with Supabase auth, CRUD, and Cloudinary uploads.
+fe5e454 HEAD@{2026-08-02 20:48:57 +0300}: commit: Add protected admin panel with Supabase auth, CRUD, and Cloudinary uploads.
+42ede12 refs/heads/main@{2026-08-02 15:06:01 +0300}: commit (initial): Add Nadeen Designs luxury bridal boutique site with Arabic RTL pages, booking, and Supabase-ready APIs.
+42ede12 HEAD@{2026-08-02 15:06:01 +0300}: commit (initial): Add Nadeen Designs luxury bridal boutique site with Arabic RTL pages, booking, and Supabase-ready APIs.

@@ -1077,6 +1077,77 @@ export function HomepageVisualLayoutManager({
               </div>
             </div>
 
+            <div className="mt-3 space-y-3 rounded-xl border border-gold/35 bg-white px-3 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium text-charcoal">Grid Card Backgrounds</p>
+                  <p className="text-[10px] text-muted">
+                    Restore individual product cards and control what appears on them.
+                  </p>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-charcoal">
+                  <input
+                    type="checkbox"
+                    checked={unified.card_background_enabled}
+                    onChange={(event) =>
+                      patchUnified({ card_background_enabled: event.target.checked })
+                    }
+                    className="accent-gold"
+                  />
+                  Enable
+                </label>
+              </div>
+              <div className={cn("grid gap-3 sm:grid-cols-2", !unified.card_background_enabled && "opacity-55")}>
+                <label className="flex items-center gap-2 text-xs text-muted">
+                  Card color
+                  <input
+                    type="color"
+                    value={unified.card_background_color}
+                    onChange={(event) => patchUnified({ card_background_color: event.target.value })}
+                    className="h-8 w-10 cursor-pointer rounded border border-beige-dark"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-xs text-muted">
+                  Radius
+                  <input
+                    type="range"
+                    min={0}
+                    max={32}
+                    value={unified.card_radius}
+                    onChange={(event) => patchUnified({ card_radius: Number(event.target.value) })}
+                  />
+                  <span className="w-8 text-right font-mono">{unified.card_radius}</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-muted">
+                  Padding
+                  <input
+                    type="range"
+                    min={0}
+                    max={32}
+                    value={unified.card_padding}
+                    onChange={(event) => patchUnified({ card_padding: Number(event.target.value) })}
+                  />
+                  <span className="w-8 text-right font-mono">{unified.card_padding}</span>
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  <input type="checkbox" checked={unified.show_product_name} onChange={(event) => patchUnified({ show_product_name: event.target.checked })} className="accent-gold" />
+                  Product name
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  <input type="checkbox" checked={unified.show_action_link} onChange={(event) => patchUnified({ show_action_link: event.target.checked })} className="accent-gold" />
+                  Action link
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  <input type="checkbox" checked={unified.show_collection_badge} onChange={(event) => patchUnified({ show_collection_badge: event.target.checked })} className="accent-gold" />
+                  Collection badge
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  <input type="checkbox" checked={unified.hover_zoom} onChange={(event) => patchUnified({ hover_zoom: event.target.checked })} className="accent-gold" />
+                  Hover zoom
+                </label>
+              </div>
+            </div>
+
             <div className="mt-3 space-y-2 rounded-xl border border-gold/35 bg-white px-3 py-3">
               <div>
                 <p className="text-xs font-medium text-charcoal">Space between tiles</p>
@@ -1490,6 +1561,14 @@ export function HomepageVisualLayoutManager({
                         imageOffsetY={presentation.imageOffsetY}
                         dropShadow={presentation.dropShadow}
                         shadowIntensity={presentation.shadowIntensity}
+                        cardBackgroundEnabled={presentation.cardBackgroundEnabled}
+                        cardBackgroundColor={presentation.cardBackgroundColor}
+                        cardRadius={presentation.cardRadius}
+                        cardPadding={presentation.cardPadding}
+                        showProductName={presentation.showProductName}
+                        showActionLink={presentation.showActionLink}
+                        showCollectionBadge={presentation.showCollectionBadge}
+                        hoverZoom={presentation.hoverZoom}
                       />
                     </div>
 

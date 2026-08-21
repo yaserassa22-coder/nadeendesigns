@@ -231,6 +231,15 @@ export type VisualUnifiedBackgroundSettings = {
    * Canvas still uses the unified color. Disables floating isolation presentation.
    */
   keep_product_grids: boolean;
+  /** Optional individual card treatment on the unified post grid. */
+  card_background_enabled: boolean;
+  card_background_color: string;
+  card_radius: number;
+  card_padding: number;
+  show_product_name: boolean;
+  show_action_link: boolean;
+  show_collection_badge: boolean;
+  hover_zoom: boolean;
 };
 
 /** Scale of the mid-page Accessories editorial block. */
@@ -892,6 +901,14 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
       product_shadow_intensity: 28,
       isolate_products: true,
       keep_product_grids: false,
+      card_background_enabled: false,
+      card_background_color: "#FFFFFF",
+      card_radius: 0,
+      card_padding: 0,
+      show_product_name: true,
+      show_action_link: true,
+      show_collection_badge: false,
+      hover_zoom: true,
     },
   },
   authentication: {

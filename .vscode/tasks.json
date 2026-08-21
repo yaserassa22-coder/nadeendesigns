@@ -1,0 +1,253 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-prod-verify",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-prod-verify-cmd",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-status-short",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--branch"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-diff-i18n-fix",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"diff",
+				"--",
+				"src/lib/i18n/types.ts",
+				"src/lib/i18n/dictionaries.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-add-i18n-fix",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"src/lib/i18n/types.ts",
+				"src/lib/i18n/dictionaries.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-diff-staged-accessory-check",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"git diff --cached -- src/lib/i18n/types.ts src/lib/i18n/dictionaries.ts | findstr /n /i accessory_items"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-status-post-stage",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--branch"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-commit-i18n-fix",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"commit",
+				"-m",
+				"Fix accessory trash translation type"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-push-main",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"push",
+				"origin",
+				"main"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-verify-main-hashes",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"echo LOCAL: & git rev-parse main & echo REMOTE: & git ls-remote origin refs/heads/main"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git-status-final",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--branch"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "forensics-head",
+			"type": "shell",
+			"command": "git rev-parse --short=12 HEAD"
+		},
+		{
+			"label": "forensics-branches",
+			"type": "shell",
+			"command": "git branch -a -vv --no-abbrev"
+		},
+		{
+			"label": "forensics-dump-core",
+			"type": "shell",
+			"command": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force .vscode/forensics | Out-Null; git rev-parse HEAD | Out-File -Encoding ascii .vscode/forensics/head.txt; git branch -a -vv --no-abbrev | Out-File -Encoding ascii .vscode/forensics/branches.txt; git log --all --date=iso --pretty=format:'%H|%ad|%D|%s' -n 300 | Out-File -Encoding ascii .vscode/forensics/log_recent.txt; git log --all --since='2026-08-20 00:00' --until='2026-08-21 23:59' --date=iso --pretty=format:'%H|%ad|%D|%s' | Out-File -Encoding ascii .vscode/forensics/log_yesterday.txt; git log --all --date=iso --pretty=format:'%H|%ad|%D|%s' --grep='storefront|layout|grid|arch|circle|diamond|pill|hover|collection badge|preview|toggle|card background|runway|sliding' -i -E -n 400 | Out-File -Encoding ascii .vscode/forensics/log_keywords.txt; git reflog --all --date=iso -n 600 | Out-File -Encoding ascii .vscode/forensics/reflog_all.txt; git fsck --no-reflogs --unreachable --full | Out-File -Encoding ascii .vscode/forensics/fsck_unreachable.txt\""
+		},
+		{
+			"label": "forensics-inspect-candidates",
+			"type": "shell",
+			"command": "powershell -NoProfile -Command \"$dir='.vscode/forensics'; git show --name-status --format=fuller c71f4b52ab660850646dbe45c741027d3642b196 | Out-File -Encoding ascii $dir/show_c71.txt; git show --name-status --format=fuller fb1006b9ea5eebfc5374812fac8aa984b500a6a1 | Out-File -Encoding ascii $dir/show_head_fix.txt; foreach($c in @('3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32','644b9dce3bfec6f86b44ad31b3b658b57a142eed','8b235c85fc9a2526bba2aff02d382dde95b418ae')){ git show --name-status --format=fuller $c | Out-File -Encoding ascii ($dir + '/show_' + $c + '.txt') }; foreach($b in @('a5856342f9f07cd8eed429ba2e13532961ded29f','0a46fb660febf7ce39087b12a6cdf7166a04204c','23475550db5c18fccf0b047b74ebb57c86d21c2f','09d0b855c826f3094d34490b5d22bc98ace155cc','ab90cd03fe6d5051dae3430444143b4f7ebe5ba4','b8d17d0b345c3ab2139d2a5b676e1dc746751626','2e9564ecb2735ea2294432d67a99cb2ac317b705','941daf25393246a20a5b14d73d938b730087d378','7761391c7dd4f3e1b9c422c537042c89ecb938fc','59636562fc2be619935c808fc69b58ae02a8361b','eab9546163eaee7a9bdf05443c16f75082198f23')){ git cat-file -p $b 2>$null | Out-File -Encoding ascii ($dir + '/blob_' + $b + '.txt') }; 'c71f4b52ab660850646dbe45c741027d3642b196','fb1006b9ea5eebfc5374812fac8aa984b500a6a1','3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32','644b9dce3bfec6f86b44ad31b3b658b57a142eed','8b235c85fc9a2526bba2aff02d382dde95b418ae' | ForEach-Object { git merge-base --is-ancestor $_ HEAD; if($LASTEXITCODE -eq 0){ \\\"$_|IN_HEAD\\\" } else { \\\"$_|NOT_IN_HEAD\\\" } } | Out-File -Encoding ascii $dir/containment.txt\""
+		},
+		{
+			"label": "forensics-show-c71",
+			"type": "shell",
+			"command": "git show --name-status --format=fuller c71f4b52ab660850646dbe45c741027d3642b196 > .vscode/forensics/show_c71.txt"
+		},
+		{
+			"label": "forensics-show-unreach-1",
+			"type": "shell",
+			"command": "git show --name-status --format=fuller 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 > .vscode/forensics/show_3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32.txt; git show --name-status --format=fuller 644b9dce3bfec6f86b44ad31b3b658b57a142eed > .vscode/forensics/show_644b9dce3bfec6f86b44ad31b3b658b57a142eed.txt; git show --name-status --format=fuller 8b235c85fc9a2526bba2aff02d382dde95b418ae > .vscode/forensics/show_8b235c85fc9a2526bba2aff02d382dde95b418ae.txt"
+		},
+		{
+			"label": "forensics-blobs-and-containment",
+			"type": "shell",
+			"command": "git cat-file -p a5856342f9f07cd8eed429ba2e13532961ded29f > .vscode/forensics/blob_a5856342f9f07cd8eed429ba2e13532961ded29f.txt; git cat-file -p 0a46fb660febf7ce39087b12a6cdf7166a04204c > .vscode/forensics/blob_0a46fb660febf7ce39087b12a6cdf7166a04204c.txt; git cat-file -p 23475550db5c18fccf0b047b74ebb57c86d21c2f > .vscode/forensics/blob_23475550db5c18fccf0b047b74ebb57c86d21c2f.txt; git cat-file -p 09d0b855c826f3094d34490b5d22bc98ace155cc > .vscode/forensics/blob_09d0b855c826f3094d34490b5d22bc98ace155cc.txt; git cat-file -p ab90cd03fe6d5051dae3430444143b4f7ebe5ba4 > .vscode/forensics/blob_ab90cd03fe6d5051dae3430444143b4f7ebe5ba4.txt; git cat-file -p b8d17d0b345c3ab2139d2a5b676e1dc746751626 > .vscode/forensics/blob_b8d17d0b345c3ab2139d2a5b676e1dc746751626.txt; git cat-file -p 2e9564ecb2735ea2294432d67a99cb2ac317b705 > .vscode/forensics/blob_2e9564ecb2735ea2294432d67a99cb2ac317b705.txt; git cat-file -p 941daf25393246a20a5b14d73d938b730087d378 > .vscode/forensics/blob_941daf25393246a20a5b14d73d938b730087d378.txt; git cat-file -p 7761391c7dd4f3e1b9c422c537042c89ecb938fc > .vscode/forensics/blob_7761391c7dd4f3e1b9c422c537042c89ecb938fc.txt; git cat-file -p 59636562fc2be619935c808fc69b58ae02a8361b > .vscode/forensics/blob_59636562fc2be619935c808fc69b58ae02a8361b.txt; git cat-file -p eab9546163eaee7a9bdf05443c16f75082198f23 > .vscode/forensics/blob_eab9546163eaee7a9bdf05443c16f75082198f23.txt; (git merge-base --is-ancestor c71f4b52ab660850646dbe45c741027d3642b196 HEAD && echo c71f4b52ab660850646dbe45c741027d3642b196^|IN_HEAD) > .vscode/forensics/containment.txt"
+		},
+		{
+			"label": "forensics-regenerate-ascii",
+			"type": "shell",
+			"command": "powershell -NoProfile -Command \"git show --name-status --format=fuller c71f4b52ab660850646dbe45c741027d3642b196 | Out-File -Encoding ascii .vscode/forensics/show_c71.txt; git show --name-status --format=fuller 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 | Out-File -Encoding ascii .vscode/forensics/show_3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32.txt; git show --name-status --format=fuller 644b9dce3bfec6f86b44ad31b3b658b57a142eed | Out-File -Encoding ascii .vscode/forensics/show_644b9dce3bfec6f86b44ad31b3b658b57a142eed.txt; git show --name-status --format=fuller 8b235c85fc9a2526bba2aff02d382dde95b418ae | Out-File -Encoding ascii .vscode/forensics/show_8b235c85fc9a2526bba2aff02d382dde95b418ae.txt; git merge-base --is-ancestor c71f4b52ab660850646dbe45c741027d3642b196 HEAD; if($LASTEXITCODE -eq 0){ 'c71f4b52ab660850646dbe45c741027d3642b196|IN_HEAD' } else { 'c71f4b52ab660850646dbe45c741027d3642b196|NOT_IN_HEAD' } | Out-File -Encoding ascii .vscode/forensics/containment_c71.txt; foreach($c in @('3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32','644b9dce3bfec6f86b44ad31b3b658b57a142eed','8b235c85fc9a2526bba2aff02d382dde95b418ae')){ git merge-base --is-ancestor $c HEAD; if($LASTEXITCODE -eq 0){ \\\"$c|IN_HEAD\\\" } else { \\\"$c|NOT_IN_HEAD\\\" } } | Out-File -Encoding ascii .vscode/forensics/containment_unreach_commits.txt\""
+		},
+		{
+			"label": "forensics-show-c71-ascii2",
+			"type": "shell",
+			"command": "git show --name-status --format=fuller c71f4b52ab660850646dbe45c741027d3642b196 | Out-File -Encoding ascii .vscode/forensics/show_c71.txt"
+		},
+		{
+			"label": "forensics-show-u1-ascii2",
+			"type": "shell",
+			"command": "git show --name-status --format=fuller 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 | Out-File -Encoding ascii .vscode/forensics/show_3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32.txt"
+		},
+		{
+			"label": "forensics-show-u2-ascii2",
+			"type": "shell",
+			"command": "git show --name-status --format=fuller 644b9dce3bfec6f86b44ad31b3b658b57a142eed | Out-File -Encoding ascii .vscode/forensics/show_644b9dce3bfec6f86b44ad31b3b658b57a142eed.txt"
+		},
+		{
+			"label": "forensics-show-u3-ascii2",
+			"type": "shell",
+			"command": "git show --name-status --format=fuller 8b235c85fc9a2526bba2aff02d382dde95b418ae | Out-File -Encoding ascii .vscode/forensics/show_8b235c85fc9a2526bba2aff02d382dde95b418ae.txt"
+		},
+		{
+			"label": "forensics-containment",
+			"type": "shell",
+			"command": "git merge-base --is-ancestor c71f4b52ab660850646dbe45c741027d3642b196 HEAD; if ($LASTEXITCODE -eq 0) { 'c71f4b52ab660850646dbe45c741027d3642b196|IN_HEAD' } else { 'c71f4b52ab660850646dbe45c741027d3642b196|NOT_IN_HEAD' }; git merge-base --is-ancestor 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 HEAD; if ($LASTEXITCODE -eq 0) { '3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32|IN_HEAD' } else { '3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32|NOT_IN_HEAD' }; git merge-base --is-ancestor 644b9dce3bfec6f86b44ad31b3b658b57a142eed HEAD; if ($LASTEXITCODE -eq 0) { '644b9dce3bfec6f86b44ad31b3b658b57a142eed|IN_HEAD' } else { '644b9dce3bfec6f86b44ad31b3b658b57a142eed|NOT_IN_HEAD' }; git merge-base --is-ancestor 8b235c85fc9a2526bba2aff02d382dde95b418ae HEAD; if ($LASTEXITCODE -eq 0) { '8b235c85fc9a2526bba2aff02d382dde95b418ae|IN_HEAD' } else { '8b235c85fc9a2526bba2aff02d382dde95b418ae|NOT_IN_HEAD' }"
+		},
+		{
+			"label": "forensics-stash-tree-map",
+			"type": "shell",
+			"command": "git ls-tree -r 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 > .vscode/forensics/tree_3687.txt; git ls-tree -r 644b9dce3bfec6f86b44ad31b3b658b57a142eed > .vscode/forensics/tree_644b.txt; git ls-tree -r 8b235c85fc9a2526bba2aff02d382dde95b418ae > .vscode/forensics/tree_8b23.txt; git show --name-status --format=fuller 8b235c85fc9a2526bba2aff02d382dde95b418ae^2 > .vscode/forensics/show_8b23_parent2.txt; git show --name-status --format=fuller 8b235c85fc9a2526bba2aff02d382dde95b418ae^3 > .vscode/forensics/show_8b23_parent3.txt"
+		},
+		{
+			"label": "forensics-stash-tree-map-ascii",
+			"type": "shell",
+			"command": "git ls-tree -r 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 | Out-File -Encoding ascii .vscode/forensics/tree_3687.txt; git ls-tree -r 644b9dce3bfec6f86b44ad31b3b658b57a142eed | Out-File -Encoding ascii .vscode/forensics/tree_644b.txt; git ls-tree -r 8b235c85fc9a2526bba2aff02d382dde95b418ae | Out-File -Encoding ascii .vscode/forensics/tree_8b23.txt; git show --name-status --format=fuller 8b235c85fc9a2526bba2aff02d382dde95b418ae^2 | Out-File -Encoding ascii .vscode/forensics/show_8b23_parent2.txt; git show --name-status --format=fuller 8b235c85fc9a2526bba2aff02d382dde95b418ae^3 | Out-File -Encoding ascii .vscode/forensics/show_8b23_parent3.txt"
+		},
+		{
+			"label": "forensics-blobs-ascii",
+			"type": "shell",
+			"command": "git cat-file -p a5856342f9f07cd8eed429ba2e13532961ded29f | Out-File -Encoding ascii .vscode/forensics/blob_a5856342f9f07cd8eed429ba2e13532961ded29f.txt; git cat-file -p 0a46fb660febf7ce39087b12a6cdf7166a04204c | Out-File -Encoding ascii .vscode/forensics/blob_0a46fb660febf7ce39087b12a6cdf7166a04204c.txt; git cat-file -p 23475550db5c18fccf0b047b74ebb57c86d21c2f | Out-File -Encoding ascii .vscode/forensics/blob_23475550db5c18fccf0b047b74ebb57c86d21c2f.txt; git cat-file -p 09d0b855c826f3094d34490b5d22bc98ace155cc | Out-File -Encoding ascii .vscode/forensics/blob_09d0b855c826f3094d34490b5d22bc98ace155cc.txt; git cat-file -p ab90cd03fe6d5051dae3430444143b4f7ebe5ba4 | Out-File -Encoding ascii .vscode/forensics/blob_ab90cd03fe6d5051dae3430444143b4f7ebe5ba4.txt; git cat-file -p b8d17d0b345c3ab2139d2a5b676e1dc746751626 | Out-File -Encoding ascii .vscode/forensics/blob_b8d17d0b345c3ab2139d2a5b676e1dc746751626.txt; git cat-file -p 2e9564ecb2735ea2294432d67a99cb2ac317b705 | Out-File -Encoding ascii .vscode/forensics/blob_2e9564ecb2735ea2294432d67a99cb2ac317b705.txt; git cat-file -p 941daf25393246a20a5b14d73d938b730087d378 | Out-File -Encoding ascii .vscode/forensics/blob_941daf25393246a20a5b14d73d938b730087d378.txt; git cat-file -p 7761391c7dd4f3e1b9c422c537042c89ecb938fc | Out-File -Encoding ascii .vscode/forensics/blob_7761391c7dd4f3e1b9c422c537042c89ecb938fc.txt; git cat-file -p 59636562fc2be619935c808fc69b58ae02a8361b | Out-File -Encoding ascii .vscode/forensics/blob_59636562fc2be619935c808fc69b58ae02a8361b.txt; git cat-file -p eab9546163eaee7a9bdf05443c16f75082198f23 | Out-File -Encoding ascii .vscode/forensics/blob_eab9546163eaee7a9bdf05443c16f75082198f23.txt"
+		},
+		{
+			"label": "forensics-map-unreachable-blobs",
+			"type": "shell",
+			"command": "git ls-tree -r 8b235c85fc9a2526bba2aff02d382dde95b418ae | Select-String -Pattern 'a5856342f9f07cd8eed429ba2e13532961ded29f|0a46fb660febf7ce39087b12a6cdf7166a04204c|23475550db5c18fccf0b047b74ebb57c86d21c2f|09d0b855c826f3094d34490b5d22bc98ace155cc|ab90cd03fe6d5051dae3430444143b4f7ebe5ba4|b8d17d0b345c3ab2139d2a5b676e1dc746751626|2e9564ecb2735ea2294432d67a99cb2ac317b705|941daf25393246a20a5b14d73d938b730087d378|7761391c7dd4f3e1b9c422c537042c89ecb938fc|59636562fc2be619935c808fc69b58ae02a8361b|eab9546163eaee7a9bdf05443c16f75082198f23' | Out-File -Encoding ascii .vscode/forensics/unreachable_blob_path_map.txt; git diff --name-status 1d2247bc71a5fc13be7e74ab164616bb07cf32b1 8b235c85fc9a2526bba2aff02d382dde95b418ae | Out-File -Encoding ascii .vscode/forensics/diff_1d2247b_to_8b23.txt; git diff --name-status 1d2247bc71a5fc13be7e74ab164616bb07cf32b1 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 | Out-File -Encoding ascii .vscode/forensics/diff_1d2247b_to_3687.txt; git diff --name-status 1d2247bc71a5fc13be7e74ab164616bb07cf32b1 644b9dce3bfec6f86b44ad31b3b658b57a142eed | Out-File -Encoding ascii .vscode/forensics/diff_1d2247b_to_644b.txt"
+		},
+		{
+			"label": "forensics-c71-keyword-hits",
+			"type": "shell",
+			"command": "git show c71f4b52ab660850646dbe45c741027d3642b196 | Select-String -Pattern 'arch|circle|diamond|pill|hover|zoom|collection badge|product name|action link|runway|sliding|preview|background|radius|padding|toggle|storefront|admin|visual' -CaseSensitive:$false | Out-File -Encoding ascii .vscode/forensics/c71_keyword_hits.txt"
+		},
+		{
+			"label": "forensics-check-blobs-in-stash-graph",
+			"type": "shell",
+			"command": "git rev-list --objects 8b235c85fc9a2526bba2aff02d382dde95b418ae 3687f7fce90b2fdbc8ce0753d0be4de6a3a6ec32 644b9dce3bfec6f86b44ad31b3b658b57a142eed | Select-String -Pattern 'a5856342f9f07cd8eed429ba2e13532961ded29f|0a46fb660febf7ce39087b12a6cdf7166a04204c|23475550db5c18fccf0b047b74ebb57c86d21c2f|09d0b855c826f3094d34490b5d22bc98ace155cc|ab90cd03fe6d5051dae3430444143b4f7ebe5ba4|b8d17d0b345c3ab2139d2a5b676e1dc746751626|2e9564ecb2735ea2294432d67a99cb2ac317b705|941daf25393246a20a5b14d73d938b730087d378|7761391c7dd4f3e1b9c422c537042c89ecb938fc|59636562fc2be619935c808fc69b58ae02a8361b|eab9546163eaee7a9bdf05443c16f75082198f23' | Out-File -Encoding ascii .vscode/forensics/unreachable_blob_in_stash_graph.txt; git rev-list --objects --all | Select-String -Pattern 'a5856342f9f07cd8eed429ba2e13532961ded29f|0a46fb660febf7ce39087b12a6cdf7166a04204c|23475550db5c18fccf0b047b74ebb57c86d21c2f|09d0b855c826f3094d34490b5d22bc98ace155cc|ab90cd03fe6d5051dae3430444143b4f7ebe5ba4|b8d17d0b345c3ab2139d2a5b676e1dc746751626|2e9564ecb2735ea2294432d67a99cb2ac317b705|941daf25393246a20a5b14d73d938b730087d378|7761391c7dd4f3e1b9c422c537042c89ecb938fc|59636562fc2be619935c808fc69b58ae02a8361b|eab9546163eaee7a9bdf05443c16f75082198f23' | Out-File -Encoding ascii .vscode/forensics/unreachable_blob_in_all_graph.txt"
+		},
+		{
+			"label": "forensics-unreachable-blob-metadata",
+			"type": "shell",
+			"command": "$blobs=@('a5856342f9f07cd8eed429ba2e13532961ded29f','0a46fb660febf7ce39087b12a6cdf7166a04204c','23475550db5c18fccf0b047b74ebb57c86d21c2f','09d0b855c826f3094d34490b5d22bc98ace155cc','ab90cd03fe6d5051dae3430444143b4f7ebe5ba4','b8d17d0b345c3ab2139d2a5b676e1dc746751626','2e9564ecb2735ea2294432d67a99cb2ac317b705','941daf25393246a20a5b14d73d938b730087d378','7761391c7dd4f3e1b9c422c537042c89ecb938fc','59636562fc2be619935c808fc69b58ae02a8361b','eab9546163eaee7a9bdf05443c16f75082198f23'); foreach($b in $blobs){ $t=git cat-file -t $b; $s=git cat-file -s $b; \"$b|$t|$s\" } | Out-File -Encoding ascii .vscode/forensics/unreachable_blob_metadata.txt"
+		},
+		{
+			"label": "forensics-unreachable-blob-metadata-2",
+			"type": "shell",
+			"command": "$blobs=@('a5856342f9f07cd8eed429ba2e13532961ded29f','0a46fb660febf7ce39087b12a6cdf7166a04204c','23475550db5c18fccf0b047b74ebb57c86d21c2f','09d0b855c826f3094d34490b5d22bc98ace155cc','ab90cd03fe6d5051dae3430444143b4f7ebe5ba4','b8d17d0b345c3ab2139d2a5b676e1dc746751626','2e9564ecb2735ea2294432d67a99cb2ac317b705','941daf25393246a20a5b14d73d938b730087d378','7761391c7dd4f3e1b9c422c537042c89ecb938fc','59636562fc2be619935c808fc69b58ae02a8361b','eab9546163eaee7a9bdf05443c16f75082198f23'); foreach($b in $blobs){ $t=git cat-file -t $b; $s=git cat-file -s $b; ('{0}|{1}|{2}' -f $b,$t,$s) } | Out-File -Encoding ascii .vscode/forensics/unreachable_blob_metadata.txt"
+		},
+		{
+			"label": "forensics-unreachable-blob-metadata-3",
+			"type": "shell",
+			"command": "$b='a5856342f9f07cd8eed429ba2e13532961ded29f'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='0a46fb660febf7ce39087b12a6cdf7166a04204c'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='23475550db5c18fccf0b047b74ebb57c86d21c2f'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='09d0b855c826f3094d34490b5d22bc98ace155cc'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='ab90cd03fe6d5051dae3430444143b4f7ebe5ba4'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='b8d17d0b345c3ab2139d2a5b676e1dc746751626'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='2e9564ecb2735ea2294432d67a99cb2ac317b705'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='941daf25393246a20a5b14d73d938b730087d378'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='7761391c7dd4f3e1b9c422c537042c89ecb938fc'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='59636562fc2be619935c808fc69b58ae02a8361b'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b)); $b='eab9546163eaee7a9bdf05443c16f75082198f23'; Write-Output ($b + '|' + (git cat-file -t $b) + '|' + (git cat-file -s $b))"
+		},
+		{
+			"label": "forensics-binary-magic",
+			"type": "shell",
+			"command": "git cat-file blob a5856342f9f07cd8eed429ba2e13532961ded29f | Format-Hex -Count 32; git cat-file blob b8d17d0b345c3ab2139d2a5b676e1dc746751626 | Format-Hex -Count 32; git cat-file blob eab9546163eaee7a9bdf05443c16f75082198f23 | Format-Hex -Count 32"
+		},
+		{
+			"label": "forensics-binary-magic-2",
+			"type": "shell",
+			"command": "Write-Output 'a5856342f9f07cd8eed429ba2e13532961ded29f'; git cat-file blob a5856342f9f07cd8eed429ba2e13532961ded29f | Format-Hex | Select-Object -First 3; Write-Output 'b8d17d0b345c3ab2139d2a5b676e1dc746751626'; git cat-file blob b8d17d0b345c3ab2139d2a5b676e1dc746751626 | Format-Hex | Select-Object -First 3; Write-Output 'eab9546163eaee7a9bdf05443c16f75082198f23'; git cat-file blob eab9546163eaee7a9bdf05443c16f75082198f23 | Format-Hex | Select-Object -First 3"
+		},
+		{
+			"label": "forensics-extract-zip-blob-list",
+			"type": "shell",
+			"command": "cmd /c \"git cat-file blob a5856342f9f07cd8eed429ba2e13532961ded29f > .vscode\\forensics\\a585.zip\"; cmd /c \"git cat-file blob b8d17d0b345c3ab2139d2a5b676e1dc746751626 > .vscode\\forensics\\b8d17.zip\"; tar -tf .vscode/forensics/a585.zip | Out-File -Encoding ascii .vscode/forensics/a585_zip_list.txt; tar -tf .vscode/forensics/b8d17.zip | Out-File -Encoding ascii .vscode/forensics/b8d17_zip_list.txt"
+		},
+		{
+			"label": "forensics-c71-exact-strings",
+			"type": "shell",
+			"command": "git show c71f4b52ab660850646dbe45c741027d3642b196 | Select-String -Pattern 'circle|pill|arch|diamond|hover zoom|collection badge|product name|action link|toggle|preview wiring|runway|grid_scroll|horizontal_scroll|keep_product_grids|isolate_products' -CaseSensitive:$false"
+		}
+	]
+}

@@ -308,6 +308,14 @@ export function HomeVisualGridPages({
                           imageOffsetY={presentation.imageOffsetY}
                           dropShadow={presentation.dropShadow}
                           shadowIntensity={presentation.shadowIntensity}
+                          cardBackgroundEnabled={presentation.cardBackgroundEnabled}
+                          cardBackgroundColor={presentation.cardBackgroundColor}
+                          cardRadius={presentation.cardRadius}
+                          cardPadding={presentation.cardPadding}
+                          showProductName={presentation.showProductName}
+                          showActionLink={presentation.showActionLink}
+                          showCollectionBadge={presentation.showCollectionBadge}
+                          hoverZoom={presentation.hoverZoom}
                         />
                       </div>
                     </article>
