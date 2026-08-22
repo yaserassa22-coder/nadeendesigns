@@ -9,7 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   ProductCardImageCounter,
   ProductCardOverlay,
@@ -49,6 +49,8 @@ export function ProductGallery({
   const [index, setIndex] = useState(0);
   const [seenKey, setSeenKey] = useState(slidesKey);
   const [fading, setFading] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const thumbsRef = useRef<HTMLDivElement>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,6 +75,22 @@ export function ProductGallery({
       if (fadeTimer.current) clearTimeout(fadeTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightboxOpen(false);
+      if (multi && event.key === "ArrowRight") go(safeIndex + (document.documentElement.dir === "rtl" ? 1 : -1));
+      if (multi && event.key === "ArrowLeft") go(safeIndex + (document.documentElement.dir === "rtl" ? -1 : 1));
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [lightboxOpen, multi, safeIndex]);
 
   const go = useCallback(
     (next: number) => {
@@ -123,7 +141,7 @@ export function ProductGallery({
   return (
     <div className={cn("space-y-4", className)}>
       <div
-        className="group/gallery relative aspect-[3/4] overflow-hidden rounded-[var(--xp-card-radius-lg)] bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+        className="group relative aspect-[3/4] overflow-hidden rounded-[var(--xp-card-radius-lg)] bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
         tabIndex={multi ? 0 : undefined}
         role={multi ? "region" : undefined}
         aria-label={
@@ -137,6 +155,15 @@ export function ProductGallery({
         onPointerUp={onPointerUp}
         onPointerCancel={() => {
           touchStartX.current = null;
+        }}
+        onPointerMove={(event) => {
+          if (event.pointerType === "mouse") setIsZoomed(true);
+        }}
+        onMouseMove={() => setIsZoomed(true)}
+        onPointerLeave={() => setIsZoomed(false)}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("button")) return;
+          setLightboxOpen(true);
         }}
         onKeyDown={(e) => {
           if (!multi) return;
@@ -165,7 +192,7 @@ export function ProductGallery({
           loading={safeIndex === 0 && priority ? "eager" : "lazy"}
           className={cn(
             "object-cover transition-[opacity,transform] duration-500 ease-out will-change-transform",
-            "md:group-hover/gallery:scale-[1.04]",
+            isZoomed ? "scale-105" : "",
             fading ? "opacity-0" : "opacity-100 xp-fade-in"
           )}
           sizes="(max-width: 1024px) 100vw, 50vw"
@@ -253,6 +280,68 @@ export function ProductGallery({
           ))}
         </div>
       )}
+
+      {lightboxOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/85 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label={alt}
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            type="button"
+            aria-label={t.common.close}
+            className="absolute end-4 top-4 z-10 rounded-full bg-ivory/90 p-2 text-charcoal shadow-md transition hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div
+            className="relative max-h-[92vh] max-w-[92vw]"
+            onClick={(event) => event.stopPropagation()}
+            onWheel={(event) => {
+              if (!multi) return;
+              go(safeIndex + (event.deltaY > 0 ? 1 : -1));
+            }}
+          >
+            <Image
+              src={current}
+              alt={alt}
+              width={1400}
+              height={1800}
+              className="max-h-[92vh] w-auto max-w-[92vw] object-contain"
+              sizes="92vw"
+            />
+          </div>
+          {multi ? (
+            <>
+              <button
+                type="button"
+                aria-label={t.productExtras.prevImage}
+                className="absolute start-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-ivory/90 p-3 text-charcoal shadow-md transition hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  go(safeIndex - 1);
+                }}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                aria-label={t.productExtras.nextImage}
+                className="absolute end-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-ivory/90 p-3 text-charcoal shadow-md transition hover:bg-gold hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  go(safeIndex + 1);
+                }}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

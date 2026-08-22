@@ -391,9 +391,6 @@ function AccessoryProductGrid({
                   <p className="truncate text-sm font-medium text-charcoal transition-colors group-hover:text-gold">
                     {slide.name}
                   </p>
-                  <span className="shrink-0 text-[10px] tracking-wide text-gold uppercase">
-                    {t.home.wornByYouViewPiece}
-                  </span>
                 </div>
               ) : null}
               </Link>
@@ -415,9 +412,9 @@ function AccessoryProductGrid({
                     requires_shipping: true,
                   })
                 }
-                className="absolute bottom-2 left-2 z-10 inline-flex size-8 items-center justify-center rounded-full bg-gold text-white shadow-sm transition hover:bg-gold-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+                className="absolute bottom-0 left-2 z-10 inline-flex size-8 items-center justify-center rounded-none bg-white text-black shadow-sm transition hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50"
               >
-                <Plus className="size-4" strokeWidth={2} />
+                <Plus className="size-3" strokeWidth={2} />
               </button>
             </div>
           ))}

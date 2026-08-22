@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { SITE_NAME } from "@/lib/constants";
+import { CUSTOM_DESIGN_COMPLETED_KEY, SITE_NAME } from "@/lib/constants";
 import { formatMessage } from "@/lib/i18n";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ export type CustomDesignSectionProps = {
 };
 
 const MAX_IMAGES = 5;
+let reloadStateHandled = false;
 
 function WordReveal({
   text,
@@ -160,6 +161,27 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
     const frame = frameRef.current;
     if (!section || !frame) return;
 
+    if (!reloadStateHandled) {
+      const navigation = performance.getEntriesByType("navigation")[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+      if (navigation?.type === "reload") {
+        try {
+          sessionStorage.removeItem(CUSTOM_DESIGN_COMPLETED_KEY);
+        } catch {
+          // Ignore unavailable session storage.
+        }
+      }
+      reloadStateHandled = true;
+    }
+
+    try {
+      finaleLockedRef.current =
+        sessionStorage.getItem(CUSTOM_DESIGN_COMPLETED_KEY) === "true";
+    } catch {
+      finaleLockedRef.current = false;
+    }
+
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const mobile = window.matchMedia("(max-width: 767px)").matches;
     const xIn = dir === "rtl" ? 28 : -28;
@@ -215,6 +237,14 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
       gsap.set(eyebrowLineRef.current, { scaleX: 1 });
       gsap.set(dimRef.current, { opacity: 0.44 });
       setStage(4);
+    };
+
+    const markCompleted = () => {
+      try {
+        sessionStorage.setItem(CUSTOM_DESIGN_COMPLETED_KEY, "true");
+      } catch {
+        // Ignore unavailable session storage.
+      }
     };
 
     if (reduce || finaleLockedRef.current) {
@@ -330,7 +360,10 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             const p = self.progress;
-            if (self.direction === 1 && p >= 0.97) finished = true;
+            if (self.direction === 1 && p >= 0.97) {
+              finished = true;
+              markCompleted();
+            }
 
             if (finished && self.direction === -1) {
               lockFinale(self);
@@ -661,7 +694,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
               <p
                 className={cn(
                   displayFont,
-                  "max-w-[28ch] text-lg leading-snug text-ivory/90 md:text-xl lg:text-2xl"
+                  "max-w-[28ch] text-start text-lg leading-snug text-ivory/90 md:text-xl lg:text-2xl"
                 )}
               >
                 <WordReveal text={leadText} wordsRef={leadWordsRef} />
@@ -669,7 +702,7 @@ export function CustomDesignSection(props: CustomDesignSectionProps) {
             </div>
 
             <div ref={bodyWrapRef}>
-              <p className="max-w-[36ch] text-xs leading-relaxed text-ivory/65 md:text-sm">
+              <p className="max-w-[36ch] text-start text-xs leading-relaxed text-ivory/65 md:text-sm">
                 {bodyText}
               </p>
             </div>

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { HomeEditorialTile } from "@/components/home/HomeEditorialTile";
@@ -103,36 +103,49 @@ export function HomeVisualProductRunway({
     }
   };
 
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!scrollable || event.pointerType !== "mouse" || event.button !== 0) return;
-    event.preventDefault();
-    dragRef.current = {
+  const onMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!scrollable || event.button !== 0) return;
+    const scroller = event.currentTarget;
+    const start = {
       x: event.clientX,
-      scrollLeft: event.currentTarget.scrollLeft,
+      scrollLeft: scroller.scrollLeft,
     };
+    dragRef.current = start;
     draggedRef.current = false;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    const onWindowMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - start.x;
+      if (Math.abs(delta) > 4) draggedRef.current = true;
+      if (!draggedRef.current) return;
+      moveEvent.preventDefault();
+      scroller.scrollLeft =
+        start.scrollLeft - delta * (dir === "rtl" ? -1 : 1);
+    };
+    const onWindowUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onWindowMove);
+      window.removeEventListener("mouseup", onWindowUp);
+    };
+    window.addEventListener("mousemove", onWindowMove);
+    window.addEventListener("mouseup", onWindowUp);
   };
 
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onMouseMove = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (!dragRef.current) return;
     const delta = event.clientX - dragRef.current.x;
     if (Math.abs(delta) > 4) draggedRef.current = true;
     if (!draggedRef.current) return;
     event.preventDefault();
-    event.currentTarget.scrollLeft = dragRef.current.scrollLeft - delta;
+    event.currentTarget.scrollLeft =
+      dragRef.current.scrollLeft - delta * (dir === "rtl" ? -1 : 1);
   };
 
-  const stopPointerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (dragRef.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+  const stopMouseDrag = () => {
     dragRef.current = null;
   };
 
   if (tiles.length === 0) return null;
 
-  const showArrows = scrollable && (canPrev || canNext);
+  const showArrows = false;
   const label = t.home.visualRunwayLabel;
 
   return (
@@ -195,10 +208,10 @@ export function HomeVisualProductRunway({
           aria-label={label}
           tabIndex={0}
           onKeyDown={onKeyDown}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={stopPointerDrag}
-          onPointerCancel={stopPointerDrag}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={stopMouseDrag}
+          onMouseLeave={stopMouseDrag}
           onClickCapture={(event) => {
             if (!draggedRef.current) return;
             event.preventDefault();

@@ -283,3 +283,5 @@ export const WHATSAPP_MESSAGE =
 export const CUSTOM_DESIGN_BRIEF_KEY = "nadeen_custom_design_brief";
 /** Structured questionnaire fields for edit/restore */
 export const CUSTOM_DESIGN_DATA_KEY = "nadeen_custom_design_data";
+/** Session-scoped completion state for the homepage Custom Design scroll sequence */
+export const CUSTOM_DESIGN_COMPLETED_KEY = "custom-design-completed";
