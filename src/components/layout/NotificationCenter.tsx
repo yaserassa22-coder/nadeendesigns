@@ -327,20 +327,20 @@ export function NotificationCenter({ className }: { className?: string }) {
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative overflow-visible", className)}>
       <button
         type="button"
         onClick={() => {
           setOpen((o) => !o);
           void load();
         }}
-        className="relative inline-flex size-9 items-center justify-center rounded-full text-charcoal/80 transition-colors hover:text-gold sm:size-10 md:size-auto md:p-2"
+        className="relative inline-flex size-9 items-center justify-center overflow-visible rounded-full text-charcoal/80 transition-colors hover:text-gold sm:size-10 md:size-auto md:p-2"
         aria-label={t.notificationsUi.aria}
         aria-expanded={open}
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute top-0 end-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+          <span className="absolute -top-0.5 -end-0.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] leading-none text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         )}

@@ -261,8 +261,9 @@ export function Header({
           />
         </div>
 
-        <div className="z-10 ms-auto flex flex-nowrap items-center gap-0 lg:ms-0 lg:justify-self-end">
-          <div className="contents lg:hidden">{renderCart()}</div>
+        <div className="z-10 ms-auto flex flex-nowrap items-center gap-0 overflow-visible lg:ms-0 lg:justify-self-end">
+          <NotificationCenter className="shrink-0 md:hidden" />
+          <div className="lg:hidden">{renderCart()}</div>
           {menuButton}
         </div>
       </div>
@@ -409,12 +410,6 @@ export function Header({
                   <div className="mb-3 px-1">
                     <LanguageSwitcher variant="storefront" compact={false} />
                   </div>
-                  <div className="mb-2 flex items-center justify-between rounded-sm px-3 py-1 md:hidden">
-                    <span className="text-sm text-charcoal/85">
-                      {t.notificationsUi.title}
-                    </span>
-                    <NotificationCenter />
-                  </div>
                   <Link
                     href="/booking"
                     onClick={closeMenu}
@@ -555,13 +550,13 @@ function UtilityLink({
       href={href}
       aria-label={label}
       className={cn(
-        "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2 sm:size-10 md:size-auto md:p-2",
+        "relative inline-flex size-9 shrink-0 items-center justify-center overflow-visible rounded-full text-charcoal/75 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 focus-visible:ring-offset-2 sm:size-10 md:size-auto md:p-2",
         className
       )}
     >
       {children}
       {badge != null && badge > 0 ? (
-        <span className="absolute top-0 end-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] text-white">
+        <span className="absolute -top-0.5 -end-0.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] leading-none text-white">
           {badge > 99 ? "99+" : badge}
         </span>
       ) : null}
