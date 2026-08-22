@@ -19,6 +19,11 @@ import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { formatMessage } from "@/lib/i18n";
 import { bookingServiceOptions } from "@/lib/i18n/service-labels";
+import {
+  isStoreAppointmentInPast,
+  isStoreCalendarDateInPast,
+  storeTodayYmd,
+} from "@/lib/time/store-calendar";
 
 function createBookingSchema(t: ReturnType<typeof useLocale>["t"]) {
   return z
@@ -52,6 +57,22 @@ function createBookingSchema(t: ReturnType<typeof useLocale>["t"]) {
       notify_email: z.boolean(),
     })
     .superRefine((data, ctx) => {
+      if (isStoreCalendarDateInPast(data.date)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["date"],
+          message: t.booking.validation.dateInPast,
+        });
+      } else if (
+        data.time &&
+        isStoreAppointmentInPast(data.date, data.time)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["time"],
+          message: t.booking.validation.timeInPast,
+        });
+      }
       if (!data.notify_whatsapp && !data.notify_email) {
         ctx.addIssue({
           code: "custom",
@@ -138,6 +159,10 @@ export function BookingForm() {
   };
   const selectedDate = watch("date");
   const selectedTime = watch("time");
+  const minDate = storeTodayYmd();
+  const dateInPast = Boolean(
+    selectedDate && isStoreCalendarDateInPast(selectedDate)
+  );
 
   useEffect(() => {
     const noteParts: string[] = [];
@@ -168,8 +193,10 @@ export function BookingForm() {
   }, [setValue, getValues, serviceParam, defaultService, dressParam]);
 
   useEffect(() => {
-    if (!selectedDate) {
+    if (!selectedDate || dateInPast) {
       setSlots([]);
+      setShowWaitlist(false);
+      setSlotsLoading(false);
       return;
     }
     let cancelled = false;
@@ -185,7 +212,7 @@ export function BookingForm() {
         const list: SlotInfo[] = Array.isArray(d.slots) ? d.slots : [];
         setSlots(list);
         const anyOpen = list.some((s) => s.available);
-        setShowWaitlist(!anyOpen && list.length >= 0);
+        setShowWaitlist(!anyOpen && list.some((s) => !s.available));
       })
       .catch(() => {
         if (!cancelled) setSlots([]);
@@ -196,7 +223,7 @@ export function BookingForm() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, setValue]);
+  }, [selectedDate, dateInPast, setValue]);
 
   const applyApiFieldErrors = (fields?: ApiFieldError[], fallback?: string) => {
     clearErrors();
@@ -236,6 +263,10 @@ export function BookingForm() {
     const v = getValues();
     if (!v.name?.trim() || !v.phone?.trim()) {
       setError(t.booking.waitlistNeedContact);
+      return;
+    }
+    if (!v.date || isStoreCalendarDateInPast(v.date)) {
+      setError(t.booking.validation.dateInPast);
       return;
     }
     setWaitlistLoading(true);
@@ -293,6 +324,21 @@ export function BookingForm() {
         notify_email: data.notify_email,
         booking_source: "online",
       };
+
+      if (isStoreCalendarDateInPast(data.date)) {
+        setFormError("date", {
+          type: "validate",
+          message: t.booking.validation.dateInPast,
+        });
+        return;
+      }
+      if (isStoreAppointmentInPast(data.date, data.time)) {
+        setFormError("time", {
+          type: "validate",
+          message: t.booking.validation.timeInPast,
+        });
+        return;
+      }
 
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -420,6 +466,7 @@ export function BookingForm() {
         label={`${t.booking.date} *`}
         type="date"
         {...register("date")}
+        min={minDate}
         error={errors.date?.message}
       />
 
@@ -429,6 +476,10 @@ export function BookingForm() {
         </p>
         {!selectedDate ? (
           <p className="text-sm text-muted">{t.booking.pickDateFirst}</p>
+        ) : dateInPast ? (
+          <p className="text-sm text-red-600">
+            {t.booking.validation.dateInPast}
+          </p>
         ) : slotsLoading ? (
           <p className="text-sm text-muted">{t.booking.loadingSlots}</p>
         ) : slots.length === 0 ? (
@@ -473,7 +524,10 @@ export function BookingForm() {
         )}
       </div>
 
-      {(showWaitlist || (slots.length > 0 && !slots.some((s) => s.available))) && (
+      {(showWaitlist ||
+        (!dateInPast &&
+          slots.length > 0 &&
+          !slots.some((s) => s.available))) && (
         <div className="rounded-xl border border-beige-dark bg-beige/30 p-4 text-sm">
           <p className="text-charcoal">
             {t.booking.waitlistCta}

@@ -17,6 +17,10 @@ import {
   windowsOverlap,
 } from "@/lib/admin/appointment-conflicts";
 import { isMissingColumnError, isMissingTableError } from "@/lib/supabase/errors";
+import {
+  isStoreAppointmentInPast,
+  isStoreCalendarDateInPast,
+} from "@/lib/time/store-calendar";
 
 export type SlotInfo = {
   time: string;
@@ -76,11 +80,24 @@ export function generateDaySlots(params: {
   bufferAfter: number;
   bookings: ExistingBookingRow[];
   isSpecialDay: boolean;
+  now?: Date;
 }): SlotInfo[] {
-  const { date, settings, durationMinutes, bufferBefore, bufferAfter, bookings, isSpecialDay } =
-    params;
+  const {
+    date,
+    settings,
+    durationMinutes,
+    bufferBefore,
+    bufferAfter,
+    bookings,
+    isSpecialDay,
+    now = new Date(),
+  } = params;
 
   if (isSpecialDay) {
+    return [];
+  }
+
+  if (isStoreCalendarDateInPast(date, now)) {
     return [];
   }
 
@@ -99,6 +116,9 @@ export function generateDaySlots(params: {
 
   for (let t = open; t + duration <= close; t += interval) {
     const time = minutesToTime(t);
+    if (isStoreAppointmentInPast(date, time, now)) {
+      continue;
+    }
     if (
       isInBreak(t, duration, settings.lunch_break) ||
       isInBreak(t, duration, settings.prayer_break)

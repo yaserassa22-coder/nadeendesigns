@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import { onWaitlistJoined } from "@/lib/notifications/service";
+import { isStoreCalendarDateInPast } from "@/lib/time/store-calendar";
 
 const schema = z.object({
   name: z.string().trim().min(2, "الاسم مطلوب"),
@@ -24,7 +25,11 @@ const schema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional()
-    .nullable(),
+    .nullable()
+    .refine(
+      (value) => !value || !isStoreCalendarDateInPast(value),
+      "لا يمكن اختيار تاريخ في الماضي"
+    ),
   preferred_time: z.string().optional().nullable(),
   consultant_id: z.string().uuid().optional().nullable(),
   notes: z.string().optional().nullable(),

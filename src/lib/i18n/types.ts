@@ -522,7 +522,9 @@ export type Dictionary = {
       emailRequired: string;
       emailInvalid: string;
       dateRequired: string;
+      dateInPast: string;
       timeRequired: string;
+      timeInPast: string;
       serviceRequired: string;
       notifyChannelRequired: string;
       emailRequiredForEmailNotify: string;
@@ -666,6 +668,7 @@ export type Dictionary = {
     selectPlaceholder: string;
     fieldRequired: string;
     weddingDateRequired: string;
+    weddingDateInPast: string;
     dressType: string;
     silhouette: string;
     sleeves: string;

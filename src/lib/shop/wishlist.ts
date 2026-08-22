@@ -58,7 +58,14 @@ export function wishlistItemUnitPrice(
   };
 }
 
+export function wishlistItemIsAccessory(kind: string): boolean {
+  return (
+    kind === "accessory_item" || kind === "veil" || kind === "bridal_robe"
+  );
+}
+
 export function wishlistItemCanAddToCart(item: WishlistItem): boolean {
+  if (!wishlistItemIsAccessory(item.product_kind)) return false;
   if (wishlistKindToShopProductType(item.product_kind) == null) return false;
   if (item.commerce_type) {
     const action = getProductPrimaryAction(item.commerce_type);

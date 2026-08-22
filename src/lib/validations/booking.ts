@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  isStoreAppointmentInPast,
+  isStoreCalendarDateInPast,
+} from "@/lib/time/store-calendar";
 
 export const BOOKING_SERVICE_TYPES = [
   "wedding_dress",
@@ -122,6 +126,19 @@ export const bookingCreateSchema = z.object({
           path: ["notify_whatsapp"],
           message:
             "يرجى اختيار قناة واحدة على الأقل لاستلام التحديثات (WhatsApp أو Email)",
+        });
+      }
+      if (isStoreCalendarDateInPast(data.date)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["date"],
+          message: "لا يمكن اختيار تاريخ في الماضي",
+        });
+      } else if (isStoreAppointmentInPast(data.date, data.time)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["time"],
+          message: "لا يمكن اختيار وقت مضى",
         });
       }
     }

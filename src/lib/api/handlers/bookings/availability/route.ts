@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getAvailableSlots } from "@/lib/admin/appointment-slots";
+import { isStoreCalendarDateInPast } from "@/lib/time/store-calendar";
 
 /** Public: available slots for date (+ optional consultant / duration). */
 export async function GET(request: Request) {
@@ -15,6 +16,13 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { error: "التاريخ مطلوب بصيغة YYYY-MM-DD" },
       { status: 400 }
+    );
+  }
+
+  if (isStoreCalendarDateInPast(date)) {
+    return NextResponse.json(
+      { date, slots: [], past: true },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
     );
   }
 

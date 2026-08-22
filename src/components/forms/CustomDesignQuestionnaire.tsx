@@ -15,6 +15,10 @@ import {
 } from "@/lib/constants";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import type { Dictionary } from "@/lib/i18n/types";
+import {
+  isStoreCalendarDateInPast,
+  storeTodayYmd,
+} from "@/lib/time/store-calendar";
 
 /** Stored option values stay Arabic for draft/booking backward compatibility. */
 const DRESS_TYPE_VALUES = ["كلاسيكي", "عصري", "ملكي", "محتشم", "فاخر", "حسب رغبتي"] as const;
@@ -59,7 +63,10 @@ function createSchema(t: Dictionary["customization"]) {
     neckline: requiredSelect,
     fabric: requiredSelect,
     embellishment: requiredSelect,
-    wedding_date: z.string().min(1, t.weddingDateRequired),
+    wedding_date: z
+      .string()
+      .min(1, t.weddingDateRequired)
+      .refine((value) => !isStoreCalendarDateInPast(value), t.weddingDateInPast),
     budget: requiredSelect,
     details: z.string().optional(),
   });
@@ -233,7 +240,14 @@ export function CustomDesignQuestionnaire() {
         <Select label={c.neckline} options={[selectPlaceholder, ...necklines]} error={errors.neckline?.message} {...register("neckline")} />
         <Select label={c.fabric} options={[selectPlaceholder, ...fabrics]} error={errors.fabric?.message} {...register("fabric")} />
         <Select label={c.embellishment} options={[selectPlaceholder, ...embellishments]} error={errors.embellishment?.message} {...register("embellishment")} />
-        <Input label={c.weddingDate} type="date" error={errors.wedding_date?.message} {...register("wedding_date")} dir="ltr" />
+        <Input
+          label={c.weddingDate}
+          type="date"
+          error={errors.wedding_date?.message}
+          {...register("wedding_date")}
+          min={storeTodayYmd()}
+          dir="ltr"
+        />
         <Select label={c.budget} options={[selectPlaceholder, ...budgets]} error={errors.budget?.message} {...register("budget")} />
       </div>
       <div className="mt-6">

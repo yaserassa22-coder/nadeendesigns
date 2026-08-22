@@ -22,11 +22,13 @@ export function WishlistAddToCartButton({ item }: { item: WishlistItem }) {
   const canAdd = wishlistItemCanAddToCart(item);
   const label = t.wishlist.moveToCart;
 
+  if (!canAdd) return null;
+
   function handleClick() {
     setMessage("");
     const productType = wishlistKindToShopProductType(item.product_kind);
     const priced = wishlistItemUnitPrice(item);
-    if (!canAdd || !productType || !priced) {
+    if (!productType || !priced) {
       router.push(
         wishlistProductHref(item.product_kind, item.product_id, item.product_slug)
       );
