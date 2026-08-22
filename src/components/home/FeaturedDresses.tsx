@@ -78,6 +78,11 @@ export function FeaturedDresses({ dresses }: FeaturedDressesProps) {
                   productKind: "dress",
                   productId: dress.id,
                   productSlug: dress.id,
+                  price: dress.price,
+                  salePrice: dress.sale_price,
+                  nameAr: dress.name_ar,
+                  nameEn: dress.name_en,
+                  nameHe: dress.name_he,
                 }}
               />
             );

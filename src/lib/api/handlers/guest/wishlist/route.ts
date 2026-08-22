@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isMissingTableError } from "@/lib/supabase/errors";
+import { isMissingColumnError, isMissingTableError } from "@/lib/supabase/errors";
 import { getCustomerByAuthUserId } from "@/lib/customer-auth/customer";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import {
@@ -10,6 +10,7 @@ import {
   readGuestIdFromRequest,
   applyGuestCookie,
 } from "@/lib/guest";
+import { hydrateWishlistCartFields } from "@/lib/shop/hydrate-wishlist";
 
 async function resolveOwner(request: NextRequest) {
   const user = await getAuthenticatedUser().catch(() => null);
@@ -62,7 +63,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const res = NextResponse.json({ items: data ?? [], owner: owner.kind });
+  const hydrated = await hydrateWishlistCartFields(
+    (data ?? []) as import("@/lib/shop/wishlist").WishlistItem[]
+  );
+  const res = NextResponse.json({ items: hydrated, owner: owner.kind });
   if (owner.guestId) applyGuestCookie(res, owner.guestId, request.url);
   return res;
 }
@@ -84,6 +88,11 @@ export async function POST(request: NextRequest) {
     product_slug?: string;
     product_title?: string;
     product_image_url?: string;
+    price?: number | null;
+    sale_price?: number | null;
+    name_ar?: string | null;
+    name_en?: string | null;
+    name_he?: string | null;
   };
 
   if (!body.product_id) {
@@ -99,6 +108,11 @@ export async function POST(request: NextRequest) {
     product_slug: body.product_slug ?? null,
     product_title: body.product_title ?? null,
     product_image_url: body.product_image_url ?? null,
+    price: body.price ?? null,
+    sale_price: body.sale_price ?? null,
+    name_ar: body.name_ar ?? null,
+    name_en: body.name_en ?? null,
+    name_he: body.name_he ?? null,
   };
 
   if (owner.kind === "customer") {
@@ -159,8 +173,28 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+    if (isMissingColumnError(error)) {
+      const core = {
+        product_kind: row.product_kind,
+        product_id: row.product_id,
+        product_slug: row.product_slug,
+        product_title: row.product_title,
+        product_image_url: row.product_image_url,
+        customer_id: row.customer_id ?? null,
+        guest_id: row.guest_id ?? null,
+      };
+      const retry = await supabase
+        .from("wishlist_items")
+        .insert(core)
+        .select("*")
+        .single();
+      if (!retry.error) {
+        data = retry.data;
+        error = null;
+      }
+    }
     // Fallback insert without onConflict if unique constraint name mismatch
-    if (/on conflict|42P10|unique/i.test(error.message) && owner.kind === "customer") {
+    if (error && /on conflict|42P10|unique/i.test(error.message) && owner.kind === "customer") {
       const retry = await supabase
         .from("wishlist_items")
         .insert(row)
@@ -174,11 +208,18 @@ export async function POST(request: NextRequest) {
         return res;
       }
     }
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
   }
 
+  const [hydrated] = data
+    ? await hydrateWishlistCartFields([
+        data as import("@/lib/shop/wishlist").WishlistItem,
+      ])
+    : [data];
   const res = NextResponse.json({
-    item: data,
+    item: hydrated,
     message: "❤️ تمت الإضافة إلى قائمة الأمنيات",
     tip:
       owner.kind === "guest"

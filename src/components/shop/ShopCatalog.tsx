@@ -167,6 +167,11 @@ export function ShopCatalog({
                           productSlug={item.id}
                           productTitle={displayName}
                           productImageUrl={featuredImage(item.images)}
+                          price={item.price}
+                          salePrice={item.sale_price}
+                          nameAr={item.name_ar}
+                          nameEn={item.name_en}
+                          nameHe={item.name_he}
                         />
                       ),
                     }}

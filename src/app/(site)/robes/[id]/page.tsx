@@ -93,6 +93,11 @@ export default async function RobeDetailPage({ params }: Props) {
     productSlug: robe.id,
     productTitle: displayName,
     productImageUrl: featuredImage(robe.images),
+    price: robe.price,
+    salePrice: robe.sale_price,
+    nameAr: robe.name_ar,
+    nameEn: robe.name_en,
+    nameHe: robe.name_he,
   };
   const wishlistEnabled = isFeatureEnabled(
     experience.enabledFeatureIds,
@@ -148,7 +153,9 @@ export default async function RobeDetailPage({ params }: Props) {
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
               wishlist={
-                wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+                wishlistEnabled ? (
+                  <WishlistButton key="pdp-cta-wishlist" {...wishlistProps} />
+                ) : null
               }
             />
           ) : wishlistEnabled ? (

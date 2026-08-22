@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCustomerApi } from "@/lib/customer-auth/customer";
 import { isMissingTableError } from "@/lib/supabase/errors";
+import { hydrateWishlistCartFields } from "@/lib/shop/hydrate-wishlist";
 
 export async function GET() {
   const auth = await requireCustomerApi();
@@ -20,7 +21,11 @@ export async function GET() {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
-  return NextResponse.json({ items: data ?? [] });
+  return NextResponse.json({
+    items: await hydrateWishlistCartFields(
+      (data ?? []) as import("@/lib/shop/wishlist").WishlistItem[]
+    ),
+  });
 }
 
 export async function POST(request: NextRequest) {

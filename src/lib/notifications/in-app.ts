@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { isMissingColumnError } from "@/lib/supabase/errors";
 import { customerKeyFromContact } from "@/lib/customer-auth/otp";
 import {
   bookingNotificationKeys,
@@ -335,7 +336,7 @@ export async function listInAppNotifications(params: {
         q = q.in("customer_key", keys);
       }
 
-      return q;
+      return q.not("is_deleted", "eq", true);
     };
 
     if (!params.orderId && keys.length === 0) return [];
@@ -444,5 +445,176 @@ export async function markAllInAppReadForOrder(
       .eq("is_read", false);
   } catch (e) {
     console.error("[customer_notifications] mark all failed", e);
+  }
+}
+
+function notificationEventSig(n: {
+  title_ar: string;
+  body_ar: string;
+  order_status: string | null;
+}): string {
+  return `${n.title_ar}|${n.order_status ?? ""}|${n.body_ar.slice(0, 80)}`;
+}
+
+async function persistNotificationClear(
+  execute: (
+    action: "soft" | "hard"
+  ) => PromiseLike<{ error: { message?: string } | null }>
+): Promise<void> {
+  const soft = await execute("soft");
+  if (soft.error && isMissingColumnError(soft.error, "is_deleted")) {
+    await execute("hard");
+    return;
+  }
+  if (soft.error) {
+    console.error("[customer_notifications] clear failed", soft.error);
+  }
+}
+
+/**
+ * Soft-delete in-app rows (`is_deleted`). Falls back to hard delete if the
+ * lifecycle column is not applied yet. Duplicate booking copies that share
+ * the same event title under the same keys / order are cleared together.
+ */
+export async function clearInAppNotifications(input: {
+  ids?: string[];
+  clearAll?: boolean;
+  orderId?: string | null;
+  customerKeys?: string[];
+}): Promise<boolean> {
+  const ids = [
+    ...new Set((input.ids ?? []).map((id) => id.trim()).filter(Boolean)),
+  ];
+  const keys = [
+    ...new Set((input.customerKeys ?? []).map((k) => k.trim()).filter(Boolean)),
+  ];
+  const orderId = input.orderId?.trim() || null;
+  const clearAll = Boolean(input.clearAll);
+
+  if (!clearAll && ids.length === 0) return false;
+
+  const sigs = new Set<string>();
+  for (const n of memoryInbox) {
+    if (ids.includes(n.id)) sigs.add(notificationEventSig(n));
+  }
+  for (let i = memoryInbox.length - 1; i >= 0; i--) {
+    const n = memoryInbox[i];
+    const idMatch = ids.includes(n.id);
+    const keyMatch = Boolean(n.customer_key && keys.includes(n.customer_key));
+    const orderMatch = Boolean(orderId && n.order_id === orderId);
+    const sigMatch =
+      sigs.has(notificationEventSig(n)) && (keyMatch || orderMatch || idMatch);
+    if (clearAll && (idMatch || keyMatch || orderMatch)) {
+      memoryInbox.splice(i, 1);
+      continue;
+    }
+    if (!clearAll && (idMatch || sigMatch)) {
+      memoryInbox.splice(i, 1);
+    }
+  }
+
+  if (!isSupabaseConfigured()) return true;
+
+  try {
+    const supabase = createAdminClient();
+
+    if (clearAll) {
+      if (ids.length) {
+        await persistNotificationClear((action) =>
+          action === "soft"
+            ? supabase
+                .from("customer_notifications")
+                .update({ is_deleted: true })
+                .in("id", ids)
+            : supabase.from("customer_notifications").delete().in("id", ids)
+        );
+      }
+      if (orderId) {
+        await persistNotificationClear((action) =>
+          action === "soft"
+            ? supabase
+                .from("customer_notifications")
+                .update({ is_deleted: true })
+                .eq("order_id", orderId)
+            : supabase
+                .from("customer_notifications")
+                .delete()
+                .eq("order_id", orderId)
+        );
+      }
+      if (keys.length) {
+        await persistNotificationClear((action) =>
+          action === "soft"
+            ? supabase
+                .from("customer_notifications")
+                .update({ is_deleted: true })
+                .in("customer_key", keys)
+            : supabase
+                .from("customer_notifications")
+                .delete()
+                .in("customer_key", keys)
+        );
+      }
+      return true;
+    }
+
+    const { data: rows } = await supabase
+      .from("customer_notifications")
+      .select("id, title_ar, body_ar, order_status, order_id, customer_key")
+      .in("id", ids);
+
+    await persistNotificationClear((action) =>
+      action === "soft"
+        ? supabase
+            .from("customer_notifications")
+            .update({ is_deleted: true })
+            .in("id", ids)
+        : supabase.from("customer_notifications").delete().in("id", ids)
+    );
+
+    const seenSig = new Set<string>();
+    for (const row of (rows ?? []) as Array<{
+      title_ar: string;
+      body_ar: string;
+      order_status: string | null;
+      order_id: string | null;
+      customer_key: string | null;
+    }>) {
+      const sig = notificationEventSig(row);
+      if (seenSig.has(sig)) continue;
+      seenSig.add(sig);
+      const scopedKeys = [
+        ...keys,
+        ...(row.customer_key ? [row.customer_key] : []),
+      ];
+      if (row.order_id) {
+        await persistNotificationClear((action) => {
+          const q =
+            action === "soft"
+              ? supabase
+                  .from("customer_notifications")
+                  .update({ is_deleted: true })
+              : supabase.from("customer_notifications").delete();
+          return q.eq("order_id", row.order_id!).eq("title_ar", row.title_ar);
+        });
+      }
+      if (scopedKeys.length) {
+        await persistNotificationClear((action) => {
+          const q =
+            action === "soft"
+              ? supabase
+                  .from("customer_notifications")
+                  .update({ is_deleted: true })
+              : supabase.from("customer_notifications").delete();
+          return q
+            .in("customer_key", [...new Set(scopedKeys)])
+            .eq("title_ar", row.title_ar);
+        });
+      }
+    }
+    return true;
+  } catch (e) {
+    console.error("[customer_notifications] clear error", e);
+    return false;
   }
 }

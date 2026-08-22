@@ -22,6 +22,11 @@ export type WishlistToggleInput = {
   productSlug?: string | null;
   productTitle?: string | null;
   productImageUrl?: string | null;
+  price?: number | null;
+  salePrice?: number | null;
+  nameAr?: string | null;
+  nameEn?: string | null;
+  nameHe?: string | null;
 };
 
 type WishlistContextValue = {
@@ -189,6 +194,11 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         product_slug: input.productSlug ?? null,
         product_title: input.productTitle ?? null,
         product_image_url: input.productImageUrl ?? null,
+        price: input.price ?? null,
+        sale_price: input.salePrice ?? null,
+        name_ar: input.nameAr ?? null,
+        name_en: input.nameEn ?? null,
+        name_he: input.nameHe ?? null,
       };
       const prev = items;
       setItems((cur) => {
@@ -217,6 +227,11 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
             product_slug: input.productSlug ?? null,
             product_title: input.productTitle ?? null,
             product_image_url: input.productImageUrl ?? null,
+            price: input.price ?? null,
+            sale_price: input.salePrice ?? null,
+            name_ar: input.nameAr ?? null,
+            name_en: input.nameEn ?? null,
+            name_he: input.nameHe ?? null,
           }),
         });
         const data = (await res.json().catch(() => ({}))) as {
@@ -238,7 +253,15 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                   i.product_id === input.productId
                 )
             );
-            const next = [data.item!, ...withoutTmp];
+            const saved: WishlistItem = {
+              ...data.item!,
+              price: data.item!.price ?? optimistic.price,
+              sale_price: data.item!.sale_price ?? optimistic.sale_price,
+              name_ar: data.item!.name_ar ?? optimistic.name_ar,
+              name_en: data.item!.name_en ?? optimistic.name_en,
+              name_he: data.item!.name_he ?? optimistic.name_he,
+            };
+            const next = [saved, ...withoutTmp];
             writeLocalCache(next);
             return next;
           });

@@ -58,6 +58,11 @@ export function DressCard({
       productSlug={dress.id}
       productTitle={displayName}
       productImageUrl={cover}
+      price={dress.price}
+      salePrice={dress.sale_price}
+      nameAr={dress.name_ar}
+      nameEn={dress.name_en}
+      nameHe={dress.name_he}
     />
   );
 

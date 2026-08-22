@@ -92,6 +92,11 @@ export default async function VeilDetailPage({ params }: Props) {
     productSlug: veil.id,
     productTitle: displayName,
     productImageUrl: featuredImage(veil.images),
+    price: veil.price,
+    salePrice: veil.sale_price,
+    nameAr: veil.name_ar,
+    nameEn: veil.name_en,
+    nameHe: veil.name_he,
   };
   const wishlistEnabled = isFeatureEnabled(
     experience.enabledFeatureIds,
@@ -146,7 +151,9 @@ export default async function VeilDetailPage({ params }: Props) {
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
               wishlist={
-                wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+                wishlistEnabled ? (
+                  <WishlistButton key="pdp-cta-wishlist" {...wishlistProps} />
+                ) : null
               }
             />
           ) : wishlistEnabled ? (

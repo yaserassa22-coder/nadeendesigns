@@ -140,6 +140,11 @@ export async function getHomepageCollectionRails(
       productKind: "veil" as const,
       productId: v.id,
       productSlug: v.id,
+      price: v.price,
+      salePrice: v.sale_price,
+      nameAr: v.name_ar,
+      nameEn: v.name_en,
+      nameHe: v.name_he,
     },
   }));
 
@@ -156,6 +161,11 @@ export async function getHomepageCollectionRails(
       productKind: "bridal_robe" as const,
       productId: r.id,
       productSlug: r.id,
+      price: r.price,
+      salePrice: r.sale_price,
+      nameAr: r.name_ar,
+      nameEn: r.name_en,
+      nameHe: r.name_he,
     },
   }));
 
@@ -187,6 +197,11 @@ export async function getHomepageCollectionRails(
             productKind: "dress",
             productId: d.id,
             productSlug: d.id,
+            price: d.price,
+            salePrice: d.sale_price,
+            nameAr: d.name_ar,
+            nameEn: d.name_en,
+            nameHe: d.name_he,
           },
         })),
         PER_SECTION

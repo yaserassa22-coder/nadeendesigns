@@ -18,6 +18,11 @@ type HomeProductTileProps = {
     productKind: string;
     productId: string;
     productSlug?: string;
+    price?: number | null;
+    salePrice?: number | null;
+    nameAr?: string | null;
+    nameEn?: string | null;
+    nameHe?: string | null;
   };
 };
 
@@ -78,6 +83,11 @@ export function HomeProductTile({
             productSlug={wishlist.productSlug ?? wishlist.productId}
             productTitle={title}
             productImageUrl={cover || undefined}
+            price={wishlist.price}
+            salePrice={wishlist.salePrice}
+            nameAr={wishlist.nameAr}
+            nameEn={wishlist.nameEn}
+            nameHe={wishlist.nameHe}
           />
         </div>
       ) : null}

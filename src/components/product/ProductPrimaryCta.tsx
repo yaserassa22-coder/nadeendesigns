@@ -233,7 +233,9 @@ export function ProductPrimaryCta({
           : "flex w-full flex-wrap items-center gap-3"
       }
     >
-      {showWishlist}
+      {showWishlist ? (
+        <div className="shrink-0">{showWishlist}</div>
+      ) : null}
       <Link href={href} className="min-w-0 flex-1 sm:flex-none">
         <Button
           size={size}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { useCustomerAuth } from "@/components/auth/CustomerAuthProvider";
 import { bookingNotificationKeys } from "@/lib/notifications/customer-keys";
 import type { CustomerNotification } from "@/lib/notifications/customer-keys";
@@ -217,6 +217,32 @@ export function NotificationCenter({ className }: { className?: string }) {
     };
   }, [load, authLoading]);
 
+  const lookupPayload = useCallback(() => {
+    const orderMeta = readLastOrderMeta();
+    const bookingMeta = readLastBookingMeta();
+    const keys = bookingNotificationKeys({
+      phone: customer?.phone || bookingMeta.phone || orderMeta.phone,
+      email: customer?.email || bookingMeta.email || orderMeta.email,
+      customerKey:
+        customer?.customer_key ||
+        bookingMeta.customerKey ||
+        orderMeta.customerKey,
+    });
+    if (bookingMeta.bookingId) {
+      keys.push(`booking:${bookingMeta.bookingId}`);
+    }
+    return {
+      orderId: orderMeta.orderId,
+      keys: keys.join(","),
+      phone: customer?.phone || bookingMeta.phone || orderMeta.phone,
+      email: customer?.email || bookingMeta.email || orderMeta.email,
+      customerKey:
+        customer?.customer_key ||
+        bookingMeta.customerKey ||
+        orderMeta.customerKey,
+    };
+  }, [customer]);
+
   const markRead = async (id: string) => {
     setItems((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
@@ -243,6 +269,61 @@ export function NotificationCenter({ className }: { className?: string }) {
         })
       )
     );
+  };
+
+  const clearOne = async (id: string) => {
+    const prev = items;
+    const next = items.filter((n) => n.id !== id);
+    setItems(next);
+    setUnread(next.filter((n) => !n.is_read).length);
+    const payload = { id, ...lookupPayload() };
+    const endpoints = customer
+      ? ["/api/account/notifications", "/api/notifications/customer"]
+      : ["/api/notifications/customer"];
+    const results = await Promise.all(
+      endpoints.map((url) =>
+        fetch(url, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        })
+      )
+    );
+    if (results.every((res) => !res.ok)) {
+      setItems(prev);
+      setUnread(prev.filter((n) => !n.is_read).length);
+    }
+  };
+
+  const clearAll = async () => {
+    if (!items.length) return;
+    const prev = items;
+    const ids = items.map((n) => n.id);
+    setItems([]);
+    setUnread(0);
+    const payload = {
+      clearAll: true,
+      ids,
+      ...lookupPayload(),
+    };
+    const endpoints = customer
+      ? ["/api/account/notifications", "/api/notifications/customer"]
+      : ["/api/notifications/customer"];
+    const results = await Promise.all(
+      endpoints.map((url) =>
+        fetch(url, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        })
+      )
+    );
+    if (results.every((res) => !res.ok)) {
+      setItems(prev);
+      setUnread(prev.filter((n) => !n.is_read).length);
+    }
   };
 
   return (
@@ -274,19 +355,30 @@ export function NotificationCenter({ className }: { className?: string }) {
             onClick={() => setOpen(false)}
           />
           <div className="absolute top-full end-0 z-50 mt-2 w-[min(92vw,22rem)] overflow-hidden rounded-2xl border border-beige-dark bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-beige-dark px-4 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-beige-dark px-4 py-3">
               <p className="text-sm font-semibold text-charcoal">
                 {t.notificationsUi.title}
               </p>
-              {unread > 0 && (
-                <button
-                  type="button"
-                  onClick={() => void markAll()}
-                  className="text-xs text-gold hover:underline"
-                >
-                  {t.notificationsUi.markAllRead}
-                </button>
-              )}
+              <div className="flex shrink-0 items-center gap-3">
+                {unread > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void markAll()}
+                    className="text-xs text-gold hover:underline"
+                  >
+                    {t.notificationsUi.markAllRead}
+                  </button>
+                ) : null}
+                {items.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void clearAll()}
+                    className="text-xs text-muted hover:text-charcoal hover:underline"
+                  >
+                    {t.notificationsUi.clearAll}
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div className="max-h-80 overflow-y-auto">
               {items.length === 0 ? (
@@ -295,37 +387,54 @@ export function NotificationCenter({ className }: { className?: string }) {
                 </p>
               ) : (
                 items.map((n) => (
-                  <Link
+                  <div
                     key={n.id}
-                    href={
-                      n.href ||
-                      (n.order_id
-                        ? `/orders/${n.order_id}`
-                        : customer
-                          ? "/account/notifications"
-                          : "/booking")
-                    }
-                    onClick={() => {
-                      if (!n.is_read) void markRead(n.id);
-                      setOpen(false);
-                    }}
                     className={cn(
-                      "block border-b border-beige-dark/60 px-4 py-3 transition hover:bg-beige/40",
+                      "relative border-b border-beige-dark/60 transition hover:bg-beige/40",
                       !n.is_read && "bg-gold/5"
                     )}
                   >
-                    <p className="text-sm font-medium text-charcoal">
-                      {n.title_ar}
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted">
-                      {n.body_ar}
-                    </p>
-                    {n.created_at && (
-                      <p className="mt-1 text-[11px] text-muted/80">
-                        {formatDate(n.created_at)}
+                    <Link
+                      href={
+                        n.href ||
+                        (n.order_id
+                          ? `/orders/${n.order_id}`
+                          : customer
+                            ? "/account/notifications"
+                            : "/booking")
+                      }
+                      onClick={() => {
+                        if (!n.is_read) void markRead(n.id);
+                        setOpen(false);
+                      }}
+                      className="block py-3 pe-10 ps-4"
+                    >
+                      <p className="text-sm font-medium text-charcoal">
+                        {n.title_ar}
                       </p>
-                    )}
-                  </Link>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">
+                        {n.body_ar}
+                      </p>
+                      {n.created_at && (
+                        <p className="mt-1 text-[11px] text-muted/80">
+                          {formatDate(n.created_at)}
+                        </p>
+                      )}
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label={t.notificationsUi.clearAria}
+                      title={t.notificationsUi.clear}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void clearOne(n.id);
+                      }}
+                      className="absolute end-2 top-2.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-muted transition hover:bg-beige hover:text-charcoal"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 ))
               )}
             </div>

@@ -95,6 +95,11 @@ export default async function DressDetailPage({ params }: Props) {
     productSlug: dress.id,
     productTitle: displayName,
     productImageUrl: featuredImage(dress.images),
+    price: dress.price,
+    salePrice: dress.sale_price,
+    nameAr: dress.name_ar,
+    nameEn: dress.name_en,
+    nameHe: dress.name_he,
   };
   const wishlistEnabled = isFeatureEnabled(
     experience.enabledFeatureIds,
@@ -127,7 +132,9 @@ export default async function DressDetailPage({ params }: Props) {
         availabilityLabel={availability.label}
         isFeatured={dress.is_featured}
         galleryWishlist={
-          wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+          wishlistEnabled ? (
+            <WishlistButton key="pdp-gallery-wishlist" {...wishlistProps} />
+          ) : null
         }
         metaItems={[
           ...(dress.style
@@ -176,7 +183,9 @@ export default async function DressDetailPage({ params }: Props) {
             sections={experience.sections}
             featuresConfig={experience.featuresConfig}
             wishlist={
-              wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+              wishlistEnabled ? (
+                <WishlistButton key="pdp-cta-wishlist" {...wishlistProps} />
+              ) : null
             }
             bookingHref={
               primaryAction.kind === "book_now"

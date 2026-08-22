@@ -12,6 +12,11 @@ type Props = {
   productSlug?: string | null;
   productTitle?: string | null;
   productImageUrl?: string | null;
+  price?: number | null;
+  salePrice?: number | null;
+  nameAr?: string | null;
+  nameEn?: string | null;
+  nameHe?: string | null;
   className?: string;
   /** Full PDP control vs compact card heart */
   variant?: "button" | "icon";
@@ -23,6 +28,11 @@ export function WishlistButton({
   productSlug,
   productTitle,
   productImageUrl,
+  price,
+  salePrice,
+  nameAr,
+  nameEn,
+  nameHe,
   className,
   variant = "button",
 }: Props) {
@@ -45,6 +55,11 @@ export function WishlistButton({
         productSlug,
         productTitle,
         productImageUrl,
+        price,
+        salePrice,
+        nameAr,
+        nameEn,
+        nameHe,
       });
       if (variant === "button") {
         setHint(

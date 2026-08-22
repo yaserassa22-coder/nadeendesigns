@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { useWishlist } from "@/components/shop/WishlistProvider";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { formatMessage } from "@/lib/i18n";
+import { WishlistAddToCartButton } from "@/components/shop/WishlistAddToCartButton";
 import {
   wishlistKindLabel,
   wishlistProductHref,
@@ -85,22 +86,25 @@ export function WishlistPage() {
                       <p className="mt-1 text-xs text-muted">
                         {wishlistKindLabel(item.product_kind, t.cart)}
                       </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void remove({
-                            id: item.id.startsWith("tmp-")
-                              ? undefined
-                              : item.id,
-                            productKind: item.product_kind,
-                            productId: item.product_id,
-                          })
-                        }
-                        className="mt-3 inline-flex items-center gap-1 text-xs text-red-700/80 hover:underline"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        {t.wishlist.remove}
-                      </button>
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <WishlistAddToCartButton item={item} />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void remove({
+                              id: item.id.startsWith("tmp-")
+                                ? undefined
+                                : item.id,
+                              productKind: item.product_kind,
+                              productId: item.product_id,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-xs text-red-700/80 hover:underline"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          {t.wishlist.remove}
+                        </button>
+                      </div>
                     </div>
                   </li>
                 );

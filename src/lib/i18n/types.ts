@@ -964,6 +964,9 @@ export type Dictionary = {
     title: string;
     aria: string;
     markAllRead: string;
+    clear: string;
+    clearAll: string;
+    clearAria: string;
     empty: string;
     emptyHint: string;
     viewAll: string;

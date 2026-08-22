@@ -12,6 +12,11 @@ export type HomeCollectionItem = {
     productKind: string;
     productId: string;
     productSlug?: string;
+    price?: number | null;
+    salePrice?: number | null;
+    nameAr?: string | null;
+    nameEn?: string | null;
+    nameHe?: string | null;
   };
 };
 

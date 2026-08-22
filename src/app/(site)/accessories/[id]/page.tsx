@@ -98,6 +98,11 @@ export default async function AccessoryItemDetailPage({ params }: Props) {
     productSlug: item.id,
     productTitle: displayName,
     productImageUrl: featuredImage(item.images),
+    price: item.price,
+    salePrice: item.sale_price,
+    nameAr: item.name_ar,
+    nameEn: item.name_en,
+    nameHe: item.name_he,
   };
   const wishlistEnabled = isFeatureEnabled(
     experience.enabledFeatureIds,
@@ -151,7 +156,9 @@ export default async function AccessoryItemDetailPage({ params }: Props) {
               sections={experience.sections}
               featuresConfig={experience.featuresConfig}
               wishlist={
-                wishlistEnabled ? <WishlistButton {...wishlistProps} /> : null
+                wishlistEnabled ? (
+                  <WishlistButton key="pdp-cta-wishlist" {...wishlistProps} />
+                ) : null
               }
             />
           ) : wishlistEnabled ? (

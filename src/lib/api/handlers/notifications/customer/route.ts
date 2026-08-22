@@ -3,6 +3,7 @@ import {
   listInAppNotifications,
   markAllInAppReadForOrder,
   markInAppNotificationRead,
+  clearInAppNotifications,
 } from "@/lib/notifications/in-app";
 import { bookingNotificationKeys } from "@/lib/notifications/customer-keys";
 
@@ -74,6 +75,58 @@ export async function PATCH(request: Request) {
     const ok = await markInAppNotificationRead(body.id);
     if (!ok) {
       return NextResponse.json({ error: "تعذّر تحديث الإشعار" }, { status: 400 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "خطأ" },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const body = (await request.json().catch(() => ({}))) as {
+      id?: string;
+      ids?: string[];
+      clearAll?: boolean;
+      orderId?: string;
+      customerKey?: string;
+      phone?: string;
+      email?: string;
+      keys?: string;
+    };
+
+    const keys = bookingNotificationKeys({
+      phone: body.phone,
+      email: body.email,
+      customerKey: body.customerKey,
+    });
+    if (body.keys) {
+      for (const k of body.keys.split(",")) {
+        const t = k.trim();
+        if (t && !keys.includes(t)) keys.push(t);
+      }
+    }
+
+    const ids = [
+      ...(body.ids ?? []),
+      ...(body.id ? [body.id] : []),
+    ].filter(Boolean);
+
+    if (!body.clearAll && ids.length === 0) {
+      return NextResponse.json({ error: "معرّف الإشعار مطلوب" }, { status: 400 });
+    }
+
+    const ok = await clearInAppNotifications({
+      ids,
+      clearAll: Boolean(body.clearAll),
+      orderId: body.orderId ?? null,
+      customerKeys: keys,
+    });
+    if (!ok) {
+      return NextResponse.json({ error: "تعذّر مسح الإشعار" }, { status: 400 });
     }
     return NextResponse.json({ success: true });
   } catch (e) {
